@@ -120,3 +120,37 @@
     @apply bg-background text-foreground;
   }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Real phone action boxes, not padded parents or unpainted hit-area claims. */
+@media (max-width: 767px) {
+  :is(button, a[href], summary, select, textarea, input:not([type="hidden"]), [role="button"], [role="checkbox"], [role="radio"], [role="option"], [role^="menuitem"], [role="tab"]) {
+    min-width: 48px !important;
+    min-height: 48px !important;
+    flex-shrink: 0;
+    scroll-margin-block: 5rem;
+  }
+  a[href] { align-items: center; max-width: 100%; }
+  button { white-space: normal; max-width: 100%; }
+  a[href]:not(.hidden) { display: inline-flex; }
+  :is(input[type="checkbox"], input[type="radio"]) {
+    width: 48px;
+    height: 48px;
+    margin-top: 0;
+    flex-shrink: 0;
+    accent-color: var(--primary);
+  }
+  input[type="password"] { padding-inline-end: 52px; }
+  button.rounded-full { min-width: 72px !important; }
+  :is([role="option"], [role^="menuitem"]) { padding-block: 12px; }
+  :is(input, select, textarea) { font-size: 16px; max-width: 100%; }
+  :is([role="dialog"], main, form, fieldset) { min-width: 0; }
+}
+

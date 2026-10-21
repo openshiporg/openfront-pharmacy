@@ -431,12 +431,12 @@ const MultipleSelector = ({
     >
       <div
         className={cn(
-          "border-input focus-within:border-ring focus-within:ring-ring/50 has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40 has-aria-invalid:border-destructive relative min-h-[38px] rounded-md border text-base transition-[color,box-shadow] outline-none focus-within:ring-[3px] has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 shadow-xs",
+          "border-input focus-within:border-ring focus-within:ring-ring/50 has-aria-invalid:ring-destructive/20 dark:has-aria-invalid:ring-destructive/40 has-aria-invalid:border-destructive relative min-h-11 sm:min-h-[38px] rounded-md border text-base transition-[color,box-shadow] outline-none focus-within:ring-[3px] has-disabled:pointer-events-none has-disabled:cursor-not-allowed has-disabled:opacity-50 shadow-xs",
           {
             "p-1": selected.length !== 0,
             "cursor-text": !disabled && selected.length !== 0,
           },
-          !hideClearAllButton && "pe-9",
+          !hideClearAllButton && "pe-12 sm:pe-9",
           className
         )}
         onClick={() => {
@@ -450,7 +450,7 @@ const MultipleSelector = ({
               <div
                 key={option.value}
                 className={cn(
-                  "animate-fadeIn bg-background text-secondary-foreground relative inline-flex h-7 cursor-default items-center rounded-md border ps-2 pe-7 text-xs font-medium transition-all disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 max-w-full",
+                  "animate-fadeIn bg-background text-secondary-foreground relative inline-flex h-11 sm:h-7 cursor-default items-center rounded-md border ps-2 pe-12 sm:pe-7 text-xs font-medium transition-all disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 max-w-full",
                   badgeClassName
                 )}
                 data-fixed={option.fixed}
@@ -459,18 +459,14 @@ const MultipleSelector = ({
                 <span className="overflow-hidden text-ellipsis whitespace-nowrap max-w-[200px]">{option.label}</span>
                 {!disabled && !option.fixed && (
                   <button
-                    className="text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute -inset-y-px -end-px flex size-7 items-center justify-center rounded-e-md border border-transparent p-0 outline-hidden transition-[color,box-shadow] outline-none focus-visible:ring-[3px]"
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        handleUnselect(option)
-                      }
-                    }}
+                    type="button"
+                    className="text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute inset-y-0 end-0 flex size-11 sm:size-7 items-center justify-center rounded-e-md border border-transparent p-0 outline-hidden transition-[color,box-shadow] outline-none focus-visible:ring-[3px]"
                     onMouseDown={(e) => {
                       e.preventDefault()
                       e.stopPropagation()
                     }}
-                    onClick={() => handleUnselect(option)}
-                    aria-label="Remove"
+                    onClick={(event) => { event.stopPropagation(); handleUnselect(option) }}
+                    aria-label={`Remove ${option.label}`}
                   >
                     <XIcon size={14} aria-hidden="true" />
                   </button>
@@ -523,7 +519,7 @@ const MultipleSelector = ({
               onChange?.(selected.filter((s) => s.fixed))
             }}
             className={cn(
-              "text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute end-0 top-0 flex size-9 items-center justify-center rounded-md border border-transparent transition-[color,box-shadow] outline-none focus-visible:ring-[3px]",
+              "text-muted-foreground/80 hover:text-foreground focus-visible:border-ring focus-visible:ring-ring/50 absolute end-0 top-0 flex size-11 sm:size-9 items-center justify-center rounded-md border border-transparent transition-[color,box-shadow] outline-none focus-visible:ring-[3px]",
               (hideClearAllButton ||
                 disabled ||
                 selected.length < 1 ||

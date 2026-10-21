@@ -1,0 +1,281 @@
+{
+  "organization": {
+    "name": "Cedar & Elm Community Pharmacy",
+    "slug": "cedar-elm-community-pharmacy",
+    "storefrontKey": "cedar-elm",
+    "operatorDisplayName": "Cedar & Elm Pharmacy",
+    "operatorTagline": "Care, close to home",
+    "brandPrimaryColor": "#18352b",
+    "brandAccentColor": "#8ec9ad",
+    "logoIcon": "<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" height=\"100%\" width=\"100%\" viewBox=\"0 0 42 48\"><path fill=\"#155eef\" fill-rule=\"evenodd\" d=\"m22.102 20.86 9.9-9.9L29.88 8.84l-7.339 7.339V3h-3v13.178l-7.339-7.34-2.121 2.122 9.9 9.9 1.06 1.06zm2.12 2.121 9.9-9.9 2.121 2.122-7.339 7.339H42v3H28.904l7.34 7.339L34.121 35l-9.9-9.899-1.06-1.06zM7.96 35.001l9.9-9.899 1.06-1.06-1.06-1.061-9.9-9.9-2.121 2.122 7.339 7.339H.002v3h13.176l-7.34 7.339zm12.02-7.777-9.9 9.9 2.122 2.12 7.339-7.338V45h3V31.906l7.339 7.338L32 37.124l-9.9-9.9-1.06-1.061z\" clip-rule=\"evenodd\"/></svg>",
+    "logoColor": "314",
+    "supportEmail": "care@cedarelmpharmacy.com",
+    "supportPhone": "(212) 555-0142"
+  },
+  "cashPolicy": {
+    "taxRateBps": 0,
+    "policyReference": "Standard cash policy"
+  },
+  "location": {
+    "name": "Cedar & Elm — Main Street",
+    "code": "CEDAR-ELM-MAIN-001",
+    "timezone": "America/New_York",
+    "phone": "(212) 555-0142",
+    "address": {
+      "line1": "100 Main Street",
+      "city": "New York",
+      "region": "NY",
+      "postalCode": "10001",
+      "countryCode": "US"
+    }
+  },
+  "paymentProviders": [
+    {
+      "profile": "full",
+      "name": "Stripe",
+      "code": "pp_stripe_stripe",
+      "isInstalled": false,
+      "createPaymentFunction": "stripe",
+      "capturePaymentFunction": "stripe",
+      "refundPaymentFunction": "stripe",
+      "getPaymentStatusFunction": "stripe",
+      "generatePaymentLinkFunction": "stripe",
+      "handleWebhookFunction": "stripe"
+    },
+    {
+      "profile": "minimal",
+      "name": "Pay at pickup",
+      "code": "pp_system_default",
+      "isInstalled": true,
+      "createPaymentFunction": "manual",
+      "capturePaymentFunction": "manual",
+      "refundPaymentFunction": "manual",
+      "getPaymentStatusFunction": "manual",
+      "generatePaymentLinkFunction": "manual",
+      "handleWebhookFunction": "manual"
+    }
+  ],
+  "integrationProviders": [
+    {
+      "code": "int_erx",
+      "name": "eRx",
+      "providerType": "erx"
+    },
+    {
+      "code": "int_wholesaler",
+      "name": "Wholesaler",
+      "providerType": "wholesaler"
+    },
+    {
+      "code": "int_insurance",
+      "name": "Insurance",
+      "providerType": "insurance"
+    },
+    {
+      "code": "int_tax",
+      "name": "Tax",
+      "providerType": "tax"
+    }
+  ],
+  "suppliers": [
+    {
+      "profile": "minimal",
+      "name": "Northeast Pharmaceutical Supply",
+      "accountReference": "NPS-20418",
+      "status": "active"
+    },
+    {
+      "profile": "full",
+      "name": "Harbor Medical Distributors",
+      "accountReference": "HMD-7731",
+      "status": "active"
+    }
+  ],
+  "drugReferences": [],
+  "products": [
+    {
+      "profile": "minimal",
+      "title": "Pain Relief Tablets",
+      "handle": "pain-relief-tablets",
+      "sku": "OTC-PAIN-001",
+      "description": "500 mg acetaminophen tablets for temporary relief of minor aches and fever. 100 count.",
+      "category": "otc_medication",
+      "prescriptionRequirement": "none",
+      "priceAmount": 899,
+      "imageUrl": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "profile": "minimal",
+      "title": "24-Hour Allergy Relief",
+      "handle": "allergy-relief-tablets",
+      "sku": "OTC-ALLERGY-001",
+      "description": "Once-daily cetirizine tablets for indoor and outdoor allergy symptoms. 30 count.",
+      "category": "allergy",
+      "prescriptionRequirement": "none",
+      "priceAmount": 1299,
+      "imageUrl": "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "profile": "full",
+      "title": "Heartburn Relief Tablets",
+      "handle": "heartburn-relief-tablets",
+      "sku": "OTC-DIGEST-001",
+      "description": "Acid reducer tablets for heartburn relief. 25 count.",
+      "category": "digestive_health",
+      "prescriptionRequirement": "none",
+      "priceAmount": 1099,
+      "imageUrl": "https://images.unsplash.com/photo-1550572017-edd951b55104?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "profile": "full",
+      "title": "Complete First Aid Kit",
+      "handle": "complete-first-aid-kit",
+      "sku": "AID-001",
+      "description": "A compact home first-aid kit with bandages, gauze, tape, wipes, and gloves.",
+      "category": "first_aid",
+      "prescriptionRequirement": "none",
+      "priceAmount": 2499,
+      "imageUrl": "https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "profile": "full",
+      "title": "Digital Thermometer",
+      "handle": "digital-thermometer",
+      "sku": "DEV-TEMP-001",
+      "description": "Fast-read oral digital thermometer with storage case.",
+      "category": "health_devices",
+      "prescriptionRequirement": "none",
+      "priceAmount": 1499,
+      "imageUrl": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "profile": "full",
+      "title": "Saline Nasal Spray",
+      "handle": "saline-nasal-spray",
+      "sku": "OTC-COLD-001",
+      "description": "Drug-free moisturizing saline mist for dry nasal passages. 3 fl oz.",
+      "category": "cold_and_flu",
+      "prescriptionRequirement": "none",
+      "priceAmount": 699,
+      "imageUrl": "https://images.unsplash.com/photo-1607619056574-7b8d3ee536b2?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "profile": "full",
+      "title": "Sensitive Skin Adhesive Bandages",
+      "handle": "sensitive-skin-bandages",
+      "sku": "AID-BANDAGE-001",
+      "description": "Flexible assorted-size bandages with gentle adhesive. 40 count.",
+      "category": "first_aid",
+      "prescriptionRequirement": "none",
+      "priceAmount": 749,
+      "imageUrl": "https://images.unsplash.com/photo-1609840114035-3c981b782dfe?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "profile": "full",
+      "title": "Daily Multivitamin",
+      "handle": "daily-multivitamin",
+      "sku": "VIT-MULTI-001",
+      "description": "Once-daily multivitamin tablets for adults. 90 count.",
+      "category": "vitamins",
+      "prescriptionRequirement": "none",
+      "priceAmount": 1599,
+      "imageUrl": "https://images.unsplash.com/photo-1550572017-4fcdbb59cc32?auto=format&fit=crop&w=900&q=80"
+    }
+  ],
+  "lots": [
+    {
+      "lotNumber": "LOT-OTC-PAIN-001",
+      "sku": "OTC-PAIN-001",
+      "quantity": 80,
+      "expirationOffsetDays": 365,
+      "coldChainRequired": false
+    },
+    {
+      "lotNumber": "LOT-OTC-ALLERGY-001",
+      "sku": "OTC-ALLERGY-001",
+      "quantity": 60,
+      "expirationOffsetDays": 300,
+      "coldChainRequired": false
+    },
+    {
+      "lotNumber": "LOT-OTC-DIGEST-001",
+      "sku": "OTC-DIGEST-001",
+      "quantity": 45,
+      "expirationOffsetDays": 330,
+      "coldChainRequired": false
+    },
+    {
+      "lotNumber": "LOT-AID-001",
+      "sku": "AID-001",
+      "quantity": 25,
+      "expirationOffsetDays": 540,
+      "coldChainRequired": false
+    },
+    {
+      "lotNumber": "LOT-DEV-TEMP-001",
+      "sku": "DEV-TEMP-001",
+      "quantity": 20,
+      "expirationOffsetDays": 720,
+      "coldChainRequired": false
+    },
+    {
+      "lotNumber": "LOT-OTC-COLD-001",
+      "sku": "OTC-COLD-001",
+      "quantity": 35,
+      "expirationOffsetDays": 420,
+      "coldChainRequired": false
+    },
+    {
+      "lotNumber": "LOT-AID-BANDAGE-001",
+      "sku": "AID-BANDAGE-001",
+      "quantity": 50,
+      "expirationOffsetDays": 600,
+      "coldChainRequired": false
+    },
+    {
+      "lotNumber": "LOT-VIT-MULTI-001",
+      "sku": "VIT-MULTI-001",
+      "quantity": 40,
+      "expirationOffsetDays": 450,
+      "coldChainRequired": false
+    }
+  ],
+  "patients": [
+    {
+      "patientNumber": "P-1001",
+      "firstName": "Jordan",
+      "lastName": "Morgan",
+      "phone": "(212) 555-0199",
+      "preferredContactMethod": "phone",
+      "ageYears": 38
+    },
+    {
+      "patientNumber": "P-1002",
+      "firstName": "Priya",
+      "lastName": "Raman",
+      "phone": "(212) 555-0174",
+      "preferredContactMethod": "sms",
+      "ageYears": 52
+    },
+    {
+      "patientNumber": "P-1003",
+      "firstName": "Marcus",
+      "lastName": "Bell",
+      "phone": "(212) 555-0163",
+      "preferredContactMethod": "phone",
+      "ageYears": 67
+    }
+  ],
+  "prescribers": [
+    {
+      "name": "Dr. Elena Ruiz, MD",
+      "phone": "(212) 555-0110",
+      "fax": "(212) 555-0111"
+    },
+    {
+      "name": "Dr. Samuel Okafor, DO",
+      "phone": "(212) 555-0120",
+      "fax": "(212) 555-0121"
+    }
+  ]
+}

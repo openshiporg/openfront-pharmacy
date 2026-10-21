@@ -11,70 +11,1425 @@ generator client {
   provider = "prisma-client-js"
 }
 
-model User {
-  id                      String    @id @default(cuid())
-  name                    String    @default("")
-  email                   String    @unique @default("")
-  password                String
-  role                    Role?     @relation("User_role", fields: [roleId], references: [id])
-  roleId                  String?   @map("role")
-  tasks                   Todo[]    @relation("Todo_assignedTo")
-  passwordResetToken      String?
-  passwordResetIssuedAt   DateTime?
-  passwordResetRedeemedAt DateTime?
+model AuditEvent {
+  id             String            @id @default(cuid())
+  eventKey       String            @unique @default("")
+  eventType      String            @default("")
+  resourceType   String            @default("")
+  resourceId     String            @default("")
+  occurredAt     DateTime          @default(now())
+  actorType      String            @default("user")
+  metadata       Json?
+  organization   Organization      @relation("AuditEvent_organization", fields: [organizationId], references: [id])
+  organizationId String            @map("organization")
+  location       PharmacyLocation? @relation("AuditEvent_location", fields: [locationId], references: [id])
+  locationId     String?           @map("location")
+  actor          User?             @relation("AuditEvent_actor", fields: [actorId], references: [id])
+  actorId        String?           @map("actor")
+  patient        PatientProfile?   @relation("AuditEvent_patient", fields: [patientId], references: [id])
+  patientId      String?           @map("patient")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
 
-  @@index([roleId])
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([actorId])
+  @@index([patientId])
 }
 
-model Role {
-  id                 String  @id @default(cuid())
-  name               String  @default("")
-  canCreateTodos     Boolean @default(false)
-  canManageAllTodos  Boolean @default(false)
-  canSeeOtherPeople  Boolean @default(false)
-  canEditOtherPeople Boolean @default(false)
-  canManagePeople    Boolean @default(false)
-  canManageRoles     Boolean @default(false)
-  canAccessDashboard Boolean @default(false)
-  assignedTo         User[]  @relation("User_role")
+model Cart {
+  id                String           @id @default(cuid())
+  guestTokenHash    String           @default("")
+  status            String?          @default("active")
+  fulfillmentMethod String?          @default("pickup")
+  subtotalAmount    Int?             @default(0)
+  taxAmount         Int?             @default(0)
+  deliveryAmount    Int?             @default(0)
+  totalAmount       Int?             @default(0)
+  expiresAt         DateTime?
+  organization      Organization     @relation("Cart_organization", fields: [organizationId], references: [id])
+  organizationId    String           @map("organization")
+  location          PharmacyLocation @relation("Cart_location", fields: [locationId], references: [id])
+  locationId        String           @map("location")
+  customer          User?            @relation("Cart_customer", fields: [customerId], references: [id])
+  customerId        String?          @map("customer")
+  items             CartItem[]       @relation("CartItem_cart")
+  paymentSessions   PaymentSession[] @relation("PaymentSession_cart")
+  order             Order?           @relation("Cart_order", fields: [orderId], references: [id])
+  orderId           String?          @unique @map("order")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
+
+  @@index([guestTokenHash])
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([customerId])
 }
 
-model Todo {
-  id                   String      @id @default(cuid())
-  label                String      @default("")
-  description          Json        @default("[{\"type\":\"paragraph\",\"children\":[{\"text\":\"\"}]}]")
-  isComplete           Boolean     @default(false)
-  status               String?     @default("todo")
-  priority             Int?        @default(1)
-  tags                 Json        @default("[]")
-  dueDate              DateTime?
-  weight               Float?      @default(1)
-  budget               Decimal?    @default("0.00") @postgresql.Decimal(10, 2)
-  isPrivate            Boolean     @default(false)
-  largeNumber          BigInt?
-  metadata             Json?
-  secretNote           String?
-  coverImage_id        String?
-  coverImage_filesize  Int?
-  coverImage_width     Int?
-  coverImage_height    Int?
-  coverImage_extension String?
-  todoImages           TodoImage[] @relation("Todo_todoImages")
-  assignedTo           User?       @relation("Todo_assignedTo", fields: [assignedToId], references: [id])
-  assignedToId         String?     @map("assignedTo")
+model CartItem {
+  id              String   @id @default(cuid())
+  quantity        Int      @default(1)
+  unitPriceAmount Int
+  cart            Cart     @relation("CartItem_cart", fields: [cartId], references: [id])
+  cartId          String   @map("cart")
+  product         Product  @relation("CartItem_product", fields: [productId], references: [id])
+  productId       String   @map("product")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @default(now()) @updatedAt
 
+  @@index([cartId])
+  @@index([productId])
+}
+
+model ClinicalSafetyReview {
+  id                        String           @id @default(cuid())
+  reviewKey                 String           @unique @default("")
+  fillNumber                Int
+  outcome                   String
+  allergiesReviewed         Boolean          @default(false)
+  medicationHistoryReviewed Boolean          @default(false)
+  interactionsReviewed      Boolean          @default(false)
+  duplicateTherapyReviewed  Boolean          @default(false)
+  contraindicationsReviewed Boolean          @default(false)
+  doseReviewed              Boolean          @default(false)
+  counselingPlanReviewed    Boolean          @default(false)
+  reviewReference           String           @default("")
+  notes                     String           @default("")
+  overrideReason            String           @default("")
+  evidenceSnapshot          Json?
+  reviewedAt                DateTime         @default(now())
+  organization              Organization     @relation("ClinicalSafetyReview_organization", fields: [organizationId], references: [id])
+  organizationId            String           @map("organization")
+  location                  PharmacyLocation @relation("ClinicalSafetyReview_location", fields: [locationId], references: [id])
+  locationId                String           @map("location")
+  patient                   PatientProfile   @relation("ClinicalSafetyReview_patient", fields: [patientId], references: [id])
+  patientId                 String           @map("patient")
+  prescription              Prescription     @relation("ClinicalSafetyReview_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId            String           @map("prescription")
+  pharmacist                User             @relation("ClinicalSafetyReview_pharmacist", fields: [pharmacistId], references: [id])
+  pharmacistId              String           @map("pharmacist")
+  approval                  HumanApproval    @relation("ClinicalSafetyReview_approval", fields: [approvalId], references: [id])
+  approvalId                String           @map("approval")
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([pharmacistId])
+  @@index([approvalId])
+}
+
+model ConsentRecord {
+  id            String                @id @default(cuid())
+  consentType   String
+  policyVersion String                @default("")
+  statementKey  String                @default("")
+  accepted      Boolean               @default(false)
+  captureMethod String                @default("")
+  grantedAt     DateTime              @default(now())
+  revokedAt     DateTime?
+  evidence      Json?
+  patient       PatientProfile?       @relation("ConsentRecord_patient", fields: [patientId], references: [id])
+  patientId     String?               @map("patient")
+  actor         User?                 @relation("ConsentRecord_actor", fields: [actorId], references: [id])
+  actorId       String?               @map("actor")
+  transfer      PrescriptionTransfer? @relation("ConsentRecord_transfer", fields: [transferId], references: [id])
+  transferId    String?               @unique @map("transfer")
+  order         Order?                @relation("ConsentRecord_order", fields: [orderId], references: [id])
+  orderId       String?               @unique @map("order")
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @default(now()) @updatedAt
+
+  @@index([patientId])
+  @@index([actorId])
+}
+
+model DispensingLabel {
+  id                      String           @id @default(cuid())
+  labelNumber             String           @unique @default("")
+  fillNumber              Int
+  operatorNameSnapshot    String           @default("")
+  operatorPhoneSnapshot   String           @default("")
+  locationNameSnapshot    String           @default("")
+  locationAddressSnapshot Json?
+  patientNameSnapshot     String           @default("")
+  prescriberNameSnapshot  String           @default("")
+  medicationNameSnapshot  String           @default("")
+  sigSnapshot             String           @default("")
+  quantityDispensed       Int
+  lotNumberSnapshot       String           @default("")
+  ndc11Snapshot           String           @default("")
+  expirationDateSnapshot  DateTime
+  auxiliaryWarnings       Json?
+  counselingOutcome       String           @default("")
+  dispensedAt             DateTime         @default(now())
+  organization            Organization     @relation("DispensingLabel_organization", fields: [organizationId], references: [id])
+  organizationId          String           @map("organization")
+  location                PharmacyLocation @relation("DispensingLabel_location", fields: [locationId], references: [id])
+  locationId              String           @map("location")
+  patient                 PatientProfile   @relation("DispensingLabel_patient", fields: [patientId], references: [id])
+  patientId               String           @map("patient")
+  prescription            Prescription     @relation("DispensingLabel_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId          String           @map("prescription")
+  prescriptionItem        PrescriptionItem @relation("DispensingLabel_prescriptionItem", fields: [prescriptionItemId], references: [id])
+  prescriptionItemId      String           @map("prescriptionItem")
+  order                   Order            @relation("DispensingLabel_order", fields: [orderId], references: [id])
+  orderId                 String           @map("order")
+  pharmacist              User             @relation("DispensingLabel_pharmacist", fields: [pharmacistId], references: [id])
+  pharmacistId            String           @map("pharmacist")
+  approval                HumanApproval    @relation("DispensingLabel_approval", fields: [approvalId], references: [id])
+  approvalId              String           @map("approval")
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([prescriptionItemId])
+  @@index([orderId])
+  @@index([pharmacistId])
+  @@index([approvalId])
+}
+
+model DrugReference {
+  id                 String                @id @default(cuid())
+  ndc11              String                @unique @default("")
+  proprietaryName    String                @default("")
+  genericName        String                @default("")
+  labelerName        String                @default("")
+  dosageForm         String                @default("")
+  route              String                @default("")
+  strength           String                @default("")
+  rxNormCui          String                @default("")
+  controlledSchedule String?               @default("unverified")
+  marketingStatus    String?               @default("unverified")
+  sourceName         String                @default("manual")
+  sourceVersion      String                @default("")
+  sourceReference    String                @default("")
+  sourceVerified     Boolean               @default(false)
+  reviewedAt         DateTime?
+  reviewedBy         User?                 @relation("DrugReference_reviewedBy", fields: [reviewedById], references: [id])
+  reviewedById       String?               @map("reviewedBy")
+  referenceData      Json?
+  products           Product[]             @relation("Product_drugReference")
+  reviews            DrugReferenceReview[] @relation("DrugReferenceReview_drugReference")
+  prescriptionItems  PrescriptionItem[]    @relation("PrescriptionItem_drugReference")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @default(now()) @updatedAt
+
+  @@index([reviewedById])
+}
+
+model DrugReferenceReview {
+  id                         String        @id @default(cuid())
+  reviewKey                  String        @unique @default("")
+  status                     String?       @default("active")
+  marketingStatusSnapshot    String
+  controlledScheduleSnapshot String
+  sourceName                 String        @default("")
+  sourceVersion              String        @default("")
+  sourceReference            String        @default("")
+  reviewedAt                 DateTime      @default(now())
+  organization               Organization  @relation("DrugReferenceReview_organization", fields: [organizationId], references: [id])
+  organizationId             String        @map("organization")
+  drugReference              DrugReference @relation("DrugReferenceReview_drugReference", fields: [drugReferenceId], references: [id])
+  drugReferenceId            String        @map("drugReference")
+  reviewedBy                 User          @relation("DrugReferenceReview_reviewedBy", fields: [reviewedById], references: [id])
+  reviewedById               String        @map("reviewedBy")
+  approval                   HumanApproval @relation("DrugReferenceReview_approval", fields: [approvalId], references: [id])
+  approvalId                 String        @map("approval")
+  createdAt                  DateTime      @default(now())
+  updatedAt                  DateTime      @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([drugReferenceId])
+  @@index([reviewedById])
+  @@index([approvalId])
+}
+
+model ExternalIntegrationWorkflow {
+  id                                    String                    @id @default(cuid())
+  workflowKey                           String                    @unique @default("")
+  workflowType                          String
+  resourceType                          String                    @default("")
+  resourceId                            String                    @default("")
+  status                                String?                   @default("pending_submission")
+  idempotencyKey                        String                    @default("")
+  externalReference                     String                    @default("")
+  requestPayload                        Json?
+  responsePayload                       Json?
+  attempts                              Int?                      @default(0)
+  lastError                             String?
+  submittedAt                           DateTime?
+  resolvedAt                            DateTime?
+  organization                          Organization              @relation("ExternalIntegrationWorkflow_organization", fields: [organizationId], references: [id])
+  organizationId                        String                    @map("organization")
+  location                              PharmacyLocation          @relation("ExternalIntegrationWorkflow_location", fields: [locationId], references: [id])
+  locationId                            String                    @map("location")
+  provider                              IntegrationProvider       @relation("ExternalIntegrationWorkflow_provider", fields: [providerId], references: [id])
+  providerId                            String                    @map("provider")
+  createdAt                             DateTime                  @default(now())
+  updatedAt                             DateTime                  @default(now()) @updatedAt
+  from_IntegrationWebhookEvent_workflow IntegrationWebhookEvent[] @relation("IntegrationWebhookEvent_workflow")
+
+  @@index([resourceId])
+  @@index([idempotencyKey])
+  @@index([externalReference])
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([providerId])
+}
+
+model Fulfillment {
+  id              String           @id @default(cuid())
+  method          String
+  status          String?          @default("pending")
+  handoffCodeHash String           @default("")
+  readyAt         DateTime?
+  handedOffAt     DateTime?
+  organization    Organization     @relation("Fulfillment_organization", fields: [organizationId], references: [id])
+  organizationId  String           @map("organization")
+  location        PharmacyLocation @relation("Fulfillment_location", fields: [locationId], references: [id])
+  locationId      String           @map("location")
+  order           Order            @relation("Fulfillment_order", fields: [orderId], references: [id])
+  orderId         String           @unique @map("order")
+  assignedTo      User?            @relation("Fulfillment_assignedTo", fields: [assignedToId], references: [id])
+  assignedToId    String?          @map("assignedTo")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([locationId])
   @@index([assignedToId])
 }
 
-model TodoImage {
-  id              String  @id @default(cuid())
-  image_id        String?
-  image_filesize  Int?
-  image_width     Int?
-  image_height    Int?
-  image_extension String?
-  imagePath       String  @default("")
-  altText         String  @default("")
-  todos           Todo[]  @relation("Todo_todoImages")
-  metadata        Json?
+model HumanApproval {
+  id                                  String                  @id @default(cuid())
+  actionType                          String
+  reason                              String                  @default("")
+  attested                            Boolean                 @default(false)
+  approvedAt                          DateTime                @default(now())
+  evidence                            Json?
+  organization                        Organization            @relation("HumanApproval_organization", fields: [organizationId], references: [id])
+  organizationId                      String                  @map("organization")
+  location                            PharmacyLocation?       @relation("HumanApproval_location", fields: [locationId], references: [id])
+  locationId                          String?                 @map("location")
+  actor                               User                    @relation("HumanApproval_actor", fields: [actorId], references: [id])
+  actorId                             String                  @map("actor")
+  prescriptions                       Prescription[]          @relation("Prescription_approval")
+  prescriptionReviews                 PrescriptionReview[]    @relation("PrescriptionReview_approval")
+  refillRequests                      RefillRequest[]         @relation("RefillRequest_approval")
+  transfers                           PrescriptionTransfer[]  @relation("PrescriptionTransfer_approval")
+  recalls                             Recall[]                @relation("Recall_approval")
+  inventoryMovements                  InventoryMovement[]     @relation("InventoryMovement_approval")
+  temperatureExcursions               TemperatureExcursion[]  @relation("TemperatureExcursion_approval")
+  orders                              Order[]                 @relation("Order_approval")
+  createdAt                           DateTime                @default(now())
+  updatedAt                           DateTime                @default(now()) @updatedAt
+  from_ClinicalSafetyReview_approval  ClinicalSafetyReview[]  @relation("ClinicalSafetyReview_approval")
+  from_DispensingLabel_approval       DispensingLabel[]       @relation("DispensingLabel_approval")
+  from_DrugReferenceReview_approval   DrugReferenceReview[]   @relation("DrugReferenceReview_approval")
+  from_PatientAllergy_approval        PatientAllergy[]        @relation("PatientAllergy_approval")
+  from_PatientMedication_approval     PatientMedication[]     @relation("PatientMedication_approval")
+  from_Payment_approval               Payment[]               @relation("Payment_approval")
+  from_PrescriptionFill_approval      PrescriptionFill[]      @relation("PrescriptionFill_approval")
+  from_PrescriptionFillEvent_approval PrescriptionFillEvent[] @relation("PrescriptionFillEvent_approval")
+  from_RecallExposure_approval        RecallExposure[]        @relation("RecallExposure_approval")
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([actorId])
+}
+
+model IntegrationProvider {
+  id                         String                        @id @default(cuid())
+  providerKey                String                        @unique @default("")
+  name                       String                        @default("")
+  code                       String                        @default("")
+  providerType               String
+  status                     String?                       @default("unconfigured")
+  credentials                Json?
+  configuration              Json?
+  submitFunction             String                        @default("")
+  statusFunction             String                        @default("")
+  webhookFunction            String                        @default("")
+  externalValidationComplete Boolean                       @default(false)
+  validationReference        String                        @default("")
+  validatedAt                DateTime?
+  organization               Organization                  @relation("IntegrationProvider_organization", fields: [organizationId], references: [id])
+  organizationId             String                        @map("organization")
+  suppliers                  Supplier[]                    @relation("Supplier_integrationProvider")
+  prescribers                Prescriber[]                  @relation("Prescriber_integrationProvider")
+  paymentProviders           PaymentProvider[]             @relation("PaymentProvider_integrationProvider")
+  workflows                  ExternalIntegrationWorkflow[] @relation("ExternalIntegrationWorkflow_provider")
+  webhookEvents              IntegrationWebhookEvent[]     @relation("IntegrationWebhookEvent_provider")
+  createdAt                  DateTime                      @default(now())
+  updatedAt                  DateTime                      @default(now()) @updatedAt
+
+  @@index([code])
+  @@index([organizationId])
+}
+
+model IntegrationWebhookEvent {
+  id              String                       @id @default(cuid())
+  eventKey        String                       @unique @default("")
+  externalEventId String                       @default("")
+  eventType       String                       @default("")
+  status          String?                      @default("processed")
+  payload         Json?
+  receivedAt      DateTime?                    @default(now())
+  organization    Organization                 @relation("IntegrationWebhookEvent_organization", fields: [organizationId], references: [id])
+  organizationId  String                       @map("organization")
+  provider        IntegrationProvider          @relation("IntegrationWebhookEvent_provider", fields: [providerId], references: [id])
+  providerId      String                       @map("provider")
+  workflow        ExternalIntegrationWorkflow? @relation("IntegrationWebhookEvent_workflow", fields: [workflowId], references: [id])
+  workflowId      String?                      @map("workflow")
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @default(now()) @updatedAt
+
+  @@index([externalEventId])
+  @@index([organizationId])
+  @@index([providerId])
+  @@index([workflowId])
+}
+
+model InventoryLot {
+  id                        String                 @id @default(cuid())
+  lotNumber                 String                 @default("")
+  serialNumber              String                 @default("")
+  expirationDate            DateTime
+  receivedAt                DateTime               @default(now())
+  quantityReceived          Int
+  quantityAvailable         Int
+  quantityQuarantined       Int                    @default(0)
+  status                    String?                @default("quarantined")
+  storageBin                String                 @default("")
+  coldChainRequired         Boolean                @default(false)
+  minimumTemperatureC       Float?
+  maximumTemperatureC       Float?
+  coldChainEvidenceComplete Boolean                @default(false)
+  product                   Product                @relation("InventoryLot_product", fields: [productId], references: [id])
+  productId                 String                 @map("product")
+  location                  PharmacyLocation       @relation("InventoryLot_location", fields: [locationId], references: [id])
+  locationId                String                 @map("location")
+  supplier                  Supplier?              @relation("InventoryLot_supplier", fields: [supplierId], references: [id])
+  supplierId                String?                @map("supplier")
+  movements                 InventoryMovement[]    @relation("InventoryMovement_lot")
+  temperatureExcursions     TemperatureExcursion[] @relation("TemperatureExcursion_lot")
+  recalls                   Recall[]               @relation("InventoryLot_recalls")
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @default(now()) @updatedAt
+
+  @@index([lotNumber])
+  @@index([productId])
+  @@index([locationId])
+  @@index([supplierId])
+}
+
+model InventoryMovement {
+  id                           String            @id @default(cuid())
+  movementType                 String
+  quantityDelta                Int
+  reason                       String            @default("")
+  idempotencyKey               String            @unique @default("")
+  requestFingerprint           String?
+  occurredAt                   DateTime          @default(now())
+  organization                 Organization      @relation("InventoryMovement_organization", fields: [organizationId], references: [id])
+  organizationId               String            @map("organization")
+  location                     PharmacyLocation  @relation("InventoryMovement_location", fields: [locationId], references: [id])
+  locationId                   String            @map("location")
+  product                      Product           @relation("InventoryMovement_product", fields: [productId], references: [id])
+  productId                    String            @map("product")
+  lot                          InventoryLot      @relation("InventoryMovement_lot", fields: [lotId], references: [id])
+  lotId                        String            @map("lot")
+  actor                        User?             @relation("InventoryMovement_actor", fields: [actorId], references: [id])
+  actorId                      String?           @map("actor")
+  patient                      PatientProfile?   @relation("InventoryMovement_patient", fields: [patientId], references: [id])
+  patientId                    String?           @map("patient")
+  prescription                 Prescription?     @relation("InventoryMovement_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId               String?           @map("prescription")
+  prescriptionItem             PrescriptionItem? @relation("InventoryMovement_prescriptionItem", fields: [prescriptionItemId], references: [id])
+  prescriptionItemId           String?           @map("prescriptionItem")
+  order                        Order?            @relation("InventoryMovement_order", fields: [orderId], references: [id])
+  orderId                      String?           @map("order")
+  approval                     HumanApproval?    @relation("InventoryMovement_approval", fields: [approvalId], references: [id])
+  approvalId                   String?           @map("approval")
+  createdAt                    DateTime          @default(now())
+  updatedAt                    DateTime          @default(now()) @updatedAt
+  from_RecallExposure_movement RecallExposure[]  @relation("RecallExposure_movement")
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([productId])
+  @@index([lotId])
+  @@index([actorId])
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([prescriptionItemId])
+  @@index([orderId])
+  @@index([approvalId])
+}
+
+model MachineCredential {
+  id                  String            @id @default(cuid())
+  name                String            @default("")
+  tokenPrefix         String            @unique @default("")
+  tokenHash           String            @unique @default("")
+  scopes              Json?
+  status              String?           @default("active")
+  expiresAt           DateTime
+  revokedAt           DateTime?
+  lastUsedAt          DateTime?
+  rateWindowStartedAt DateTime?
+  rateRequestCount    Int?              @default(0)
+  organization        Organization      @relation("MachineCredential_organization", fields: [organizationId], references: [id])
+  organizationId      String            @map("organization")
+  location            PharmacyLocation? @relation("MachineCredential_location", fields: [locationId], references: [id])
+  locationId          String?           @map("location")
+  createdBy           User              @relation("MachineCredential_createdBy", fields: [createdById], references: [id])
+  createdById         String            @map("createdBy")
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([createdById])
+}
+
+model Order {
+  id                           String              @id @default(cuid())
+  orderNumber                  String              @unique @default("")
+  idempotencyKey               String              @unique @default("")
+  guestTokenHash               String              @default("")
+  checkoutEvidence             Json?
+  email                        String              @default("")
+  phone                        String              @default("")
+  status                       String?             @default("pending")
+  fulfillmentMethod            String?             @default("pickup")
+  subtotalAmount               Int
+  taxAmount                    Int                 @default(0)
+  deliveryAmount               Int                 @default(0)
+  totalAmount                  Int
+  currencyCode                 String              @default("USD")
+  pickupAt                     DateTime?
+  deliveryWindow               String              @default("")
+  shippingAddressSnapshot      Json?
+  billingAddressSnapshot       Json?
+  organization                 Organization        @relation("Order_organization", fields: [organizationId], references: [id])
+  organizationId               String              @map("organization")
+  location                     PharmacyLocation    @relation("Order_location", fields: [locationId], references: [id])
+  locationId                   String              @map("location")
+  customer                     User?               @relation("Order_customer", fields: [customerId], references: [id])
+  customerId                   String?             @map("customer")
+  patient                      PatientProfile?     @relation("Order_patient", fields: [patientId], references: [id])
+  patientId                    String?             @map("patient")
+  prescription                 Prescription?       @relation("Order_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId               String?             @map("prescription")
+  cart                         Cart?               @relation("Cart_order")
+  consent                      ConsentRecord?      @relation("ConsentRecord_order")
+  approval                     HumanApproval?      @relation("Order_approval", fields: [approvalId], references: [id])
+  approvalId                   String?             @map("approval")
+  lineItems                    OrderLineItem[]     @relation("OrderLineItem_order")
+  dispensingLabels             DispensingLabel[]   @relation("DispensingLabel_order")
+  payments                     Payment[]           @relation("Payment_order")
+  fulfillment                  Fulfillment?        @relation("Fulfillment_order")
+  createdAt                    DateTime            @default(now())
+  updatedAt                    DateTime            @default(now()) @updatedAt
+  from_InventoryMovement_order InventoryMovement[] @relation("InventoryMovement_order")
+  from_RecallExposure_order    RecallExposure[]    @relation("RecallExposure_order")
+
+  @@index([guestTokenHash])
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([customerId])
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([approvalId])
+}
+
+model OrderLineItem {
+  id                              String   @id @default(cuid())
+  title                           String   @default("")
+  sku                             String   @default("")
+  ndc11Snapshot                   String   @default("")
+  quantity                        Int
+  unitPriceAmount                 Int
+  lineTotalAmount                 Int
+  imageUrl                        String   @default("")
+  prescriptionRequirementSnapshot String   @default("")
+  metadata                        Json?
+  order                           Order    @relation("OrderLineItem_order", fields: [orderId], references: [id])
+  orderId                         String   @map("order")
+  product                         Product  @relation("OrderLineItem_product", fields: [productId], references: [id])
+  productId                       String   @map("product")
+  lotAllocationSnapshot           Json?
+  createdAt                       DateTime @default(now())
+  updatedAt                       DateTime @default(now()) @updatedAt
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OutboxEvent {
+  id             String            @id @default(cuid())
+  eventKey       String            @unique @default("")
+  eventType      String            @default("")
+  aggregateType  String            @default("")
+  aggregateId    String            @default("")
+  payload        Json?
+  payloadHash    String            @default("")
+  status         String            @default("pending")
+  attempts       Int               @default(0)
+  maxAttempts    Int               @default(8)
+  replayCount    Int               @default(0)
+  lastError      String?
+  nextAttemptAt  DateTime?
+  lockedAt       DateTime?
+  lockToken      String?
+  occurredAt     DateTime          @default(now())
+  processedAt    DateTime?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @default(now()) @updatedAt
+  organization   Organization      @relation("OutboxEvent_organization", fields: [organizationId], references: [id])
+  organizationId String            @map("organization")
+  location       PharmacyLocation? @relation("OutboxEvent_location", fields: [locationId], references: [id])
+  locationId     String?           @map("location")
+
+  @@index([eventType])
+  @@index([aggregateType])
+  @@index([aggregateId])
+  @@index([lockToken])
+  @@index([organizationId])
+  @@index([locationId])
+}
+
+model Organization {
+  id                                     String                        @id @default(cuid())
+  name                                   String                        @default("")
+  slug                                   String                        @unique @default("")
+  storefrontKey                          String                        @unique @default("")
+  storefrontHost                         String                        @unique @default("")
+  operatorDisplayName                    String                        @default("")
+  operatorTagline                        String                        @default("Independent pharmacy care")
+  brandPrimaryColor                      String                        @default("#18352b")
+  brandAccentColor                       String                        @default("#8ec9ad")
+  brandLogoUrl                           String                        @default("")
+  logoIcon                               String                        @default("<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" height=\"100%\" width=\"100%\" viewBox=\"0 0 42 48\"><path fill=\"#155eef\" fill-rule=\"evenodd\" d=\"m22.102 20.86 9.9-9.9L29.88 8.84l-7.339 7.339V3h-3v13.178l-7.339-7.34-2.121 2.122 9.9 9.9 1.06 1.06zm2.12 2.121 9.9-9.9 2.121 2.122-7.339 7.339H42v3H28.904l7.34 7.339L34.121 35l-9.9-9.899-1.06-1.06zM7.96 35.001l9.9-9.899 1.06-1.06-1.06-1.061-9.9-9.9-2.121 2.122 7.339 7.339H.002v3h13.176l-7.34 7.339zm12.02-7.777-9.9 9.9 2.122 2.12 7.339-7.338V45h3V31.906l7.339 7.338L32 37.124l-9.9-9.9-1.06-1.061z\" clip-rule=\"evenodd\"/></svg>")
+  logoColor                              String                        @default("0")
+  isDemo                                 Boolean                       @default(false)
+  supportEmail                           String                        @default("")
+  supportPhone                           String                        @default("")
+  prescriptionFillPolicy                 Json?
+  cashSalesEnabled                       Boolean                       @default(false)
+  cashTaxRateBps                         Int?                          @default(0)
+  cashTaxPolicyReference                 String                        @default("")
+  cashPolicyReviewedAt                   DateTime?
+  cashPolicyReviewedBy                   User?                         @relation("Organization_cashPolicyReviewedBy", fields: [cashPolicyReviewedById], references: [id])
+  cashPolicyReviewedById                 String?                       @map("cashPolicyReviewedBy")
+  status                                 String?                       @default("active")
+  locations                              PharmacyLocation[]            @relation("PharmacyLocation_organization")
+  memberships                            OrganizationMembership[]      @relation("OrganizationMembership_organization")
+  patients                               PatientProfile[]              @relation("Organization_patients")
+  products                               Product[]                     @relation("Product_organization")
+  drugReferenceReviews                   DrugReferenceReview[]         @relation("DrugReferenceReview_organization")
+  prescriptions                          Prescription[]                @relation("Prescription_organization")
+  recalls                                Recall[]                      @relation("Recall_organization")
+  orders                                 Order[]                       @relation("Order_organization")
+  integrationProviders                   IntegrationProvider[]         @relation("IntegrationProvider_organization")
+  outboxEvents                           OutboxEvent[]                 @relation("OutboxEvent_organization")
+  paymentWebhookEvents                   PaymentWebhookEvent[]         @relation("PaymentWebhookEvent_organization")
+  machineCredentials                     MachineCredential[]           @relation("MachineCredential_organization")
+  externalIntegrationWorkflows           ExternalIntegrationWorkflow[] @relation("ExternalIntegrationWorkflow_organization")
+  integrationWebhookEvents               IntegrationWebhookEvent[]     @relation("IntegrationWebhookEvent_organization")
+  createdAt                              DateTime                      @default(now())
+  updatedAt                              DateTime                      @default(now()) @updatedAt
+  from_AuditEvent_organization           AuditEvent[]                  @relation("AuditEvent_organization")
+  from_Cart_organization                 Cart[]                        @relation("Cart_organization")
+  from_ClinicalSafetyReview_organization ClinicalSafetyReview[]        @relation("ClinicalSafetyReview_organization")
+  from_DispensingLabel_organization      DispensingLabel[]             @relation("DispensingLabel_organization")
+  from_Fulfillment_organization          Fulfillment[]                 @relation("Fulfillment_organization")
+  from_HumanApproval_organization        HumanApproval[]               @relation("HumanApproval_organization")
+  from_InventoryMovement_organization    InventoryMovement[]           @relation("InventoryMovement_organization")
+  from_PatientAllergy_organization       PatientAllergy[]              @relation("PatientAllergy_organization")
+  from_PatientMedication_organization    PatientMedication[]           @relation("PatientMedication_organization")
+  from_Payment_organization              Payment[]                     @relation("Payment_organization")
+  from_PaymentProvider_organization      PaymentProvider[]             @relation("PaymentProvider_organization")
+  from_PaymentSession_organization       PaymentSession[]              @relation("PaymentSession_organization")
+  from_Prescriber_organization           Prescriber[]                  @relation("Prescriber_organization")
+  from_PrescriptionFill_organization     PrescriptionFill[]            @relation("PrescriptionFill_organization")
+  from_RecallExposure_organization       RecallExposure[]              @relation("RecallExposure_organization")
+  from_Supplier_organization             Supplier[]                    @relation("Supplier_organization")
+  from_TemperatureExcursion_organization TemperatureExcursion[]        @relation("TemperatureExcursion_organization")
+
+  @@index([cashPolicyReviewedById])
+}
+
+model OrganizationMembership {
+  id                            String            @id @default(cuid())
+  membershipKey                 String            @unique @default("")
+  user                          User              @relation("OrganizationMembership_user", fields: [userId], references: [id])
+  userId                        String            @map("user")
+  organization                  Organization      @relation("OrganizationMembership_organization", fields: [organizationId], references: [id])
+  organizationId                String            @map("organization")
+  location                      PharmacyLocation? @relation("OrganizationMembership_location", fields: [locationId], references: [id])
+  locationId                    String?           @map("location")
+  membershipRole                String?           @default("read_only")
+  status                        String?           @default("invited")
+  externalCredentialValidated   Boolean           @default(false)
+  credentialVerificationMethod  String?           @default("not_recorded")
+  credentialType                String            @default("")
+  credentialJurisdiction        String            @default("")
+  credentialIdentifier          String            @default("")
+  credentialValidationReference String            @default("")
+  credentialValidatedAt         DateTime?
+  credentialExpiresAt           DateTime?
+  credentialVerifiedBy          User?             @relation("OrganizationMembership_credentialVerifiedBy", fields: [credentialVerifiedById], references: [id])
+  credentialVerifiedById        String?           @map("credentialVerifiedBy")
+  createdAt                     DateTime          @default(now())
+  updatedAt                     DateTime          @default(now()) @updatedAt
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([credentialVerifiedById])
+}
+
+model PatientAllergy {
+  id                 String         @id @default(cuid())
+  allergyKey         String         @unique @default("")
+  requestFingerprint String         @default("")
+  allergen           String         @default("")
+  reaction           String         @default("")
+  severity           String?        @default("unknown")
+  status             String?        @default("active")
+  source             String         @default("")
+  sourceReference    String         @default("")
+  recordedAt         DateTime       @default(now())
+  organization       Organization   @relation("PatientAllergy_organization", fields: [organizationId], references: [id])
+  organizationId     String         @map("organization")
+  patient            PatientProfile @relation("PatientAllergy_patient", fields: [patientId], references: [id])
+  patientId          String         @map("patient")
+  recordedBy         User           @relation("PatientAllergy_recordedBy", fields: [recordedById], references: [id])
+  recordedById       String         @map("recordedBy")
+  approval           HumanApproval? @relation("PatientAllergy_approval", fields: [approvalId], references: [id])
+  approvalId         String?        @map("approval")
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([recordedById])
+  @@index([approvalId])
+}
+
+model PatientMedication {
+  id                 String         @id @default(cuid())
+  medicationKey      String         @unique @default("")
+  requestFingerprint String         @default("")
+  medicationName     String         @default("")
+  directions         String         @default("")
+  status             String?        @default("current")
+  source             String         @default("")
+  sourceReference    String         @default("")
+  recordedAt         DateTime       @default(now())
+  organization       Organization   @relation("PatientMedication_organization", fields: [organizationId], references: [id])
+  organizationId     String         @map("organization")
+  patient            PatientProfile @relation("PatientMedication_patient", fields: [patientId], references: [id])
+  patientId          String         @map("patient")
+  recordedBy         User           @relation("PatientMedication_recordedBy", fields: [recordedById], references: [id])
+  recordedById       String         @map("recordedBy")
+  approval           HumanApproval? @relation("PatientMedication_approval", fields: [approvalId], references: [id])
+  approvalId         String?        @map("approval")
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([patientId])
+  @@index([recordedById])
+  @@index([approvalId])
+}
+
+model PatientProfile {
+  id                              String                 @id @default(cuid())
+  patientNumber                   String                 @unique @default("")
+  identityKey                     String?                @unique
+  requestFingerprint              String?
+  firstName                       String                 @default("")
+  lastName                        String                 @default("")
+  status                          String?                @default("active")
+  dateOfBirth                     DateTime?
+  email                           String                 @default("")
+  phone                           String                 @default("")
+  address                         Json?
+  identityVerificationStatus      String?                @default("unverified")
+  identityReference               String                 @default("")
+  identityVerifiedAt              DateTime?
+  identityVerifiedBy              User?                  @relation("PatientProfile_identityVerifiedBy", fields: [identityVerifiedById], references: [id])
+  identityVerifiedById            String?                @map("identityVerifiedBy")
+  identityEvidence                Json?
+  preferredContactMethod          String?                @default("none")
+  notes                           String                 @default("")
+  user                            User?                  @relation("PatientProfile_user", fields: [userId], references: [id])
+  userId                          String?                @unique @map("user")
+  organizations                   Organization[]         @relation("Organization_patients")
+  consents                        ConsentRecord[]        @relation("ConsentRecord_patient")
+  allergies                       PatientAllergy[]       @relation("PatientAllergy_patient")
+  medications                     PatientMedication[]    @relation("PatientMedication_patient")
+  safetyReviews                   ClinicalSafetyReview[] @relation("ClinicalSafetyReview_patient")
+  dispensingLabels                DispensingLabel[]      @relation("DispensingLabel_patient")
+  prescriptions                   Prescription[]         @relation("Prescription_patient")
+  refillRequests                  RefillRequest[]        @relation("RefillRequest_patient")
+  transfers                       PrescriptionTransfer[] @relation("PrescriptionTransfer_patient")
+  orders                          Order[]                @relation("Order_patient")
+  auditEvents                     AuditEvent[]           @relation("AuditEvent_patient")
+  createdAt                       DateTime               @default(now())
+  updatedAt                       DateTime               @default(now()) @updatedAt
+  from_InventoryMovement_patient  InventoryMovement[]    @relation("InventoryMovement_patient")
+  from_PrescriptionFill_patient   PrescriptionFill[]     @relation("PrescriptionFill_patient")
+  from_PrescriptionReview_patient PrescriptionReview[]   @relation("PrescriptionReview_patient")
+  from_RecallExposure_patient     RecallExposure[]       @relation("RecallExposure_patient")
+
+  @@index([identityVerifiedById])
+}
+
+model Payment {
+  id                 String            @id @default(cuid())
+  amount             Int
+  currencyCode       String            @default("USD")
+  status             String?           @default("pending")
+  tenderMethod       String?           @default("provider")
+  cashReceivedAmount Int?
+  changeDueAmount    Int?
+  externalPaymentId  String            @default("")
+  processedAt        DateTime?
+  data               Json?
+  organization       Organization?     @relation("Payment_organization", fields: [organizationId], references: [id])
+  organizationId     String?           @map("organization")
+  location           PharmacyLocation? @relation("Payment_location", fields: [locationId], references: [id])
+  locationId         String?           @map("location")
+  order              Order             @relation("Payment_order", fields: [orderId], references: [id])
+  orderId            String            @map("order")
+  provider           PaymentProvider?  @relation("Payment_provider", fields: [providerId], references: [id])
+  providerId         String?           @map("provider")
+  session            PaymentSession?   @relation("Payment_session", fields: [sessionId], references: [id])
+  sessionId          String?           @unique @map("session")
+  recordedBy         User?             @relation("Payment_recordedBy", fields: [recordedById], references: [id])
+  recordedById       String?           @map("recordedBy")
+  approval           HumanApproval?    @relation("Payment_approval", fields: [approvalId], references: [id])
+  approvalId         String?           @map("approval")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @default(now()) @updatedAt
+
+  @@index([externalPaymentId])
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([orderId])
+  @@index([providerId])
+  @@index([recordedById])
+  @@index([approvalId])
+}
+
+model PaymentProvider {
+  id                          String                @id @default(cuid())
+  providerKey                 String                @unique @default("")
+  name                        String                @default("")
+  code                        String                @default("")
+  isInstalled                 Boolean               @default(false)
+  credentials                 Json?
+  metadata                    Json?
+  createPaymentFunction       String                @default("")
+  capturePaymentFunction      String                @default("")
+  refundPaymentFunction       String                @default("")
+  getPaymentStatusFunction    String                @default("")
+  generatePaymentLinkFunction String                @default("")
+  handleWebhookFunction       String                @default("")
+  organization                Organization          @relation("PaymentProvider_organization", fields: [organizationId], references: [id])
+  organizationId              String                @map("organization")
+  integrationProvider         IntegrationProvider?  @relation("PaymentProvider_integrationProvider", fields: [integrationProviderId], references: [id])
+  integrationProviderId       String?               @map("integrationProvider")
+  paymentSessions             PaymentSession[]      @relation("PaymentSession_provider")
+  payments                    Payment[]             @relation("Payment_provider")
+  webhookEvents               PaymentWebhookEvent[] @relation("PaymentWebhookEvent_provider")
+  createdAt                   DateTime              @default(now())
+  updatedAt                   DateTime              @default(now()) @updatedAt
+
+  @@index([code])
+  @@index([organizationId])
+  @@index([integrationProviderId])
+}
+
+model PaymentSession {
+  id                     String            @id @default(cuid())
+  amount                 Int
+  currencyCode           String            @default("USD")
+  status                 String?           @default("pending")
+  isSelected             Boolean           @default(true)
+  idempotencyKey         String            @unique @default("")
+  externalPaymentId      String?
+  reconciliationStatus   String?           @default("pending")
+  reconciliationAttempts Int?              @default(0)
+  lastReconciledAt       DateTime?
+  failureReason          String?
+  data                   Json?
+  organization           Organization?     @relation("PaymentSession_organization", fields: [organizationId], references: [id])
+  organizationId         String?           @map("organization")
+  location               PharmacyLocation? @relation("PaymentSession_location", fields: [locationId], references: [id])
+  locationId             String?           @map("location")
+  cart                   Cart              @relation("PaymentSession_cart", fields: [cartId], references: [id])
+  cartId                 String            @map("cart")
+  provider               PaymentProvider   @relation("PaymentSession_provider", fields: [providerId], references: [id])
+  providerId             String            @map("provider")
+  payment                Payment?          @relation("Payment_session")
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @default(now()) @updatedAt
+
+  @@index([externalPaymentId])
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([cartId])
+  @@index([providerId])
+}
+
+model PaymentWebhookEvent {
+  id              String          @id @default(cuid())
+  eventKey        String          @unique @default("")
+  externalEventId String          @default("")
+  eventType       String          @default("")
+  status          String?         @default("received")
+  resource        Json?
+  error           String          @default("")
+  receivedAt      DateTime?       @default(now())
+  processedAt     DateTime?
+  organization    Organization    @relation("PaymentWebhookEvent_organization", fields: [organizationId], references: [id])
+  organizationId  String          @map("organization")
+  provider        PaymentProvider @relation("PaymentWebhookEvent_provider", fields: [providerId], references: [id])
+  providerId      String          @map("provider")
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @default(now()) @updatedAt
+
+  @@index([externalEventId])
+  @@index([organizationId])
+  @@index([providerId])
+}
+
+model PharmacyLocation {
+  id                                 String                        @id @default(cuid())
+  name                               String                        @default("")
+  code                               String                        @unique @default("")
+  status                             String?                       @default("active")
+  organization                       Organization                  @relation("PharmacyLocation_organization", fields: [organizationId], references: [id])
+  organizationId                     String                        @map("organization")
+  memberships                        OrganizationMembership[]      @relation("OrganizationMembership_location")
+  address                            Json?
+  timezone                           String                        @default("America/New_York")
+  phone                              String                        @default("")
+  onlineOrderingEnabled              Boolean                       @default(true)
+  pickupEnabled                      Boolean                       @default(true)
+  deliveryEnabled                    Boolean                       @default(false)
+  products                           Product[]                     @relation("Product_location")
+  inventoryLots                      InventoryLot[]                @relation("InventoryLot_location")
+  prescriptions                      Prescription[]                @relation("Prescription_location")
+  recalls                            Recall[]                      @relation("Recall_location")
+  orders                             Order[]                       @relation("Order_location")
+  outboxEvents                       OutboxEvent[]                 @relation("OutboxEvent_location")
+  machineCredentials                 MachineCredential[]           @relation("MachineCredential_location")
+  externalIntegrationWorkflows       ExternalIntegrationWorkflow[] @relation("ExternalIntegrationWorkflow_location")
+  createdAt                          DateTime                      @default(now())
+  updatedAt                          DateTime                      @default(now()) @updatedAt
+  from_AuditEvent_location           AuditEvent[]                  @relation("AuditEvent_location")
+  from_Cart_location                 Cart[]                        @relation("Cart_location")
+  from_ClinicalSafetyReview_location ClinicalSafetyReview[]        @relation("ClinicalSafetyReview_location")
+  from_DispensingLabel_location      DispensingLabel[]             @relation("DispensingLabel_location")
+  from_Fulfillment_location          Fulfillment[]                 @relation("Fulfillment_location")
+  from_HumanApproval_location        HumanApproval[]               @relation("HumanApproval_location")
+  from_InventoryMovement_location    InventoryMovement[]           @relation("InventoryMovement_location")
+  from_Payment_location              Payment[]                     @relation("Payment_location")
+  from_PaymentSession_location       PaymentSession[]              @relation("PaymentSession_location")
+  from_PrescriptionFill_location     PrescriptionFill[]            @relation("PrescriptionFill_location")
+  from_RecallExposure_location       RecallExposure[]              @relation("RecallExposure_location")
+  from_RefillRequest_location        RefillRequest[]               @relation("RefillRequest_location")
+  from_TemperatureExcursion_location TemperatureExcursion[]        @relation("TemperatureExcursion_location")
+
+  @@index([organizationId])
+}
+
+model Prescriber {
+  id                         String               @id @default(cuid())
+  name                       String               @default("")
+  npi                        String               @default("")
+  phone                      String               @default("")
+  fax                        String               @default("")
+  externalIdentifier         String               @default("")
+  verificationStatus         String?              @default("unverified")
+  externalValidationComplete Boolean              @default(false)
+  verificationMethod         String?              @default("not_recorded")
+  credentialType             String               @default("")
+  credentialJurisdiction     String               @default("")
+  credentialIdentifier       String               @default("")
+  credentialExpiresAt        DateTime?
+  validationReference        String               @default("")
+  validatedAt                DateTime?
+  verifiedBy                 User?                @relation("Prescriber_verifiedBy", fields: [verifiedById], references: [id])
+  verifiedById               String?              @map("verifiedBy")
+  organization               Organization         @relation("Prescriber_organization", fields: [organizationId], references: [id])
+  organizationId             String               @map("organization")
+  integrationProvider        IntegrationProvider? @relation("Prescriber_integrationProvider", fields: [integrationProviderId], references: [id])
+  integrationProviderId      String?              @map("integrationProvider")
+  prescriptions              Prescription[]       @relation("Prescription_prescriber")
+  createdAt                  DateTime             @default(now())
+  updatedAt                  DateTime             @default(now()) @updatedAt
+
+  @@index([npi])
+  @@index([verifiedById])
+  @@index([organizationId])
+  @@index([integrationProviderId])
+}
+
+model Prescription {
+  id                                      String                  @id @default(cuid())
+  prescriptionNumber                      String                  @unique @default("")
+  intakeRequestFingerprint                String?
+  source                                  String?                 @default("manual")
+  sourceVerificationStatus                String?                 @default("unverified")
+  externalReference                       String                  @default("")
+  status                                  String?                 @default("draft")
+  writtenAt                               DateTime?
+  expiresAt                               DateTime?
+  approvedAt                              DateTime?
+  dispensedAt                             DateTime?
+  organization                            Organization            @relation("Prescription_organization", fields: [organizationId], references: [id])
+  organizationId                          String                  @map("organization")
+  location                                PharmacyLocation        @relation("Prescription_location", fields: [locationId], references: [id])
+  locationId                              String                  @map("location")
+  patient                                 PatientProfile          @relation("Prescription_patient", fields: [patientId], references: [id])
+  patientId                               String                  @map("patient")
+  prescriber                              Prescriber              @relation("Prescription_prescriber", fields: [prescriberId], references: [id])
+  prescriberId                            String                  @map("prescriber")
+  items                                   PrescriptionItem[]      @relation("PrescriptionItem_prescription")
+  reviews                                 PrescriptionReview[]    @relation("PrescriptionReview_prescription")
+  safetyReviews                           ClinicalSafetyReview[]  @relation("ClinicalSafetyReview_prescription")
+  dispensingLabels                        DispensingLabel[]       @relation("DispensingLabel_prescription")
+  refillRequests                          RefillRequest[]         @relation("RefillRequest_prescription")
+  transfers                               PrescriptionTransfer[]  @relation("PrescriptionTransfer_prescription")
+  approval                                HumanApproval?          @relation("Prescription_approval", fields: [approvalId], references: [id])
+  approvalId                              String?                 @map("approval")
+  orders                                  Order[]                 @relation("Order_prescription")
+  createdAt                               DateTime                @default(now())
+  updatedAt                               DateTime                @default(now()) @updatedAt
+  from_InventoryMovement_prescription     InventoryMovement[]     @relation("InventoryMovement_prescription")
+  from_PrescriptionFill_prescription      PrescriptionFill[]      @relation("PrescriptionFill_prescription")
+  from_PrescriptionFillEvent_prescription PrescriptionFillEvent[] @relation("PrescriptionFillEvent_prescription")
+  from_RecallExposure_prescription        RecallExposure[]        @relation("RecallExposure_prescription")
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([patientId])
+  @@index([prescriberId])
+  @@index([approvalId])
+}
+
+model PrescriptionFill {
+  id                              String                  @id @default(cuid())
+  reservationKey                  String                  @unique @default("")
+  requestFingerprint              String                  @default("")
+  openKey                         String?                 @unique
+  kind                            String                  @default("")
+  status                          String                  @default("requested")
+  version                         Int                     @default(1)
+  fillNumber                      Int
+  creditState                     String                  @default("reserved")
+  authorizedQuantity              Int
+  quantityDispensed               Int                     @default(0)
+  quantityReleased                Int                     @default(0)
+  itemVersion                     String                  @default("")
+  authorityVersion                String                  @default("")
+  policySnapshot                  Json?
+  priceSnapshot                   Json?
+  expiresAt                       DateTime
+  organization                    Organization            @relation("PrescriptionFill_organization", fields: [organizationId], references: [id])
+  organizationId                  String                  @map("organization")
+  location                        PharmacyLocation        @relation("PrescriptionFill_location", fields: [locationId], references: [id])
+  locationId                      String                  @map("location")
+  patient                         PatientProfile          @relation("PrescriptionFill_patient", fields: [patientId], references: [id])
+  patientId                       String                  @map("patient")
+  prescription                    Prescription            @relation("PrescriptionFill_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId                  String                  @map("prescription")
+  prescriptionItem                PrescriptionItem        @relation("PrescriptionFill_prescriptionItem", fields: [prescriptionItemId], references: [id])
+  prescriptionItemId              String                  @map("prescriptionItem")
+  refillRequest                   RefillRequest?          @relation("PrescriptionFill_refillRequest", fields: [refillRequestId], references: [id])
+  refillRequestId                 String?                 @map("refillRequest")
+  approval                        HumanApproval?          @relation("PrescriptionFill_approval", fields: [approvalId], references: [id])
+  approvalId                      String?                 @map("approval")
+  reservedBy                      User                    @relation("PrescriptionFill_reservedBy", fields: [reservedById], references: [id])
+  reservedById                    String                  @map("reservedBy")
+  createdAt                       DateTime                @default(now())
+  updatedAt                       DateTime                @default(now()) @updatedAt
+  from_PrescriptionFillEvent_fill PrescriptionFillEvent[] @relation("PrescriptionFillEvent_fill")
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([prescriptionItemId])
+  @@index([refillRequestId])
+  @@index([approvalId])
+  @@index([reservedById])
+}
+
+model PrescriptionFillEvent {
+  id                 String           @id @default(cuid())
+  eventKey           String           @unique @default("")
+  commandFingerprint String           @default("")
+  action             String           @default("")
+  version            Int
+  quantity           Int              @default(0)
+  evidence           Json?
+  result             Json?
+  fill               PrescriptionFill @relation("PrescriptionFillEvent_fill", fields: [fillId], references: [id])
+  fillId             String           @map("fill")
+  prescription       Prescription     @relation("PrescriptionFillEvent_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId     String           @map("prescription")
+  actor              User             @relation("PrescriptionFillEvent_actor", fields: [actorId], references: [id])
+  actorId            String           @map("actor")
+  approval           HumanApproval?   @relation("PrescriptionFillEvent_approval", fields: [approvalId], references: [id])
+  approvalId         String?          @map("approval")
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @default(now()) @updatedAt
+
+  @@index([fillId])
+  @@index([prescriptionId])
+  @@index([actorId])
+  @@index([approvalId])
+}
+
+model PrescriptionItem {
+  id                                      String              @id @default(cuid())
+  medicationNameSnapshot                  String              @default("")
+  sig                                     String              @default("")
+  fillLineage                             String?
+  activeFillNumber                        Int?
+  quantityPrescribed                      Int
+  daysSupply                              Int?
+  refillsAuthorized                       Int?                @default(0)
+  refillsRemaining                        Int?                @default(0)
+  refillsReserved                         Int?                @default(0)
+  quantityDispensed                       Int?                @default(0)
+  substitutionAllowed                     Boolean             @default(false)
+  prescription                            Prescription        @relation("PrescriptionItem_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId                          String              @map("prescription")
+  drugReference                           DrugReference       @relation("PrescriptionItem_drugReference", fields: [drugReferenceId], references: [id])
+  drugReferenceId                         String              @map("drugReference")
+  product                                 Product             @relation("PrescriptionItem_product", fields: [productId], references: [id])
+  productId                               String              @map("product")
+  refillRequests                          RefillRequest[]     @relation("RefillRequest_prescriptionItem")
+  dispensingLabels                        DispensingLabel[]   @relation("DispensingLabel_prescriptionItem")
+  createdAt                               DateTime            @default(now())
+  updatedAt                               DateTime            @default(now()) @updatedAt
+  from_InventoryMovement_prescriptionItem InventoryMovement[] @relation("InventoryMovement_prescriptionItem")
+  from_PrescriptionFill_prescriptionItem  PrescriptionFill[]  @relation("PrescriptionFill_prescriptionItem")
+
+  @@index([prescriptionId])
+  @@index([drugReferenceId])
+  @@index([productId])
+}
+
+model PrescriptionReview {
+  id             String         @id @default(cuid())
+  decision       String
+  reason         String         @default("")
+  humanAttested  Boolean        @default(false)
+  reviewedAt     DateTime       @default(now())
+  prescription   Prescription   @relation("PrescriptionReview_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId String         @map("prescription")
+  patient        PatientProfile @relation("PrescriptionReview_patient", fields: [patientId], references: [id])
+  patientId      String         @map("patient")
+  pharmacist     User           @relation("PrescriptionReview_pharmacist", fields: [pharmacistId], references: [id])
+  pharmacistId   String         @map("pharmacist")
+  approval       HumanApproval  @relation("PrescriptionReview_approval", fields: [approvalId], references: [id])
+  approvalId     String         @map("approval")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now()) @updatedAt
+
+  @@index([prescriptionId])
+  @@index([patientId])
+  @@index([pharmacistId])
+  @@index([approvalId])
+}
+
+model PrescriptionTransfer {
+  id                String         @id @default(cuid())
+  idempotencyKey    String         @unique @default("")
+  direction         String
+  status            String?        @default("requested")
+  counterpartyName  String         @default("")
+  counterpartyPhone String         @default("")
+  requestedAt       DateTime?      @default(now())
+  completedAt       DateTime?
+  patient           PatientProfile @relation("PrescriptionTransfer_patient", fields: [patientId], references: [id])
+  patientId         String         @map("patient")
+  prescription      Prescription   @relation("PrescriptionTransfer_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId    String         @map("prescription")
+  consent           ConsentRecord? @relation("ConsentRecord_transfer")
+  approval          HumanApproval? @relation("PrescriptionTransfer_approval", fields: [approvalId], references: [id])
+  approvalId        String?        @map("approval")
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @default(now()) @updatedAt
+
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([approvalId])
+}
+
+model Product {
+  id                             String              @id @default(cuid())
+  title                          String              @default("")
+  handle                         String              @unique @default("")
+  sku                            String              @unique @default("")
+  description                    String              @default("")
+  status                         String?             @default("draft")
+  category                       String?             @default("otc_medication")
+  prescriptionRequirement        String?             @default("none")
+  priceAmount                    Int                 @default(0)
+  currencyCode                   String              @default("USD")
+  taxable                        Boolean             @default(true)
+  onlineAvailable                Boolean             @default(false)
+  posAvailable                   Boolean             @default(true)
+  coldChainRequired              Boolean             @default(false)
+  imageUrl                       String              @default("")
+  organization                   Organization        @relation("Product_organization", fields: [organizationId], references: [id])
+  organizationId                 String              @map("organization")
+  location                       PharmacyLocation    @relation("Product_location", fields: [locationId], references: [id])
+  locationId                     String              @map("location")
+  drugReference                  DrugReference?      @relation("Product_drugReference", fields: [drugReferenceId], references: [id])
+  drugReferenceId                String?             @map("drugReference")
+  inventoryLots                  InventoryLot[]      @relation("InventoryLot_product")
+  cartItems                      CartItem[]          @relation("CartItem_product")
+  orderLineItems                 OrderLineItem[]     @relation("OrderLineItem_product")
+  prescriptionItems              PrescriptionItem[]  @relation("PrescriptionItem_product")
+  createdAt                      DateTime            @default(now())
+  updatedAt                      DateTime            @default(now()) @updatedAt
+  from_InventoryMovement_product InventoryMovement[] @relation("InventoryMovement_product")
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([drugReferenceId])
+}
+
+model Recall {
+  id                        String            @id @default(cuid())
+  recallNumber              String            @unique @default("")
+  classification            String?           @default("unverified")
+  status                    String?           @default("draft")
+  reason                    String            @default("")
+  source                    String            @default("")
+  sourceValidationReference String            @default("")
+  initiatedAt               DateTime?         @default(now())
+  closedAt                  DateTime?
+  organization              Organization      @relation("Recall_organization", fields: [organizationId], references: [id])
+  organizationId            String            @map("organization")
+  location                  PharmacyLocation? @relation("Recall_location", fields: [locationId], references: [id])
+  locationId                String?           @map("location")
+  lots                      InventoryLot[]    @relation("InventoryLot_recalls")
+  exposures                 RecallExposure[]  @relation("RecallExposure_recall")
+  approval                  HumanApproval?    @relation("Recall_approval", fields: [approvalId], references: [id])
+  approvalId                String?           @map("approval")
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([approvalId])
+}
+
+model RecallExposure {
+  id                String            @id @default(cuid())
+  exposureKey       String            @unique @default("")
+  status            String?           @default("outreach_required")
+  quantityDispensed Int
+  contactMethod     String            @default("")
+  outcome           String            @default("")
+  notes             String            @default("")
+  lastActionAt      DateTime?
+  resolvedAt        DateTime?
+  organization      Organization      @relation("RecallExposure_organization", fields: [organizationId], references: [id])
+  organizationId    String            @map("organization")
+  location          PharmacyLocation  @relation("RecallExposure_location", fields: [locationId], references: [id])
+  locationId        String            @map("location")
+  recall            Recall            @relation("RecallExposure_recall", fields: [recallId], references: [id])
+  recallId          String            @map("recall")
+  movement          InventoryMovement @relation("RecallExposure_movement", fields: [movementId], references: [id])
+  movementId        String            @map("movement")
+  patient           PatientProfile    @relation("RecallExposure_patient", fields: [patientId], references: [id])
+  patientId         String            @map("patient")
+  prescription      Prescription?     @relation("RecallExposure_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId    String?           @map("prescription")
+  order             Order?            @relation("RecallExposure_order", fields: [orderId], references: [id])
+  orderId           String?           @map("order")
+  lastActor         User?             @relation("RecallExposure_lastActor", fields: [lastActorId], references: [id])
+  lastActorId       String?           @map("lastActor")
+  approval          HumanApproval?    @relation("RecallExposure_approval", fields: [approvalId], references: [id])
+  approvalId        String?           @map("approval")
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([recallId])
+  @@index([movementId])
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([orderId])
+  @@index([lastActorId])
+  @@index([approvalId])
+}
+
+model RefillRequest {
+  id                                  String             @id @default(cuid())
+  idempotencyKey                      String             @unique @default("")
+  requestFingerprint                  String?
+  openRequestKey                      String?            @unique
+  status                              String?            @default("requested")
+  requestNote                         String             @default("")
+  resolutionNote                      String?
+  requestedAt                         DateTime?          @default(now())
+  resolvedAt                          DateTime?
+  patient                             PatientProfile     @relation("RefillRequest_patient", fields: [patientId], references: [id])
+  patientId                           String             @map("patient")
+  prescription                        Prescription       @relation("RefillRequest_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId                      String             @map("prescription")
+  prescriptionItem                    PrescriptionItem?  @relation("RefillRequest_prescriptionItem", fields: [prescriptionItemId], references: [id])
+  prescriptionItemId                  String?            @map("prescriptionItem")
+  location                            PharmacyLocation   @relation("RefillRequest_location", fields: [locationId], references: [id])
+  locationId                          String             @map("location")
+  approval                            HumanApproval?     @relation("RefillRequest_approval", fields: [approvalId], references: [id])
+  approvalId                          String?            @map("approval")
+  createdAt                           DateTime           @default(now())
+  updatedAt                           DateTime           @default(now()) @updatedAt
+  from_PrescriptionFill_refillRequest PrescriptionFill[] @relation("PrescriptionFill_refillRequest")
+
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([prescriptionItemId])
+  @@index([locationId])
+  @@index([approvalId])
+}
+
+model Role {
+  id                             String   @id @default(cuid())
+  name                           String   @unique @default("")
+  canAccessDashboard             Boolean  @default(false)
+  canManageOrganizations         Boolean  @default(false)
+  canManageLocations             Boolean  @default(false)
+  canManageUsers                 Boolean  @default(false)
+  canManageRoles                 Boolean  @default(false)
+  canManageCatalog               Boolean  @default(false)
+  canManageInventory             Boolean  @default(false)
+  canManageRecalls               Boolean  @default(false)
+  canManagePatients              Boolean  @default(false)
+  canViewPatientPrivateData      Boolean  @default(false)
+  canManagePrescriptions         Boolean  @default(false)
+  canReviewPrescriptions         Boolean  @default(false)
+  canDispenseMedications         Boolean  @default(false)
+  canManageOrders                Boolean  @default(false)
+  canManagePayments              Boolean  @default(false)
+  canManageIntegrations          Boolean  @default(false)
+  canManageOnboarding            Boolean  @default(false)
+  canViewAuditLogs               Boolean  @default(false)
+  canApproveConsequentialActions Boolean  @default(false)
+  assignedTo                     User[]   @relation("User_role")
+  createdAt                      DateTime @default(now())
+  updatedAt                      DateTime @default(now()) @updatedAt
+}
+
+model Supplier {
+  id                    String               @id @default(cuid())
+  name                  String               @default("")
+  accountReference      String               @default("")
+  status                String?              @default("pending_validation")
+  organization          Organization         @relation("Supplier_organization", fields: [organizationId], references: [id])
+  organizationId        String               @map("organization")
+  integrationProvider   IntegrationProvider? @relation("Supplier_integrationProvider", fields: [integrationProviderId], references: [id])
+  integrationProviderId String?              @map("integrationProvider")
+  inventoryLots         InventoryLot[]       @relation("InventoryLot_supplier")
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([integrationProviderId])
+}
+
+model TemperatureExcursion {
+  id                String           @id @default(cuid())
+  idempotencyKey    String           @unique @default("")
+  observedMinimumC  Float
+  observedMaximumC  Float
+  startedAt         DateTime
+  endedAt           DateTime?
+  status            String?          @default("open")
+  dispositionReason String           @default("")
+  organization      Organization     @relation("TemperatureExcursion_organization", fields: [organizationId], references: [id])
+  organizationId    String           @map("organization")
+  location          PharmacyLocation @relation("TemperatureExcursion_location", fields: [locationId], references: [id])
+  locationId        String           @map("location")
+  lot               InventoryLot     @relation("TemperatureExcursion_lot", fields: [lotId], references: [id])
+  lotId             String           @map("lot")
+  reviewedBy        User             @relation("TemperatureExcursion_reviewedBy", fields: [reviewedById], references: [id])
+  reviewedById      String           @map("reviewedBy")
+  approval          HumanApproval    @relation("TemperatureExcursion_approval", fields: [approvalId], references: [id])
+  approvalId        String           @map("approval")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([lotId])
+  @@index([reviewedById])
+  @@index([approvalId])
+}
+
+model User {
+  id                                               String                   @id @default(cuid())
+  name                                             String                   @default("")
+  email                                            String                   @unique @default("")
+  password                                         String
+  role                                             Role?                    @relation("User_role", fields: [roleId], references: [id])
+  roleId                                           String?                  @map("role")
+  tokenVersion                                     Int?                     @default(0)
+  onboardingStatus                                 String?                  @default("not_started")
+  memberships                                      OrganizationMembership[] @relation("OrganizationMembership_user")
+  patientProfile                                   PatientProfile?          @relation("PatientProfile_user")
+  carts                                            Cart[]                   @relation("Cart_customer")
+  orders                                           Order[]                  @relation("Order_customer")
+  prescriptionReviews                              PrescriptionReview[]     @relation("PrescriptionReview_pharmacist")
+  humanApprovals                                   HumanApproval[]          @relation("HumanApproval_actor")
+  auditEvents                                      AuditEvent[]             @relation("AuditEvent_actor")
+  createdMachineCredentials                        MachineCredential[]      @relation("MachineCredential_createdBy")
+  createdAt                                        DateTime                 @default(now())
+  updatedAt                                        DateTime                 @default(now()) @updatedAt
+  passwordResetToken                               String?
+  passwordResetIssuedAt                            DateTime?
+  passwordResetRedeemedAt                          DateTime?
+  from_ClinicalSafetyReview_pharmacist             ClinicalSafetyReview[]   @relation("ClinicalSafetyReview_pharmacist")
+  from_ConsentRecord_actor                         ConsentRecord[]          @relation("ConsentRecord_actor")
+  from_DispensingLabel_pharmacist                  DispensingLabel[]        @relation("DispensingLabel_pharmacist")
+  from_DrugReference_reviewedBy                    DrugReference[]          @relation("DrugReference_reviewedBy")
+  from_DrugReferenceReview_reviewedBy              DrugReferenceReview[]    @relation("DrugReferenceReview_reviewedBy")
+  from_Fulfillment_assignedTo                      Fulfillment[]            @relation("Fulfillment_assignedTo")
+  from_InventoryMovement_actor                     InventoryMovement[]      @relation("InventoryMovement_actor")
+  from_Organization_cashPolicyReviewedBy           Organization[]           @relation("Organization_cashPolicyReviewedBy")
+  from_OrganizationMembership_credentialVerifiedBy OrganizationMembership[] @relation("OrganizationMembership_credentialVerifiedBy")
+  from_PatientAllergy_recordedBy                   PatientAllergy[]         @relation("PatientAllergy_recordedBy")
+  from_PatientMedication_recordedBy                PatientMedication[]      @relation("PatientMedication_recordedBy")
+  from_PatientProfile_identityVerifiedBy           PatientProfile[]         @relation("PatientProfile_identityVerifiedBy")
+  from_Payment_recordedBy                          Payment[]                @relation("Payment_recordedBy")
+  from_Prescriber_verifiedBy                       Prescriber[]             @relation("Prescriber_verifiedBy")
+  from_PrescriptionFill_reservedBy                 PrescriptionFill[]       @relation("PrescriptionFill_reservedBy")
+  from_PrescriptionFillEvent_actor                 PrescriptionFillEvent[]  @relation("PrescriptionFillEvent_actor")
+  from_RecallExposure_lastActor                    RecallExposure[]         @relation("RecallExposure_lastActor")
+  from_TemperatureExcursion_reviewedBy             TemperatureExcursion[]   @relation("TemperatureExcursion_reviewedBy")
+
+  @@index([roleId])
 }

@@ -1,0 +1,24 @@
+/* Store brand tokens, derived from the store logo colour (see layout.tsx). */
+.storefront-brand {
+  --store-logo-hue: var(--store-page-logo-hue, 0);
+  --store-brand-hue: var(--store-page-brand-hue, 260);
+  --background: oklch(0.975 0.006 var(--store-brand-hue));
+  --foreground: oklch(0.28 0.045 var(--store-brand-hue));
+  --card: oklch(0.995 0.002 var(--store-brand-hue));
+  --card-foreground: oklch(0.28 0.045 var(--store-brand-hue));
+  --popover: oklch(0.995 0.002 var(--store-brand-hue));
+  --popover-foreground: oklch(0.28 0.045 var(--store-brand-hue));
+  --primary: oklch(0.36 0.07 var(--store-brand-hue));
+  --primary-foreground: oklch(0.98 0.006 var(--store-brand-hue));
+  --secondary: oklch(0.92 0.03 var(--store-brand-hue));
+  --secondary-foreground: oklch(0.28 0.045 var(--store-brand-hue));
+  --muted: oklch(0.93 0.02 var(--store-brand-hue));
+  --muted-foreground: oklch(0.48 0.03 var(--store-brand-hue));
+  --accent: oklch(0.8 0.075 var(--store-brand-hue));
+  --accent-foreground: oklch(0.28 0.045 var(--store-brand-hue));
+  --border: oklch(0.88 0.015 var(--store-brand-hue));
+  --input: oklch(0.88 0.015 var(--store-brand-hue));
+  --ring: oklch(0.55 0.12 var(--store-brand-hue));
+  background-color: var(--background);
+  color: var(--foreground);
+}

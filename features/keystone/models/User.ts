@@ -1,96 +1,79 @@
 import { list } from '@keystone-6/core'
-import { allOperations, denyAll } from '@keystone-6/core/access'
-import { checkbox, password, relationship, text } from '@keystone-6/core/fields'
+import { denyAll } from '@keystone-6/core/access'
+import { integer, password, relationship, select, text } from '@keystone-6/core/fields'
 
-import { isSignedIn, permissions, rules } from '../access'
-import type { Session } from '../access'
+import { canChangeOwnPassword, isSignedIn, permissions, rules } from '../access'
+import { nextSessionTokenVersion } from '../session-revocation'
+import { canCreateUserRole, resolvePublicUserCreateData } from '../security/user-create'
+import { immutableRelationship } from './immutableRelationship'
+import { trackingFields } from './trackingFields'
 
 export const User = list({
   access: {
     operation: {
-      ...allOperations(isSignedIn),
-      create: (args) => {
-        // Allow public sign-ups if environment variable is set to true
-        if (process.env.PUBLIC_SIGNUPS_ALLOWED === 'true') {
-          return true;
-        }
-        // Otherwise, require canManagePeople permission
-        return permissions.canManagePeople(args);
-      },
-      delete: permissions.canManagePeople,
+      query: isSignedIn,
+      create: () => true,
+      update: isSignedIn,
+      delete: denyAll,
     },
-    filter: {
-      query: rules.canReadPeople,
-      update: rules.canUpdatePeople,
+    filter: { query: rules.canReadPeople, update: rules.canUpdatePeople },
+  },
+  hooks: {
+    resolveInput: ({ operation, inputData, resolvedData, item, context }) => {
+      let data = resolvedData
+      if (operation === 'create' && !permissions.canManageUsers({ session: context.session as any })) {
+        data = resolvePublicUserCreateData({ inputData, resolvedData }) as typeof resolvedData
+      }
+      const nextTokenVersion = nextSessionTokenVersion(operation, data.password, item?.tokenVersion)
+      return nextTokenVersion !== undefined ? { ...data, tokenVersion: nextTokenVersion } : data
     },
   },
   ui: {
-    hideCreate: args => !permissions.canManagePeople(args),
-    hideDelete: args => !permissions.canManagePeople(args),
-    listView: {
-      initialColumns: ['name', 'email', 'role', 'tasks'],
-    },
-    itemView: {
-      defaultFieldMode: ({ session, item }) => {
-        // canEditOtherPeople can edit other people
-        if (session?.data.role?.canEditOtherPeople) return 'edit'
-
-        // edit themselves
-        if (session?.itemId === item?.id) return 'edit'
-
-        // else, default all fields to read mode
-        return 'read'
-      },
-    },
+    hideCreate: (args) => !permissions.canManageUsers(args as any),
+    hideDelete: true,
+    listView: { initialColumns: ['name', 'email', 'role', 'onboardingStatus'] },
   },
   fields: {
-    name: text({
-      validation: {
-        isRequired: true,
-      },
-    }),
-    email: text({
-      isFilterable: false,
-      isOrderable: false,
-      isIndexed: 'unique',
-      validation: {
-        isRequired: true,
-      },
-    }),
+    name: text({ validation: { isRequired: true } }),
+    email: text({ validation: { isRequired: true }, isIndexed: 'unique' }),
     password: password({
+      validation: { isRequired: true, length: { min: 12, max: 1000 }, rejectCommon: true },
       access: {
         read: denyAll,
-        update: ({ session, item }) =>
-          permissions.canManagePeople({ session }) || session?.itemId === item.id,
+        update: canChangeOwnPassword,
       },
-      validation: { isRequired: true },
     }),
     role: relationship({
       ref: 'Role.assignedTo',
       access: {
-        create: permissions.canManagePeople,
-        update: permissions.canManagePeople,
+        create: canCreateUserRole,
+        // Role managers may change any role; user managers may assign roles to other users only.
+        update: ({ session, item }: any) => permissions.canManageRoles({ session })
+          || (permissions.canManageUsers({ session }) && String(item?.id) !== session?.itemId),
       },
       ui: {
-        itemView: {
-          fieldMode: args => (permissions.canManagePeople(args) ? 'edit' : 'read'),
-        },
+        itemView: { fieldMode: (args: any) => permissions.canManageUsers(args) ? 'edit' : 'read' },
       },
     }),
-    tasks: relationship({
-      ref: 'Todo.assignedTo',
-      many: true,
-      access: {
-        create: permissions.canManageAllTodos,
-        update: ({ session, item }) =>
-          permissions.canManageAllTodos({ session }) || session?.itemId === item.id,
-      },
-      ui: {
-        createView: {
-          fieldMode: args => (permissions.canManageAllTodos(args) ? 'edit' : 'hidden'),
-        },
-        // itemView: { fieldMode: 'read' },
-      },
+    tokenVersion: integer({ defaultValue: 0, access: { create: denyAll, update: denyAll }, ui: { itemView: { fieldMode: 'hidden' }, createView: { fieldMode: 'hidden' } } }),
+    onboardingStatus: select({
+      type: 'string',
+      options: [
+        { label: 'Not started', value: 'not_started' },
+        { label: 'In progress', value: 'in_progress' },
+        { label: 'Completed', value: 'completed' },
+        { label: 'Dismissed', value: 'dismissed' },
+      ],
+      defaultValue: 'not_started',
     }),
+    memberships: relationship({ ref: 'OrganizationMembership.user', many: true, access: immutableRelationship }),
+    patientProfile: relationship({ ref: 'PatientProfile.user', access: immutableRelationship }),
+    carts: relationship({ ref: 'Cart.customer', many: true, access: immutableRelationship }),
+    orders: relationship({ ref: 'Order.customer', many: true, access: immutableRelationship }),
+    prescriptionReviews: relationship({ ref: 'PrescriptionReview.pharmacist', many: true, access: immutableRelationship }),
+    humanApprovals: relationship({ ref: 'HumanApproval.actor', many: true, access: immutableRelationship }),
+    auditEvents: relationship({ ref: 'AuditEvent.actor', many: true, access: immutableRelationship }),
+    createdMachineCredentials: relationship({ ref: 'MachineCredential.createdBy', many: true, access: immutableRelationship }),
+    ...trackingFields,
   },
-});
+})
