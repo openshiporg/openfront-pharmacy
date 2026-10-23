@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+import { isEmailConfigured } from '@/features/keystone/lib/mail'
 import { storefrontRequest } from '../storefront-client'
 import { removeAuthToken, setAuthToken } from './cookies'
 
@@ -71,6 +72,7 @@ export async function signOut() {
 export async function requestPasswordReset(_state: { sent: boolean; error: string | null }, formData: FormData) {
   const email = String(formData.get('email') || '').trim()
   if (!email) return { sent: false, error: 'Enter your email address.' }
+  if (!(await isEmailConfigured())) return { sent: false, error: 'Password reset by email is not set up for this store. Call the pharmacy to reset your password.' }
   const response = await storefrontRequest('mutation StorefrontSendReset($email: String!) { sendUserPasswordResetLink(email: $email) }', { email })
   if (!response.success) return { sent: false, error: response.error }
   return { sent: true, error: null }

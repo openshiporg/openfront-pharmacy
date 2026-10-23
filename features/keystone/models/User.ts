@@ -4,7 +4,7 @@ import { integer, password, relationship, select, text } from '@keystone-6/core/
 
 import { canChangeOwnPassword, isSignedIn, permissions, rules } from '../access'
 import { nextSessionTokenVersion } from '../session-revocation'
-import { canCreateUserRole, resolvePublicUserCreateData } from '../security/user-create'
+import { canCreateUserRole, firstUserAdminRoleId, resolvePublicUserCreateData } from '../security/user-create'
 import { immutableRelationship } from './immutableRelationship'
 import { trackingFields } from './trackingFields'
 
@@ -19,10 +19,14 @@ export const User = list({
     filter: { query: rules.canReadPeople, update: rules.canUpdatePeople },
   },
   hooks: {
-    resolveInput: ({ operation, inputData, resolvedData, item, context }) => {
+    resolveInput: async ({ operation, inputData, resolvedData, item, context }) => {
       let data = resolvedData
       if (operation === 'create' && !permissions.canManageUsers({ session: context.session as any })) {
         data = resolvePublicUserCreateData({ inputData, resolvedData }) as typeof resolvedData
+      }
+      if (operation === 'create' && !data.role) {
+        const adminRoleId = await firstUserAdminRoleId(context)
+        if (adminRoleId) data = { ...data, role: { connect: { id: adminRoleId } } }
       }
       const nextTokenVersion = nextSessionTokenVersion(operation, data.password, item?.tokenVersion)
       return nextTokenVersion !== undefined ? { ...data, tokenVersion: nextTokenVersion } : data

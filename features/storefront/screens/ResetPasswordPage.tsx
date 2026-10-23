@@ -10,7 +10,7 @@ import { requestPasswordReset, resetPassword } from '../lib/data/user'
 
 const inputClass = 'h-11 rounded-xl bg-background'
 
-export function ResetPasswordPage({ token }: { token?: string }) {
+export function ResetPasswordPage({ token, email }: { token?: string; email?: string }) {
   const [requestState, requestAction, requestPending] = useActionState(requestPasswordReset, { sent: false, error: null })
   const [resetState, resetAction, resetPending] = useActionState(resetPassword, { done: false, error: null })
 
@@ -21,7 +21,7 @@ export function ResetPasswordPage({ token }: { token?: string }) {
         ? <Notice tone="brand" className="mt-6">Password changed.</Notice>
         : <form action={resetAction} className="mt-6 grid gap-5">
           <input type="hidden" name="token" value={token} />
-          <div className="grid gap-2"><Label htmlFor="reset-email">Email</Label><Input id="reset-email" name="email" type="email" autoComplete="email" required className={inputClass} /></div>
+          <div className="grid gap-2"><Label htmlFor="reset-email">Email</Label><Input id="reset-email" name="email" type="email" autoComplete="email" defaultValue={email} readOnly={Boolean(email)} required className={inputClass} /></div>
           <div className="grid gap-2"><Label htmlFor="reset-password">New password</Label><Input id="reset-password" name="password" type="password" autoComplete="new-password" minLength={12} required className={inputClass} /></div>
           {resetState.error && <p role="alert" className="text-sm text-destructive">{resetState.error}</p>}
           <button type="submit" disabled={resetPending} className={`${buttonClass} min-h-12 w-full`}>{resetPending ? 'Saving…' : 'Change password'}</button>

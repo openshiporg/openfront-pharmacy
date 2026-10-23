@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ArrowUpRight } from 'lucide-react'
 
 import type { PublicPharmacyLocationProjection } from '@/features/pharmacy/contracts'
+import { OpenNow } from '../components/LocationHours'
 import { LocationPicker } from '../components/LocationPicker'
 import { ProductGrid } from '../components/ProductGrid'
 import { Dot, Field, TitleLine } from '../components/rx-ui'
@@ -63,7 +64,10 @@ function LocationLabel({ location, phone }: { location: PublicPharmacyLocationPr
         {address && <Field label="Address" className="col-span-2">{address}</Field>}
         {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary">{phone}</a></Field>}
         {services && <Field label="Service">{services}</Field>}
+        {location.hours && <Field label="Store"><OpenNow week={location.hours.store} timezone={location.timezone} /></Field>}
+        {location.hours && <Field label="Pharmacy counter"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} /></Field>}
       </dl>
+      {location.hours && <Link href="/prescriptions#location" className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary">All hours</Link>}
     </div>
   </aside>
 }

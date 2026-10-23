@@ -5,6 +5,7 @@ import {
   ClipboardList,
   CreditCard,
   HeartPulse,
+  Inbox,
   LayoutDashboard,
   Package,
   Plug,
@@ -87,6 +88,14 @@ export const platformNavItems: PlatformNavItem[] = [
     color: 'rose',
     description: 'Manage patient profiles, safety history, and consent.',
     icon: HeartPulse,
+    group: 'care',
+  },
+  {
+    title: 'Online Requests',
+    href: '/platform/requests',
+    color: 'teal',
+    description: 'Patient registrations, transfers, and new prescriptions sent online.',
+    icon: Inbox,
     group: 'care',
   },
   {

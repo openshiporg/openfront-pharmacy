@@ -13,11 +13,13 @@ import { Callout, EmptyBand, Pill, RxButton as Button, TitleLine, Track } from '
 import { storeBrandHue } from '@/features/storefront/lib/rx-brand';
 import { cn } from '@/lib/utils';
 import { LOGO_ICONS, HUE_PRESETS } from '../lib/icon-registry';
-import { updateStoreSettings, type StoreSettings } from '../actions';
+import { updateStoreSettings, type StoreLocationHours, type StoreSettings } from '../actions';
+import { LocationHoursEditor } from '../components/LocationHoursEditor';
 
 interface StoreSettingsPageClientProps {
   initialData: StoreSettings[];
   initialError: string | null;
+  locations?: Record<string, StoreLocationHours[]>;
 }
 
 const COLOR_PRESETS = [{ name: 'Dispensary green', value: 295 }, ...HUE_PRESETS.filter((preset) => preset.value !== 0), { name: 'Original', value: 0 }];
@@ -55,6 +57,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
   const [tagline, setTagline] = useState(store.operatorTagline || '');
   const [supportEmail, setSupportEmail] = useState(store.supportEmail || '');
   const [supportPhone, setSupportPhone] = useState(store.supportPhone || '');
+  const [privacyNotice, setPrivacyNotice] = useState(store.privacyNotice || '');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSave = async () => {
@@ -66,6 +69,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
       logoColor,
       supportEmail,
       supportPhone,
+      privacyNotice,
     });
 
     if (result.success) {
@@ -138,6 +142,12 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
           </div>
         </section>
 
+        <section className="space-y-3 rounded-xl bg-background p-4 ring-1 ring-border sm:p-5">
+          <TitleLine as="h2" title="Notice of Privacy Practices" titleClassName="text-sm" tone={privacyNotice.trim() ? 'ok' : 'warn'} state={privacyNotice.trim() ? 'Posted at /privacy' : 'Not posted'} />
+          <Label htmlFor="privacy-notice" className="sr-only">Notice of Privacy Practices</Label>
+          <Textarea id="privacy-notice" value={privacyNotice} onChange={(e) => setPrivacyNotice(e.target.value)} maxLength={50000} className="min-h-48 text-sm" />
+        </section>
+
         <Button onClick={handleSave} disabled={isLoading} className="min-h-10 px-5">
           {isLoading ? 'Saving…' : 'Save settings'}
         </Button>
@@ -154,6 +164,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
 export function StoreSettingsPageClient({
   initialData,
   initialError,
+  locations,
 }: StoreSettingsPageClientProps) {
   const [storeId, setStoreId] = useState(initialData[0]?.id || '');
   const store = initialData.find((entry) => entry.id === storeId);
@@ -170,6 +181,10 @@ export function StoreSettingsPageClient({
               {initialData.map((entry) => <Pill key={entry.id} active={entry.id === storeId} onClick={() => setStoreId(entry.id)}>{entry.operatorDisplayName}</Pill>)}
             </Track>}
             <StoreSettingsForm key={store.id} store={store} />
+            {locations?.[store.id]?.length ? <div className="grid gap-4 lg:max-w-[calc(100%-21.5rem)]">
+              <h2 className="text-sm font-semibold">Hours</h2>
+              {locations[store.id].map((location) => <LocationHoursEditor key={location.id} location={location} />)}
+            </div> : null}
           </>}
     </div>
   );

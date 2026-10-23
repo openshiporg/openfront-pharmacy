@@ -6,7 +6,7 @@ import Iron from '@hapi/iron'
 import * as cookie from 'cookie'
 
 import { permissions } from './access'
-import { sendPasswordResetEmail } from './lib/mail'
+import { sendPasswordResetToken } from './lib/mail'
 import { models } from './models'
 import { permissionsList } from './models/fields'
 import { isSessionTokenVersionCurrent } from './session-revocation'
@@ -149,20 +149,14 @@ const { withAuth } = createAuth({
   listKey: 'User',
   identityField: 'email',
   secretField: 'password',
+  // The first user's Admin role is assigned in the User resolveInput hook (security/user-create.ts),
+  // not through itemData's nested role.create.
   initFirstItem: {
     fields: ['name', 'email', 'password'],
-    itemData: {
-      role: {
-        create: Object.fromEntries([
-          ['name', 'Admin'],
-          ...permissionsList.map((permission) => [permission, true]),
-        ]),
-      },
-    },
   },
   passwordResetLink: {
     async sendToken(args) {
-      await sendPasswordResetEmail(args.token, args.identity)
+      await sendPasswordResetToken(args)
     },
   },
   sessionData: `

@@ -16,7 +16,7 @@ const PRODUCT_FIELDS = 'id title handle sku description category priceAmount cur
 const TENANT_QUERY = `query StorefrontTenant($tenantKey: String!, $search: String, $first: Int, $after: String) {
   publicPharmacyTenant(tenantKey: $tenantKey, search: $search, first: $first, after: $after) {
     brand { organizationId tenantKey displayName tagline logoUrl logoIcon logoColor supportEmail supportPhone }
-    locations { id name code address phone onlineOrderingEnabled pickupEnabled deliveryEnabled }
+    locations { id name code address phone timezone hours onlineOrderingEnabled pickupEnabled deliveryEnabled }
     locationsTotalCount hasMoreLocations nextLocationCursor
   }
 }`
@@ -73,4 +73,13 @@ export const getStorefrontProduct = cache(async (handle: string) => {
     }
   }
   return null
+})
+
+/** The store's Notice of Privacy Practices text, or null when the pharmacy has not posted one. */
+export const getPrivacyNotice = cache(async () => {
+  const response = await storefrontRequest<{ publicPharmacyTenant: { brand: { privacyNotice?: string | null } } }>(
+    'query StorefrontPrivacy($tenantKey: String!) { publicPharmacyTenant(tenantKey: $tenantKey, first: 1) { brand { privacyNotice } } }',
+    { tenantKey: await getRequestTenantKey() },
+  )
+  return response.success ? response.data.publicPharmacyTenant.brand.privacyNotice?.trim() || null : null
 })

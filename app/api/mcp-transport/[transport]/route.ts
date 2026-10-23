@@ -66,6 +66,22 @@ async function getGraphQLSchema(graphqlEndpoint: string, cookie: string): Promis
   return buildClientSchema(result.data);
 }
 
+// The MCP endpoint advertises tools only to a signed-in dashboard user; every tool still runs through
+// GraphQL access control with the caller's own session.
+async function hasDashboardSession(graphqlEndpoint: string, cookie: string): Promise<boolean> {
+  if (!cookie) return false
+  try {
+    const result = await executeGraphQL('query { authenticatedItem { ... on User { id role { canAccessDashboard } } } }', graphqlEndpoint, cookie)
+    return result?.data?.authenticatedItem?.role?.canAccessDashboard === true
+  } catch {
+    return false
+  }
+}
+
+function unauthorized(id?: unknown) {
+  return new Response(JSON.stringify({ jsonrpc: '2.0', id: id ?? null, error: { code: -32001, message: 'Sign in to the dashboard to use this endpoint.' } }), { status: 401, headers: { 'Content-Type': 'application/json' } })
+}
+
 export async function POST(request: Request, { params }: { params: Promise<{ transport: string }> }) {
   // Track if any CRUD operations occurred during this request
   let dataHasChanged = false;
@@ -79,6 +95,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tra
     
     // Extract cookie from request
     const cookie = request.headers.get('cookie') || ''
+    if (!(await hasDashboardSession(graphqlEndpoint, cookie))) return unauthorized()
   
     // Get the GraphQL schema
     const schema = await getGraphQLSchema(graphqlEndpoint, cookie);
@@ -920,6 +937,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ tran
   
   const baseUrl = await getBaseUrl();
   const graphqlEndpoint = `${baseUrl}/api/graphql`;
+  if (!(await hasDashboardSession(graphqlEndpoint, request.headers.get('cookie') || ''))) return unauthorized()
   
   return new Response(JSON.stringify({ 
     message: 'Simple MCP Server is running',

@@ -13,6 +13,7 @@ export type OperatorBrand = {
   logoColor?: string | null
   supportEmail?: string | null
   supportPhone?: string | null
+  privacyNotice?: string | null
 }
 
 const HOST_PORT = /:\d+$/
@@ -67,5 +68,6 @@ export function operatorBrandFromOrganization(organization: any): OperatorBrand 
     logoColor: normalizeStoreLogoColor(organization.logoColor),
     supportEmail: organization.supportEmail || null,
     supportPhone: organization.supportPhone || null,
+    privacyNotice: organization.privacyNotice || null,
   }
 }

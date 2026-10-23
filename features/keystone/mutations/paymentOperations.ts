@@ -14,7 +14,7 @@ export function isManualPaymentProvider(provider: { createPaymentFunction?: stri
 }
 
 function paymentProviderOption(provider: any) {
-  return { code: provider.code, name: provider.name }
+  return { code: provider.code, name: provider.name, payAtPickup: isManualPaymentProvider(provider) }
 }
 
 function paymentSessionResult(session: any) {
@@ -45,7 +45,7 @@ export async function activePharmacyPaymentProviders(_root: unknown, args: { loc
   }
   const providers = await context.sudo().query.PaymentProvider.findMany({
     where: { organization: { id: { equals: location.organization.id } }, isInstalled: { equals: true } },
-    query: 'name code',
+    query: 'name code createPaymentFunction',
   })
   return providers.map(paymentProviderOption)
 }

@@ -6,6 +6,7 @@ import { isSignedIn, permissions, rules } from '../access'
 import { requiredRelationshipDb } from './requiredRelationship'
 import { immutableRelationship } from './immutableRelationship'
 import { trackingFields } from './trackingFields'
+import { weeklyHoursError } from '../../pharmacy/hours'
 
 export const PharmacyLocation = list({
   access: {
@@ -19,6 +20,11 @@ export const PharmacyLocation = list({
   },
   hooks: {
     validateInput: async ({ operation, resolvedData, context, addValidationError }) => {
+      const hoursError = resolvedData.hours !== undefined ? weeklyHoursError(resolvedData.hours) : null
+      if (hoursError) addValidationError(hoursError)
+      if (resolvedData.timezone !== undefined) {
+        try { new Intl.DateTimeFormat('en-US', { timeZone: String(resolvedData.timezone) }) } catch { addValidationError('Time zone is not a valid IANA zone, for example America/New_York') }
+      }
       const organizationId = resolvedData.organization?.connect?.id
       if (operation === 'create' && !organizationId) addValidationError('Location requires an organization relationship')
       if (operation === 'create' && organizationId) {
@@ -50,6 +56,8 @@ export const PharmacyLocation = list({
     memberships: relationship({ ref: 'OrganizationMembership.location', many: true, access: immutableRelationship }),
     address: json({ ui: { description: 'Operational address only; validate jurisdiction-specific requirements externally.' } }),
     timezone: text({ defaultValue: 'America/New_York' }),
+    // Weekly hours: { store: Day[7], pharmacy: Day[7] }, Sunday first; a Day is { open: 'HH:MM', close: 'HH:MM' } or null when closed.
+    hours: json({ ui: { description: 'Weekly store and pharmacy counter hours, edited in Store Settings.' } }),
     phone: text(),
     onlineOrderingEnabled: checkbox({ defaultValue: true, access: { create: permissions.canManageLocations, update: permissions.canManageLocations } }),
     pickupEnabled: checkbox({ defaultValue: true }),

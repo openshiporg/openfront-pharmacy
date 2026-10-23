@@ -1,4 +1,5 @@
 import { permissions } from '../access'
+import { permissionsList } from '../models/fields'
 
 export const canCreateUserRole = permissions.canManageUsers
 
@@ -37,4 +38,20 @@ export function resolvePublicUserCreateData({
   }
 
   return restrictedData
+}
+
+/**
+ * The first user is the install's administrator. Their Admin role is upserted by name with an
+ * explicitly selected id and connected, instead of through initFirstItem's nested `role.create`,
+ * which reached Prisma in production as `role.connect.id = undefined` and blocked setup (QA-001).
+ * Returns null once any user exists, so later sign-ups never receive the Admin role.
+ */
+export async function firstUserAdminRoleId(context: any): Promise<string | null> {
+  const prisma = context.sudo().prisma
+  if ((await prisma.user.count()) > 0) return null
+  const grants = Object.fromEntries(permissionsList.map((permission) => [permission, true]))
+  const upserted = await prisma.role.upsert({ where: { name: 'Admin' }, create: { name: 'Admin', ...grants }, update: grants, select: { id: true } })
+  const roleId = upserted?.id ?? (await prisma.role.findUnique({ where: { name: 'Admin' }, select: { id: true } }))?.id
+  if (!roleId) throw new Error('The Admin role could not be created.')
+  return String(roleId)
 }

@@ -6,16 +6,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { GuestPharmacyOrderProjection } from '@/features/pharmacy/contracts'
 import { cn } from '@/lib/utils'
-import { lookupGuestOrder } from '../lib/data/orders'
+import { formatStoreDate, formatStoreDateTime } from '../lib/dates'
+import { lookupOrderByNumber } from '../lib/data/orders'
+import { orderTone } from '../lib/order-status'
 import { formatMoney, formatStatus } from '../lib/money'
-import { Field, TitleLine, buttonClass, type DotTone } from './rx-ui'
-
-function orderTone(status: string): DotTone {
-  if (['handed_off', 'completed', 'ready', 'ready_for_pickup', 'out_for_delivery'].includes(status)) return 'ok'
-  if (['cancelled', 'exception', 'payment_failed'].includes(status)) return 'danger'
-  if (['review_required', 'on_hold'].includes(status)) return 'warn'
-  return 'info'
-}
+import { Field, TitleLine, buttonClass } from './rx-ui'
 
 export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection }) {
   const fulfillmentStatus = order.fulfillment?.status || ''
@@ -35,9 +30,10 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
     </ol>
 
     <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
-      <Field label="Placed">{new Date(order.createdAt).toLocaleDateString()}</Field>
+      <Field label="Placed">{formatStoreDate(order.createdAt, order.locationTimezone)}</Field>
       <Field label="Method"><span className="capitalize">{formatStatus(order.fulfillmentMethod)}</span></Field>
-      {order.pickupAt && <Field label="Pickup">{new Date(order.pickupAt).toLocaleString()}</Field>}
+      {order.pickupAt && <Field label="Pickup">{formatStoreDateTime(order.pickupAt, order.locationTimezone)}</Field>}
+      {order.fulfillment?.readyAt && <Field label="Ready">{formatStoreDateTime(order.fulfillment.readyAt, order.locationTimezone)}</Field>}
       {order.deliveryWindow && <Field label="Delivery window">{order.deliveryWindow}</Field>}
     </dl>
 
@@ -52,8 +48,8 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
 }
 
 export function OrderLookupForm() {
-  const [orderId, setOrderId] = useState('')
-  const [token, setToken] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
+  const [email, setEmail] = useState('')
   const [order, setOrder] = useState<GuestPharmacyOrderProjection | null>(null)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
@@ -62,7 +58,7 @@ export function OrderLookupForm() {
     event.preventDefault()
     setError('')
     startTransition(async () => {
-      const result = await lookupGuestOrder({ orderId, guestOrderToken: token })
+      const result = await lookupOrderByNumber({ orderNumber, email })
       setOrder(result.ok ? result.order : null)
       if (!result.ok) setError(result.message)
     })
@@ -70,8 +66,8 @@ export function OrderLookupForm() {
 
   return <div>
     <form onSubmit={submit} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-      <div className="grid gap-2"><Label htmlFor="lookup-order">Order reference</Label><Input id="lookup-order" value={orderId} onChange={(event) => setOrderId(event.target.value)} autoComplete="off" required className="rx-num h-11 rounded-xl bg-card" /></div>
-      <div className="grid gap-2"><Label htmlFor="lookup-token">Tracking code</Label><Input id="lookup-token" value={token} onChange={(event) => setToken(event.target.value)} autoComplete="off" required className="rx-num h-11 rounded-xl bg-card" /></div>
+      <div className="grid gap-2"><Label htmlFor="lookup-order">Order number</Label><Input id="lookup-order" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value)} autoComplete="off" maxLength={64} required className="rx-num h-11 rounded-xl bg-card" /></div>
+      <div className="grid gap-2"><Label htmlFor="lookup-email">Email used at checkout</Label><Input id="lookup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} required className="h-11 rounded-xl bg-card" /></div>
       <button type="submit" disabled={pending} className={buttonClass}>{pending ? 'Checking…' : 'Check status'}</button>
     </form>
     {error && <p role="alert" aria-live="polite" className="mt-5 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}

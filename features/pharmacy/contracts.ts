@@ -1,3 +1,5 @@
+import type { WeeklyHours } from './hours'
+
 export type PublicPharmacyOperatorBrandProjection = {
   organizationId: string
   tenantKey: string
@@ -10,6 +12,7 @@ export type PublicPharmacyOperatorBrandProjection = {
   logoColor?: string | null
   supportEmail?: string | null
   supportPhone?: string | null
+  privacyNotice?: string | null
 }
 
 export type PublicPharmacyLocationProjection = {
@@ -18,6 +21,8 @@ export type PublicPharmacyLocationProjection = {
   code: string
   address?: Record<string, unknown> | null
   phone?: string | null
+  timezone?: string
+  hours?: WeeklyHours | null
   onlineOrderingEnabled: boolean
   pickupEnabled: boolean
   deliveryEnabled: boolean
@@ -102,7 +107,7 @@ export type PharmacyCartProjection = {
 }
 
 export type PharmacyOperatorLocationProjection = Pick<PublicPharmacyLocationProjection, 'id' | 'name' | 'code' | 'pickupEnabled' | 'deliveryEnabled'> & { operatorDisplayName: string; operatorPhone?: string | null; cashSalesEnabled: boolean; cashTaxRateBps: number }
-export type PharmacyPaymentProviderOption = { code: string; name: string }
+export type PharmacyPaymentProviderOption = { code: string; name: string; payAtPickup?: boolean }
 export type PharmacyPaymentSessionResult = {
   id: string
   amount: number
@@ -127,6 +132,7 @@ export type GuestPharmacyOrderProjection = {
   deliveryWindow?: string | null
   createdAt: string
   locationName: string
+  locationTimezone?: string
   lines: Array<{ id: string; title: string; sku?: string | null; quantity: number; unitPriceAmount: number; lineTotalAmount: number; imageUrl?: string | null; prescriptionRequirement: string }>
   fulfillment?: { method: string; status: string; readyAt?: string | null; handedOffAt?: string | null } | null
 }

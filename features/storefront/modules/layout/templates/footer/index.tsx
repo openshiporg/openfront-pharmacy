@@ -1,11 +1,12 @@
 import Link from 'next/link'
 
 import type { PublicPharmacyLocationProjection, PublicPharmacyOperatorBrandProjection } from '@/features/pharmacy/contracts'
+import { OpenNow } from '../../../../components/LocationHours'
 import { StoreBrand } from '../../../../components/StoreBrand'
 import { formatAddress } from '../../../../lib/money'
 import { NAV_LINKS } from '../nav/links'
 
-export default function Footer({ brand, location }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'tagline' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'address' | 'phone'> | null }) {
+export default function Footer({ brand, location }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'tagline' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'address' | 'phone' | 'hours' | 'timezone'> | null }) {
   const address = formatAddress(location?.address)
   const phone = location?.phone || brand.supportPhone
   return <footer className="mt-auto border-t border-border bg-card">
@@ -21,12 +22,13 @@ export default function Footer({ brand, location }: { brand: Pick<PublicPharmacy
           {address && <p className="text-muted-foreground">{address}</p>}
           {phone && <a href={`tel:${phone}`} className="rx-num w-fit hover:text-primary">{phone}</a>}
           {brand.supportEmail && <a href={`mailto:${brand.supportEmail}`} className="w-fit break-all text-muted-foreground hover:text-primary">{brand.supportEmail}</a>}
+          {location?.hours && <OpenNow week={location.hours.pharmacy} timezone={location.timezone} label="Pharmacy" />}
         </div>
       </div>
       <nav aria-label="Footer" className="min-w-0">
         <p className="rx-eyebrow">Store</p>
         <ul className="mt-1.5 grid">
-          {[...NAV_LINKS, { href: '/account', label: 'Account' }].map((link) => <li key={link.href}><Link href={link.href} className="inline-flex min-h-10 items-center text-sm hover:text-primary">{link.label}</Link></li>)}
+          {[...NAV_LINKS, { href: '/account', label: 'Account' }, { href: '/privacy', label: 'Privacy notice' }].map((link) => <li key={link.href}><Link href={link.href} className="inline-flex min-h-10 items-center text-sm hover:text-primary">{link.label}</Link></li>)}
         </ul>
       </nav>
     </div>

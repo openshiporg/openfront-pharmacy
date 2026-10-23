@@ -1,6 +1,6 @@
 import type { GuestPharmacyOrderProjection } from '@/features/pharmacy/contracts'
 
-export const PUBLIC_ORDER_LOOKUP_MESSAGE = "We couldn't find that order. Check the details from your order confirmation and try again."
+export const PUBLIC_ORDER_LOOKUP_MESSAGE = "We couldn't find that order. Check the order number and the email used at checkout."
 
 export type PublicOrderLookupResult =
   | { ok: true; order: GuestPharmacyOrderProjection }

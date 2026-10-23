@@ -1,3 +1,4 @@
+import { normalizeWeeklyHours } from '../../pharmacy/hours'
 import { createHash } from 'node:crypto'
 import type { Context } from '.keystone/types'
 import { eligibleLotQuantity } from '../workflows/lot-eligibility'
@@ -102,7 +103,7 @@ function publicLocationCursorWhere(where: Record<string, any>, cursor: PublicLoc
   }
 }
 
-const PUBLIC_TENANT_QUERY = 'id storefrontKey storefrontHost operatorDisplayName operatorTagline brandPrimaryColor brandAccentColor brandLogoUrl logoIcon logoColor supportEmail supportPhone'
+const PUBLIC_TENANT_QUERY = 'id storefrontKey storefrontHost operatorDisplayName operatorTagline brandPrimaryColor brandAccentColor brandLogoUrl logoIcon logoColor supportEmail supportPhone privacyNotice'
 
 function optionalTenantKey(tenantKey?: string | null) {
   if (!tenantKey?.trim()) return null
@@ -176,7 +177,7 @@ export async function publicPharmacyTenant(
       where: publicLocationCursorWhere(baseWhere, cursor),
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
       take: pageSize + 1,
-      query: 'id name code status address phone onlineOrderingEnabled pickupEnabled deliveryEnabled',
+      query: 'id name code status address phone timezone hours onlineOrderingEnabled pickupEnabled deliveryEnabled',
     }),
   ])
   const hasMore = records.length > pageSize
@@ -187,6 +188,8 @@ export async function publicPharmacyTenant(
     code: location.code,
     address: location.address,
     phone: location.phone,
+    timezone: location.timezone || 'America/New_York',
+    hours: normalizeWeeklyHours(location.hours),
     onlineOrderingEnabled: location.onlineOrderingEnabled === true,
     pickupEnabled: location.pickupEnabled === true,
     deliveryEnabled: location.deliveryEnabled === true,

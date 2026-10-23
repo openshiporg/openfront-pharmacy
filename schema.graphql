@@ -1635,6 +1635,7 @@ type Organization {
   isDemo: Boolean
   supportEmail: String
   supportPhone: String
+  privacyNotice: String
   prescriptionFillPolicy: JSON
   cashSalesEnabled: Boolean
   cashTaxRateBps: Int
@@ -1700,6 +1701,7 @@ input OrganizationWhereInput {
   isDemo: BooleanFilter
   supportEmail: StringFilter
   supportPhone: StringFilter
+  privacyNotice: StringFilter
   cashSalesEnabled: BooleanFilter
   cashTaxRateBps: IntNullableFilter
   cashTaxPolicyReference: StringFilter
@@ -1782,6 +1784,7 @@ input OrganizationOrderByInput {
   isDemo: OrderDirection
   supportEmail: OrderDirection
   supportPhone: OrderDirection
+  privacyNotice: OrderDirection
   cashSalesEnabled: OrderDirection
   cashTaxRateBps: OrderDirection
   cashTaxPolicyReference: OrderDirection
@@ -1806,6 +1809,7 @@ input OrganizationUpdateInput {
   isDemo: Boolean
   supportEmail: String
   supportPhone: String
+  privacyNotice: String
   prescriptionFillPolicy: JSON
   cashSalesEnabled: Boolean
   cashTaxRateBps: Int
@@ -2655,6 +2659,7 @@ type PharmacyLocation {
   membershipsCount(where: OrganizationMembershipWhereInput! = {}): Int
   address: JSON
   timezone: String
+  hours: JSON
   phone: String
   onlineOrderingEnabled: Boolean
   pickupEnabled: Boolean
@@ -2739,6 +2744,7 @@ input PharmacyLocationUpdateInput {
   memberships: OrganizationMembershipRelateToManyForUpdateInput
   address: JSON
   timezone: String
+  hours: JSON
   phone: String
   onlineOrderingEnabled: Boolean
   pickupEnabled: Boolean
@@ -2774,6 +2780,7 @@ input PharmacyLocationCreateInput {
   memberships: OrganizationMembershipRelateToManyForCreateInput
   address: JSON
   timezone: String
+  hours: JSON
   phone: String
   onlineOrderingEnabled: Boolean
   pickupEnabled: Boolean
@@ -3241,6 +3248,96 @@ input PrescriptionItemOrderByInput {
   refillsReserved: OrderDirection
   quantityDispensed: OrderDirection
   substitutionAllowed: OrderDirection
+  createdAt: OrderDirection
+  updatedAt: OrderDirection
+}
+
+type PrescriptionRequest {
+  id: ID!
+  idempotencyKey: String
+  kind: String
+  status: String
+  organization: Organization
+  location: PharmacyLocation
+  user: User
+  patient: PatientProfile
+  firstName: String
+  lastName: String
+  dateOfBirth: DateTime
+  phone: String
+  email: String
+  allergies: String
+  insurance: String
+  counterpartyName: String
+  counterpartyPhone: String
+  prescriberName: String
+  prescriberPhone: String
+  medications: String
+  note: String
+  resolutionNote: String
+  resolvedAt: DateTime
+  resolvedBy: User
+  createdAt: DateTime
+  updatedAt: DateTime
+}
+
+input PrescriptionRequestWhereUniqueInput {
+  id: ID
+  idempotencyKey: String
+}
+
+input PrescriptionRequestWhereInput {
+  AND: [PrescriptionRequestWhereInput!]
+  OR: [PrescriptionRequestWhereInput!]
+  NOT: [PrescriptionRequestWhereInput!]
+  id: IDFilter
+  idempotencyKey: StringFilter
+  kind: StringFilter
+  status: StringNullableFilter
+  organization: OrganizationWhereInput
+  location: PharmacyLocationWhereInput
+  user: UserWhereInput
+  patient: PatientProfileWhereInput
+  firstName: StringFilter
+  lastName: StringFilter
+  dateOfBirth: DateTimeNullableFilter
+  phone: StringFilter
+  email: StringFilter
+  allergies: StringFilter
+  insurance: StringFilter
+  counterpartyName: StringFilter
+  counterpartyPhone: StringFilter
+  prescriberName: StringFilter
+  prescriberPhone: StringFilter
+  medications: StringFilter
+  note: StringFilter
+  resolutionNote: StringFilter
+  resolvedAt: DateTimeNullableFilter
+  resolvedBy: UserWhereInput
+  createdAt: DateTimeFilter
+  updatedAt: DateTimeFilter
+}
+
+input PrescriptionRequestOrderByInput {
+  id: OrderDirection
+  idempotencyKey: OrderDirection
+  kind: OrderDirection
+  status: OrderDirection
+  firstName: OrderDirection
+  lastName: OrderDirection
+  dateOfBirth: OrderDirection
+  phone: OrderDirection
+  email: OrderDirection
+  allergies: OrderDirection
+  insurance: OrderDirection
+  counterpartyName: OrderDirection
+  counterpartyPhone: OrderDirection
+  prescriberName: OrderDirection
+  prescriberPhone: OrderDirection
+  medications: OrderDirection
+  note: OrderDirection
+  resolutionNote: OrderDirection
+  resolvedAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -4279,6 +4376,8 @@ type Mutation {
   createInitialUser(data: CreateInitialUserInput!): UserAuthenticationWithPasswordSuccess!
   sendUserPasswordResetLink(email: String!): Boolean!
   redeemUserPasswordResetToken(email: String!, token: String!, password: String!): RedeemUserPasswordResetTokenResult
+  submitPharmacyPrescriptionRequest(input: PharmacyPrescriptionRequestInput!): PharmacyCustomerPrescriptionRequest!
+  resolvePharmacyPrescriptionRequest(requestId: ID!, status: String!, note: String): PharmacyPrescriptionRequest!
   registerPharmacyCustomer(name: String!, email: String!, password: String!): Boolean!
   updateActiveUser(data: UserUpdateProfileInput!, oldPassword: String): User
   recordPharmacyFillPolicy(organizationId: ID!, policy: JSON!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
@@ -4463,6 +4562,9 @@ type Query {
   prescriptionItem(where: PrescriptionItemWhereUniqueInput!): PrescriptionItem
   prescriptionItems(where: PrescriptionItemWhereInput! = {}, orderBy: [PrescriptionItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PrescriptionItemWhereUniqueInput): [PrescriptionItem!]
   prescriptionItemsCount(where: PrescriptionItemWhereInput! = {}): Int
+  prescriptionRequest(where: PrescriptionRequestWhereUniqueInput!): PrescriptionRequest
+  prescriptionRequests(where: PrescriptionRequestWhereInput! = {}, orderBy: [PrescriptionRequestOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PrescriptionRequestWhereUniqueInput): [PrescriptionRequest!]
+  prescriptionRequestsCount(where: PrescriptionRequestWhereInput! = {}): Int
   prescriptionReview(where: PrescriptionReviewWhereUniqueInput!): PrescriptionReview
   prescriptionReviews(where: PrescriptionReviewWhereInput! = {}, orderBy: [PrescriptionReviewOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PrescriptionReviewWhereUniqueInput): [PrescriptionReview!]
   prescriptionReviewsCount(where: PrescriptionReviewWhereInput! = {}): Int
@@ -4499,6 +4601,9 @@ type Query {
   pharmacyPosCustomers(locationId: ID!): [PharmacyTaskOption!]!
   pharmacyCustomerAccount: PharmacyCustomerAccount!
   pharmacyCustomerOrder(orderId: ID!): PharmacyCustomerOrder!
+  pharmacyCustomerOrderDetails(orderId: ID!): GuestPharmacyOrder!
+  pharmacyCustomerPrescriptionRequests: [PharmacyCustomerPrescriptionRequest!]!
+  pharmacyPrescriptionRequestQueue(status: String): [PharmacyPrescriptionRequest!]!
   pharmacyFillPolicy(organizationId: ID!): PharmacyFillPolicyReadback!
   pharmacyFillHistory(prescriptionId: ID!, fillId: ID!, after: String): PharmacyFillHistory!
   pharmacyFillWorkbench(prescriptionId: ID!, after: String): PharmacyFillWorkbench!
@@ -4515,6 +4620,7 @@ type Query {
   pharmacyCart(cartId: ID!, guestToken: String): PharmacyCart
   activePharmacyPaymentProviders(locationId: ID!): [PharmacyPaymentProviderOption!]!
   guestPharmacyOrder(orderId: ID!, guestOrderToken: String!): GuestPharmacyOrder
+  lookupPharmacyOrder(orderNumber: String!, email: String!): GuestPharmacyOrder
   pharmacyOperationalSummary: PharmacyOperationalSummary!
   pharmacyOnboardingState: PharmacyOnboardingState!
   pharmacyOperatorLocations: [PharmacyOperatorLocation!]!
@@ -4800,6 +4906,8 @@ type PublicPharmacyLocation {
   code: String!
   address: JSON
   phone: String
+  timezone: String!
+  hours: JSON
   onlineOrderingEnabled: Boolean!
   pickupEnabled: Boolean!
   deliveryEnabled: Boolean!
@@ -4817,6 +4925,7 @@ type PublicPharmacyOperatorBrand {
   logoColor: String
   supportEmail: String
   supportPhone: String
+  privacyNotice: String
 }
 
 type PublicPharmacyTenant {
@@ -4893,6 +5002,7 @@ type PharmacyOperatorLocation {
 type PharmacyPaymentProviderOption {
   code: String!
   name: String!
+  payAtPickup: Boolean!
 }
 
 type PharmacyPaymentSessionResult {
@@ -4937,6 +5047,7 @@ type GuestPharmacyOrder {
   deliveryWindow: String
   createdAt: String!
   locationName: String!
+  locationTimezone: String!
   lines: [GuestPharmacyOrderLine!]!
   fulfillment: GuestPharmacyFulfillment
 }
@@ -5838,4 +5949,60 @@ type PharmacyCustomerAccount {
   name: String!
   hasPatientProfile: Boolean!
   orders: [PharmacyCustomerOrder!]!
+}
+
+input PharmacyPrescriptionRequestInput {
+  locationId: ID!
+  kind: String!
+  idempotencyKey: String!
+  firstName: String
+  lastName: String
+  dateOfBirth: String
+  phone: String
+  allergies: String
+  insurance: String
+  counterpartyName: String
+  counterpartyPhone: String
+  prescriberName: String
+  prescriberPhone: String
+  medications: String
+  note: String
+}
+
+type PharmacyCustomerPrescriptionRequest {
+  id: ID!
+  kind: String!
+  status: String!
+  createdAt: String!
+  resolvedAt: String
+  resolutionNote: String
+  locationName: String!
+  counterpartyName: String
+  medications: String
+}
+
+type PharmacyPrescriptionRequest {
+  id: ID!
+  kind: String!
+  status: String!
+  createdAt: String!
+  resolvedAt: String
+  resolutionNote: String
+  locationName: String!
+  counterpartyName: String
+  medications: String
+  customerName: String!
+  customerEmail: String!
+  patientId: ID
+  firstName: String
+  lastName: String
+  dateOfBirth: String
+  phone: String
+  email: String
+  allergies: String
+  insurance: String
+  counterpartyPhone: String
+  prescriberName: String
+  prescriberPhone: String
+  note: String
 }

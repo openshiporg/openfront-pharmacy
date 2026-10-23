@@ -38,6 +38,7 @@ import { Product } from './Product'
 import { Recall } from './Recall'
 import { RecallExposure } from './RecallExposure'
 import { RefillRequest } from './RefillRequest'
+import { PrescriptionRequest } from './PrescriptionRequest'
 import { Role } from './Role'
 import { Supplier } from './Supplier'
 import { TemperatureExcursion } from './TemperatureExcursion'
@@ -78,6 +79,7 @@ export const models = {
   PrescriptionFill,
   PrescriptionFillEvent,
   PrescriptionItem,
+  PrescriptionRequest,
   PrescriptionReview,
   PrescriptionTransfer,
   Product,

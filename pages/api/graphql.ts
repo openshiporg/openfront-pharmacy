@@ -1,5 +1,6 @@
 import { keystoneContext } from '../../features/keystone/context'
 import { createYoga } from "graphql-yoga";
+import { stripPrismaDebug } from "../../features/keystone/security/graphql-errors";
 // @ts-ignore
 import processRequest from "graphql-upload/processRequest.js";
 import { type NextApiRequest, type NextApiResponse } from 'next'
@@ -17,6 +18,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   return createYoga({
+    // GraphiQL is a local development tool only.
+    graphiql: process.env.NODE_ENV === 'development',
     renderGraphiQL: () => {
       return `
         <!DOCTYPE html>
@@ -46,5 +49,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return keystoneContext.withRequest(req, res);
     },
     multipart: false,
+    plugins: [stripPrismaDebug],
   })(req, res);
 }

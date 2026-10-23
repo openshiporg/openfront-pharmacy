@@ -58,6 +58,7 @@ export const Organization = list({
     isDemo: checkbox({ defaultValue: false, access: { create: denyAll, update: denyAll }, ui: { createView: { fieldMode: 'hidden' }, itemView: { fieldMode: 'hidden' }, listView: { fieldMode: 'hidden' } } }),
     supportEmail: text(),
     supportPhone: text(),
+    privacyNotice: text({ ui: { displayMode: 'textarea', description: 'Notice of Privacy Practices shown at /privacy and linked from checkout.' } }),
     prescriptionFillPolicy: json({ access: { create: denyAll, update: denyAll }, ui: { description: 'Versioned operator-reviewed policy; only the controlled fill policy command may change it. Existing fills keep their snapshot.' } }),
     cashSalesEnabled: checkbox({ defaultValue: false, access: { create: denyAll, update: denyAll }, ui: { description: 'Enabled only by the operator-attested cash/tax policy workflow.' } }),
     cashTaxRateBps: integer({ defaultValue: 0, validation: { min: 0, max: 10000 }, access: { create: denyAll, update: denyAll } }),

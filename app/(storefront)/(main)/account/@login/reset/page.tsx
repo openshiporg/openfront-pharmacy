@@ -3,7 +3,7 @@ import { ResetPasswordPage } from '@/features/storefront/screens/ResetPasswordPa
 
 export const metadata: Metadata = { title: 'Reset password' }
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ token?: string }> }) {
-  const { token } = await searchParams
-  return <ResetPasswordPage token={token} />
+export default async function Page({ searchParams }: { searchParams: Promise<{ token?: string; email?: string }> }) {
+  const { token, email } = await searchParams
+  return <ResetPasswordPage token={token} email={email} />
 }

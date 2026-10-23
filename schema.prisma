@@ -622,6 +622,7 @@ model Organization {
   isDemo                                 Boolean                       @default(false)
   supportEmail                           String                        @default("")
   supportPhone                           String                        @default("")
+  privacyNotice                          String                        @default("")
   prescriptionFillPolicy                 Json?
   cashSalesEnabled                       Boolean                       @default(false)
   cashTaxRateBps                         Int?                          @default(0)
@@ -660,6 +661,7 @@ model Organization {
   from_PaymentSession_organization       PaymentSession[]              @relation("PaymentSession_organization")
   from_Prescriber_organization           Prescriber[]                  @relation("Prescriber_organization")
   from_PrescriptionFill_organization     PrescriptionFill[]            @relation("PrescriptionFill_organization")
+  from_PrescriptionRequest_organization  PrescriptionRequest[]         @relation("PrescriptionRequest_organization")
   from_RecallExposure_organization       RecallExposure[]              @relation("RecallExposure_organization")
   from_Supplier_organization             Supplier[]                    @relation("Supplier_organization")
   from_TemperatureExcursion_organization TemperatureExcursion[]        @relation("TemperatureExcursion_organization")
@@ -753,44 +755,45 @@ model PatientMedication {
 }
 
 model PatientProfile {
-  id                              String                 @id @default(cuid())
-  patientNumber                   String                 @unique @default("")
-  identityKey                     String?                @unique
-  requestFingerprint              String?
-  firstName                       String                 @default("")
-  lastName                        String                 @default("")
-  status                          String?                @default("active")
-  dateOfBirth                     DateTime?
-  email                           String                 @default("")
-  phone                           String                 @default("")
-  address                         Json?
-  identityVerificationStatus      String?                @default("unverified")
-  identityReference               String                 @default("")
-  identityVerifiedAt              DateTime?
-  identityVerifiedBy              User?                  @relation("PatientProfile_identityVerifiedBy", fields: [identityVerifiedById], references: [id])
-  identityVerifiedById            String?                @map("identityVerifiedBy")
-  identityEvidence                Json?
-  preferredContactMethod          String?                @default("none")
-  notes                           String                 @default("")
-  user                            User?                  @relation("PatientProfile_user", fields: [userId], references: [id])
-  userId                          String?                @unique @map("user")
-  organizations                   Organization[]         @relation("Organization_patients")
-  consents                        ConsentRecord[]        @relation("ConsentRecord_patient")
-  allergies                       PatientAllergy[]       @relation("PatientAllergy_patient")
-  medications                     PatientMedication[]    @relation("PatientMedication_patient")
-  safetyReviews                   ClinicalSafetyReview[] @relation("ClinicalSafetyReview_patient")
-  dispensingLabels                DispensingLabel[]      @relation("DispensingLabel_patient")
-  prescriptions                   Prescription[]         @relation("Prescription_patient")
-  refillRequests                  RefillRequest[]        @relation("RefillRequest_patient")
-  transfers                       PrescriptionTransfer[] @relation("PrescriptionTransfer_patient")
-  orders                          Order[]                @relation("Order_patient")
-  auditEvents                     AuditEvent[]           @relation("AuditEvent_patient")
-  createdAt                       DateTime               @default(now())
-  updatedAt                       DateTime               @default(now()) @updatedAt
-  from_InventoryMovement_patient  InventoryMovement[]    @relation("InventoryMovement_patient")
-  from_PrescriptionFill_patient   PrescriptionFill[]     @relation("PrescriptionFill_patient")
-  from_PrescriptionReview_patient PrescriptionReview[]   @relation("PrescriptionReview_patient")
-  from_RecallExposure_patient     RecallExposure[]       @relation("RecallExposure_patient")
+  id                               String                 @id @default(cuid())
+  patientNumber                    String                 @unique @default("")
+  identityKey                      String?                @unique
+  requestFingerprint               String?
+  firstName                        String                 @default("")
+  lastName                         String                 @default("")
+  status                           String?                @default("active")
+  dateOfBirth                      DateTime?
+  email                            String                 @default("")
+  phone                            String                 @default("")
+  address                          Json?
+  identityVerificationStatus       String?                @default("unverified")
+  identityReference                String                 @default("")
+  identityVerifiedAt               DateTime?
+  identityVerifiedBy               User?                  @relation("PatientProfile_identityVerifiedBy", fields: [identityVerifiedById], references: [id])
+  identityVerifiedById             String?                @map("identityVerifiedBy")
+  identityEvidence                 Json?
+  preferredContactMethod           String?                @default("none")
+  notes                            String                 @default("")
+  user                             User?                  @relation("PatientProfile_user", fields: [userId], references: [id])
+  userId                           String?                @unique @map("user")
+  organizations                    Organization[]         @relation("Organization_patients")
+  consents                         ConsentRecord[]        @relation("ConsentRecord_patient")
+  allergies                        PatientAllergy[]       @relation("PatientAllergy_patient")
+  medications                      PatientMedication[]    @relation("PatientMedication_patient")
+  safetyReviews                    ClinicalSafetyReview[] @relation("ClinicalSafetyReview_patient")
+  dispensingLabels                 DispensingLabel[]      @relation("DispensingLabel_patient")
+  prescriptions                    Prescription[]         @relation("Prescription_patient")
+  refillRequests                   RefillRequest[]        @relation("RefillRequest_patient")
+  transfers                        PrescriptionTransfer[] @relation("PrescriptionTransfer_patient")
+  orders                           Order[]                @relation("Order_patient")
+  auditEvents                      AuditEvent[]           @relation("AuditEvent_patient")
+  createdAt                        DateTime               @default(now())
+  updatedAt                        DateTime               @default(now()) @updatedAt
+  from_InventoryMovement_patient   InventoryMovement[]    @relation("InventoryMovement_patient")
+  from_PrescriptionFill_patient    PrescriptionFill[]     @relation("PrescriptionFill_patient")
+  from_PrescriptionRequest_patient PrescriptionRequest[]  @relation("PrescriptionRequest_patient")
+  from_PrescriptionReview_patient  PrescriptionReview[]   @relation("PrescriptionReview_patient")
+  from_RecallExposure_patient      RecallExposure[]       @relation("RecallExposure_patient")
 
   @@index([identityVerifiedById])
 }
@@ -925,6 +928,7 @@ model PharmacyLocation {
   memberships                        OrganizationMembership[]      @relation("OrganizationMembership_location")
   address                            Json?
   timezone                           String                        @default("America/New_York")
+  hours                              Json?
   phone                              String                        @default("")
   onlineOrderingEnabled              Boolean                       @default(true)
   pickupEnabled                      Boolean                       @default(true)
@@ -949,6 +953,7 @@ model PharmacyLocation {
   from_Payment_location              Payment[]                     @relation("Payment_location")
   from_PaymentSession_location       PaymentSession[]              @relation("PaymentSession_location")
   from_PrescriptionFill_location     PrescriptionFill[]            @relation("PrescriptionFill_location")
+  from_PrescriptionRequest_location  PrescriptionRequest[]         @relation("PrescriptionRequest_location")
   from_RecallExposure_location       RecallExposure[]              @relation("RecallExposure_location")
   from_RefillRequest_location        RefillRequest[]               @relation("RefillRequest_location")
   from_TemperatureExcursion_location TemperatureExcursion[]        @relation("TemperatureExcursion_location")
@@ -1134,6 +1139,46 @@ model PrescriptionItem {
   @@index([prescriptionId])
   @@index([drugReferenceId])
   @@index([productId])
+}
+
+model PrescriptionRequest {
+  id                String           @id @default(cuid())
+  idempotencyKey    String           @unique @default("")
+  kind              String
+  status            String?          @default("requested")
+  organization      Organization     @relation("PrescriptionRequest_organization", fields: [organizationId], references: [id])
+  organizationId    String           @map("organization")
+  location          PharmacyLocation @relation("PrescriptionRequest_location", fields: [locationId], references: [id])
+  locationId        String           @map("location")
+  user              User             @relation("PrescriptionRequest_user", fields: [userId], references: [id])
+  userId            String           @map("user")
+  patient           PatientProfile?  @relation("PrescriptionRequest_patient", fields: [patientId], references: [id])
+  patientId         String?          @map("patient")
+  firstName         String           @default("")
+  lastName          String           @default("")
+  dateOfBirth       DateTime?
+  phone             String           @default("")
+  email             String           @default("")
+  allergies         String           @default("")
+  insurance         String           @default("")
+  counterpartyName  String           @default("")
+  counterpartyPhone String           @default("")
+  prescriberName    String           @default("")
+  prescriberPhone   String           @default("")
+  medications       String           @default("")
+  note              String           @default("")
+  resolutionNote    String           @default("")
+  resolvedAt        DateTime?
+  resolvedBy        User?            @relation("PrescriptionRequest_resolvedBy", fields: [resolvedById], references: [id])
+  resolvedById      String?          @map("resolvedBy")
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @default(now()) @updatedAt
+
+  @@index([organizationId])
+  @@index([locationId])
+  @@index([userId])
+  @@index([patientId])
+  @@index([resolvedById])
 }
 
 model PrescriptionReview {
@@ -1428,6 +1473,8 @@ model User {
   from_Prescriber_verifiedBy                       Prescriber[]             @relation("Prescriber_verifiedBy")
   from_PrescriptionFill_reservedBy                 PrescriptionFill[]       @relation("PrescriptionFill_reservedBy")
   from_PrescriptionFillEvent_actor                 PrescriptionFillEvent[]  @relation("PrescriptionFillEvent_actor")
+  from_PrescriptionRequest_user                    PrescriptionRequest[]    @relation("PrescriptionRequest_user")
+  from_PrescriptionRequest_resolvedBy              PrescriptionRequest[]    @relation("PrescriptionRequest_resolvedBy")
   from_RecallExposure_lastActor                    RecallExposure[]         @relation("RecallExposure_lastActor")
   from_TemperatureExcursion_reviewedBy             TemperatureExcursion[]   @relation("TemperatureExcursion_reviewedBy")
 

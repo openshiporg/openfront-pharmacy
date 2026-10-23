@@ -9,14 +9,33 @@ export async function getGuestPharmacyOrder(
   if (!args.guestOrderToken?.trim()) throw new Error('Guest order token is required')
   const order = await context.sudo().query.Order.findOne({
     where: { id: args.orderId },
-    query: `
-      id orderNumber guestTokenHash status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt
-      location { name }
-      lineItems { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
-      fulfillment { method status readyAt handedOffAt }
-    `,
+    query: GUEST_ORDER_QUERY,
   })
   if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new Error('Guest order not found')
+  return guestOrderProjection(order)
+}
+
+/**
+ * Order lookup with what the customer has: the order number from the confirmation and the email used at
+ * checkout. Returns null for any mismatch, so it never reveals whether an order number exists.
+ */
+export async function lookupPharmacyOrder(_root: unknown, args: { orderNumber: string; email: string }, context: Context) {
+  const orderNumber = args.orderNumber?.trim()
+  const email = args.email?.trim().toLowerCase()
+  if (!orderNumber || !email || orderNumber.length > 64 || email.length > 254) return null
+  const order = await context.sudo().query.Order.findOne({ where: { orderNumber }, query: `email ${GUEST_ORDER_QUERY}` }).catch(() => null)
+  if (!order?.email || order.email.trim().toLowerCase() !== email) return null
+  return guestOrderProjection(order)
+}
+
+export const GUEST_ORDER_QUERY = `
+      id orderNumber guestTokenHash status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt
+      location { name timezone }
+      lineItems { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
+      fulfillment { method status readyAt handedOffAt }
+    `
+
+export function guestOrderProjection(order: any) {
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -31,6 +50,7 @@ export async function getGuestPharmacyOrder(
     deliveryWindow: order.deliveryWindow,
     createdAt: order.createdAt,
     locationName: order.location?.name || 'Pharmacy',
+    locationTimezone: order.location?.timezone || 'America/New_York',
     lines: (order.lineItems || []).map((line: any) => ({
       id: line.id,
       title: line.title,

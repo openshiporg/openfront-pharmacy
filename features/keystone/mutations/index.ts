@@ -1,4 +1,4 @@
-import { pharmacyCustomerAccount, pharmacyCustomerOrder, registerPharmacyCustomer } from './customerAccount'
+import { pharmacyCustomerAccount, pharmacyCustomerOrder, pharmacyCustomerOrderDetails, registerPharmacyCustomer } from './customerAccount'
 import { mergeSchemas } from '@graphql-tools/schema'
 import type { GraphQLSchema } from 'graphql'
 
@@ -10,7 +10,8 @@ import { pharmacyFillPolicy, recordPharmacyFillPolicy, reservePharmacyPrescripti
 import { pharmacyFillHistory } from './fillHistory'
 import { pharmacyFillWorkbench } from './fillReadback'
 import { transitionOrderFulfillment } from './fulfillmentWorkflows'
-import { getGuestPharmacyOrder } from './getGuestPharmacyOrder'
+import { getGuestPharmacyOrder, lookupPharmacyOrder } from './getGuestPharmacyOrder'
+import { pharmacyCustomerPrescriptionRequests, pharmacyPrescriptionRequestQueue, resolvePharmacyPrescriptionRequest, submitPharmacyPrescriptionRequest } from './prescriptionRequests'
 import { adjustInventoryLot, quarantineRecallLots, receiveInventoryLot } from './inventoryWorkflows'
 import { configurePharmacyIntegrationProvider, ingestPharmacyIntegrationWebhook, refreshPharmacyExternalWorkflow, submitPharmacyExternalWorkflow, validatePharmacyPrescriber } from './integrationWorkflows'
 import { intakePharmacyPrescription } from './intakeWorkflows'
@@ -148,6 +149,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         code: String!
         address: JSON
         phone: String
+        timezone: String!
+        hours: JSON
         onlineOrderingEnabled: Boolean!
         pickupEnabled: Boolean!
         deliveryEnabled: Boolean!
@@ -164,6 +167,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         logoColor: String
         supportEmail: String
         supportPhone: String
+        privacyNotice: String
       }
       type PublicPharmacyTenant {
         brand: PublicPharmacyOperatorBrand!
@@ -204,7 +208,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type CreatePharmacyCartResult { cart: PharmacyCart!, guestToken: String }
 
       type PharmacyOperatorLocation { id: ID!, name: String!, code: String!, pickupEnabled: Boolean!, deliveryEnabled: Boolean!, operatorDisplayName: String!, operatorPhone: String, cashSalesEnabled: Boolean!, cashTaxRateBps: Int! }
-      type PharmacyPaymentProviderOption { code: String!, name: String! }
+      type PharmacyPaymentProviderOption { code: String!, name: String!, payAtPickup: Boolean! }
       type PharmacyPaymentSessionResult {
         id: ID!
         amount: Int!
@@ -240,6 +244,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         deliveryWindow: String
         createdAt: String!
         locationName: String!
+        locationTimezone: String!
         lines: [GuestPharmacyOrderLine!]!
         fulfillment: GuestPharmacyFulfillment
       }
@@ -695,10 +700,56 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type PharmacyCustomerLine { title: String!, quantity: Int!, unitPriceAmount: Int! }
       type PharmacyCustomerOrder { id: ID!, orderNumber: String!, status: String!, totalAmount: Int!, currencyCode: String!, createdAt: String!, lineItems: [PharmacyCustomerLine!]! }
       type PharmacyCustomerAccount { id: ID!, name: String!, hasPatientProfile: Boolean!, orders: [PharmacyCustomerOrder!]! }
+      input PharmacyPrescriptionRequestInput {
+        locationId: ID!
+        kind: String!
+        idempotencyKey: String!
+        firstName: String
+        lastName: String
+        dateOfBirth: String
+        phone: String
+        allergies: String
+        insurance: String
+        counterpartyName: String
+        counterpartyPhone: String
+        prescriberName: String
+        prescriberPhone: String
+        medications: String
+        note: String
+      }
+      type PharmacyCustomerPrescriptionRequest { id: ID!, kind: String!, status: String!, createdAt: String!, resolvedAt: String, resolutionNote: String, locationName: String!, counterpartyName: String, medications: String }
+      type PharmacyPrescriptionRequest {
+        id: ID!
+        kind: String!
+        status: String!
+        createdAt: String!
+        resolvedAt: String
+        resolutionNote: String
+        locationName: String!
+        counterpartyName: String
+        medications: String
+        customerName: String!
+        customerEmail: String!
+        patientId: ID
+        firstName: String
+        lastName: String
+        dateOfBirth: String
+        phone: String
+        email: String
+        allergies: String
+        insurance: String
+        counterpartyPhone: String
+        prescriberName: String
+        prescriberPhone: String
+        note: String
+      }
       type Query {
         pharmacyPosCustomers(locationId: ID!): [PharmacyTaskOption!]!
         pharmacyCustomerAccount: PharmacyCustomerAccount!
         pharmacyCustomerOrder(orderId: ID!): PharmacyCustomerOrder!
+        pharmacyCustomerOrderDetails(orderId: ID!): GuestPharmacyOrder!
+        pharmacyCustomerPrescriptionRequests: [PharmacyCustomerPrescriptionRequest!]!
+        pharmacyPrescriptionRequestQueue(status: String): [PharmacyPrescriptionRequest!]!
         pharmacyFillPolicy(organizationId: ID!): PharmacyFillPolicyReadback!
         pharmacyFillHistory(prescriptionId: ID!, fillId: ID!, after: String): PharmacyFillHistory!
         pharmacyFillWorkbench(prescriptionId: ID!, after: String): PharmacyFillWorkbench!
@@ -715,6 +766,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         pharmacyCart(cartId: ID!, guestToken: String): PharmacyCart
         activePharmacyPaymentProviders(locationId: ID!): [PharmacyPaymentProviderOption!]!
         guestPharmacyOrder(orderId: ID!, guestOrderToken: String!): GuestPharmacyOrder
+        lookupPharmacyOrder(orderNumber: String!, email: String!): GuestPharmacyOrder
         pharmacyOperationalSummary: PharmacyOperationalSummary!
         pharmacyOnboardingState: PharmacyOnboardingState!
         pharmacyOperatorLocations: [PharmacyOperatorLocation!]!
@@ -743,6 +795,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
 
       type Mutation {
+        submitPharmacyPrescriptionRequest(input: PharmacyPrescriptionRequestInput!): PharmacyCustomerPrescriptionRequest!
+        resolvePharmacyPrescriptionRequest(requestId: ID!, status: String!, note: String): PharmacyPrescriptionRequest!
         registerPharmacyCustomer(name: String!, email: String!, password: String!): Boolean!
         updateActiveUser(data: UserUpdateProfileInput!, oldPassword: String): User
         recordPharmacyFillPolicy(organizationId: ID!, policy: JSON!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
@@ -803,6 +857,9 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         pharmacyPosCustomers,
         pharmacyCustomerAccount,
         pharmacyCustomerOrder,
+        pharmacyCustomerOrderDetails,
+        pharmacyCustomerPrescriptionRequests,
+        pharmacyPrescriptionRequestQueue,
         pharmacyFillPolicy,
         pharmacyFillWorkbench,
         pharmacyFillHistory,
@@ -819,6 +876,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         pharmacyCart,
         activePharmacyPaymentProviders,
         guestPharmacyOrder: getGuestPharmacyOrder,
+        lookupPharmacyOrder,
         pharmacyOperationalSummary,
         pharmacyOnboardingState,
         pharmacyOperatorLocations,
@@ -847,6 +905,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       },
       Mutation: {
         registerPharmacyCustomer,
+        submitPharmacyPrescriptionRequest,
+        resolvePharmacyPrescriptionRequest,
         updateActiveUser,
         recordPharmacyFillPolicy,
         reservePharmacyPrescriptionFill,

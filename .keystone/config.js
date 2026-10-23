@@ -474,7 +474,7 @@ async function readBoundedExternalResponse(response, maxBytes = MAX_EXTERNAL_RES
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let bytesRead = 0;
-  let text44 = "";
+  let text45 = "";
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -484,9 +484,9 @@ async function readBoundedExternalResponse(response, maxBytes = MAX_EXTERNAL_RES
         await reader.cancel().catch(() => void 0);
         throw new Error("External response exceeds the configured size limit");
       }
-      text44 += decoder.decode(value, { stream: true });
+      text45 += decoder.decode(value, { stream: true });
     }
-    return text44 + decoder.decode();
+    return text45 + decoder.decode();
   } finally {
     reader.releaseLock();
   }
@@ -551,12 +551,12 @@ async function providerRequest(provider, path, init) {
       signal: AbortSignal.timeout(2e4)
     })
   );
-  const text44 = await readBoundedExternalResponse(response);
+  const text45 = await readBoundedExternalResponse(response);
   let body = null;
   try {
-    body = text44 ? JSON.parse(text44) : {};
+    body = text45 ? JSON.parse(text45) : {};
   } catch {
-    body = { message: text44.slice(0, 1e3) };
+    body = { message: text45.slice(0, 1e3) };
   }
   if (!response.ok) throw new Error(`Integration provider returned HTTP ${response.status}`);
   return body;
@@ -598,18 +598,18 @@ async function webhookFunction({
   const rawBody = headers.__rawBody;
   if (!secret) throw new Error("Webhook secret is not configured");
   if (!rawBody) throw new Error("Raw webhook body is required");
-  const actual = Buffer.from((0, import_node_crypto11.createHmac)("sha256", secret).update(rawBody).digest("hex"));
+  const actual = Buffer.from((0, import_node_crypto12.createHmac)("sha256", secret).update(rawBody).digest("hex"));
   const expected = Buffer.from(headers["x-pharmacy-signature-sha256"] || "");
-  if (actual.length !== expected.length || !(0, import_node_crypto11.timingSafeEqual)(actual, expected)) {
+  if (actual.length !== expected.length || !(0, import_node_crypto12.timingSafeEqual)(actual, expected)) {
     throw new Error("Webhook signature is invalid");
   }
   return { isValid: true, event };
 }
-var import_node_crypto11;
+var import_node_crypto12;
 var init_manual2 = __esm({
   "features/integrations/erx/manual.ts"() {
     "use strict";
-    import_node_crypto11 = require("node:crypto");
+    import_node_crypto12 = require("node:crypto");
     init_external_request_policy();
   }
 });
@@ -666,9 +666,19 @@ __export(keystone_exports, {
 });
 module.exports = __toCommonJS(keystone_exports);
 
+// features/keystone/lib/s3-storage.ts
+function s3ForcePathStyle(endpoint2) {
+  let hostname = "";
+  try {
+    hostname = endpoint2 ? new URL(endpoint2).hostname : "";
+  } catch {
+  }
+  return !(hostname === "storageapi.dev" || hostname.endsWith(".storageapi.dev"));
+}
+
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core45 = require("@keystone-6/core");
+var import_core46 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 var import_iron = __toESM(require("@hapi/iron"));
 var cookie = __toESM(require("cookie"));
@@ -921,14 +931,39 @@ function passwordResetEmail({ url }) {
     </body>
   `;
 }
-async function sendPasswordResetEmail(resetToken, to, baseUrl) {
+async function isEmailConfigured() {
+  return Boolean(process.env.SMTP_HOST);
+}
+function requestOrigin(request) {
+  const configured = getBaseUrlForEmails();
+  if (configured) return configured.replace(/\/$/, "");
+  const header = (name) => {
+    const value = request?.headers?.[name];
+    return Array.isArray(value) ? value[0] : value;
+  };
+  const host = header("x-forwarded-host") || header("host");
+  if (!host) return "";
+  const protocol = header("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${protocol}://${host}`;
+}
+async function sendPasswordResetToken({ itemId, identity, token, context }) {
+  if (!await isEmailConfigured()) {
+    console.warn("Password reset email skipped: SMTP_HOST is not set.");
+    return;
+  }
+  const user = await context.sudo().query.User.findOne({ where: { id: String(itemId) }, query: "id role { canAccessDashboard }" });
+  const origin = requestOrigin(context.req);
+  const url = user?.role?.canAccessDashboard ? `${origin}/dashboard/reset?token=${encodeURIComponent(token)}` : `${origin}/account/reset?${new URLSearchParams({ token, email: identity })}`;
+  await sendPasswordResetEmail(token, identity, void 0, url);
+}
+async function sendPasswordResetEmail(resetToken, to, baseUrl, url) {
   const frontendUrl = baseUrl || getBaseUrlForEmails();
   const info = await transport.sendMail({
     to,
     from: process.env.SMTP_FROM,
     subject: "Your password reset token!",
     html: passwordResetEmail({
-      url: `${frontendUrl}/dashboard/reset?token=${resetToken}`
+      url: url || `${frontendUrl}/dashboard/reset?token=${resetToken}`
     })
   });
   if (process.env.MAIL_USER?.includes("ethereal.email")) {
@@ -2361,7 +2396,8 @@ function operatorBrandFromOrganization(organization) {
     logoIcon: sanitizeStoreLogoSvg(organization.logoIcon || DEFAULT_STORE_LOGO_ICON),
     logoColor: normalizeStoreLogoColor(organization.logoColor),
     supportEmail: organization.supportEmail || null,
-    supportPhone: organization.supportPhone || null
+    supportPhone: organization.supportPhone || null,
+    privacyNotice: organization.privacyNotice || null
   };
 }
 
@@ -2415,6 +2451,7 @@ var Organization = (0, import_core20.list)({
     isDemo: (0, import_fields21.checkbox)({ defaultValue: false, access: { create: import_access32.denyAll, update: import_access32.denyAll }, ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } } }),
     supportEmail: (0, import_fields21.text)(),
     supportPhone: (0, import_fields21.text)(),
+    privacyNotice: (0, import_fields21.text)({ ui: { displayMode: "textarea", description: "Notice of Privacy Practices shown at /privacy and linked from checkout." } }),
     prescriptionFillPolicy: (0, import_fields21.json)({ access: { create: import_access32.denyAll, update: import_access32.denyAll }, ui: { description: "Versioned operator-reviewed policy; only the controlled fill policy command may change it. Existing fills keep their snapshot." } }),
     cashSalesEnabled: (0, import_fields21.checkbox)({ defaultValue: false, access: { create: import_access32.denyAll, update: import_access32.denyAll }, ui: { description: "Enabled only by the operator-attested cash/tax policy workflow." } }),
     cashTaxRateBps: (0, import_fields21.integer)({ defaultValue: 0, validation: { min: 0, max: 1e4 }, access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
@@ -2952,6 +2989,34 @@ var PaymentWebhookEvent = (0, import_core28.list)({
 var import_core29 = require("@keystone-6/core");
 var import_access49 = require("@keystone-6/core/access");
 var import_fields30 = require("@keystone-6/core/fields");
+
+// features/pharmacy/hours.ts
+var TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+function normalizeDay(value) {
+  if (value === null) return null;
+  if (!value || typeof value !== "object") return void 0;
+  const { open, close } = value;
+  if (typeof open !== "string" || typeof close !== "string" || !TIME.test(open) || !TIME.test(close) || close <= open) return void 0;
+  return { open, close };
+}
+function normalizeWeek(value) {
+  if (!Array.isArray(value) || value.length !== 7) return void 0;
+  const days = value.map(normalizeDay);
+  return days.some((day) => day === void 0) ? void 0 : days;
+}
+function normalizeWeeklyHours(value) {
+  if (!value || typeof value !== "object") return null;
+  const store = normalizeWeek(value.store);
+  const pharmacy = normalizeWeek(value.pharmacy);
+  return store && pharmacy ? { store, pharmacy } : null;
+}
+function weeklyHoursError(value) {
+  if (value === null || value === void 0) return null;
+  return normalizeWeeklyHours(value) ? null : "Hours need an opening and a later closing time (HH:MM) for each open day.";
+}
+var DEFAULT_WEEK = [null, ...Array.from({ length: 5 }, () => ({ open: "09:00", close: "19:00" })), { open: "10:00", close: "16:00" }];
+
+// features/keystone/models/PharmacyLocation.ts
 var PharmacyLocation = (0, import_core29.list)({
   access: {
     operation: {
@@ -2964,6 +3029,15 @@ var PharmacyLocation = (0, import_core29.list)({
   },
   hooks: {
     validateInput: async ({ operation, resolvedData, context, addValidationError }) => {
+      const hoursError = resolvedData.hours !== void 0 ? weeklyHoursError(resolvedData.hours) : null;
+      if (hoursError) addValidationError(hoursError);
+      if (resolvedData.timezone !== void 0) {
+        try {
+          new Intl.DateTimeFormat("en-US", { timeZone: String(resolvedData.timezone) });
+        } catch {
+          addValidationError("Time zone is not a valid IANA zone, for example America/New_York");
+        }
+      }
       const organizationId = resolvedData.organization?.connect?.id;
       if (operation === "create" && !organizationId) addValidationError("Location requires an organization relationship");
       if (operation === "create" && organizationId) {
@@ -2995,6 +3069,8 @@ var PharmacyLocation = (0, import_core29.list)({
     memberships: (0, import_fields30.relationship)({ ref: "OrganizationMembership.location", many: true, access: immutableRelationship }),
     address: (0, import_fields30.json)({ ui: { description: "Operational address only; validate jurisdiction-specific requirements externally." } }),
     timezone: (0, import_fields30.text)({ defaultValue: "America/New_York" }),
+    // Weekly hours: { store: Day[7], pharmacy: Day[7] }, Sunday first; a Day is { open: 'HH:MM', close: 'HH:MM' } or null when closed.
+    hours: (0, import_fields30.json)({ ui: { description: "Weekly store and pharmacy counter hours, edited in Store Settings." } }),
     phone: (0, import_fields30.text)(),
     onlineOrderingEnabled: (0, import_fields30.checkbox)({ defaultValue: true, access: { create: permissions.canManageLocations, update: permissions.canManageLocations } }),
     pickupEnabled: (0, import_fields30.checkbox)({ defaultValue: true }),
@@ -3742,13 +3818,66 @@ var RefillRequest = (0, import_core40.list)({
   }
 });
 
-// features/keystone/models/Role.ts
+// features/keystone/models/PrescriptionRequest.ts
 var import_core41 = require("@keystone-6/core");
-var import_fields43 = require("@keystone-6/core/fields");
+var import_access69 = require("@keystone-6/core/access");
+var import_fields42 = require("@keystone-6/core/fields");
+var PrescriptionRequest = (0, import_core41.list)({
+  access: { operation: { query: import_access69.denyAll, create: import_access69.denyAll, update: import_access69.denyAll, delete: import_access69.denyAll } },
+  graphql: { omit: { create: true, update: true, delete: true } },
+  ui: { isHidden: true },
+  fields: {
+    idempotencyKey: (0, import_fields42.text)({ isIndexed: "unique" }),
+    kind: (0, import_fields42.select)({
+      type: "string",
+      options: [
+        { label: "Patient registration", value: "registration" },
+        { label: "Transfer", value: "transfer" },
+        { label: "New prescription", value: "new_prescription" }
+      ],
+      validation: { isRequired: true }
+    }),
+    status: (0, import_fields42.select)({
+      type: "string",
+      options: [
+        { label: "Requested", value: "requested" },
+        { label: "In review", value: "in_review" },
+        { label: "Completed", value: "completed" },
+        { label: "Declined", value: "declined" }
+      ],
+      defaultValue: "requested"
+    }),
+    organization: (0, import_fields42.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    location: (0, import_fields42.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
+    user: (0, import_fields42.relationship)({ ref: "User", db: requiredRelationshipDb }),
+    patient: (0, import_fields42.relationship)({ ref: "PatientProfile" }),
+    firstName: (0, import_fields42.text)(),
+    lastName: (0, import_fields42.text)(),
+    dateOfBirth: (0, import_fields42.timestamp)(),
+    phone: (0, import_fields42.text)(),
+    email: (0, import_fields42.text)(),
+    allergies: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
+    insurance: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
+    counterpartyName: (0, import_fields42.text)(),
+    counterpartyPhone: (0, import_fields42.text)(),
+    prescriberName: (0, import_fields42.text)(),
+    prescriberPhone: (0, import_fields42.text)(),
+    medications: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
+    note: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
+    resolutionNote: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
+    resolvedAt: (0, import_fields42.timestamp)(),
+    resolvedBy: (0, import_fields42.relationship)({ ref: "User" }),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/Role.ts
+var import_core42 = require("@keystone-6/core");
+var import_fields44 = require("@keystone-6/core/fields");
 
 // features/keystone/models/fields.ts
-var import_fields42 = require("@keystone-6/core/fields");
-var permission = (label) => (0, import_fields42.checkbox)({ defaultValue: false, label });
+var import_fields43 = require("@keystone-6/core/fields");
+var permission = (label) => (0, import_fields43.checkbox)({ defaultValue: false, label });
 var permissionFields = {
   canAccessDashboard: permission("Access dashboard"),
   canManageOrganizations: permission("Manage organizations"),
@@ -3773,7 +3902,7 @@ var permissionFields = {
 var permissionsList = Object.keys(permissionFields);
 
 // features/keystone/models/Role.ts
-var Role = (0, import_core41.list)({
+var Role = (0, import_core42.list)({
   access: {
     operation: {
       query: ({ session }) => permissions.canManageRoles({ session }) || permissions.canManageUsers({ session }) || permissions.canAccessDashboard({ session }),
@@ -3789,24 +3918,24 @@ var Role = (0, import_core41.list)({
     listView: { initialColumns: ["name", "canAccessDashboard", "canReviewPrescriptions", "canDispenseMedications"] }
   },
   fields: {
-    name: (0, import_fields43.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    name: (0, import_fields44.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
     ...permissionFields,
-    assignedTo: (0, import_fields43.relationship)({ ref: "User.role", many: true }),
+    assignedTo: (0, import_fields44.relationship)({ ref: "User.role", many: true }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Supplier.ts
-var import_core42 = require("@keystone-6/core");
-var import_access70 = require("@keystone-6/core/access");
-var import_fields45 = require("@keystone-6/core/fields");
-var Supplier = (0, import_core42.list)({
+var import_core43 = require("@keystone-6/core");
+var import_access71 = require("@keystone-6/core/access");
+var import_fields46 = require("@keystone-6/core/fields");
+var Supplier = (0, import_core43.list)({
   access: {
     operation: {
       query: isSignedIn,
       create: permissions.canManageInventory,
       update: permissions.canManageInventory,
-      delete: import_access70.denyAll
+      delete: import_access71.denyAll
     },
     filter: { query: rules.canReadOrganizationRecords, update: rules.canReadOrganizationRecords }
   },
@@ -3823,9 +3952,9 @@ var Supplier = (0, import_core42.list)({
   graphql: { omit: { delete: true } },
   ui: { hideDelete: true, listView: { initialColumns: ["name", "status", "organization"] } },
   fields: {
-    name: (0, import_fields45.text)({ validation: { isRequired: true } }),
-    accountReference: (0, import_fields45.text)(),
-    status: (0, import_fields45.select)({
+    name: (0, import_fields46.text)({ validation: { isRequired: true } }),
+    accountReference: (0, import_fields46.text)(),
+    status: (0, import_fields46.select)({
       type: "string",
       options: [
         { label: "Pending validation", value: "pending_validation" },
@@ -3834,24 +3963,24 @@ var Supplier = (0, import_core42.list)({
       ],
       defaultValue: "pending_validation"
     }),
-    organization: (0, import_fields45.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    integrationProvider: (0, import_fields45.relationship)({ ref: "IntegrationProvider.suppliers" }),
-    inventoryLots: (0, import_fields45.relationship)({ ref: "InventoryLot.supplier", many: true, access: immutableRelationship }),
+    organization: (0, import_fields46.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    integrationProvider: (0, import_fields46.relationship)({ ref: "IntegrationProvider.suppliers" }),
+    inventoryLots: (0, import_fields46.relationship)({ ref: "InventoryLot.supplier", many: true, access: immutableRelationship }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/TemperatureExcursion.ts
-var import_core43 = require("@keystone-6/core");
-var import_access72 = require("@keystone-6/core/access");
-var import_fields46 = require("@keystone-6/core/fields");
-var TemperatureExcursion = (0, import_core43.list)({
+var import_core44 = require("@keystone-6/core");
+var import_access73 = require("@keystone-6/core/access");
+var import_fields47 = require("@keystone-6/core/fields");
+var TemperatureExcursion = (0, import_core44.list)({
   access: {
     operation: {
       query: isSignedIn,
-      create: import_access72.denyAll,
-      update: import_access72.denyAll,
-      delete: import_access72.denyAll
+      create: import_access73.denyAll,
+      update: import_access73.denyAll,
+      delete: import_access73.denyAll
     },
     filter: { query: rules.canReadTenantRecords, update: rules.canReadTenantRecords, delete: rules.canReadTenantRecords }
   },
@@ -3870,12 +3999,12 @@ var TemperatureExcursion = (0, import_core43.list)({
     }
   },
   fields: {
-    idempotencyKey: (0, import_fields46.text)({ isIndexed: "unique" }),
-    observedMinimumC: (0, import_fields46.float)({ validation: { isRequired: true } }),
-    observedMaximumC: (0, import_fields46.float)({ validation: { isRequired: true } }),
-    startedAt: (0, import_fields46.timestamp)({ validation: { isRequired: true } }),
-    endedAt: (0, import_fields46.timestamp)(),
-    status: (0, import_fields46.select)({
+    idempotencyKey: (0, import_fields47.text)({ isIndexed: "unique" }),
+    observedMinimumC: (0, import_fields47.float)({ validation: { isRequired: true } }),
+    observedMaximumC: (0, import_fields47.float)({ validation: { isRequired: true } }),
+    startedAt: (0, import_fields47.timestamp)({ validation: { isRequired: true } }),
+    endedAt: (0, import_fields47.timestamp)(),
+    status: (0, import_fields47.select)({
       type: "string",
       options: [
         { label: "Open", value: "open" },
@@ -3885,20 +4014,20 @@ var TemperatureExcursion = (0, import_core43.list)({
       ],
       defaultValue: "open"
     }),
-    dispositionReason: (0, import_fields46.text)({ ui: { displayMode: "textarea" } }),
-    organization: (0, import_fields46.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    location: (0, import_fields46.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
-    lot: (0, import_fields46.relationship)({ ref: "InventoryLot.temperatureExcursions", db: requiredRelationshipDb }),
-    reviewedBy: (0, import_fields46.relationship)({ ref: "User", db: requiredRelationshipDb }),
-    approval: (0, import_fields46.relationship)({ ref: "HumanApproval.temperatureExcursions", db: requiredRelationshipDb }),
+    dispositionReason: (0, import_fields47.text)({ ui: { displayMode: "textarea" } }),
+    organization: (0, import_fields47.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    location: (0, import_fields47.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
+    lot: (0, import_fields47.relationship)({ ref: "InventoryLot.temperatureExcursions", db: requiredRelationshipDb }),
+    reviewedBy: (0, import_fields47.relationship)({ ref: "User", db: requiredRelationshipDb }),
+    approval: (0, import_fields47.relationship)({ ref: "HumanApproval.temperatureExcursions", db: requiredRelationshipDb }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/User.ts
-var import_core44 = require("@keystone-6/core");
-var import_access75 = require("@keystone-6/core/access");
-var import_fields47 = require("@keystone-6/core/fields");
+var import_core45 = require("@keystone-6/core");
+var import_access76 = require("@keystone-6/core/access");
+var import_fields49 = require("@keystone-6/core/fields");
 
 // features/keystone/session-revocation.ts
 function nextSessionTokenVersion(operation, resolvedPassword, currentTokenVersion) {
@@ -3932,23 +4061,36 @@ function resolvePublicUserCreateData({
   }
   return restrictedData;
 }
+async function firstUserAdminRoleId(context) {
+  const prisma = context.sudo().prisma;
+  if (await prisma.user.count() > 0) return null;
+  const grants = Object.fromEntries(permissionsList.map((permission2) => [permission2, true]));
+  const upserted = await prisma.role.upsert({ where: { name: "Admin" }, create: { name: "Admin", ...grants }, update: grants, select: { id: true } });
+  const roleId = upserted?.id ?? (await prisma.role.findUnique({ where: { name: "Admin" }, select: { id: true } }))?.id;
+  if (!roleId) throw new Error("The Admin role could not be created.");
+  return String(roleId);
+}
 
 // features/keystone/models/User.ts
-var User = (0, import_core44.list)({
+var User = (0, import_core45.list)({
   access: {
     operation: {
       query: isSignedIn,
       create: () => true,
       update: isSignedIn,
-      delete: import_access75.denyAll
+      delete: import_access76.denyAll
     },
     filter: { query: rules.canReadPeople, update: rules.canUpdatePeople }
   },
   hooks: {
-    resolveInput: ({ operation, inputData, resolvedData, item, context }) => {
+    resolveInput: async ({ operation, inputData, resolvedData, item, context }) => {
       let data = resolvedData;
       if (operation === "create" && !permissions.canManageUsers({ session: context.session })) {
         data = resolvePublicUserCreateData({ inputData, resolvedData });
+      }
+      if (operation === "create" && !data.role) {
+        const adminRoleId = await firstUserAdminRoleId(context);
+        if (adminRoleId) data = { ...data, role: { connect: { id: adminRoleId } } };
       }
       const nextTokenVersion = nextSessionTokenVersion(operation, data.password, item?.tokenVersion);
       return nextTokenVersion !== void 0 ? { ...data, tokenVersion: nextTokenVersion } : data;
@@ -3960,16 +4102,16 @@ var User = (0, import_core44.list)({
     listView: { initialColumns: ["name", "email", "role", "onboardingStatus"] }
   },
   fields: {
-    name: (0, import_fields47.text)({ validation: { isRequired: true } }),
-    email: (0, import_fields47.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    password: (0, import_fields47.password)({
+    name: (0, import_fields49.text)({ validation: { isRequired: true } }),
+    email: (0, import_fields49.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    password: (0, import_fields49.password)({
       validation: { isRequired: true, length: { min: 12, max: 1e3 }, rejectCommon: true },
       access: {
-        read: import_access75.denyAll,
+        read: import_access76.denyAll,
         update: canChangeOwnPassword
       }
     }),
-    role: (0, import_fields47.relationship)({
+    role: (0, import_fields49.relationship)({
       ref: "Role.assignedTo",
       access: {
         create: canCreateUserRole,
@@ -3980,8 +4122,8 @@ var User = (0, import_core44.list)({
         itemView: { fieldMode: (args) => permissions.canManageUsers(args) ? "edit" : "read" }
       }
     }),
-    tokenVersion: (0, import_fields47.integer)({ defaultValue: 0, access: { create: import_access75.denyAll, update: import_access75.denyAll }, ui: { itemView: { fieldMode: "hidden" }, createView: { fieldMode: "hidden" } } }),
-    onboardingStatus: (0, import_fields47.select)({
+    tokenVersion: (0, import_fields49.integer)({ defaultValue: 0, access: { create: import_access76.denyAll, update: import_access76.denyAll }, ui: { itemView: { fieldMode: "hidden" }, createView: { fieldMode: "hidden" } } }),
+    onboardingStatus: (0, import_fields49.select)({
       type: "string",
       options: [
         { label: "Not started", value: "not_started" },
@@ -3991,14 +4133,14 @@ var User = (0, import_core44.list)({
       ],
       defaultValue: "not_started"
     }),
-    memberships: (0, import_fields47.relationship)({ ref: "OrganizationMembership.user", many: true, access: immutableRelationship }),
-    patientProfile: (0, import_fields47.relationship)({ ref: "PatientProfile.user", access: immutableRelationship }),
-    carts: (0, import_fields47.relationship)({ ref: "Cart.customer", many: true, access: immutableRelationship }),
-    orders: (0, import_fields47.relationship)({ ref: "Order.customer", many: true, access: immutableRelationship }),
-    prescriptionReviews: (0, import_fields47.relationship)({ ref: "PrescriptionReview.pharmacist", many: true, access: immutableRelationship }),
-    humanApprovals: (0, import_fields47.relationship)({ ref: "HumanApproval.actor", many: true, access: immutableRelationship }),
-    auditEvents: (0, import_fields47.relationship)({ ref: "AuditEvent.actor", many: true, access: immutableRelationship }),
-    createdMachineCredentials: (0, import_fields47.relationship)({ ref: "MachineCredential.createdBy", many: true, access: immutableRelationship }),
+    memberships: (0, import_fields49.relationship)({ ref: "OrganizationMembership.user", many: true, access: immutableRelationship }),
+    patientProfile: (0, import_fields49.relationship)({ ref: "PatientProfile.user", access: immutableRelationship }),
+    carts: (0, import_fields49.relationship)({ ref: "Cart.customer", many: true, access: immutableRelationship }),
+    orders: (0, import_fields49.relationship)({ ref: "Order.customer", many: true, access: immutableRelationship }),
+    prescriptionReviews: (0, import_fields49.relationship)({ ref: "PrescriptionReview.pharmacist", many: true, access: immutableRelationship }),
+    humanApprovals: (0, import_fields49.relationship)({ ref: "HumanApproval.actor", many: true, access: immutableRelationship }),
+    auditEvents: (0, import_fields49.relationship)({ ref: "AuditEvent.actor", many: true, access: immutableRelationship }),
+    createdMachineCredentials: (0, import_fields49.relationship)({ ref: "MachineCredential.createdBy", many: true, access: immutableRelationship }),
     ...trackingFields
   }
 });
@@ -4039,6 +4181,7 @@ var models = {
   PrescriptionFill,
   PrescriptionFillEvent,
   PrescriptionItem,
+  PrescriptionRequest,
   PrescriptionReview,
   PrescriptionTransfer,
   Product,
@@ -4053,6 +4196,81 @@ var models = {
 
 // features/keystone/mutations/customerAccount.ts
 var import_graphql = require("graphql");
+
+// features/keystone/security/cart-token.ts
+var import_node_crypto = require("node:crypto");
+function createGuestCartToken() {
+  return (0, import_node_crypto.randomBytes)(32).toString("base64url");
+}
+function hashGuestCartToken(token) {
+  return (0, import_node_crypto.createHash)("sha256").update(token).digest("hex");
+}
+function verifyGuestCartToken(token, expectedHash) {
+  const actual = Buffer.from(hashGuestCartToken(token), "hex");
+  const expected = Buffer.from(expectedHash, "hex");
+  return actual.length === expected.length && (0, import_node_crypto.timingSafeEqual)(actual, expected);
+}
+
+// features/keystone/mutations/getGuestPharmacyOrder.ts
+async function getGuestPharmacyOrder(_root, args, context) {
+  if (!args.guestOrderToken?.trim()) throw new Error("Guest order token is required");
+  const order = await context.sudo().query.Order.findOne({
+    where: { id: args.orderId },
+    query: GUEST_ORDER_QUERY
+  });
+  if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new Error("Guest order not found");
+  return guestOrderProjection(order);
+}
+async function lookupPharmacyOrder(_root, args, context) {
+  const orderNumber2 = args.orderNumber?.trim();
+  const email = args.email?.trim().toLowerCase();
+  if (!orderNumber2 || !email || orderNumber2.length > 64 || email.length > 254) return null;
+  const order = await context.sudo().query.Order.findOne({ where: { orderNumber: orderNumber2 }, query: `email ${GUEST_ORDER_QUERY}` }).catch(() => null);
+  if (!order?.email || order.email.trim().toLowerCase() !== email) return null;
+  return guestOrderProjection(order);
+}
+var GUEST_ORDER_QUERY = `
+      id orderNumber guestTokenHash status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt
+      location { name timezone }
+      lineItems { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
+      fulfillment { method status readyAt handedOffAt }
+    `;
+function guestOrderProjection(order) {
+  return {
+    id: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    fulfillmentMethod: order.fulfillmentMethod,
+    subtotalAmount: order.subtotalAmount,
+    taxAmount: order.taxAmount,
+    deliveryAmount: order.deliveryAmount,
+    totalAmount: order.totalAmount,
+    currencyCode: order.currencyCode,
+    pickupAt: order.pickupAt,
+    deliveryWindow: order.deliveryWindow,
+    createdAt: order.createdAt,
+    locationName: order.location?.name || "Pharmacy",
+    locationTimezone: order.location?.timezone || "America/New_York",
+    lines: (order.lineItems || []).map((line) => ({
+      id: line.id,
+      title: line.title,
+      sku: line.sku,
+      quantity: line.quantity,
+      unitPriceAmount: line.unitPriceAmount,
+      lineTotalAmount: line.lineTotalAmount,
+      imageUrl: line.imageUrl,
+      prescriptionRequirement: line.prescriptionRequirementSnapshot
+    })),
+    fulfillment: order.fulfillment ? {
+      method: order.fulfillment.method,
+      status: order.fulfillment.status,
+      readyAt: order.fulfillment.readyAt,
+      handedOffAt: order.fulfillment.handedOffAt
+    } : null
+  };
+}
+
+// features/keystone/mutations/customerAccount.ts
 function userInputError(message) {
   return new import_graphql.GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
 }
@@ -4075,6 +4293,15 @@ async function pharmacyCustomerOrder(_root, args, context) {
   if (!order) throw new Error("Order not found");
   return order;
 }
+async function pharmacyCustomerOrderDetails(_root, args, context) {
+  const userId = context.session?.itemId;
+  if (!userId || context.session?.listKey !== "User") throw new Error("Authentication required");
+  const [owned] = await context.query.Order.findMany({ where: { id: { equals: args.orderId }, customer: { id: { equals: userId } } }, take: 1, query: "id" });
+  if (!owned) throw new Error("Order not found");
+  const order = await context.sudo().query.Order.findOne({ where: { id: owned.id }, query: GUEST_ORDER_QUERY });
+  if (!order) throw new Error("Order not found");
+  return guestOrderProjection(order);
+}
 async function pharmacyCustomerAccount(_root, _args, context) {
   const userId = context.session?.itemId;
   if (!userId || context.session?.listKey !== "User") throw new Error("Authentication required");
@@ -4088,7 +4315,7 @@ async function pharmacyCustomerAccount(_root, _args, context) {
 var import_schema = require("@graphql-tools/schema");
 
 // features/keystone/mutations/cashWorkflows.ts
-var import_node_crypto2 = require("node:crypto");
+var import_node_crypto3 = require("node:crypto");
 
 // features/keystone/workflows/lot-eligibility.ts
 var BLOCKING_RECALL_STATUSES = /* @__PURE__ */ new Set(["active", "quarantined"]);
@@ -4157,7 +4384,7 @@ function requirePermission(context, permission2) {
 }
 
 // features/keystone/mutations/lib/evidence.ts
-var import_node_crypto = require("node:crypto");
+var import_node_crypto2 = require("node:crypto");
 function canonicalize(value) {
   if (Array.isArray(value)) return value.map(canonicalize);
   if (value && typeof value === "object") {
@@ -4168,7 +4395,7 @@ function canonicalize(value) {
   return value;
 }
 function evidencePayloadHash(value) {
-  return (0, import_node_crypto.createHash)("sha256").update(JSON.stringify(canonicalize(value))).digest("hex");
+  return (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify(canonicalize(value))).digest("hex");
 }
 async function createHumanApproval(context, input) {
   assertAuthorizedHumanApproval(input);
@@ -4366,7 +4593,7 @@ async function submitPharmacyPosCashOrder(_root, args, context) {
   const items = (args.items || []).filter((entry) => entry?.productId && Number.isInteger(entry.quantity) && entry.quantity > 0 && entry.quantity <= 99);
   if (!items.length || items.length > 50 || items.length !== args.items.length) throw new Error("POS order must contain 1-50 valid line items");
   if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new Error("A request key is required");
-  const requestFingerprint = (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify({ locationId: args.locationId, ...args.customerCartId ? { customerCartId: args.customerCartId } : {}, ...method === "pickup" ? { fulfillmentMethod: method } : {}, items: [...items].sort((left, right) => left.productId.localeCompare(right.productId)), cashReceivedAmount: args.cashReceivedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify({ locationId: args.locationId, ...args.customerCartId ? { customerCartId: args.customerCartId } : {}, ...method === "pickup" ? { fulfillmentMethod: method } : {}, items: [...items].sort((left, right) => left.productId.localeCompare(right.productId)), cashReceivedAmount: args.cashReceivedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`pos-cash:${args.idempotencyKey}`, ...args.customerCartId ? [`cart:${args.customerCartId}`] : [], ...items.map((entry) => `product:${entry.productId}`)], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.Order.findOne({ where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` }, query: "id orderNumber status totalAmount currencyCode checkoutEvidence payments { id status } organization { id } location { id }" });
@@ -4402,7 +4629,7 @@ async function submitPharmacyPosCashOrder(_root, args, context) {
     const totalAmount = subtotalAmount + taxAmount;
     const tender = assertCashTender(totalAmount, args.cashReceivedAmount);
     const approval = await createHumanApproval(transactionContext, { organizationId: location.organization.id, locationId: location.id, actorId: userId, actionType: "cash_tender", reason: args.reason, attested: args.attested, evidence: { workflow: "operator_attested_otc_pos_cash", subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, taxRateBps: location.organization.cashTaxRateBps || 0, providerSettlementClaimed: false } });
-    const suffix = (0, import_node_crypto2.createHash)("sha256").update(args.idempotencyKey).digest("hex").slice(0, 12).toUpperCase();
+    const suffix = (0, import_node_crypto3.createHash)("sha256").update(args.idempotencyKey).digest("hex").slice(0, 12).toUpperCase();
     const order = await sudo.query.Order.createOne({ data: { orderNumber: `POS-${suffix}`, idempotencyKey: `pos-cash:${args.idempotencyKey}`, checkoutEvidence: { workflow: "operator_attested_otc_pos_cash", customerCartId: args.customerCartId || null, customerId: customerId || null, approvalId: approval.id, requestFingerprint, taxRateBps: location.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: false }, status: method === "pickup" ? "processing" : "completed", fulfillmentMethod: method, subtotalAmount, taxAmount, deliveryAmount: 0, totalAmount, currencyCode: currencies[0], customer: customerId ? { connect: { id: customerId } } : void 0, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, approval: { connect: { id: approval.id } } }, query: "id orderNumber status" });
     for (const entry of items) {
       const product = products.find((candidate) => candidate.id === entry.productId);
@@ -4447,7 +4674,7 @@ async function pharmacyPosCashReceipt(_root, args, context) {
 async function refundPharmacyCashPayment(_root, args, context) {
   requirePermission(context, "canManagePayments");
   if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
-  const requestFingerprint = (0, import_node_crypto2.createHash)("sha256").update(JSON.stringify({ paymentId: args.paymentId, cashReturnedAmount: args.cashReturnedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify({ paymentId: args.paymentId, cashReturnedAmount: args.cashReturnedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`payment:${args.paymentId}`, `cash-refund:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const payment = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: "id amount status tenderMethod data organization { id } location { id } order { id patient { id } } approval { id }" });
@@ -4466,20 +4693,6 @@ async function refundPharmacyCashPayment(_root, args, context) {
     await recordAuditAndOutbox(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: "payment.cash_refunded", resourceType: "Payment", resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } });
     return { success: true, reused: false, paymentId: payment.id, status: "refunded", amount: payment.amount };
   });
-}
-
-// features/keystone/security/cart-token.ts
-var import_node_crypto3 = require("node:crypto");
-function createGuestCartToken() {
-  return (0, import_node_crypto3.randomBytes)(32).toString("base64url");
-}
-function hashGuestCartToken(token) {
-  return (0, import_node_crypto3.createHash)("sha256").update(token).digest("hex");
-}
-function verifyGuestCartToken(token, expectedHash) {
-  const actual = Buffer.from(hashGuestCartToken(token), "hex");
-  const expected = Buffer.from(expectedHash, "hex");
-  return actual.length === expected.length && (0, import_node_crypto3.timingSafeEqual)(actual, expected);
 }
 
 // features/keystone/security/order-token.ts
@@ -4623,7 +4836,7 @@ function publicLocationCursorWhere(where, cursor) {
     }]
   };
 }
-var PUBLIC_TENANT_QUERY = "id storefrontKey storefrontHost operatorDisplayName operatorTagline brandPrimaryColor brandAccentColor brandLogoUrl logoIcon logoColor supportEmail supportPhone";
+var PUBLIC_TENANT_QUERY = "id storefrontKey storefrontHost operatorDisplayName operatorTagline brandPrimaryColor brandAccentColor brandLogoUrl logoIcon logoColor supportEmail supportPhone privacyNotice";
 function optionalTenantKey(tenantKey) {
   if (!tenantKey?.trim()) return null;
   try {
@@ -4688,7 +4901,7 @@ async function publicPharmacyTenant(_root, args, context) {
       where: publicLocationCursorWhere(baseWhere, cursor),
       orderBy: [{ name: "asc" }, { id: "asc" }],
       take: pageSize + 1,
-      query: "id name code status address phone onlineOrderingEnabled pickupEnabled deliveryEnabled"
+      query: "id name code status address phone timezone hours onlineOrderingEnabled pickupEnabled deliveryEnabled"
     })
   ]);
   const hasMore = records.length > pageSize;
@@ -4699,6 +4912,8 @@ async function publicPharmacyTenant(_root, args, context) {
     code: location.code,
     address: location.address,
     phone: location.phone,
+    timezone: location.timezone || "America/New_York",
+    hours: normalizeWeeklyHours(location.hours),
     onlineOrderingEnabled: location.onlineOrderingEnabled === true,
     pickupEnabled: location.pickupEnabled === true,
     deliveryEnabled: location.deliveryEnabled === true
@@ -5717,7 +5932,7 @@ function integer21(value, min = 0) {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > 2147483647) throw readScopeError();
   return value;
 }
-function timestamp37(value) {
+function timestamp38(value) {
   if (typeof value !== "string" || !Number.isFinite(new Date(value).getTime())) throw readScopeError();
   return value;
 }
@@ -5759,8 +5974,8 @@ function scopedFill(value, scope, expectedId) {
     itemVersion: hash(f.itemVersion),
     authorityVersion: hash(f.authorityVersion),
     requestFingerprint: hash(f.requestFingerprint),
-    createdAt: timestamp37(f.createdAt),
-    expiresAt: timestamp37(f.expiresAt),
+    createdAt: timestamp38(f.createdAt),
+    expiresAt: timestamp38(f.expiresAt),
     refillRequestId: f.refillRequest ? linkedId(f.refillRequest) : null
   };
 }
@@ -5777,7 +5992,7 @@ function scopedEvent(value, scope, fill, expectedId) {
   if (e.action === "dispensed" ? quantity < 1 || quantity > fill.quantityDispensed : e.action === "released" ? quantity > fill.quantityReleased : quantity !== 0) throw readScopeError();
   const commandFingerprint = hash(e.commandFingerprint);
   if (e.action === "reserved" && (commandFingerprint !== fill.requestFingerprint || linkedId(e.actor) !== fill.reservedById)) throw readScopeError();
-  return { id, action: String(e.action), version, commandFingerprint, quantity, createdAt: timestamp37(e.createdAt), actorId: linkedId(e.actor), approvalId: e.approval ? linkedId(e.approval) : null };
+  return { id, action: String(e.action), version, commandFingerprint, quantity, createdAt: timestamp38(e.createdAt), actorId: linkedId(e.actor), approvalId: e.approval ? linkedId(e.approval) : null };
 }
 function eventReadWhere(scope, fill) {
   return { fill: { ...fillReadWhere(scope), id: { equals: fill.id } }, prescription: { id: { equals: scope.prescriptionId } }, version: { gte: 1, lte: fill.version } };
@@ -5790,7 +6005,7 @@ function readCursor(after, scope, purpose, fillId) {
   try {
     const c = record(JSON.parse(Buffer.from(after, "base64url").toString()));
     if (c.purpose !== purpose || c.fillId !== fillId || !sameScope(record(c.scope), scope)) throw Error();
-    return { id: readId(c.id), createdAt: timestamp37(c.createdAt), version: integer21(c.version, 1) };
+    return { id: readId(c.id), createdAt: timestamp38(c.createdAt), version: integer21(c.version, 1) };
   } catch {
     throw new Error("Invalid scoped cursor");
   }
@@ -6074,7 +6289,7 @@ function isManualPaymentProvider(provider) {
   return provider.createPaymentFunction === "manual";
 }
 function paymentProviderOption(provider) {
-  return { code: provider.code, name: provider.name };
+  return { code: provider.code, name: provider.name, payAtPickup: isManualPaymentProvider(provider) };
 }
 function paymentSessionResult(session) {
   return {
@@ -6102,7 +6317,7 @@ async function activePharmacyPaymentProviders(_root, args, context) {
   }
   const providers = await context.sudo().query.PaymentProvider.findMany({
     where: { organization: { id: { equals: location.organization.id } }, isInstalled: { equals: true } },
-    query: "name code"
+    query: "name code createPaymentFunction"
   });
   return providers.map(paymentProviderOption);
 }
@@ -6291,54 +6506,174 @@ async function transitionOrderFulfillment(_root, args, context) {
   });
 }
 
-// features/keystone/mutations/getGuestPharmacyOrder.ts
-async function getGuestPharmacyOrder(_root, args, context) {
-  if (!args.guestOrderToken?.trim()) throw new Error("Guest order token is required");
-  const order = await context.sudo().query.Order.findOne({
-    where: { id: args.orderId },
-    query: `
-      id orderNumber guestTokenHash status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt
-      location { name }
-      lineItems { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
-      fulfillment { method status readyAt handedOffAt }
-    `
-  });
-  if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new Error("Guest order not found");
+// features/keystone/mutations/prescriptionRequests.ts
+var import_node_crypto9 = require("node:crypto");
+var import_graphql2 = require("graphql");
+var KINDS = ["registration", "transfer", "new_prescription"];
+var RESOLUTIONS = ["in_review", "completed", "declined"];
+var REQUEST_FIELDS = "id kind status createdAt resolvedAt resolutionNote firstName lastName dateOfBirth phone email allergies insurance counterpartyName counterpartyPhone prescriberName prescriberPhone medications note organization { id } location { id name } user { id name email } patient { id }";
+function userInputError2(message) {
+  return new import_graphql2.GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
+}
+function clean(value, max) {
+  const text45 = String(value ?? "").trim();
+  if (text45.length > max) throw userInputError2(`Keep each answer under ${max} characters.`);
+  return text45;
+}
+function customerProjection(request) {
+  return { id: request.id, kind: request.kind, status: request.status, createdAt: request.createdAt, resolvedAt: request.resolvedAt, resolutionNote: request.resolutionNote || null, locationName: request.location?.name || "Pharmacy", counterpartyName: request.counterpartyName || null, medications: request.medications || null };
+}
+function staffProjection(request) {
   return {
-    id: order.id,
-    orderNumber: order.orderNumber,
-    status: order.status,
-    fulfillmentMethod: order.fulfillmentMethod,
-    subtotalAmount: order.subtotalAmount,
-    taxAmount: order.taxAmount,
-    deliveryAmount: order.deliveryAmount,
-    totalAmount: order.totalAmount,
-    currencyCode: order.currencyCode,
-    pickupAt: order.pickupAt,
-    deliveryWindow: order.deliveryWindow,
-    createdAt: order.createdAt,
-    locationName: order.location?.name || "Pharmacy",
-    lines: (order.lineItems || []).map((line) => ({
-      id: line.id,
-      title: line.title,
-      sku: line.sku,
-      quantity: line.quantity,
-      unitPriceAmount: line.unitPriceAmount,
-      lineTotalAmount: line.lineTotalAmount,
-      imageUrl: line.imageUrl,
-      prescriptionRequirement: line.prescriptionRequirementSnapshot
-    })),
-    fulfillment: order.fulfillment ? {
-      method: order.fulfillment.method,
-      status: order.fulfillment.status,
-      readyAt: order.fulfillment.readyAt,
-      handedOffAt: order.fulfillment.handedOffAt
-    } : null
+    ...customerProjection(request),
+    customerName: request.user?.name || "",
+    customerEmail: request.user?.email || "",
+    patientId: request.patient?.id || null,
+    firstName: request.firstName || null,
+    lastName: request.lastName || null,
+    dateOfBirth: request.dateOfBirth || null,
+    phone: request.phone || null,
+    email: request.email || null,
+    allergies: request.allergies || null,
+    insurance: request.insurance || null,
+    counterpartyPhone: request.counterpartyPhone || null,
+    prescriberName: request.prescriberName || null,
+    prescriberPhone: request.prescriberPhone || null,
+    note: request.note || null
   };
+}
+function requireCustomer(context) {
+  const userId = context.session?.itemId;
+  if (!userId || context.session?.listKey !== "User") throw userInputError2("Sign in to send a request.");
+  return String(userId);
+}
+async function submitPharmacyPrescriptionRequest(_root, args, context) {
+  const userId = requireCustomer(context);
+  const input = args.input;
+  if (!KINDS.includes(input.kind)) throw userInputError2("Choose a request type.");
+  const kind = input.kind;
+  const idempotencyKey = clean(input.idempotencyKey, 200);
+  if (!idempotencyKey) throw userInputError2("A request key is required.");
+  const sudo = context.sudo();
+  const existing = await sudo.query.PrescriptionRequest.findOne({ where: { idempotencyKey }, query: `${REQUEST_FIELDS}` });
+  if (existing) {
+    if (existing.user?.id !== userId) throw userInputError2("This request key is already in use.");
+    return customerProjection(existing);
+  }
+  const location = await sudo.query.PharmacyLocation.findOne({ where: { id: input.locationId }, query: "id status organization { id status }" });
+  if (!location || location.status !== "active" || location.organization?.status !== "active") throw userInputError2("Choose an open pharmacy location.");
+  const data = {
+    firstName: clean(input.firstName, 120),
+    lastName: clean(input.lastName, 120),
+    phone: clean(input.phone, 40),
+    allergies: clean(input.allergies, 1e3),
+    insurance: clean(input.insurance, 1e3),
+    counterpartyName: clean(input.counterpartyName, 200),
+    counterpartyPhone: clean(input.counterpartyPhone, 40),
+    prescriberName: clean(input.prescriberName, 200),
+    prescriberPhone: clean(input.prescriberPhone, 40),
+    medications: clean(input.medications, 2e3),
+    note: clean(input.note, 1e3)
+  };
+  const dateOfBirth = input.dateOfBirth ? /* @__PURE__ */ new Date(`${String(input.dateOfBirth).slice(0, 10)}T00:00:00.000Z`) : null;
+  if (dateOfBirth && (Number.isNaN(dateOfBirth.getTime()) || dateOfBirth.getTime() > Date.now())) throw userInputError2("Enter a valid date of birth.");
+  if (!data.phone) throw userInputError2("Enter a phone number the pharmacy can call.");
+  if (kind === "registration") {
+    if (!data.firstName || !data.lastName || !dateOfBirth) throw userInputError2("Enter your legal name and date of birth.");
+    if (!data.allergies) throw userInputError2('List your allergies, or enter "None".');
+  }
+  if (kind === "transfer" && (!data.counterpartyName || !data.medications)) throw userInputError2("Enter the pharmacy to transfer from and the medications.");
+  if (kind === "new_prescription" && (!data.prescriberName || !data.medications)) throw userInputError2("Enter the prescriber and the medications.");
+  const user = await sudo.query.User.findOne({ where: { id: userId }, query: "id email patientProfile { id }" });
+  const request = await sudo.query.PrescriptionRequest.createOne({
+    data: {
+      idempotencyKey,
+      kind,
+      status: "requested",
+      organization: { connect: { id: location.organization.id } },
+      location: { connect: { id: location.id } },
+      user: { connect: { id: userId } },
+      ...user?.patientProfile?.id ? { patient: { connect: { id: user.patientProfile.id } } } : {},
+      ...data,
+      email: user?.email || "",
+      dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : null
+    },
+    query: REQUEST_FIELDS
+  });
+  await recordAuditAndOutbox(context, {
+    eventKey: `prescription_request.submitted:${request.id}`,
+    organizationId: location.organization.id,
+    locationId: location.id,
+    actorId: userId,
+    patientId: user?.patientProfile?.id || void 0,
+    eventType: "prescription_request.submitted",
+    resourceType: "PrescriptionRequest",
+    resourceId: request.id,
+    metadata: { kind, fingerprint: (0, import_node_crypto9.createHash)("sha256").update(idempotencyKey).digest("hex") }
+  });
+  return customerProjection(request);
+}
+async function pharmacyCustomerPrescriptionRequests(_root, _args, context) {
+  const userId = requireCustomer(context);
+  const requests = await context.sudo().query.PrescriptionRequest.findMany({ where: { user: { id: { equals: userId } } }, orderBy: [{ createdAt: "desc" }], take: 25, query: REQUEST_FIELDS });
+  return requests.map(customerProjection);
+}
+function canWorkRequests(context) {
+  const session = context.session;
+  return permissions.canManagePatients({ session }) || permissions.canManagePrescriptions({ session });
+}
+async function pharmacyPrescriptionRequestQueue(_root, args, context) {
+  const userId = context.session?.itemId;
+  if (!userId) throw new Error("Authentication required");
+  if (!canWorkRequests(context)) throw new Error("Permission required: canManagePatients or canManagePrescriptions");
+  const sudo = context.sudo();
+  const memberships = await sudo.query.OrganizationMembership.findMany({
+    where: { user: { id: { equals: String(userId) } }, status: { equals: "active" }, organization: { status: { equals: "active" } } },
+    query: "organization { id } location { id }"
+  });
+  const scopes = memberships.map((membership) => membership.location?.id ? { location: { id: { equals: membership.location.id } } } : { organization: { id: { equals: membership.organization.id } } });
+  if (!scopes.length) return [];
+  const status = args.status && ["requested", ...RESOLUTIONS].includes(args.status) ? args.status : null;
+  const requests = await sudo.query.PrescriptionRequest.findMany({
+    where: { AND: [{ OR: scopes }, ...status ? [{ status: { equals: status } }] : []] },
+    orderBy: [{ createdAt: "desc" }],
+    take: 100,
+    query: REQUEST_FIELDS
+  });
+  return requests.map(staffProjection);
+}
+async function resolvePharmacyPrescriptionRequest(_root, args, context) {
+  if (!canWorkRequests(context)) throw new Error("Permission required: canManagePatients or canManagePrescriptions");
+  if (!RESOLUTIONS.includes(args.status)) throw new Error("Choose in review, completed or declined");
+  const note = clean(args.note, 1e3);
+  if (args.status === "declined" && note.length < 3) throw userInputError2("Give the reason for declining.");
+  const sudo = context.sudo();
+  const request = await sudo.query.PrescriptionRequest.findOne({ where: { id: args.requestId }, query: REQUEST_FIELDS });
+  if (!request) throw new Error("Request not found");
+  const { userId } = await requireTenantMembership(context, { organizationId: request.organization.id, locationId: request.location.id });
+  if (["completed", "declined"].includes(request.status)) throw userInputError2("This request is already closed.");
+  const terminal = args.status !== "in_review";
+  const updated = await sudo.query.PrescriptionRequest.updateOne({
+    where: { id: request.id },
+    data: { status: args.status, resolutionNote: note || request.resolutionNote || "", ...terminal ? { resolvedAt: (/* @__PURE__ */ new Date()).toISOString(), resolvedBy: { connect: { id: String(userId) } } } : {} },
+    query: REQUEST_FIELDS
+  });
+  await recordAuditAndOutbox(context, {
+    eventKey: `prescription_request.${args.status}:${request.id}`,
+    organizationId: request.organization.id,
+    locationId: request.location.id,
+    actorId: String(userId),
+    patientId: request.patient?.id || void 0,
+    eventType: `prescription_request.${args.status}`,
+    resourceType: "PrescriptionRequest",
+    resourceId: request.id,
+    metadata: { kind: request.kind }
+  });
+  return staffProjection(updated);
 }
 
 // features/keystone/mutations/inventoryWorkflows.ts
-var import_node_crypto9 = require("node:crypto");
+var import_node_crypto10 = require("node:crypto");
 
 // features/keystone/workflows/product-location.ts
 function isProductAtActiveTenantLocation(product, location) {
@@ -6355,7 +6690,7 @@ async function receiveInventoryLot(_root, args, context) {
   const expirationDate = new Date(args.expirationDate);
   if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new Error("Expiration date must be in the future");
   if (args.coldChainRequired) throw new Error("Cold-chain receiving is not supported yet");
-  const requestFingerprint = (0, import_node_crypto9.createHash)("sha256").update(JSON.stringify({ productId: args.productId, locationId: args.locationId, supplierId: args.supplierId || null, lotNumber: args.lotNumber.trim(), serialNumber: args.serialNumber?.trim() || null, expirationDate: expirationDate.toISOString(), quantity: args.quantity, coldChainRequired: args.coldChainRequired, minimumTemperatureC: args.minimumTemperatureC ?? null, maximumTemperatureC: args.maximumTemperatureC ?? null, coldChainEvidenceComplete: args.coldChainEvidenceComplete, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify({ productId: args.productId, locationId: args.locationId, supplierId: args.supplierId || null, lotNumber: args.lotNumber.trim(), serialNumber: args.serialNumber?.trim() || null, expirationDate: expirationDate.toISOString(), quantity: args.quantity, coldChainRequired: args.coldChainRequired, minimumTemperatureC: args.minimumTemperatureC ?? null, maximumTemperatureC: args.maximumTemperatureC ?? null, coldChainEvidenceComplete: args.coldChainEvidenceComplete, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${args.lotNumber}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.InventoryMovement.findOne({ where: { idempotencyKey: args.idempotencyKey }, query: "id requestFingerprint lot { id quantityAvailable location { id } product { organization { id } } }" });
@@ -6440,7 +6775,7 @@ async function adjustInventoryLot(_root, args, context) {
   requirePermission(context, "canManageInventory");
   if (!Number.isInteger(args.targetQuantity) || args.targetQuantity < 0) throw new Error("Target quantity must be a non-negative integer");
   if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
-  const requestFingerprint = (0, import_node_crypto9.createHash)("sha256").update(JSON.stringify({ lotId: args.lotId, targetQuantity: args.targetQuantity, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify({ lotId: args.lotId, targetQuantity: args.targetQuantity, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `lot:${args.lotId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.InventoryMovement.findOne({
@@ -6581,7 +6916,7 @@ async function quarantineRecallLots(_root, args, context) {
 }
 
 // features/keystone/workflows/external-integration-idempotency.ts
-var import_node_crypto10 = require("node:crypto");
+var import_node_crypto11 = require("node:crypto");
 function canonicalize2(value) {
   if (Array.isArray(value)) return value.map(canonicalize2);
   if (value && typeof value === "object") {
@@ -6592,7 +6927,7 @@ function canonicalize2(value) {
   return value;
 }
 function fingerprint(value) {
-  return (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify(canonicalize2(value))).digest("hex");
+  return (0, import_node_crypto11.createHash)("sha256").update(JSON.stringify(canonicalize2(value))).digest("hex");
 }
 function externalIntegrationRequestMatches(existing, request) {
   if (!existing.provider?.id || !existing.organization?.id || !existing.location?.id || existing.requestPayload == null) return false;
@@ -6890,7 +7225,7 @@ async function ingestPharmacyIntegrationWebhook(_root, args, context) {
 }
 
 // features/keystone/mutations/intakeWorkflows.ts
-var import_node_crypto12 = require("node:crypto");
+var import_node_crypto13 = require("node:crypto");
 async function intakePharmacyPrescription(_root, args, context) {
   requirePermission(context, "canManagePrescriptions");
   if (!["paper", "phone"].includes(args.source)) {
@@ -6908,7 +7243,7 @@ async function intakePharmacyPrescription(_root, args, context) {
       throw new Error("Prescription item is invalid");
     }
   }
-  const requestFingerprint = (0, import_node_crypto12.createHash)("sha256").update(JSON.stringify({ organizationId: args.organizationId, locationId: args.locationId, patientId: args.patientId, prescriberId: args.prescriberId, prescriptionNumber: args.prescriptionNumber.trim(), source: args.source, externalReference: args.externalReference?.trim() || null, writtenAt: writtenAt.toISOString(), expiresAt: expiresAt.toISOString(), items: args.items, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto13.createHash)("sha256").update(JSON.stringify({ organizationId: args.organizationId, locationId: args.locationId, patientId: args.patientId, prescriberId: args.prescriberId, prescriptionNumber: args.prescriptionNumber.trim(), source: args.source, externalReference: args.externalReference?.trim() || null, writtenAt: writtenAt.toISOString(), expiresAt: expiresAt.toISOString(), items: args.items, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`prescription-number:${args.prescriptionNumber.trim()}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.Prescription.findOne({ where: { prescriptionNumber: args.prescriptionNumber.trim() }, query: "id status intakeRequestFingerprint organization { id } location { id } approval { id }" });
@@ -7006,12 +7341,12 @@ async function intakePharmacyPrescription(_root, args, context) {
 }
 
 // features/keystone/mutations/patientRecordWorkflows.ts
-var import_node_crypto13 = require("node:crypto");
+var import_node_crypto14 = require("node:crypto");
 function normalize(value) {
   return value.trim().replace(/\s+/g, " ");
 }
 function digest(value) {
-  return (0, import_node_crypto13.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
+  return (0, import_node_crypto14.createHash)("sha256").update(JSON.stringify(value)).digest("hex");
 }
 function safePatientNumber(value) {
   const normalized = value.trim().toUpperCase();
@@ -7126,7 +7461,7 @@ async function recordPatientHistoryEntry(input, context) {
 }
 
 // features/keystone/mutations/patientWorkflows.ts
-var import_node_crypto14 = require("node:crypto");
+var import_node_crypto15 = require("node:crypto");
 var TRANSFER_CONSENT = {
   policyVersion: "2026-07-18",
   statementKey: "openfront_pharmacy_prescription_transfer_consent_v1"
@@ -7187,7 +7522,7 @@ async function requestPrescriptionRefill(_root, args, context) {
     const { actorId } = await patientAccess(transactionContext, args.patientId, prescription.organization.id, prescription.location.id);
     const item = prescription.items.find((entry) => entry.id === args.prescriptionItemId);
     if (!item) throw new Error("Prescription item does not belong to this prescription");
-    const requestFingerprint = (0, import_node_crypto14.createHash)("sha256").update(JSON.stringify({
+    const requestFingerprint = (0, import_node_crypto15.createHash)("sha256").update(JSON.stringify({
       organizationId: prescription.organization.id,
       actorId,
       prescriptionId: prescription.id,
@@ -7350,7 +7685,7 @@ async function requestPrescriptionTransfer(_root, args, context) {
     throw new Error("Current prescription transfer consent is required");
   }
   if (!["inbound", "outbound"].includes(args.direction)) throw new Error("Invalid transfer direction");
-  const requestFingerprint = (0, import_node_crypto14.createHash)("sha256").update(JSON.stringify({ prescriptionId: args.prescriptionId, patientId: args.patientId, direction: args.direction, counterpartyName: args.counterpartyName?.trim(), counterpartyPhone: args.counterpartyPhone?.trim() || null, consentAccepted: args.consentAccepted, policyVersion: args.policyVersion, statementKey: args.statementKey })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto15.createHash)("sha256").update(JSON.stringify({ prescriptionId: args.prescriptionId, patientId: args.patientId, direction: args.direction, counterpartyName: args.counterpartyName?.trim(), counterpartyPhone: args.counterpartyPhone?.trim() || null, consentAccepted: args.consentAccepted, policyVersion: args.policyVersion, statementKey: args.statementKey })).digest("hex");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `transfer-idempotency:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.PrescriptionTransfer.findOne({ where: { idempotencyKey: args.idempotencyKey }, query: "id status patient { id } prescription { id organization { id } location { id } patient { id } } consent { evidence }" });
@@ -7455,7 +7790,7 @@ async function approvePrescriptionTransfer(_root, args, context) {
 }
 
 // features/keystone/mutations/operationalQueries.ts
-var import_node_crypto15 = require("node:crypto");
+var import_node_crypto16 = require("node:crypto");
 
 // features/keystone/workflows/recall-exposure.ts
 function recallExposureMovementWhere(lotIds) {
@@ -7695,7 +8030,7 @@ function inventoryReceiptProductQueueFilter(scope, filters) {
     location: { id: { equals: locationId } },
     status: status ? { equals: status } : { in: ["draft", "published"] }
   };
-  const cursorScope = (0, import_node_crypto15.createHash)("sha256").update(JSON.stringify({
+  const cursorScope = (0, import_node_crypto16.createHash)("sha256").update(JSON.stringify({
     worklist: "inventory-receipt-products",
     organizationIds,
     authorizedLocationIds,
@@ -7949,7 +8284,7 @@ function inventoryLotQueueFilter(locationIds, filters) {
   }
   const where = { location: { id: { in: scopedLocationIds } } };
   if (status) where.status = { equals: status };
-  const scope = (0, import_node_crypto15.createHash)("sha256").update(JSON.stringify({ worklist: "inventory-lots", locationIds: scopedLocationIds, status })).digest("base64url");
+  const scope = (0, import_node_crypto16.createHash)("sha256").update(JSON.stringify({ worklist: "inventory-lots", locationIds: scopedLocationIds, status })).digest("base64url");
   return { where, scope };
 }
 async function pharmacyInventoryQueue(_root, args, context) {
@@ -8230,7 +8565,7 @@ function pharmacyOrderQueueFilter(scope, filters) {
   };
   if (status) where.status = { equals: status };
   if (fulfillmentMethod) where.fulfillmentMethod = { equals: fulfillmentMethod };
-  const cursorScope = (0, import_node_crypto15.createHash)("sha256").update(JSON.stringify({
+  const cursorScope = (0, import_node_crypto16.createHash)("sha256").update(JSON.stringify({
     worklist: "orders",
     organizationIds,
     locationIds,
@@ -8769,7 +9104,7 @@ async function reconcilePharmacyPaymentSession(_root, args, context) {
 }
 
 // features/keystone/mutations/prescriptionWorkflows.ts
-var import_node_crypto16 = require("node:crypto");
+var import_node_crypto17 = require("node:crypto");
 var CLINICAL_QUERY = "sourceVerificationStatus writtenAt expiresAt prescriber { npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }";
 var SAFETY_QUERY = `
   patient { id displayName identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } allergies(where: { status: { equals: "active" } }) { id updatedAt } medications(where: { status: { equals: "current" } }) { id updatedAt } }
@@ -8983,7 +9318,7 @@ async function recordPrescriptionDispensing(_root, args, context) {
       assertFillBinding(fill, current, currentItem);
       await assertItemFillLedger(transactionContext, current, currentItem);
     }
-    const requestFingerprint = (0, import_node_crypto16.createHash)("sha256").update(JSON.stringify({
+    const requestFingerprint = (0, import_node_crypto17.createHash)("sha256").update(JSON.stringify({
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
       actorId: userId,
@@ -9052,7 +9387,7 @@ async function recordPrescriptionDispensing(_root, args, context) {
       attested: args.attested,
       evidence: { subtotalAmount, taxableSubtotalAmount, taxAmount, amountDue: totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, taxRateBps: prescription.organization.cashTaxRateBps || 0, taxPolicyReference: prescription.organization.cashTaxPolicyReference, providerSettlementClaimed: false }
     });
-    const operationSuffix = (0, import_node_crypto16.createHash)("sha256").update(args.idempotencyKey).digest("hex").slice(0, 12).toUpperCase();
+    const operationSuffix = (0, import_node_crypto17.createHash)("sha256").update(args.idempotencyKey).digest("hex").slice(0, 12).toUpperCase();
     const dispensedAt = (/* @__PURE__ */ new Date()).toISOString();
     const order = await sudo.query.Order.createOne({
       data: {
@@ -9209,7 +9544,7 @@ async function recordPrescriptionDispensing(_root, args, context) {
 }
 
 // features/keystone/mutations/recallWorkflows.ts
-var import_node_crypto17 = require("node:crypto");
+var import_node_crypto18 = require("node:crypto");
 async function reconcileRecallExposures(context, recallId) {
   return withDomainTransaction(context, [`recall-exposures:${recallId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
@@ -9279,7 +9614,7 @@ async function openPharmacyRecall(_root, args, context) {
   requirePermission(context, "canManageRecalls");
   if (!["class_i", "class_ii", "class_iii", "market_withdrawal"].includes(args.classification)) throw new Error("Recall classification is invalid");
   if (!args.recallNumber?.trim() || !args.reason?.trim() || !args.source?.trim() || !args.sourceReference?.trim() || !args.lotIds.length) throw new Error("Recall number, reason, source, source reference, and affected lots are required");
-  const requestFingerprint = (0, import_node_crypto17.createHash)("sha256").update(JSON.stringify({ organizationId: args.organizationId, locationId: args.locationId || null, recallNumber: args.recallNumber.trim(), classification: args.classification, reason: args.reason.trim(), source: args.source.trim(), sourceReference: args.sourceReference.trim(), lotIds: [...new Set(args.lotIds)].sort(), attested: args.attested })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto18.createHash)("sha256").update(JSON.stringify({ organizationId: args.organizationId, locationId: args.locationId || null, recallNumber: args.recallNumber.trim(), classification: args.classification, reason: args.reason.trim(), source: args.source.trim(), sourceReference: args.sourceReference.trim(), lotIds: [...new Set(args.lotIds)].sort(), attested: args.attested })).digest("hex");
   const holdResult = await withDomainTransaction(context, [`recall-number:${args.recallNumber.trim()}`, ...args.lotIds.map((id) => `lot:${id}`)], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.Recall.findOne({ where: { recallNumber: args.recallNumber.trim() }, query: "id status organization { id } location { id } lots { id } approval { id evidence }" });
@@ -9355,7 +9690,7 @@ async function recordRecallExposureAction(_root, args, context) {
   requirePermission(context, "canManageRecalls");
   if (!["contacted", "returned", "resolved", "unable_to_reach"].includes(args.status)) throw new Error("Recall exposure status is invalid");
   if (!args.contactMethod?.trim() || !args.outcome?.trim()) throw new Error("Contact method and outcome are required");
-  const requestFingerprint = (0, import_node_crypto17.createHash)("sha256").update(JSON.stringify({ exposureId: args.exposureId, status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), notes: args.notes?.trim() || null, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto18.createHash)("sha256").update(JSON.stringify({ exposureId: args.exposureId, status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), notes: args.notes?.trim() || null, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`recall-exposure:${args.exposureId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const exposure = await sudo.query.RecallExposure.findOne({ where: { id: args.exposureId }, query: "id status organization { id } location { id } recall { id status } patient { id } approval { id evidence }" });
@@ -9374,7 +9709,7 @@ async function recordRecallExposureAction(_root, args, context) {
 async function disposeRecallLot(_root, args, context) {
   requirePermission(context, "canManageRecalls");
   if (!Number.isInteger(args.quantity) || args.quantity < 1 || !args.dispositionReference?.trim() || !args.idempotencyKey?.trim()) throw new Error("Quantity, disposition reference, and idempotency key are required");
-  const requestFingerprint = (0, import_node_crypto17.createHash)("sha256").update(JSON.stringify({ recallId: args.recallId, lotId: args.lotId, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  const requestFingerprint = (0, import_node_crypto18.createHash)("sha256").update(JSON.stringify({ recallId: args.recallId, lotId: args.lotId, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`recall:${args.recallId}`, `lot:${args.lotId}`, `recall-disposition:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const recall = await sudo.query.Recall.findOne({ where: { id: args.recallId }, query: "id status organization { id } location { id } lots { id quantityAvailable quantityQuarantined product { id } location { id } }" });
@@ -9489,8 +9824,8 @@ var seed_default = {
     operatorTagline: "Care, close to home",
     brandPrimaryColor: "#18352b",
     brandAccentColor: "#8ec9ad",
-    logoIcon: '<svg xmlns="http://www.w3.org/2000/svg" fill="none" height="100%" width="100%" viewBox="0 0 42 48"><path fill="#155eef" fill-rule="evenodd" d="m22.102 20.86 9.9-9.9L29.88 8.84l-7.339 7.339V3h-3v13.178l-7.339-7.34-2.121 2.122 9.9 9.9 1.06 1.06zm2.12 2.121 9.9-9.9 2.121 2.122-7.339 7.339H42v3H28.904l7.34 7.339L34.121 35l-9.9-9.899-1.06-1.06zM7.96 35.001l9.9-9.899 1.06-1.06-1.06-1.061-9.9-9.9-2.121 2.122 7.339 7.339H.002v3h13.176l-7.34 7.339zm12.02-7.777-9.9 9.9 2.122 2.12 7.339-7.338V45h3V31.906l7.339 7.338L32 37.124l-9.9-9.9-1.06-1.061z" clip-rule="evenodd"/></svg>',
-    logoColor: "314",
+    logoIcon: '<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="18" fill="#1570ef" r="14"/><circle cx="26" cy="30" fill="#53b1fd" r="14"/></svg>',
+    logoColor: "295",
     supportEmail: "care@cedarelmpharmacy.com",
     supportPhone: "(212) 555-0142"
   },
@@ -9864,15 +10199,15 @@ async function runPharmacyOnboarding(_root, args, context) {
       query: "id"
     });
     const connectOrganization = { connect: { id: organization.id } };
+    await sudo.query.OrganizationMembership.createOne({
+      data: { user: { connect: { id: userId } }, organization: connectOrganization, status: "active", membershipRole: "owner" },
+      query: "id"
+    });
     const location = await sudo.query.PharmacyLocation.createOne({
       data: { ...seed.location, status: "active", organization: connectOrganization, onlineOrderingEnabled: true, pickupEnabled: true, deliveryEnabled: false },
       query: "id"
     });
     const connectLocation = { connect: { id: location.id } };
-    await sudo.query.OrganizationMembership.createOne({
-      data: { user: { connect: { id: userId } }, organization: connectOrganization, status: "active", membershipRole: "owner" },
-      query: "id"
-    });
     for (const provider of paymentProviders) {
       await sudo.query.PaymentProvider.createOne({ data: { ...withoutProfile(provider), organization: connectOrganization }, query: "id" });
     }
@@ -9990,7 +10325,7 @@ async function runPharmacyOnboarding(_root, args, context) {
 }
 
 // features/keystone/mutations/submitPharmacyOrder.ts
-var import_node_crypto18 = require("node:crypto");
+var import_node_crypto19 = require("node:crypto");
 var CHECKOUT_CONSENT = {
   policyVersion: "2026-07-18",
   statementKey: "openfront_pharmacy_checkout_privacy_acknowledgement_v1"
@@ -10007,7 +10342,7 @@ function normalizedEmail(value) {
   return email;
 }
 function orderNumber() {
-  return `RXO-${Date.now().toString(36).toUpperCase()}-${(0, import_node_crypto18.randomBytes)(3).toString("hex").toUpperCase()}`;
+  return `RXO-${Date.now().toString(36).toUpperCase()}-${(0, import_node_crypto19.randomBytes)(3).toString("hex").toUpperCase()}`;
 }
 function checkoutReplay(cart, idempotencyKey, guestToken) {
   if (!cart.order || cart.order.idempotencyKey !== idempotencyKey) throw new Error("Cart was already submitted with another idempotency key");
@@ -10051,6 +10386,7 @@ async function submitPharmacyOrder(_root, args, context) {
   const provider = await context.sudo().query.PaymentProvider.findOne({ where: { id: paymentSession.provider.id }, query: PAYMENT_PROVIDER_ADAPTER_FIELDS });
   if (!provider?.isInstalled) throw new Error("Selected payment session not found for this cart");
   const manualTender = isManualPaymentProvider(provider);
+  if (manualTender && input.fulfillmentMethod === "delivery") throw new Error("Delivery orders are paid online. Choose card payment.");
   const paymentStatus = manualTender ? { status: "pending" } : await getPaymentStatus({ provider, paymentId });
   if (!manualTender && !["captured", "succeeded"].includes(paymentStatus.status)) throw new Error(`Payment is not settled: ${paymentStatus.status || "unknown"}`);
   await withDomainTransaction(context, [`payment-session:${paymentSession.id}`], async (transactionContext) => {
@@ -10397,6 +10733,8 @@ function extendGraphqlSchema(baseSchema) {
         code: String!
         address: JSON
         phone: String
+        timezone: String!
+        hours: JSON
         onlineOrderingEnabled: Boolean!
         pickupEnabled: Boolean!
         deliveryEnabled: Boolean!
@@ -10413,6 +10751,7 @@ function extendGraphqlSchema(baseSchema) {
         logoColor: String
         supportEmail: String
         supportPhone: String
+        privacyNotice: String
       }
       type PublicPharmacyTenant {
         brand: PublicPharmacyOperatorBrand!
@@ -10453,7 +10792,7 @@ function extendGraphqlSchema(baseSchema) {
       type CreatePharmacyCartResult { cart: PharmacyCart!, guestToken: String }
 
       type PharmacyOperatorLocation { id: ID!, name: String!, code: String!, pickupEnabled: Boolean!, deliveryEnabled: Boolean!, operatorDisplayName: String!, operatorPhone: String, cashSalesEnabled: Boolean!, cashTaxRateBps: Int! }
-      type PharmacyPaymentProviderOption { code: String!, name: String! }
+      type PharmacyPaymentProviderOption { code: String!, name: String!, payAtPickup: Boolean! }
       type PharmacyPaymentSessionResult {
         id: ID!
         amount: Int!
@@ -10489,6 +10828,7 @@ function extendGraphqlSchema(baseSchema) {
         deliveryWindow: String
         createdAt: String!
         locationName: String!
+        locationTimezone: String!
         lines: [GuestPharmacyOrderLine!]!
         fulfillment: GuestPharmacyFulfillment
       }
@@ -10944,10 +11284,56 @@ function extendGraphqlSchema(baseSchema) {
       type PharmacyCustomerLine { title: String!, quantity: Int!, unitPriceAmount: Int! }
       type PharmacyCustomerOrder { id: ID!, orderNumber: String!, status: String!, totalAmount: Int!, currencyCode: String!, createdAt: String!, lineItems: [PharmacyCustomerLine!]! }
       type PharmacyCustomerAccount { id: ID!, name: String!, hasPatientProfile: Boolean!, orders: [PharmacyCustomerOrder!]! }
+      input PharmacyPrescriptionRequestInput {
+        locationId: ID!
+        kind: String!
+        idempotencyKey: String!
+        firstName: String
+        lastName: String
+        dateOfBirth: String
+        phone: String
+        allergies: String
+        insurance: String
+        counterpartyName: String
+        counterpartyPhone: String
+        prescriberName: String
+        prescriberPhone: String
+        medications: String
+        note: String
+      }
+      type PharmacyCustomerPrescriptionRequest { id: ID!, kind: String!, status: String!, createdAt: String!, resolvedAt: String, resolutionNote: String, locationName: String!, counterpartyName: String, medications: String }
+      type PharmacyPrescriptionRequest {
+        id: ID!
+        kind: String!
+        status: String!
+        createdAt: String!
+        resolvedAt: String
+        resolutionNote: String
+        locationName: String!
+        counterpartyName: String
+        medications: String
+        customerName: String!
+        customerEmail: String!
+        patientId: ID
+        firstName: String
+        lastName: String
+        dateOfBirth: String
+        phone: String
+        email: String
+        allergies: String
+        insurance: String
+        counterpartyPhone: String
+        prescriberName: String
+        prescriberPhone: String
+        note: String
+      }
       type Query {
         pharmacyPosCustomers(locationId: ID!): [PharmacyTaskOption!]!
         pharmacyCustomerAccount: PharmacyCustomerAccount!
         pharmacyCustomerOrder(orderId: ID!): PharmacyCustomerOrder!
+        pharmacyCustomerOrderDetails(orderId: ID!): GuestPharmacyOrder!
+        pharmacyCustomerPrescriptionRequests: [PharmacyCustomerPrescriptionRequest!]!
+        pharmacyPrescriptionRequestQueue(status: String): [PharmacyPrescriptionRequest!]!
         pharmacyFillPolicy(organizationId: ID!): PharmacyFillPolicyReadback!
         pharmacyFillHistory(prescriptionId: ID!, fillId: ID!, after: String): PharmacyFillHistory!
         pharmacyFillWorkbench(prescriptionId: ID!, after: String): PharmacyFillWorkbench!
@@ -10964,6 +11350,7 @@ function extendGraphqlSchema(baseSchema) {
         pharmacyCart(cartId: ID!, guestToken: String): PharmacyCart
         activePharmacyPaymentProviders(locationId: ID!): [PharmacyPaymentProviderOption!]!
         guestPharmacyOrder(orderId: ID!, guestOrderToken: String!): GuestPharmacyOrder
+        lookupPharmacyOrder(orderNumber: String!, email: String!): GuestPharmacyOrder
         pharmacyOperationalSummary: PharmacyOperationalSummary!
         pharmacyOnboardingState: PharmacyOnboardingState!
         pharmacyOperatorLocations: [PharmacyOperatorLocation!]!
@@ -10992,6 +11379,8 @@ function extendGraphqlSchema(baseSchema) {
       }
 
       type Mutation {
+        submitPharmacyPrescriptionRequest(input: PharmacyPrescriptionRequestInput!): PharmacyCustomerPrescriptionRequest!
+        resolvePharmacyPrescriptionRequest(requestId: ID!, status: String!, note: String): PharmacyPrescriptionRequest!
         registerPharmacyCustomer(name: String!, email: String!, password: String!): Boolean!
         updateActiveUser(data: UserUpdateProfileInput!, oldPassword: String): User
         recordPharmacyFillPolicy(organizationId: ID!, policy: JSON!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
@@ -11052,6 +11441,9 @@ function extendGraphqlSchema(baseSchema) {
         pharmacyPosCustomers,
         pharmacyCustomerAccount,
         pharmacyCustomerOrder,
+        pharmacyCustomerOrderDetails,
+        pharmacyCustomerPrescriptionRequests,
+        pharmacyPrescriptionRequestQueue,
         pharmacyFillPolicy,
         pharmacyFillWorkbench,
         pharmacyFillHistory,
@@ -11068,6 +11460,7 @@ function extendGraphqlSchema(baseSchema) {
         pharmacyCart,
         activePharmacyPaymentProviders,
         guestPharmacyOrder: getGuestPharmacyOrder,
+        lookupPharmacyOrder,
         pharmacyOperationalSummary,
         pharmacyOnboardingState,
         pharmacyOperatorLocations,
@@ -11096,6 +11489,8 @@ function extendGraphqlSchema(baseSchema) {
       },
       Mutation: {
         registerPharmacyCustomer,
+        submitPharmacyPrescriptionRequest,
+        resolvePharmacyPrescriptionRequest,
         updateActiveUser: updateActiveUser_default,
         recordPharmacyFillPolicy,
         reservePharmacyPrescriptionFill,
@@ -11269,20 +11664,14 @@ var { withAuth } = (0, import_auth.createAuth)({
   listKey: "User",
   identityField: "email",
   secretField: "password",
+  // The first user's Admin role is assigned in the User resolveInput hook (security/user-create.ts),
+  // not through itemData's nested role.create.
   initFirstItem: {
-    fields: ["name", "email", "password"],
-    itemData: {
-      role: {
-        create: Object.fromEntries([
-          ["name", "Admin"],
-          ...permissionsList.map((permission2) => [permission2, true])
-        ])
-      }
-    }
+    fields: ["name", "email", "password"]
   },
   passwordResetLink: {
     async sendToken(args) {
-      await sendPasswordResetEmail(args.token, args.identity);
+      await sendPasswordResetToken(args);
     }
   },
   sessionData: `
@@ -11297,7 +11686,7 @@ var { withAuth } = (0, import_auth.createAuth)({
     }
   `
 });
-var keystone_default = withAuth((0, import_core45.config)({
+var keystone_default = withAuth((0, import_core46.config)({
   db: { provider: "postgresql", url: databaseURL },
   lists: models,
   storage: {
@@ -11310,7 +11699,7 @@ var keystone_default = withAuth((0, import_core45.config)({
       secretAccessKey,
       endpoint,
       signed: { expiry: 5e3 },
-      forcePathStyle: true
+      forcePathStyle: s3ForcePathStyle(endpoint)
     }
   },
   ui: {

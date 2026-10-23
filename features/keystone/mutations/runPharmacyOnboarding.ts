@@ -124,15 +124,16 @@ export async function runPharmacyOnboarding(_root: unknown, args: { template?: O
       query: 'id',
     })
     const connectOrganization = { connect: { id: organization.id } }
+    // The owner's organization-wide membership comes first: PharmacyLocation requires it to create a location.
+    await sudo.query.OrganizationMembership.createOne({
+      data: { user: { connect: { id: userId } }, organization: connectOrganization, status: 'active', membershipRole: 'owner' },
+      query: 'id',
+    })
     const location = await sudo.query.PharmacyLocation.createOne({
       data: { ...seed.location, status: 'active', organization: connectOrganization, onlineOrderingEnabled: true, pickupEnabled: true, deliveryEnabled: false },
       query: 'id',
     })
     const connectLocation = { connect: { id: location.id } }
-    await sudo.query.OrganizationMembership.createOne({
-      data: { user: { connect: { id: userId } }, organization: connectOrganization, status: 'active', membershipRole: 'owner' },
-      query: 'id',
-    })
 
     for (const provider of paymentProviders) {
       await sudo.query.PaymentProvider.createOne({ data: { ...withoutProfile(provider), organization: connectOrganization }, query: 'id' })

@@ -100,6 +100,7 @@ export async function submitPharmacyOrder(
   // Manual tender (pay at pickup or delivery) is collected later; the order is
   // created with a pending payment instead of a provider settlement check.
   const manualTender = isManualPaymentProvider(provider)
+  if (manualTender && input.fulfillmentMethod === 'delivery') throw new Error('Delivery orders are paid online. Choose card payment.')
   const paymentStatus = manualTender ? { status: 'pending' } : await getPaymentStatus({ provider, paymentId })
   if (!manualTender && !['captured', 'succeeded'].includes(paymentStatus.status)) throw new Error(`Payment is not settled: ${paymentStatus.status || 'unknown'}`)
   await withDomainTransaction(context, [`payment-session:${paymentSession.id}`], async (transactionContext) => {
