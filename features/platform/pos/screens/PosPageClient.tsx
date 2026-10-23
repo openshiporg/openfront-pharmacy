@@ -3,11 +3,9 @@
 import { decimalToMinorUnits } from '@/features/lib/minor-units'
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
-import { AlertCircle, CheckCircle2, Minus, Plus, Search, ShoppingBasket } from 'lucide-react'
+import { CheckCircle2, Minus, Plus, Search, ShoppingBasket } from 'lucide-react'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
+import { Callout, Count, Dot, EmptyBand, ListBand, Mono, Pill, RxButton as Button, TitleLine, Track, pillClass, trackClass } from '@/features/platform/components/rx-ui'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -125,83 +123,97 @@ export function PosPageClient({ location, products, customers }: { location: Pha
   ]
   const money = (amount: number, currency = 'USD') => new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount / 100)
   const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0)
+  const tenders = Array.from(new Set([total, ...[500, 1000, 2000, 5000].map((step) => Math.ceil(total / step) * step)])).filter((amount) => amount >= total && amount > 0).slice(0, 4)
+  const stockCounts = { available: products.filter((product) => (product.availableQuantity || 0) > 0).length, unavailable: products.filter((product) => (product.availableQuantity || 0) <= 0).length, all: products.length }
 
   if (!location) return <section className="flex flex-col overflow-hidden">
     <PageBreadcrumbs items={breadcrumbs} />
-    <div className="max-w-3xl p-4 md:p-6">
-      <Alert>
-        <AlertCircle className="size-4" />
-        <AlertTitle>Point of sale unavailable</AlertTitle>
-        <AlertDescription>Add a pharmacy location with pickup enabled to start selling.</AlertDescription>
-      </Alert>
+    <div className="max-w-3xl space-y-4 p-4 md:p-6">
+      <TitleLine title="Point of Sale" tone="warn" state="Unavailable" />
+      <Callout tone="warn">Add a pharmacy location with pickup enabled to start selling.</Callout>
     </div>
   </section>
 
   return <section className="flex flex-col overflow-hidden" aria-busy={isPending}>
-    <PageBreadcrumbs items={breadcrumbs} actions={<span className="flex items-center gap-2 text-sm text-muted-foreground"><ShoppingBasket className="size-4" />{itemCount} items</span>} />
-    <div className="space-y-6 p-4 md:p-6">
+    <PageBreadcrumbs items={breadcrumbs} actions={<span className="flex items-center gap-2 text-sm text-muted-foreground"><ShoppingBasket className="size-4" /><Mono>{itemCount}</Mono></span>} />
+    <div className="space-y-4 p-4 pb-28 md:p-6 lg:pb-6">
       <header>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">Point of Sale</h1>
-        <p className="text-muted-foreground">{location.name} · Cash sales</p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{location.name}</p>
+        <TitleLine className="mt-1" title="Point of Sale" tone={location.cashSalesEnabled ? 'ok' : 'warn'} state={location.cashSalesEnabled ? 'Cash sales on' : 'Cash sales off'} />
       </header>
 
-      {message && <Alert role="status" aria-live="polite"><CheckCircle2 className="size-4" /><AlertDescription>{message}</AlertDescription></Alert>}
-      {error && <Alert variant="destructive"><AlertCircle className="size-4" /><AlertDescription>{error}</AlertDescription></Alert>}
+      {message && <Callout tone="muted"><span role="status" aria-live="polite" className="inline-flex items-baseline gap-2 text-foreground"><CheckCircle2 aria-hidden="true" className="size-4 translate-y-0.5 text-emerald-600" />{message}</span></Callout>}
+      {error && <Callout tone="danger">{error}</Callout>}
       {isPending && <p role="status" className="sr-only">Recording cash sale</p>}
 
-      {receipt && <section className="rounded-xl border bg-background p-6 print:border-0" aria-label="Cash receipt">
-        <div className="flex items-start justify-between gap-4">
-          <div><p className="text-xl font-bold">{location.operatorDisplayName}</p><p className="text-sm text-muted-foreground">{location.name}{location.operatorPhone ? ` · ${location.operatorPhone}` : ''}</p><p className="mt-1 text-xs text-muted-foreground">Cash receipt · Payment {receipt.paymentStatus.replaceAll('_', ' ')}</p></div>
-          <Button variant="outline" onClick={() => window.print()} className="print:hidden">Print receipt</Button>
+      {receipt && <section className="mx-auto w-full max-w-md rounded-xl bg-background p-5 font-mono text-[13px] ring-1 ring-border print:max-w-none print:ring-0" aria-label="Cash receipt">
+        <div className="flex items-start justify-between gap-4 border-b border-dashed pb-3 font-sans">
+          <div><p className="text-base font-semibold">{location.operatorDisplayName}</p><p className="text-xs text-muted-foreground">{location.name}{location.operatorPhone ? ` · ${location.operatorPhone}` : ''}</p></div>
+          <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">Print</Button>
         </div>
-        <div className="mt-5 border-y py-3 text-xs text-muted-foreground"><p>Order {receipt.orderNumber}</p><p>Payment {receipt.paymentId}</p><p>{new Date(receipt.recordedAt).toLocaleString()}</p></div>
-        <div className="mt-4 space-y-2 text-sm">{receipt.lines.map((line, index) => <div key={`${line.sku}:${index}`} className="flex justify-between gap-4"><span>{line.quantity} × {line.title} ({line.sku})</span><span>{money(line.lineTotalAmount, receipt.currencyCode)}</span></div>)}</div>
-        <dl className="ml-auto mt-5 w-56 space-y-1 border-t pt-3 text-sm"><div className="flex justify-between"><dt>Subtotal</dt><dd>{money(receipt.subtotalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Tax</dt><dd>{money(receipt.taxAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between font-bold"><dt>Total</dt><dd>{money(receipt.totalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Cash received</dt><dd>{money(receipt.cashReceivedAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Change</dt><dd>{money(receipt.changeDueAmount, receipt.currencyCode)}</dd></div></dl>
+        <div className="grid gap-0.5 border-b border-dashed py-3 text-[11px] text-muted-foreground"><p>ORDER {receipt.orderNumber}</p><p>PAYMENT {receipt.paymentId} · {receipt.paymentStatus.replaceAll('_', ' ')}</p><p>{new Date(receipt.recordedAt).toLocaleString()}</p></div>
+        <div className="grid gap-1.5 border-b border-dashed py-3">{receipt.lines.map((line, index) => <div key={`${line.sku}:${index}`} className="flex justify-between gap-4"><span className="min-w-0">{line.quantity}× {line.title}<span className="block text-[11px] text-muted-foreground">{line.sku}</span></span><span className="tabular-nums">{money(line.lineTotalAmount, receipt.currencyCode)}</span></div>)}</div>
+        <dl className="grid gap-1 pt-3 tabular-nums"><div className="flex justify-between"><dt>Subtotal</dt><dd>{money(receipt.subtotalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Tax</dt><dd>{money(receipt.taxAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between font-semibold"><dt>Total</dt><dd>{money(receipt.totalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Cash</dt><dd>{money(receipt.cashReceivedAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Change</dt><dd>{money(receipt.changeDueAmount, receipt.currencyCode)}</dd></div></dl>
       </section>}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56 flex-1">
-          <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search name, SKU, or category" aria-label="Search products" className="h-10 w-full rounded-lg pl-9" />
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start">
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <label className={`${trackClass} relative min-w-0 flex-1 basis-56 overflow-visible`}>
+              <span className="sr-only">Search products</span>
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, SKU or category" className="h-8 rounded-full border-0 bg-transparent pl-8 shadow-none focus-visible:ring-0 max-sm:h-10 dark:bg-transparent" />
+            </label>
+            <Track label="Stock">
+              <Pill active={stockFilter === 'available'} onClick={() => setStockFilter('available')}>In stock <Count>{stockCounts.available}</Count></Pill>
+              <Pill active={stockFilter === 'unavailable'} onClick={() => setStockFilter('unavailable')}>Out <Count>{stockCounts.unavailable}</Count></Pill>
+              <Pill active={stockFilter === 'all'} onClick={() => setStockFilter('all')}>All <Count>{stockCounts.all}</Count></Pill>
+            </Track>
+            <Track label="Sort">
+              <Pill active={sort === 'title'} onClick={() => setSort('title')}>Name</Pill>
+              <Pill active={sort === 'price-low'} onClick={() => setSort('price-low')}>Lowest price</Pill>
+              <Pill active={sort === 'price-high'} onClick={() => setSort('price-high')}>Highest price</Pill>
+              <Pill active={sort === 'stock'} onClick={() => setSort('stock')}>Stock</Pill>
+            </Track>
+          </div>
+          {visibleProducts.length === 0
+            ? <EmptyBand>{products.length === 0 ? 'No products available' : 'No products match your search'}</EmptyBand>
+            : <ListBand className="bg-border/60">{visibleProducts.map((product) => {
+              const quantity = cart[product.id] || 0
+              const available = (product.availableQuantity || 0) > 0
+              return <div key={product.id} className={`flex items-center gap-3 px-3.5 py-2.5 sm:px-4 ${quantity > 0 ? 'bg-teal-50/70 dark:bg-teal-950/20' : 'bg-background'}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="flex min-w-0 items-baseline gap-2"><Dot tone={available ? 'ok' : 'muted'} /><h2 className="truncate text-sm font-semibold text-foreground">{product.title}</h2></div>
+                  <p className="mt-0.5 truncate pl-4 font-mono text-[11px] text-muted-foreground">{product.sku} · {product.availableQuantity || 0} on hand</p>
+                </div>
+                <Mono className="shrink-0 text-sm">{money(product.priceAmount, product.currencyCode)}</Mono>
+                <div role="group" aria-label={`Quantity of ${product.title}`} className={`${trackClass} shrink-0 gap-0.5`}>
+                  <button type="button" className={`${pillClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity - 1)} disabled={intentUnresolved || quantity === 0} aria-label={`Remove one ${product.title} from cart`}><Minus className="size-3.5" /></button>
+                  <Mono className="w-6 text-center text-sm" aria-label={`${quantity} ${product.title} in cart`}>{quantity}</Mono>
+                  <button type="button" data-active={available} className={`${pillClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity + 1)} disabled={intentUnresolved || !available || quantity >= (product.availableQuantity || 0)} aria-label={`Add one ${product.title} to cart`}><Plus className="size-3.5" /></button>
+                </div>
+              </div>
+            })}</ListBand>}
         </div>
-        <Select value={stockFilter} onValueChange={(value) => setStockFilter(value as typeof stockFilter)}>
-          <SelectTrigger className="h-10 w-44 rounded-lg" aria-label="Stock"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="available">In stock</SelectItem><SelectItem value="unavailable">Out of stock</SelectItem><SelectItem value="all">All products</SelectItem></SelectContent>
-        </Select>
-        <Select value={sort} onValueChange={(value) => setSort(value as typeof sort)}>
-          <SelectTrigger className="h-10 w-44 rounded-lg" aria-label="Sort"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="title">Name A–Z</SelectItem><SelectItem value="price-low">Price low–high</SelectItem><SelectItem value="price-high">Price high–low</SelectItem><SelectItem value="stock">Stock</SelectItem></SelectContent>
-        </Select>
-      </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_24rem]">
-        <div>{visibleProducts.length === 0
-          ? <div className="rounded-xl border border-dashed p-10 text-center text-sm text-muted-foreground">{products.length === 0 ? 'No products available' : 'No products match your search.'}</div>
-          : <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{visibleProducts.map((product) => {
-            const quantity = cart[product.id] || 0
-            const available = (product.availableQuantity || 0) > 0
-            return <article key={product.id} className="rounded-xl border bg-background p-4">
-              <div className="flex items-start justify-between gap-3"><p className="text-xs uppercase tracking-wider text-muted-foreground">{product.sku}</p><Badge variant={available ? 'secondary' : 'outline'}>{available ? 'In stock' : 'Out of stock'}</Badge></div>
-              <h2 className="mt-2 font-semibold">{product.title}</h2>
-              <p className="mt-2 text-xs text-muted-foreground">{product.availableQuantity || 0} in stock</p>
-              <div className="mt-6 flex items-center justify-between"><span className="text-lg">{money(product.priceAmount, product.currencyCode)}</span><div className="flex items-center rounded-full border"><button type="button" className="grid size-9 place-items-center disabled:opacity-40" onClick={() => setQuantity(product.id, quantity - 1)} disabled={intentUnresolved || quantity === 0} aria-label={`Remove one ${product.title} from cart`}><Minus className="size-3" /></button><span className="w-7 text-center" aria-label={`${quantity} ${product.title} in cart`}>{quantity}</span><button type="button" className="grid size-9 place-items-center disabled:opacity-40" onClick={() => setQuantity(product.id, quantity + 1)} disabled={intentUnresolved || !available || quantity >= (product.availableQuantity || 0)} aria-label={`Add one ${product.title} to cart`}><Plus className="size-3" /></button></div></div>
-            </article>
-          })}</div>}
-        </div>
-
-        <aside className="h-fit space-y-4 rounded-xl border bg-background p-5">
-          <h2 className="font-semibold">Sale</h2>
-          <div className="space-y-2"><Label>Customer</Label><Select value={customerCartId || WALK_IN} disabled={intentUnresolved} onValueChange={(value) => setCustomerCartId(value === WALK_IN ? '' : value)}><SelectTrigger aria-label="Customer"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={WALK_IN}>Walk-in</SelectItem>{customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.label}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label>Handoff</Label><Select value={fulfillmentMethod} disabled={intentUnresolved} onValueChange={setFulfillmentMethod}><SelectTrigger aria-label="Handoff"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="pos">Collected now</SelectItem><SelectItem value="pickup">Pickup later</SelectItem></SelectContent></Select></div>
-          <div className="space-y-2 border-y py-4 text-sm"><div className="flex justify-between"><span>Subtotal</span><span>{money(subtotal)}</span></div><div className="flex justify-between"><span>Tax</span><span>{money(tax)}</span></div><div className="flex justify-between text-base font-semibold"><span>Total</span><span>{money(total)}</span></div></div>
-          {!location.cashSalesEnabled && <Alert><AlertCircle className="size-4" /><AlertDescription>Cash sales are not enabled for this pharmacy.</AlertDescription></Alert>}
-          <div className="space-y-2"><Label htmlFor="pos-cash">Cash received (USD)</Label><Input id="pos-cash" inputMode="decimal" value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} disabled={intentUnresolved} /></div>
-          {cashReceivedAmount >= total && total > 0 && <p className="text-sm font-medium">Change due: {money(cashReceivedAmount - total)}</p>}
-          <div className="space-y-2"><Label htmlFor="pos-reason">Note</Label><Input id="pos-reason" value={reason} onChange={(event) => setReason(event.target.value)} disabled={intentUnresolved} /></div>
+        <aside id="sale" aria-label="Sale" className="space-y-4 rounded-xl bg-background p-4 ring-1 ring-border sm:p-5 lg:sticky lg:top-4">
+          <div className="flex items-baseline justify-between gap-3"><h2 className="text-sm font-semibold text-foreground">Sale</h2><Count>{itemCount} items</Count></div>
+          {lines.length > 0 && <ul className="grid gap-1 text-sm">{lines.map((line) => <li key={line.product.id} className="flex justify-between gap-3"><span className="min-w-0 truncate"><Mono className="text-muted-foreground">{line.quantity}×</Mono> {line.product.title}</span><Mono>{money(line.product.priceAmount * line.quantity)}</Mono></li>)}</ul>}
+          <div className="grid gap-2"><Label>Customer</Label><Select value={customerCartId || WALK_IN} disabled={intentUnresolved} onValueChange={(value) => setCustomerCartId(value === WALK_IN ? '' : value)}><SelectTrigger aria-label="Customer" className="rounded-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={WALK_IN}>Walk-in</SelectItem>{customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-2"><span className="text-sm font-medium">Handoff</span><Track label="Handoff" className="w-fit"><Pill active={fulfillmentMethod === 'pos'} disabled={intentUnresolved} onClick={() => setFulfillmentMethod('pos')}>Collected now</Pill><Pill active={fulfillmentMethod === 'pickup'} disabled={intentUnresolved} onClick={() => setFulfillmentMethod('pickup')}>Pickup later</Pill></Track></div>
+          <dl className="grid gap-1.5 border-y border-dashed py-3 text-sm"><div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd><Mono>{money(subtotal)}</Mono></dd></div><div className="flex justify-between"><dt className="text-muted-foreground">Tax</dt><dd><Mono>{money(tax)}</Mono></dd></div><div className="flex items-baseline justify-between pt-1"><dt className="font-semibold">Total</dt><dd><Mono className="text-2xl">{money(total)}</Mono></dd></div></dl>
+          {!location.cashSalesEnabled && <Callout tone="warn">Cash sales are not enabled for this pharmacy.</Callout>}
+          <div className="grid gap-2"><Label htmlFor="pos-cash">Cash received (USD)</Label><Input id="pos-cash" inputMode="decimal" value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} disabled={intentUnresolved} className="h-10 rounded-full font-mono tabular-nums" />
+            {tenders.length > 0 && !intentUnresolved && <Track label="Quick cash amounts" className="w-fit">{tenders.map((amount, index) => <Pill key={amount} active={cashReceivedAmount === amount} onClick={() => setCashReceived((amount / 100).toFixed(2))}>{index === 0 && amount === total ? 'Exact' : money(amount)}</Pill>)}</Track>}
+          </div>
+          {cashReceivedAmount >= total && total > 0 && <div className="flex items-baseline justify-between rounded-xl bg-emerald-50 px-4 py-3 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100"><span className="text-sm font-medium">Change due</span><Mono className="text-xl">{money(cashReceivedAmount - total)}</Mono></div>}
+          <div className="grid gap-2"><Label htmlFor="pos-reason">Note</Label><Input id="pos-reason" value={reason} onChange={(event) => setReason(event.target.value)} disabled={intentUnresolved} className="h-10 rounded-full" /></div>
           <label className="flex items-start gap-3 text-sm"><Checkbox checked={attested} onCheckedChange={(checked) => setAttested(checked === true)} disabled={intentUnresolved} className="mt-0.5" />I received the cash and will return the change shown.</label>
-          <Button onClick={sell} disabled={isPending || (!intentUnresolved && !location.cashSalesEnabled) || (intentUnresolved ? !pendingIntent.current : (!lines.length || cashReceivedAmount < total || reason.trim().length < 8 || !attested))} className="w-full">{isPending ? 'Recording…' : intentUnresolved ? 'Retry sale' : 'Record cash sale'}</Button>
+          <Button onClick={sell} disabled={isPending || (!intentUnresolved && !location.cashSalesEnabled) || (intentUnresolved ? !pendingIntent.current : (!lines.length || cashReceivedAmount < total || reason.trim().length < 8 || !attested))} className="min-h-11 w-full">{isPending ? 'Recording…' : intentUnresolved ? 'Retry sale' : 'Record cash sale'}</Button>
         </aside>
       </div>
     </div>
+
+    {itemCount > 0 && <a href="#sale" className="fixed inset-x-3 bottom-3 z-20 flex min-h-12 items-center justify-between rounded-full bg-foreground px-5 text-sm font-semibold text-background shadow-lg lg:hidden"><span><Mono>{itemCount}</Mono> items</span><Mono>{money(total)}</Mono></a>}
   </section>
 }

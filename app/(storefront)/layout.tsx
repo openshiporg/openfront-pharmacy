@@ -1,21 +1,9 @@
-import type { CSSProperties } from 'react'
-import { normalizeStoreLogoColor } from '@/features/lib/store-logo'
 import { getStorefront } from '@/features/storefront/lib/data/store'
+import { rxFontClass } from '@/features/storefront/lib/fonts'
+import { storeBrandStyle } from '@/features/storefront/lib/rx-brand'
 import './storefront.css'
-
-type StorefrontBrandStyle = CSSProperties & {
-  '--store-page-logo-hue': string
-  '--store-page-brand-hue': string
-}
 
 export default async function StorefrontLayout({ children }: { children: React.ReactNode }) {
   const storefront = await getStorefront()
-  const logoHue = normalizeStoreLogoColor(storefront?.brand.logoColor)
-  const brandHue = String((260 + Number.parseInt(logoHue, 10)) % 360)
-  const brandStyle: StorefrontBrandStyle = {
-    '--store-page-logo-hue': logoHue,
-    '--store-page-brand-hue': brandHue,
-  }
-
-  return <div className="storefront-brand" style={brandStyle}>{children}</div>
+  return <div className={`storefront-brand ${rxFontClass}`} style={storeBrandStyle(storefront?.brand.logoColor)}>{children}</div>
 }

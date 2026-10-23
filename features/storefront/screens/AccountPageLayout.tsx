@@ -1,25 +1,23 @@
 import type { ReactNode } from 'react'
 import type { Metadata } from 'next'
-import Link from 'next/link'
 
-import { getCustomer, signOut } from '../lib/data/user'
+import { AccountNav } from '../modules/account/components/account-nav'
+import { getCustomer } from '../lib/data/user'
 
 export const metadata: Metadata = { title: 'Account' }
 
 export async function AccountPageLayout({ dashboard, login }: { dashboard?: ReactNode; login?: ReactNode }) {
   const customer = await getCustomer()
-  if (!customer) return <div className="flex min-h-[calc(100dvh-16rem)] items-center justify-center px-4 py-12">{login}</div>
+  if (!customer) return <div className="flex min-h-[calc(100dvh-16rem)] items-start justify-center px-4 py-10 sm:items-center sm:py-16">{login}</div>
 
-  return <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:px-8">
-    <aside>
-      <p className="truncate font-semibold">{customer.name}</p>
-      <p className="truncate text-sm text-muted-foreground">{customer.email}</p>
-      <nav aria-label="Account" className="mt-6 flex flex-wrap gap-x-5 gap-y-1 text-sm font-medium lg:grid">
-        <Link href="/account" className="inline-flex min-h-11 items-center hover:text-primary">Overview</Link>
-        <Link href="/account/profile" className="inline-flex min-h-11 items-center hover:text-primary">Profile</Link>
-        <form action={signOut}><button type="submit" className="inline-flex min-h-11 items-center hover:text-primary">Sign out</button></form>
-      </nav>
-    </aside>
-    <div className="min-w-0">{dashboard}</div>
+  return <div className="mx-auto max-w-4xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
+    <div className="flex flex-col gap-5 border-b border-border pb-6">
+      <div className="min-w-0">
+        <p className="rx-eyebrow truncate">{customer.email}</p>
+        <h1 className="mt-1.5 truncate text-[2rem] font-semibold leading-tight tracking-[-0.02em]">{customer.name}</h1>
+      </div>
+      <AccountNav />
+    </div>
+    <div className="min-w-0 pt-8">{dashboard}</div>
   </div>
 }

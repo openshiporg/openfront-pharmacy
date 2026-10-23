@@ -1,24 +1,54 @@
-/* Store brand tokens, derived from the store logo colour (see layout.tsx). */
+/* Store brand tokens. The accent hue comes from the saved logo colour (features/storefront/lib/rx-brand.ts),
+   on a warm label-paper ground with hairline rules. */
 .storefront-brand {
-  --store-logo-hue: var(--store-page-logo-hue, 0);
-  --store-brand-hue: var(--store-page-brand-hue, 260);
-  --background: oklch(0.975 0.006 var(--store-brand-hue));
-  --foreground: oklch(0.28 0.045 var(--store-brand-hue));
-  --card: oklch(0.995 0.002 var(--store-brand-hue));
-  --card-foreground: oklch(0.28 0.045 var(--store-brand-hue));
-  --popover: oklch(0.995 0.002 var(--store-brand-hue));
-  --popover-foreground: oklch(0.28 0.045 var(--store-brand-hue));
-  --primary: oklch(0.36 0.07 var(--store-brand-hue));
-  --primary-foreground: oklch(0.98 0.006 var(--store-brand-hue));
-  --secondary: oklch(0.92 0.03 var(--store-brand-hue));
-  --secondary-foreground: oklch(0.28 0.045 var(--store-brand-hue));
-  --muted: oklch(0.93 0.02 var(--store-brand-hue));
-  --muted-foreground: oklch(0.48 0.03 var(--store-brand-hue));
-  --accent: oklch(0.8 0.075 var(--store-brand-hue));
-  --accent-foreground: oklch(0.28 0.045 var(--store-brand-hue));
-  --border: oklch(0.88 0.015 var(--store-brand-hue));
-  --input: oklch(0.88 0.015 var(--store-brand-hue));
-  --ring: oklch(0.55 0.12 var(--store-brand-hue));
+  --store-logo-hue: var(--store-page-logo-hue, 295);
+  --store-brand-hue: var(--store-page-brand-hue, 160);
+  --font-geist-sans: var(--rx-font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: var(--rx-font-mono), ui-monospace, monospace;
+
+  --background: oklch(0.982 0.005 95);
+  --foreground: oklch(0.23 0.02 var(--store-brand-hue));
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.23 0.02 var(--store-brand-hue));
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.23 0.02 var(--store-brand-hue));
+  --primary: oklch(0.43 0.085 var(--store-brand-hue));
+  --primary-foreground: oklch(0.99 0.004 var(--store-brand-hue));
+  --secondary: oklch(0.95 0.012 var(--store-brand-hue));
+  --secondary-foreground: oklch(0.23 0.02 var(--store-brand-hue));
+  --muted: oklch(0.948 0.008 var(--store-brand-hue));
+  --muted-foreground: oklch(0.49 0.018 var(--store-brand-hue));
+  --accent: oklch(0.935 0.04 var(--store-brand-hue));
+  --accent-foreground: oklch(0.33 0.07 var(--store-brand-hue));
+  --destructive: oklch(0.55 0.2 27);
+  --border: oklch(0.895 0.01 var(--store-brand-hue));
+  --input: oklch(0.87 0.012 var(--store-brand-hue));
+  --ring: oklch(0.56 0.11 var(--store-brand-hue));
+
+  /* Extra roles: the label rule colour and the shadows for raised pills and recessed tracks. */
+  --rx-rule: oklch(0.8 0.02 var(--store-brand-hue));
+  --rx-raise: 0 1px 2px oklch(0.2 0.02 var(--store-brand-hue) / 0.14), 0 0 0 0.5px oklch(0.2 0.02 var(--store-brand-hue) / 0.08);
+  --rx-recess: inset 0 1px 2px oklch(0.2 0.02 var(--store-brand-hue) / 0.07);
+
   background-color: var(--background);
   color: var(--foreground);
+  font-family: var(--font-geist-sans);
 }
+
+.storefront-brand .rx-num {
+  font-family: var(--font-geist-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.storefront-brand .rx-eyebrow {
+  font-family: var(--font-geist-mono);
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.storefront-brand .no-scrollbar { scrollbar-width: none; }
+.storefront-brand .no-scrollbar::-webkit-scrollbar { display: none; }

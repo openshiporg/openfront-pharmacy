@@ -3,10 +3,13 @@
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Button } from '@/components/ui/button'
-import { addToCart } from '../lib/data/cart'
+import { Check, Plus } from 'lucide-react'
 
-export function AddProductButton({ locationId, productId, label = 'Add to cart', className, align = 'end' }: { locationId: string; productId: string; label?: string; className?: string; align?: 'start' | 'end' }) {
+import { cn } from '@/lib/utils'
+import { addToCart } from '../lib/data/cart'
+import { buttonClass } from './rx-ui'
+
+export function AddProductButton({ locationId, productId, label = 'Add to cart', className, align = 'end', compact = false }: { locationId: string; productId: string; label?: string; className?: string; align?: 'start' | 'end'; compact?: boolean }) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [added, setAdded] = useState(false)
@@ -23,9 +26,12 @@ export function AddProductButton({ locationId, productId, label = 'Add to cart',
     })
   }
 
-  return <div className={`grid gap-2 ${align === 'end' ? 'justify-items-end text-right' : 'justify-items-start'}`}>
-    <Button type="button" disabled={pending} onClick={add} className={className ?? 'rounded-full'}>{pending ? 'Adding…' : label}</Button>
-    {added && <Link href="/cart" className="text-xs font-semibold text-primary underline-offset-4 hover:underline">Added · View cart</Link>}
-    {error && <p role="alert" className="max-w-56 text-xs text-destructive">{error}</p>}
+  return <div className={cn('grid gap-1.5', align === 'end' ? 'justify-items-end text-right' : 'justify-items-start')}>
+    <button type="button" disabled={pending} onClick={add} className={cn(buttonClass, compact && 'min-h-10 px-4 max-sm:min-h-11', className)}>
+      {added ? <Check aria-hidden="true" className="size-4" /> : <Plus aria-hidden="true" className="size-4" />}
+      {pending ? 'Adding…' : added ? 'Added' : label}
+    </button>
+    {added && <Link href="/cart" className="text-xs font-semibold text-primary underline-offset-4 hover:underline">View cart</Link>}
+    {error && <p role="alert" className="max-w-60 text-xs text-destructive">{error}</p>}
   </div>
 }

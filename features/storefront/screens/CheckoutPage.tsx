@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { CheckoutForm } from '../components/CheckoutForm'
+import { EmptyState, PageHead, buttonClass } from '../components/rx-ui'
 import { retrieveCart } from '../lib/data/cart'
 import { getPaymentProviders } from '../lib/data/checkout'
 import { getCustomer } from '../lib/data/user'
@@ -12,26 +13,26 @@ export const metadata: Metadata = { title: 'Checkout' }
 
 export async function CheckoutPage() {
   const [cart, customer] = await Promise.all([retrieveCart(), getCustomer()])
-  if (!cart?.items.length) return <div className="mx-auto max-w-2xl px-4 py-24 text-center">
-    <h1 className="text-3xl font-semibold tracking-tight">Your cart is empty</h1>
-    <Link href="/products" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground">Shop products</Link>
+  if (!cart?.items.length) return <div className="mx-auto max-w-2xl px-4 py-16">
+    <EmptyState title="Your cart is empty"><Link href="/products" className={buttonClass}>Shop</Link></EmptyState>
   </div>
   const providers = await getPaymentProviders(cart.location.id)
   const currencyCode = cart.items[0]?.product.currencyCode ?? 'USD'
 
-  return <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:px-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:px-8">
-    <section className="min-w-0">
-      <h1 className="text-3xl font-semibold tracking-tight">Checkout</h1>
-      {!customer && <p className="mt-2 text-sm text-muted-foreground">Have an account? <Link href="/account?from=/checkout" className="font-semibold text-primary">Sign in</Link></p>}
-      <div className="mt-8"><CheckoutForm providers={providers} pickupEnabled={cart.location.pickupEnabled} deliveryEnabled={cart.location.deliveryEnabled} defaultEmail={customer?.email} /></div>
-    </section>
-    <aside className="h-fit rounded-2xl bg-card p-6">
-      <h2 className="text-xl font-semibold">Order summary</h2>
-      <p className="mt-1 text-sm text-muted-foreground">{cart.location.name}</p>
-      <ul className="my-5 space-y-2 text-sm">{cart.items.map((item) => <li key={item.id} className="flex justify-between gap-3"><span className="min-w-0 truncate">{item.quantity} × {item.product.title}</span><span>{formatMoney(item.unitPriceAmount * item.quantity, currencyCode)}</span></li>)}</ul>
-      <CartSummary {...cart} currencyCode={currencyCode} />
-      <Link href="/cart" className="mt-5 inline-block text-sm font-semibold text-primary">Edit cart</Link>
-    </aside>
+  return <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12 lg:px-8">
+    <PageHead title="Checkout" meta={cart.location.name}>
+      {!customer && <Link href="/account?from=/checkout" className="text-sm font-semibold text-primary underline-offset-4 hover:underline">Sign in</Link>}
+    </PageHead>
+    <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
+      <section aria-label="Checkout details" className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-7">
+        <CheckoutForm providers={providers} pickupEnabled={cart.location.pickupEnabled} deliveryEnabled={cart.location.deliveryEnabled} defaultEmail={customer?.email} />
+      </section>
+      <aside aria-label="Order summary" className="h-fit rounded-2xl bg-muted p-6 shadow-[var(--rx-recess)] lg:sticky lg:top-28">
+        <div className="flex items-baseline justify-between gap-3"><h2 className="font-semibold">Order summary</h2><Link href="/cart" className="text-sm font-semibold text-primary">Edit</Link></div>
+        <ul className="my-5 grid gap-2.5 text-sm">{cart.items.map((item) => <li key={item.id} className="flex justify-between gap-3"><span className="min-w-0 truncate"><span className="rx-num text-muted-foreground">{item.quantity}×</span> {item.product.title}</span><span className="rx-num">{formatMoney(item.unitPriceAmount * item.quantity, currencyCode)}</span></li>)}</ul>
+        <CartSummary {...cart} currencyCode={currencyCode} />
+      </aside>
+    </div>
   </div>
 }
 

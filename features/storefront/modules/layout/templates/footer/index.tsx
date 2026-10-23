@@ -1,23 +1,40 @@
 import Link from 'next/link'
 
-import type { PublicPharmacyOperatorBrandProjection } from '@/features/pharmacy/contracts'
+import type { PublicPharmacyLocationProjection, PublicPharmacyOperatorBrandProjection } from '@/features/pharmacy/contracts'
 import { StoreBrand } from '../../../../components/StoreBrand'
-import { NAV_LINKS } from '../nav'
+import { formatAddress } from '../../../../lib/money'
+import { NAV_LINKS } from '../nav/links'
 
-export default function Footer({ brand }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'> }) {
-  return <footer className="mt-auto border-t border-border">
-    <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 sm:px-6 md:flex-row md:items-start md:justify-between lg:px-8">
-      <div className="min-w-0 max-w-sm">
+export default function Footer({ brand, location }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'tagline' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'address' | 'phone'> | null }) {
+  const address = formatAddress(location?.address)
+  const phone = location?.phone || brand.supportPhone
+  return <footer className="mt-auto border-t border-border bg-card">
+    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
+      <div className="min-w-0">
         <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} />
-        {(brand.supportPhone || brand.supportEmail) && <div className="mt-3 grid gap-1 text-sm text-muted-foreground">
-          {brand.supportPhone && <a href={`tel:${brand.supportPhone}`} className="hover:text-primary">{brand.supportPhone}</a>}
-          {brand.supportEmail && <a href={`mailto:${brand.supportEmail}`} className="break-all hover:text-primary">{brand.supportEmail}</a>}
-        </div>}
+        {brand.tagline && <p className="mt-2 max-w-xs text-sm text-muted-foreground">{brand.tagline}</p>}
       </div>
-      <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
-        {NAV_LINKS.map((link) => <Link key={link.href} href={link.href} className="inline-flex min-h-11 items-center hover:text-primary">{link.label}</Link>)}
+      <div className="min-w-0">
+        <p className="rx-eyebrow">Pharmacy</p>
+        <div className="mt-3 grid gap-1.5 text-sm">
+          {location?.name && <p className="font-medium">{location.name}</p>}
+          {address && <p className="text-muted-foreground">{address}</p>}
+          {phone && <a href={`tel:${phone}`} className="rx-num w-fit hover:text-primary">{phone}</a>}
+          {brand.supportEmail && <a href={`mailto:${brand.supportEmail}`} className="w-fit break-all text-muted-foreground hover:text-primary">{brand.supportEmail}</a>}
+        </div>
+      </div>
+      <nav aria-label="Footer" className="min-w-0">
+        <p className="rx-eyebrow">Store</p>
+        <ul className="mt-1.5 grid">
+          {[...NAV_LINKS, { href: '/account', label: 'Account' }].map((link) => <li key={link.href}><Link href={link.href} className="inline-flex min-h-10 items-center text-sm hover:text-primary">{link.label}</Link></li>)}
+        </ul>
       </nav>
     </div>
-    <div className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground">© {new Date().getFullYear()} {brand.displayName}</div>
+    <div className="border-t border-border">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:px-6 lg:px-8">
+        <span>© {new Date().getFullYear()} {brand.displayName}</span>
+        <span>In an emergency, call 911.</span>
+      </div>
+    </div>
   </footer>
 }

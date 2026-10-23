@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Button } from '@/components/ui/button'
+import { RxButton as Button } from '@/features/platform/components/rx-ui'
 import { Input } from '@/components/ui/input'
 import type { PharmacyInventoryLotTaskProjection } from '@/features/pharmacy/contracts'
 import { adjustInventoryAction } from '../actions'

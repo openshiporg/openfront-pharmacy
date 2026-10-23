@@ -1,13 +1,18 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Minus, Plus, X } from 'lucide-react'
 
 import type { PharmacyCartProjection } from '@/features/pharmacy/contracts'
+import { prescriptionRequirementLabel } from '../lib/catalog-availability'
 import { updateCartItem } from '../lib/data/cart'
 import { formatMoney } from '../lib/money'
 import { ProductImage } from './ProductImage'
+import { trackClass } from './rx-ui'
+
+const stepClass = 'grid size-8 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-card hover:text-foreground hover:shadow-[var(--rx-raise)] disabled:opacity-50 max-sm:size-9'
 
 export function CartItems({ items }: { items: PharmacyCartProjection['items'] }) {
   const router = useRouter()
@@ -25,17 +30,27 @@ export function CartItems({ items }: { items: PharmacyCartProjection['items'] })
 
   return <div>
     <ul className="divide-y divide-border border-y border-border">
-      {items.map((item) => <li key={item.id} className="flex items-center gap-4 py-5">
-        <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-muted"><ProductImage src={item.product.imageUrl} alt="" sizes="64px" /></div>
-        <div className="min-w-0 flex-1"><h3 className="truncate font-semibold">{item.product.title}</h3><p className="text-sm text-muted-foreground">{formatMoney(item.unitPriceAmount, item.product.currencyCode)}</p></div>
-        <div className="flex items-center gap-1 rounded-full border border-border p-1">
-          <button type="button" aria-label={`Decrease ${item.product.title}`} disabled={pending} className="grid size-9 place-items-center" onClick={() => change(item.id, item.quantity - 1)}><Minus className="size-3" /></button>
-          <span className="w-6 text-center text-sm">{item.quantity}</span>
-          <button type="button" aria-label={`Increase ${item.product.title}`} disabled={pending} className="grid size-9 place-items-center" onClick={() => change(item.id, item.quantity + 1)}><Plus className="size-3" /></button>
-        </div>
-        <button type="button" aria-label={`Remove ${item.product.title}`} disabled={pending} className="grid size-9 place-items-center text-muted-foreground hover:text-destructive" onClick={() => change(item.id, 0)}><Trash2 className="size-4" /></button>
-      </li>)}
+      {items.map((item) => {
+        const requirement = prescriptionRequirementLabel(item.product.prescriptionRequirement)
+        return <li key={item.id} className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-4 py-5 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center">
+          <Link href={`/products/${encodeURIComponent(item.product.handle)}`} className="relative size-[4.5rem] overflow-hidden rounded-xl border border-border bg-muted sm:size-20"><ProductImage src={item.product.imageUrl} alt="" sizes="80px" /></Link>
+          <div className="min-w-0">
+            <h3 className="font-semibold leading-snug">{item.product.title}</h3>
+            <p className="rx-num mt-1 text-sm text-muted-foreground">{formatMoney(item.unitPriceAmount, item.product.currencyCode)}</p>
+            {requirement && <p className="mt-1 text-xs font-medium text-accent-foreground">{requirement}</p>}
+          </div>
+          <div className="col-start-2 flex items-center justify-between gap-3 sm:col-start-auto sm:justify-end">
+            <div role="group" aria-label={`Quantity of ${item.product.title}`} className={`${trackClass} gap-1`}>
+              <button type="button" aria-label={`Decrease ${item.product.title}`} disabled={pending} className={stepClass} onClick={() => change(item.id, item.quantity - 1)}><Minus className="size-3.5" /></button>
+              <span className="rx-num w-6 text-center text-sm" aria-live="polite">{item.quantity}</span>
+              <button type="button" aria-label={`Increase ${item.product.title}`} disabled={pending} className={stepClass} onClick={() => change(item.id, item.quantity + 1)}><Plus className="size-3.5" /></button>
+            </div>
+            <span className="rx-num w-20 text-right text-sm font-medium">{formatMoney(item.unitPriceAmount * item.quantity, item.product.currencyCode)}</span>
+            <button type="button" aria-label={`Remove ${item.product.title}`} disabled={pending} className="grid size-10 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-destructive" onClick={() => change(item.id, 0)}><X className="size-4" /></button>
+          </div>
+        </li>
+      })}
     </ul>
-    {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+    {error && <p role="alert" className="mt-4 rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
   </div>
 }

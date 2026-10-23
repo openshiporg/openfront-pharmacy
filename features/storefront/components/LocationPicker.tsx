@@ -2,13 +2,13 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { MapPin } from 'lucide-react'
+import { MapPin, Search } from 'lucide-react'
 
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { PublicPharmacyLocationProjection } from '@/features/pharmacy/contracts'
 import { getLocationsPage, selectLocation } from '../lib/data/catalog'
 import { formatAddress } from '../lib/money'
+import { pillClass, trackClass } from './rx-ui'
 
 export function LocationPicker({ location, locations: initialLocations, hasMore: initialHasMore, nextCursor: initialNextCursor, lockedReason }: { location: PublicPharmacyLocationProjection; locations: PublicPharmacyLocationProjection[]; hasMore: boolean; nextCursor: string | null; lockedReason?: string | null }) {
   const router = useRouter()
@@ -20,13 +20,13 @@ export function LocationPicker({ location, locations: initialLocations, hasMore:
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const options = locations.some((entry) => entry.id === location.id) ? locations : [location, ...locations]
-  const services = [location.pickupEnabled && 'Pickup', location.deliveryEnabled && 'Delivery'].filter(Boolean).join(' · ')
+  const canSearch = hasMore || Boolean(appliedSearch) || locations.length > 8
 
   function load(term: string, after: string | null) {
     setError('')
     startTransition(async () => {
       const page = await getLocationsPage({ search: term || null, after })
-      if (!page.success) return setError('Locations could not be loaded. Please try again.')
+      if (!page.success) return setError('Locations could not be loaded. Try again.')
       setLocations((current) => after ? [...current, ...page.data.locations.filter((item) => !current.some((existing) => existing.id === item.id))] : page.data.locations)
       setHasMore(page.data.hasMoreLocations)
       setNextCursor(page.data.nextLocationCursor)
@@ -42,30 +42,34 @@ export function LocationPicker({ location, locations: initialLocations, hasMore:
     })
   }
 
-  return <section aria-labelledby="pickup-location" className="border-y border-border bg-muted">
-    <div className="mx-auto grid max-w-7xl gap-5 px-4 py-8 sm:px-6 lg:grid-cols-2 lg:px-8">
-      <div className="flex items-start gap-3">
-        <MapPin aria-hidden="true" className="mt-1 size-5 shrink-0 text-primary" />
+  if (options.length < 2 && !canSearch) return null
+
+  return <section aria-labelledby="pickup-location" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+    <div className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:items-end">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="mt-6 grid size-9 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground"><MapPin aria-hidden="true" className="size-4" /></span>
         <div className="min-w-0 flex-1">
-          <label id="pickup-location" htmlFor="store-location" className="font-semibold">Pharmacy location</label>
-          <select id="store-location" value={location.id} onChange={(event) => choose(event.target.value)} disabled={pending || Boolean(lockedReason)} className="mt-2 w-full rounded-md border border-input bg-card px-3 py-2 text-sm">
+          <label id="pickup-location" htmlFor="store-location" className="rx-eyebrow">Your pharmacy</label>
+          <select id="store-location" value={location.id} onChange={(event) => choose(event.target.value)} disabled={pending || Boolean(lockedReason)} className="mt-1.5 h-11 w-full rounded-xl border border-input bg-background px-3 text-[15px] font-medium disabled:opacity-70">
             {options.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
           </select>
           {formatAddress(location.address) && <p className="mt-2 text-sm text-muted-foreground">{formatAddress(location.address)}</p>}
-          {services && <p className="mt-1 text-sm text-muted-foreground">{services}</p>}
-          {location.phone && <a className="mt-1 inline-block text-sm font-semibold" href={`tel:${location.phone}`}>{location.phone}</a>}
-          {lockedReason && <p className="mt-2 text-xs text-muted-foreground">{lockedReason}</p>}
-          {appliedSearch && locations.length === 0 && <p className="mt-2 text-sm text-muted-foreground">No locations match this search.</p>}
+          {lockedReason && <p className="mt-1 text-xs text-muted-foreground">{lockedReason}</p>}
+          {appliedSearch && locations.length === 0 && <p className="mt-1 text-sm text-muted-foreground">No locations match this search.</p>}
         </div>
       </div>
-      <div>
-        <form onSubmit={(event) => { event.preventDefault(); load(search.trim(), null) }} className="flex gap-2">
-          <Input aria-label="Search pharmacy locations" value={search} onChange={(event) => setSearch(event.target.value)} maxLength={100} placeholder="Search locations" className="min-w-0 flex-1 bg-card" />
-          <Button type="submit" disabled={pending} className="rounded-full">{pending ? 'Searching…' : 'Find'}</Button>
+      {canSearch && <div className="grid gap-2">
+        <form role="search" onSubmit={(event) => { event.preventDefault(); load(search.trim(), null) }} className={`${trackClass} w-full gap-1`}>
+          <label className="relative min-w-0 flex-1">
+            <span className="sr-only">Search pharmacy locations</span>
+            <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} maxLength={100} placeholder="City, ZIP or name" className="h-9 rounded-full border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0 max-sm:h-10" />
+          </label>
+          <button type="submit" disabled={pending} data-active="true" className={`${pillClass} px-4 font-semibold`}>{pending ? 'Finding…' : 'Find'}</button>
         </form>
-        {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
-        {hasMore && <Button variant="outline" onClick={() => load(appliedSearch, nextCursor)} disabled={pending || !nextCursor} className="mt-3 rounded-full">{pending ? 'Loading…' : 'More locations'}</Button>}
-      </div>
+        {hasMore && <button type="button" onClick={() => load(appliedSearch, nextCursor)} disabled={pending || !nextCursor} className="justify-self-start text-sm font-semibold text-primary disabled:opacity-60">{pending ? 'Loading…' : 'More locations'}</button>}
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      </div>}
     </div>
   </section>
 }

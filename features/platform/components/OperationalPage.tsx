@@ -3,20 +3,14 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
-import { AlertCircle, ArrowRight, ChevronDown, CirclePlus, MoreHorizontal, Search } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react'
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { PageContainer } from '@/features/dashboard/components/PageContainer'
 import { basePath } from '@/features/dashboard/lib/config'
 import { cn } from '@/lib/utils'
 import { CreateItemDrawerClientWrapper } from './CreateItemDrawerClientWrapper'
+import { Callout, Count, Dot, EmptyBand, Field, ListBand, Pill, Track, humanize, primaryPillClass, statusTone, trackClass } from './rx-ui'
 
 export type OperationalItem = {
   id: string
@@ -27,57 +21,38 @@ export type OperationalItem = {
   details?: Array<{ label: string; value: string }>
 }
 
-type SortMode = 'default' | 'title-asc' | 'title-desc' | 'status'
+type SortMode = 'default' | 'title-asc' | 'status'
+
+const ALL = 'all'
 
 function statusLabel(status?: string) {
-  return status ? status.replaceAll('_', ' ') : 'Unknown'
+  return status ? humanize(status) : 'Unknown'
 }
 
-function StatusBadge({ status, needsAttention }: { status?: string; needsAttention: boolean }) {
-  return (
-    <Badge
-      variant="outline"
-      className={cn(
-        'gap-1.5 whitespace-nowrap capitalize font-medium',
-        needsAttention && 'border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100',
-      )}
-    >
-      <span className={cn('size-1.5 rounded-full bg-muted-foreground', needsAttention && 'bg-amber-600')} aria-hidden="true" />
-      {statusLabel(status)}
-    </Badge>
-  )
-}
-
-function ItemActions({ item }: { item: OperationalItem }) {
-  if (!item.href) return null
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button type="button" variant="ghost" size="icon" aria-label={`Actions for ${item.title}`}>
-          <MoreHorizontal className="size-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem asChild>
-          <Link href={item.href}>Open <ArrowRight className="ml-auto size-4" /></Link>
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-function DetailGrid({ item }: { item: OperationalItem }) {
-  if (!item.details?.length) return <p className="text-sm text-muted-foreground">No additional details.</p>
-  return (
-    <dl className="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-      {item.details.map((detail) => (
-        <div key={detail.label}>
-          <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{detail.label}</dt>
-          <dd className="mt-1 break-words font-medium">{detail.value || 'Not recorded'}</dd>
+function OperationalRow({ item, attention }: { item: OperationalItem; attention: boolean }) {
+  const [open, setOpen] = useState(false)
+  const preview = item.details?.slice(0, 3) || []
+  return <div className="bg-background">
+    <div className="grid gap-3 px-4 py-3.5 sm:px-5 md:grid-cols-[minmax(0,1.1fr)_minmax(0,1.4fr)_auto] md:items-center md:gap-6">
+      <div className="min-w-0">
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <h2 className="min-w-0 truncate text-[15px] font-semibold tracking-tight text-foreground">{item.href ? <Link href={item.href} className="hover:underline hover:underline-offset-4">{item.title}</Link> : item.title}</h2>
+          <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap text-sm capitalize text-muted-foreground"><Dot tone={attention ? 'warn' : statusTone(item.status)} />{statusLabel(item.status)}</span>
         </div>
-      ))}
-    </dl>
-  )
+        {item.subtitle && <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{item.subtitle}</p>}
+      </div>
+      <dl className="hidden min-w-0 grid-cols-3 gap-4 md:grid">
+        {preview.map((detail) => <div key={detail.label} className="min-w-0"><dt className="truncate font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">{detail.label}</dt><dd className="mt-0.5 truncate text-[13px] font-medium" title={detail.value}>{detail.value || 'Not recorded'}</dd></div>)}
+      </dl>
+      <div className="flex items-center gap-1.5 justify-self-start md:justify-self-end">
+        {Boolean(item.details?.length) && <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls={`details-${item.id}`} className="inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground max-sm:min-h-10">Details<ChevronDown aria-hidden="true" className={cn('size-3.5 transition-transform duration-200', open && 'rotate-180')} /></button>}
+        {item.href && <Link href={item.href} aria-label={`Open ${item.title}`} className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground max-sm:size-10"><ChevronRight aria-hidden="true" className="size-4" /></Link>}
+      </div>
+    </div>
+    {open && <dl id={`details-${item.id}`} className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-dashed bg-muted/30 px-4 py-4 sm:px-5 lg:grid-cols-4">
+      {item.details?.map((detail) => <Field key={detail.label} label={detail.label}>{detail.value || 'Not recorded'}</Field>)}
+    </dl>}
+  </div>
 }
 
 export function OperationalPage(props: {
@@ -92,31 +67,25 @@ export function OperationalPage(props: {
   attentionStatuses?: string[]
 }) {
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState('all')
+  const [status, setStatus] = useState(ALL)
   const [sort, setSort] = useState<SortMode>('default')
   const router = useRouter()
   const [createOpen, setCreateOpen] = useState(false)
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const attentionStatuses = useMemo(() => new Set(props.attentionStatuses || []), [props.attentionStatuses])
-  const statuses = useMemo(() => Array.from(new Set(props.items.map((item) => item.status).filter((value): value is string => Boolean(value)))).sort(), [props.items])
+  const statusCounts = useMemo(() => props.items.reduce<Map<string, number>>((counts, item) => item.status ? counts.set(item.status, (counts.get(item.status) || 0) + 1) : counts, new Map()), [props.items])
+  const statuses = useMemo(() => Array.from(statusCounts.keys()).sort(), [statusCounts])
   const filteredItems = useMemo(() => {
     const normalized = query.trim().toLocaleLowerCase()
     const result = props.items.filter((item) => {
       const searchable = [item.title, item.subtitle, item.status, ...(item.details || []).flatMap((detail) => [detail.label, detail.value])].filter(Boolean).join(' ').toLocaleLowerCase()
-      return (!normalized || searchable.includes(normalized)) && (status === 'all' || item.status === status)
+      return (!normalized || searchable.includes(normalized)) && (status === ALL || item.status === status)
     })
     if (sort === 'default') return result
-    return result.sort((a, b) => sort === 'status'
+    return [...result].sort((a, b) => sort === 'status'
       ? statusLabel(a.status).localeCompare(statusLabel(b.status)) || a.title.localeCompare(b.title)
-      : (sort === 'title-desc' ? b.title.localeCompare(a.title) : a.title.localeCompare(b.title)))
+      : a.title.localeCompare(b.title))
   }, [props.items, query, sort, status])
   const attentionCount = props.items.filter((item) => item.status && attentionStatuses.has(item.status)).length
-  const toggle = (id: string) => setExpanded((current) => {
-    const next = new Set(current)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    return next
-  })
 
   const breadcrumbs = [
     { type: 'link' as const, label: 'Dashboard', href: basePath },
@@ -124,97 +93,54 @@ export function OperationalPage(props: {
     { type: 'page' as const, label: props.title },
   ]
 
-  const header = (
-    <div>
-      <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-50">{props.title}</h1>
-      <p className="text-muted-foreground">{props.description}</p>
+  const action = props.primaryAction && ('href' in props.primaryAction
+    ? <Link href={props.primaryAction.href} className={primaryPillClass}><Plus aria-hidden="true" className="size-4" />{props.primaryAction.label}</Link>
+    : <button type="button" className={primaryPillClass} onClick={() => setCreateOpen(true)}><Plus aria-hidden="true" className="size-4" />{props.primaryAction.label}</button>)
+
+  const header = <div className="flex flex-wrap items-end justify-between gap-3">
+    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">{props.title}</h1>
+      <Count>{props.items.length}</Count>
+      {!props.error && props.items.length > 0 && attentionStatuses.size > 0 && <span className="inline-flex items-baseline gap-1.5 text-sm text-muted-foreground"><Dot tone={attentionCount ? 'warn' : 'ok'} />{attentionCount ? `${attentionCount} need attention` : 'Clear'}</span>}
     </div>
-  )
+    {!props.error && action}
+  </div>
 
   return (
     <PageContainer title={props.title} header={header} breadcrumbs={breadcrumbs}>
-      <div className="space-y-6 px-4 pb-8 md:px-6">
-        {props.error && (
-          <Alert variant="destructive">
-            <AlertCircle className="size-4" />
-            <AlertTitle>Couldn&apos;t load {props.title.toLocaleLowerCase()}. Try again.</AlertTitle>
-            <AlertDescription>{props.error}</AlertDescription>
-          </Alert>
-        )}
-        {!props.error && props.disabledMessage && props.items.length === 0 && (
-          <Alert>
-            <AlertCircle className="size-4" />
-            <AlertDescription>{props.disabledMessage}</AlertDescription>
-          </Alert>
-        )}
-
-        {!props.error && (props.items.length > 0 || props.primaryAction) && (
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-56 flex-1">
-              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" aria-label={`Search ${props.title.toLocaleLowerCase()}`} className="h-10 w-full rounded-lg pl-9" />
-            </div>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger className="h-10 w-44 rounded-lg" aria-label="Status"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All statuses</SelectItem>
-                {statuses.map((entry) => <SelectItem key={entry} value={entry} className="capitalize">{statusLabel(entry)}</SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={sort} onValueChange={(value) => setSort(value as SortMode)}>
-              <SelectTrigger className="h-10 w-44 rounded-lg" aria-label="Sort"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="default">Default order</SelectItem>
-                <SelectItem value="title-asc">Name A–Z</SelectItem>
-                <SelectItem value="title-desc">Name Z–A</SelectItem>
-                <SelectItem value="status">Status</SelectItem>
-              </SelectContent>
-            </Select>
-            {props.primaryAction && ('href' in props.primaryAction ? (
-              <Button asChild className="rounded-lg">
-                <Link href={props.primaryAction.href}><CirclePlus className="size-4" />{props.primaryAction.label}</Link>
-              </Button>
-            ) : (
-              <Button type="button" className="rounded-lg" onClick={() => setCreateOpen(true)}><CirclePlus className="size-4" />{props.primaryAction.label}</Button>
-            ))}
-          </div>
-        )}
+      <div className="space-y-4 px-4 pb-8 md:px-6">
+        {props.error && <Callout tone="danger" title={`Couldn't load ${props.title.toLocaleLowerCase()}`}>{props.error}</Callout>}
+        {!props.error && props.disabledMessage && props.items.length === 0 && <Callout tone="muted">{props.disabledMessage}</Callout>}
 
         {!props.error && props.items.length > 0 && <>
-          <section aria-label="Summary" className="grid gap-3 sm:grid-cols-3">
-            <Card className="shadow-none"><CardContent className="p-5"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Records</p><p className="mt-2 text-3xl font-semibold">{props.items.length}</p></CardContent></Card>
-            <Card className="shadow-none"><CardContent className="p-5"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Statuses</p><p className="mt-2 text-3xl font-semibold">{statuses.length}</p></CardContent></Card>
-            <Card className="shadow-none"><CardContent className="p-5"><p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Needs attention</p><p className="mt-2 text-3xl font-semibold">{attentionCount}</p></CardContent></Card>
-          </section>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className={cn(trackClass, 'relative min-w-0 flex-1 basis-56 overflow-visible')}>
+              <span className="sr-only">Search {props.title.toLocaleLowerCase()}</span>
+              <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search" className="h-8 rounded-full border-0 bg-transparent pl-8 shadow-none focus-visible:ring-0 max-sm:h-10 dark:bg-transparent" />
+            </label>
+            <Track label="Sort">
+              <Pill active={sort === 'default'} onClick={() => setSort('default')}>Recent</Pill>
+              <Pill active={sort === 'title-asc'} onClick={() => setSort('title-asc')}>Name</Pill>
+              <Pill active={sort === 'status'} onClick={() => setSort('status')}>Status</Pill>
+            </Track>
+          </div>
+          {statuses.length > 1 && <Track label="Status">
+            <Pill active={status === ALL} onClick={() => setStatus(ALL)}>All <Count>{props.items.length}</Count></Pill>
+            {statuses.map((entry) => <Pill key={entry} active={status === entry} onClick={() => setStatus(entry)} className="capitalize"><Dot tone={attentionStatuses.has(entry) ? 'warn' : statusTone(entry)} className="size-1.5 translate-y-0" />{statusLabel(entry)} <Count>{statusCounts.get(entry)}</Count></Pill>)}
+          </Track>}
 
-          <p className="text-sm text-muted-foreground" aria-live="polite">Showing {filteredItems.length} of {props.items.length}</p>
-
-          {filteredItems.length === 0 ? <Card className="border-dashed shadow-none"><CardContent className="flex min-h-40 items-center justify-center text-center text-sm text-muted-foreground">No results match your search.</CardContent></Card> : <>
-            <div className="hidden overflow-hidden rounded-xl border bg-background md:block">
-              <Table>
-                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Status</TableHead><TableHead>Summary</TableHead><TableHead className="w-24 text-right">Actions</TableHead></TableRow></TableHeader>
-                <TableBody>{filteredItems.map((item) => {
-                  const isExpanded = expanded.has(item.id)
-                  return [
-                    <TableRow key={item.id}><TableCell><p className="font-medium">{item.title}</p>{item.subtitle && <p className="mt-1 max-w-md text-xs text-muted-foreground">{item.subtitle}</p>}</TableCell><TableCell><StatusBadge status={item.status} needsAttention={Boolean(item.status && attentionStatuses.has(item.status))} /></TableCell><TableCell><span className="text-sm text-muted-foreground">{item.details?.slice(0, 2).map((detail) => `${detail.label}: ${detail.value}`).join(' · ')}</span></TableCell><TableCell><div className="flex justify-end"><Button type="button" variant="ghost" size="icon" onClick={() => toggle(item.id)} aria-expanded={isExpanded} aria-controls={`details-${item.id}`} aria-label={`${isExpanded ? 'Hide' : 'Show'} details for ${item.title}`}><ChevronDown className={cn('size-4 transition-transform', isExpanded && 'rotate-180')} /></Button><ItemActions item={item} /></div></TableCell></TableRow>,
-                    isExpanded && <TableRow key={`${item.id}:details`} id={`details-${item.id}`}><TableCell colSpan={4} className="bg-muted/30"><DetailGrid item={item} /></TableCell></TableRow>,
-                  ]
-                })}</TableBody>
-              </Table>
-            </div>
-
-            <div className="grid gap-3 md:hidden">{filteredItems.map((item) => {
-              const isExpanded = expanded.has(item.id)
-              return <Card key={item.id} className="shadow-none"><CardContent className="p-4"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><h2 className="font-semibold">{item.title}</h2>{item.subtitle && <p className="mt-1 text-sm text-muted-foreground">{item.subtitle}</p>}<div className="mt-3"><StatusBadge status={item.status} needsAttention={Boolean(item.status && attentionStatuses.has(item.status))} /></div></div><ItemActions item={item} /></div><Button type="button" variant="ghost" className="mt-3 w-full justify-between" onClick={() => toggle(item.id)} aria-expanded={isExpanded} aria-controls={`mobile-details-${item.id}`}>Details <ChevronDown className={cn('size-4 transition-transform', isExpanded && 'rotate-180')} /></Button>{isExpanded && <div id={`mobile-details-${item.id}`} className="border-t pt-4"><DetailGrid item={item} /></div>}</CardContent></Card>
-            })}</div>
-          </>}
+          <p className="font-mono text-[11px] tabular-nums text-muted-foreground" aria-live="polite">{filteredItems.length} of {props.items.length}</p>
+          {filteredItems.length === 0
+            ? <EmptyBand>No results match these filters</EmptyBand>
+            : <ListBand aria-label={props.title} className="bg-border/60">{filteredItems.map((item) => <OperationalRow key={item.id} item={item} attention={Boolean(item.status && attentionStatuses.has(item.status))} />)}</ListBand>}
         </>}
 
         {props.primaryAction && 'listKey' in props.primaryAction && (
           <CreateItemDrawerClientWrapper listKey={props.primaryAction.listKey} open={createOpen} onClose={() => setCreateOpen(false)} onCreate={() => router.refresh()} />
         )}
 
-        {!props.error && props.items.length === 0 && !props.disabledMessage && <Card className="border-dashed shadow-none"><CardContent className="flex min-h-56 items-center justify-center px-6 text-center text-sm text-muted-foreground">{props.emptyMessage}</CardContent></Card>}
+        {!props.error && props.items.length === 0 && !props.disabledMessage && <EmptyBand>{props.emptyMessage}</EmptyBand>}
       </div>
     </PageContainer>
   )

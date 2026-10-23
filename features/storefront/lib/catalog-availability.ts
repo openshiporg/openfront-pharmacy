@@ -12,3 +12,10 @@ export function publicCatalogAvailability(product: Pick<PublicPharmacyCatalogPro
   if (quantity === 0) return { verified: true, canOrder: false, label: 'Unavailable' }
   return { verified: true, canOrder: true, label: `${quantity} in stock` }
 }
+
+/** The customer-facing label for a product's prescription requirement, or null when none applies. */
+export function prescriptionRequirementLabel(requirement?: string | null) {
+  if (requirement === 'prescription_required') return 'Prescription required'
+  if (requirement === 'pharmacist_review_required') return 'Pharmacist review'
+  return null
+}

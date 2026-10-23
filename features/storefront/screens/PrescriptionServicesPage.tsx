@@ -1,14 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ClipboardCheck, UserRound } from 'lucide-react'
 
+import { Field, PageHead, SecondaryAction, TitleLine, buttonClass } from '../components/rx-ui'
 import { getStorefront } from '../lib/data/store'
 import { formatAddress } from '../lib/money'
 import { StoreUnavailable } from './MainLayout'
 
 export async function generateMetadata(): Promise<Metadata> {
   const storefront = await getStorefront()
-  return { title: storefront ? `Prescription services | ${storefront.brand.displayName}` : 'Prescription services' }
+  return { title: storefront ? `Prescriptions | ${storefront.brand.displayName}` : 'Prescriptions' }
 }
 
 export async function PrescriptionServicesPage() {
@@ -16,30 +16,39 @@ export async function PrescriptionServicesPage() {
   if (!storefront) return <StoreUnavailable />
   const { brand, location } = storefront
   const phone = location?.phone || brand.supportPhone
+  const address = formatAddress(location?.address)
 
-  return <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-12">
-    <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Prescription services</h1>
+  return <div className="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
+    <PageHead eyebrow={brand.displayName} title="Prescriptions" />
 
-    <section className="mt-8 grid gap-4 md:grid-cols-2">
-      <article id="refills" className="rounded-2xl bg-card p-6 sm:p-7">
-        <UserRound className="size-6 text-primary" />
-        <h2 className="mt-5 text-2xl font-semibold">Prescriptions and refills</h2>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">View your prescriptions and request refills.</p>
-        <Link href="/account" className="mt-6 inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground">Your account</Link>
-      </article>
-      <article id="transfer" className="rounded-2xl bg-card p-6 sm:p-7">
-        <ClipboardCheck className="size-6 text-primary" />
-        <h2 className="mt-5 text-2xl font-semibold">New prescriptions and transfers</h2>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">Call or visit the pharmacy to fill a new prescription or transfer one.</p>
-        {phone && <a href={`tel:${phone}`} className="mt-6 inline-flex min-h-11 items-center rounded-full border border-border px-5 text-sm font-semibold">Call {phone}</a>}
-      </article>
-    </section>
+    <div className="mt-8 grid gap-4 md:grid-cols-2">
+      <section id="refills" aria-labelledby="refills-title" className="flex flex-col rounded-2xl border border-border bg-card p-6">
+        <p className="rx-eyebrow">01</p>
+        <h2 id="refills-title" className="mt-2 text-xl font-semibold tracking-tight">Refills</h2>
+        <div className="mt-auto pt-6"><Link href="/account" className={buttonClass}>Request a refill</Link></div>
+      </section>
+      <section id="transfer" aria-labelledby="transfer-title" className="flex flex-col rounded-2xl border border-border bg-card p-6">
+        <p className="rx-eyebrow">02</p>
+        <h2 id="transfer-title" className="mt-2 text-xl font-semibold tracking-tight">New and transferred prescriptions</h2>
+        <dl className="mt-5 grid gap-3">
+          <Field label="How">By phone or in person</Field>
+          {phone && <Field label="Phone"><span className="rx-num">{phone}</span></Field>}
+        </dl>
+        {phone && <div className="mt-auto pt-6"><SecondaryAction href={`tel:${phone}`}>Call the pharmacy</SecondaryAction></div>}
+      </section>
+    </div>
 
-    <section id="location" className="mt-4 rounded-2xl bg-card p-6 sm:p-8">
+    <section id="location" aria-label="Pharmacy location" className="mt-4 rounded-2xl bg-muted p-6 shadow-[var(--rx-recess)]">
       {location
-        ? <div><h2 className="text-2xl font-semibold">{location.name}</h2>{formatAddress(location.address) && <p className="mt-2 text-muted-foreground">{formatAddress(location.address)}</p>}<p className="mt-2 text-sm text-muted-foreground">{[location.pickupEnabled && 'Pickup', location.deliveryEnabled && 'Delivery'].filter(Boolean).join(' · ')}</p></div>
-        : <p className="text-muted-foreground">No pickup locations available.</p>}
-      <p className="mt-6 text-sm text-muted-foreground">In an emergency, call 911.</p>
+        ? <>
+          <TitleLine title={location.name} titleClassName="text-xl" tone={location.onlineOrderingEnabled ? 'ok' : 'warn'} state={location.onlineOrderingEnabled ? 'Ordering online' : 'Call to order'} />
+          <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
+            {address && <Field label="Address" className="col-span-2 sm:col-span-1">{address}</Field>}
+            <Field label="Service">{[location.pickupEnabled && 'Pickup', location.deliveryEnabled && 'Delivery'].filter(Boolean).join(' · ') || 'In store'}</Field>
+            {brand.supportEmail && <Field label="Email"><a href={`mailto:${brand.supportEmail}`} className="break-all hover:text-primary">{brand.supportEmail}</a></Field>}
+          </dl>
+        </>
+        : <p className="font-medium">No pharmacy locations are open online</p>}
     </section>
   </div>
 }

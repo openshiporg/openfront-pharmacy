@@ -6,14 +6,16 @@ import { StoreUnavailable } from './MainLayout'
 
 export async function generateMetadata(): Promise<Metadata> {
   const storefront = await getStorefront()
-  return { title: storefront ? `Products | ${storefront.brand.displayName}` : 'Products' }
+  return { title: storefront ? `Shop | ${storefront.brand.displayName}` : 'Shop' }
 }
 
 export async function StorePage() {
   const storefront = await getStorefront()
   if (!storefront) return <StoreUnavailable />
   if (!storefront.location) return <NoLocations storefront={storefront} />
-  return <StoreCatalog storefront={storefront} title="Products" />
+  return <div className="pt-8 sm:pt-10">
+    <StoreCatalog storefront={storefront} title="Shop" eyebrow={storefront.location.name} />
+  </div>
 }
 
 export default StorePage
