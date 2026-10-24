@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useState, useTransition } from 'react'
 import Link from 'next/link'
 import { Search } from 'lucide-react'
 
@@ -11,36 +11,30 @@ import { getCatalogPage } from '../lib/data/catalog'
 import { formatMoney, formatStatus } from '../lib/money'
 import { AddProductButton } from './AddProductButton'
 import { ProductImage } from './ProductImage'
-import { Dot, Pill, Track, pillClass, trackClass } from './rx-ui'
+import { Dot, PillLink, Track, pillClass, trackClass } from './rx-ui'
 
-const ALL = '__all__'
-
-export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 'Shop', eyebrow }: { locationId: string; orderingEnabled: boolean; initialPage: PublicPharmacyCatalogPageProjection; title?: string; eyebrow?: string }) {
+export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 'Shop', eyebrow, categories = [], activeCategory = null }: { locationId: string; orderingEnabled: boolean; initialPage: PublicPharmacyCatalogPageProjection; title?: string; eyebrow?: string; categories?: Array<{ value: string; count: number }>; activeCategory?: string | null }) {
   const [products, setProducts] = useState(initialPage.items)
   const [hasMore, setHasMore] = useState(initialPage.hasMore)
   const [nextCursor, setNextCursor] = useState(initialPage.nextCursor)
   const [search, setSearch] = useState('')
   const [appliedSearch, setAppliedSearch] = useState('')
   const [totalCount, setTotalCount] = useState(initialPage.totalCount)
-  const [category, setCategory] = useState(ALL)
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
 
-  // Categories filter the loaded page, so they only show once every product is loaded.
-  const categories = useMemo(() => hasMore ? [] : Array.from(new Set(products.map((product) => product.category).filter((value): value is string => Boolean(value)))).sort(), [hasMore, products])
-  const visible = category === ALL ? products : products.filter((product) => product.category === category)
+  const visible = products
 
   function load(term: string, after: string | null) {
     setError('')
     startTransition(async () => {
-      const page = await getCatalogPage({ locationId, search: term || null, after })
+      const page = await getCatalogPage({ locationId, search: term || null, category: activeCategory, after })
       if (!page.success) return setError('Products could not be loaded. Try again.')
       setProducts((current) => after ? [...current, ...page.data.items.filter((item) => !current.some((existing) => existing.id === item.id))] : page.data.items)
       setHasMore(page.data.hasMore)
       setNextCursor(page.data.nextCursor)
       setTotalCount(page.data.totalCount)
       setAppliedSearch(term)
-      if (!after) setCategory(ALL)
     })
   }
 
@@ -61,8 +55,8 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
     </div>
 
     {categories.length > 1 && <Track label="Category" className="mt-6">
-      <Pill active={category === ALL} onClick={() => setCategory(ALL)}>All</Pill>
-      {categories.map((entry) => <Pill key={entry} active={category === entry} onClick={() => setCategory(entry)} className="capitalize">{formatStatus(entry)}</Pill>)}
+      <PillLink href="/products#products" active={!activeCategory} scroll={false}>All</PillLink>
+      {categories.map((entry) => <PillLink key={entry.value} href={`/products?category=${entry.value}#products`} active={activeCategory === entry.value} scroll={false} className="capitalize">{formatStatus(entry.value)} <span className="rx-num text-[11px] text-muted-foreground">{entry.count}</span></PillLink>)}
     </Track>}
 
     {appliedSearch && <p className="mt-4 text-sm text-muted-foreground" aria-live="polite"><span className="rx-num">{totalCount}</span> {totalCount === 1 ? 'result' : 'results'} for “{appliedSearch}”</p>}

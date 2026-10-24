@@ -1044,10 +1044,11 @@ export async function pharmacyPatientSafeView(_root: unknown, args: { patientId:
   const scope = await tenantScope(context)
   const patient = await context.sudo().query.PatientProfile.findOne({
     where: { id: args.patientId },
-    query: 'id patientNumber displayName status preferredContactMethod identityVerificationStatus identityReference identityVerifiedAt organizations { id name } consents(orderBy: { grantedAt: desc }) { accepted grantedAt revokedAt } allergies(orderBy: { recordedAt: desc }, take: 100) { id allergen reaction severity status source recordedAt } medications(orderBy: { recordedAt: desc }, take: 100) { id medicationName directions status source recordedAt } prescriptionsCount',
+    query: 'id patientNumber displayName status email phone address preferredContactMethod identityVerificationStatus identityReference identityVerifiedAt organizations { id name } consents(orderBy: { grantedAt: desc }) { accepted grantedAt revokedAt } allergies(orderBy: { recordedAt: desc }, take: 100) { id allergen reaction severity status source recordedAt } medications(orderBy: { recordedAt: desc }, take: 100) { id medicationName directions status source recordedAt } prescriptionsCount',
   })
   if (!patient || !patient.organizations?.some((organization: any) => scope.organizationIds.includes(organization.id))) throw new Error('Patient not found')
-  return patientSafeProjection(patient)
+  // Contact details are returned only on the single-patient view, for the contact update form.
+  return { ...patientSafeProjection(patient), email: patient.email || null, phone: patient.phone || null, address: patient.address || null }
 }
 
 export async function pharmacyIntegrationStatus(_root: unknown, _args: unknown, context: Context) {

@@ -85,3 +85,14 @@ export async function requestRefillAction(input: { prescriptionId: string; presc
   const response = await keystoneClient<{ requestPrescriptionRefill: { success: boolean; reused?: boolean | null; refillRequestId: string; status: string } }>(`mutation Refill($prescriptionId: ID!, $prescriptionItemId: ID!, $patientId: ID!, $locationId: ID!, $note: String, $idempotencyKey: String!, $expectedItemVersion: String) { requestPrescriptionRefill(prescriptionId: $prescriptionId, prescriptionItemId: $prescriptionItemId, patientId: $patientId, locationId: $locationId, note: $note, idempotencyKey: $idempotencyKey, expectedItemVersion: $expectedItemVersion) { success reused refillRequestId status } }`, input)
   return result(response, '/account').requestPrescriptionRefill
 }
+
+export async function requestTransferOutAction(input: { prescriptionId: string; patientId: string; counterpartyName: string; counterpartyPhone: string; consentAccepted: boolean; idempotencyKey: string }) {
+  const { TRANSFER_CONSENT } = await import('@/features/keystone/mutations/patientWorkflows')
+  const response = await keystoneClient<{ requestPrescriptionTransfer: { success: boolean } }>(
+    'mutation TransferOut($prescriptionId: ID!, $patientId: ID!, $direction: String!, $counterpartyName: String!, $counterpartyPhone: String, $consentAccepted: Boolean!, $policyVersion: String!, $statementKey: String!, $idempotencyKey: String!) { requestPrescriptionTransfer(prescriptionId: $prescriptionId, patientId: $patientId, direction: $direction, counterpartyName: $counterpartyName, counterpartyPhone: $counterpartyPhone, consentAccepted: $consentAccepted, policyVersion: $policyVersion, statementKey: $statementKey, idempotencyKey: $idempotencyKey) { success } }',
+    { ...input, direction: 'outbound', ...TRANSFER_CONSENT },
+  )
+  if (!response.success) return { success: false as const, error: response.error }
+  revalidatePath(`/dashboard/platform/prescriptions/${input.prescriptionId}`)
+  return { success: true as const }
+}

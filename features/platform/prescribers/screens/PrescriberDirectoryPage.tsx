@@ -8,7 +8,7 @@ export async function PrescriberDirectoryPage() {
   const items = response.success ? response.data.pharmacyPrescriberDirectory.map((entry) => ({
     id: entry.id,
     title: entry.name,
-    href: `/dashboard/prescribers/${entry.id}`,
+    href: `/dashboard/platform/prescribers/${entry.id}`,
     subtitle: entry.organizationName,
     status: entry.verificationStatus,
     details: [

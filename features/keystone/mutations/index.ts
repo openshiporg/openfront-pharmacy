@@ -53,7 +53,7 @@ import handlePaymentProviderWebhook from './handlePaymentProviderWebhook'
 import { reconcilePharmacyPaymentSession } from './paymentRecovery'
 import { authorizePrescriptionDispensing, recordPrescriptionDispensing, recordPrescriptionReview } from './prescriptionWorkflows'
 import { closePharmacyRecall, disposeRecallLot, openPharmacyRecall, recordRecallExposureAction } from './recallWorkflows'
-import { pharmacyOperationalSummary, publicPharmacyCatalog, publicPharmacyLocations, publicPharmacyTenant } from './publicQueries'
+import { pharmacyOperationalSummary, publicPharmacyCatalog, publicPharmacyLocations, publicPharmacyTenant, publicPharmacyCategories } from './publicQueries'
 import redirectToInit from './redirectToInit'
 import updateActiveUser from './updateActiveUser'
 import { pharmacyOnboardingState, runPharmacyOnboarding, setPharmacyOnboardingStatus } from './runPharmacyOnboarding'
@@ -143,6 +143,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         drugReferences: [PharmacyTaskOption!]!
       }
 
+      type PublicPharmacyCategory { value: String!, count: Int! }
       type PublicPharmacyLocation {
         id: ID!
         name: String!
@@ -570,6 +571,9 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         patientNumber: String!
         displayName: String!
         status: String!
+        email: String
+        phone: String
+        address: JSON
         preferredContactMethod: String!
         identityVerificationStatus: String!
         hasIdentityEvidence: Boolean!
@@ -756,7 +760,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         redirectToInit: Boolean
         publicPharmacyTenant(tenantKey: String, search: String, first: Int, after: String): PublicPharmacyTenant!
         publicPharmacyLocations(tenantKey: String): [PublicPharmacyLocation!]!
-        publicPharmacyCatalog(tenantKey: String, locationId: ID!, search: String, first: Int, after: String): PublicPharmacyCatalogWorklist!
+        publicPharmacyCatalog(tenantKey: String, locationId: ID!, search: String, category: String, first: Int, after: String): PublicPharmacyCatalogWorklist!
+        publicPharmacyCategories(tenantKey: String, locationId: ID!): [PublicPharmacyCategory!]!
         pharmacyCatalogQueue: [PharmacyCatalogQueueItem!]!
         pharmacyPrescriptionIntakeOptions: PharmacyPrescriptionIntakeOptions!
         pharmacyInventoryReceiptOptions: PharmacyInventoryReceiptOptions!
@@ -867,6 +872,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         publicPharmacyTenant,
         publicPharmacyLocations,
         publicPharmacyCatalog,
+        publicPharmacyCategories,
         pharmacyCatalogQueue,
         pharmacyPrescriptionIntakeOptions,
         pharmacyInventoryReceiptOptions,

@@ -212,12 +212,35 @@ export async function publicPharmacyLocations(
   return (await publicPharmacyTenant(root, args, context)).locations
 }
 
+// Product.category values a customer can browse (prescription products are never sold online).
+const PUBLIC_CATALOG_CATEGORIES = ['otc_medication', 'first_aid', 'wellness', 'personal_care', 'medical_supply', 'allergy', 'cold_and_flu', 'digestive_health', 'vitamins', 'health_devices']
+
+function normalizePublicCatalogCategory(value?: string | null) {
+  if (value == null || value === '') return null
+  if (!PUBLIC_CATALOG_CATEGORIES.includes(value)) throw new Error('Category is not available')
+  return value
+}
+
+/** Categories with at least one published online product at the location, with counts, for category browsing. */
+export async function publicPharmacyCategories(_root: unknown, args: { tenantKey?: string | null; locationId: string }, context: Context) {
+  const organization = await loadPublicTenant(context, args.tenantKey)
+  const products = await context.sudo().query.Product.findMany({
+    where: { organization: { id: { equals: organization.id } }, location: { id: { equals: args.locationId }, status: { equals: 'active' } }, status: { equals: 'published' }, onlineAvailable: { equals: true }, prescriptionRequirement: { equals: 'none' } },
+    take: 2000,
+    query: 'category',
+  })
+  const counts = new Map<string, number>()
+  for (const product of products) if (PUBLIC_CATALOG_CATEGORIES.includes(product.category)) counts.set(product.category, (counts.get(product.category) || 0) + 1)
+  return PUBLIC_CATALOG_CATEGORIES.filter((value) => counts.has(value)).map((value) => ({ value, count: counts.get(value) || 0 }))
+}
+
 export async function publicPharmacyCatalog(
   _root: unknown,
-  args: { tenantKey?: string | null; locationId: string; search?: string | null; first?: number | null; after?: string | null },
+  args: { tenantKey?: string | null; locationId: string; search?: string | null; category?: string | null; first?: number | null; after?: string | null },
   context: Context,
 ): Promise<PublicPharmacyCatalogPageProjection> {
   const organization = await loadPublicTenant(context, args.tenantKey)
+  const category = normalizePublicCatalogCategory(args.category)
   const location = (await context.sudo().query.PharmacyLocation.findMany({
     take: 1,
     where: {
@@ -239,6 +262,7 @@ export async function publicPharmacyCatalog(
     status: { equals: 'published' },
     onlineAvailable: { equals: true },
     prescriptionRequirement: { equals: 'none' },
+    ...(category ? { category: { equals: category } } : {}),
   }
   if (search) {
     baseWhere.OR = [
@@ -253,6 +277,7 @@ export async function publicPharmacyCatalog(
     organizationId: organization.id,
     locationId: args.locationId,
     search,
+    category,
     status: 'published',
     onlineAvailable: true,
     prescriptionRequirement: 'none',

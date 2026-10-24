@@ -380,6 +380,9 @@ export type PatientSafeProjection = {
   patientNumber: string
   displayName: string
   status: string
+  email?: string | null
+  phone?: string | null
+  address?: Record<string, unknown> | null
   preferredContactMethod: string
   identityVerificationStatus: string
   hasIdentityEvidence: boolean

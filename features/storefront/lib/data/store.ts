@@ -21,8 +21,8 @@ const TENANT_QUERY = `query StorefrontTenant($tenantKey: String!, $search: Strin
   }
 }`
 
-const CATALOG_QUERY = `query StorefrontCatalog($tenantKey: String!, $locationId: ID!, $first: Int, $after: String, $search: String) {
-  publicPharmacyCatalog(tenantKey: $tenantKey, locationId: $locationId, first: $first, after: $after, search: $search) {
+const CATALOG_QUERY = `query StorefrontCatalog($tenantKey: String!, $locationId: ID!, $first: Int, $after: String, $search: String, $category: String) {
+  publicPharmacyCatalog(tenantKey: $tenantKey, locationId: $locationId, first: $first, after: $after, search: $search, category: $category) {
     items { ${PRODUCT_FIELDS} }
     totalCount hasMore nextCursor
   }
@@ -37,7 +37,7 @@ export async function fetchTenantPage(input: { search?: string | null; first?: n
   return response.success ? { success: true as const, data: response.data.publicPharmacyTenant } : response
 }
 
-export async function fetchCatalogPage(input: { locationId: string; search?: string | null; first?: number; after?: string | null }) {
+export async function fetchCatalogPage(input: { locationId: string; search?: string | null; category?: string | null; first?: number; after?: string | null }) {
   const response = await storefrontRequest<{ publicPharmacyCatalog: PublicPharmacyCatalogPageProjection }>(CATALOG_QUERY, { tenantKey: await getRequestTenantKey(), ...input })
   return response.success ? { success: true as const, data: response.data.publicPharmacyCatalog } : response
 }
@@ -51,9 +51,17 @@ export const getStorefront = cache(async (): Promise<Storefront | null> => {
   return { ...tenant.data, location }
 })
 
-export const getStorefrontCatalog = cache(async (locationId: string) => {
-  const page = await fetchCatalogPage({ locationId, first: 50 })
+export const getStorefrontCatalog = cache(async (locationId: string, category?: string | null) => {
+  const page = await fetchCatalogPage({ locationId, category: category || null, first: 50 })
   return page.success ? page.data : null
+})
+
+export type StoreCategory = { value: string; count: number }
+
+/** Categories with products for sale online at the location. */
+export const getStorefrontCategories = cache(async (locationId: string): Promise<StoreCategory[]> => {
+  const response = await storefrontRequest<{ publicPharmacyCategories: StoreCategory[] }>('query StorefrontCategories($tenantKey: String!, $locationId: ID!) { publicPharmacyCategories(tenantKey: $tenantKey, locationId: $locationId) { value count } }', { tenantKey: await getRequestTenantKey(), locationId })
+  return response.success ? response.data.publicPharmacyCategories : []
 })
 
 /** Finds a product by handle across every catalog page of the selected location, then the other locations. */

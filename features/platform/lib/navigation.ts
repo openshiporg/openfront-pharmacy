@@ -5,7 +5,13 @@ import {
   ClipboardList,
   CreditCard,
   HeartPulse,
+  IdCard,
   Inbox,
+  MapPin,
+  Pill,
+  Repeat,
+  Truck,
+  Wallet,
   LayoutDashboard,
   Package,
   Plug,
@@ -73,6 +79,14 @@ export const platformNavItems: PlatformNavItem[] = [
     group: 'standalone',
   },
   {
+    title: 'Payments',
+    href: '/platform/payments',
+    color: 'emerald',
+    description: 'Payments, refunds, reconciliation, providers, and cash policy.',
+    icon: Wallet,
+    group: 'standalone',
+  },
+  {
     title: 'Store Settings',
     href: '/platform/store-settings',
     color: 'slate',
@@ -99,6 +113,14 @@ export const platformNavItems: PlatformNavItem[] = [
     group: 'care',
   },
   {
+    title: 'Refills',
+    href: '/platform/refills',
+    color: 'teal',
+    description: 'Refill requests from patients.',
+    icon: Repeat,
+    group: 'care',
+  },
+  {
     title: 'Prescribers',
     href: '/platform/prescribers',
     color: 'indigo',
@@ -110,10 +132,26 @@ export const platformNavItems: PlatformNavItem[] = [
   // Catalog & inventory
   {
     title: 'Products',
-    href: '/products',
+    href: '/platform/products',
     color: 'green',
     description: 'Create and manage your product catalog and pricing.',
     icon: Package,
+    group: 'catalog',
+  },
+  {
+    title: 'Drug References',
+    href: '/platform/drug-references',
+    color: 'sky',
+    description: 'NDC drug catalog and reference reviews.',
+    icon: Pill,
+    group: 'catalog',
+  },
+  {
+    title: 'Suppliers',
+    href: '/platform/suppliers',
+    color: 'amber',
+    description: 'Wholesalers and the lots received from them.',
+    icon: Truck,
     group: 'catalog',
   },
   {
@@ -134,6 +172,22 @@ export const platformNavItems: PlatformNavItem[] = [
   },
 
   // Staff & access
+  {
+    title: 'Staff',
+    href: '/platform/staff',
+    color: 'purple',
+    description: 'Staff memberships, roles, and credential state.',
+    icon: IdCard,
+    group: 'access',
+  },
+  {
+    title: 'Locations',
+    href: '/platform/locations',
+    color: 'slate',
+    description: 'Pharmacy locations, contact, hours, and ordering.',
+    icon: MapPin,
+    group: 'access',
+  },
   {
     title: 'Users',
     href: '/users',
@@ -162,7 +216,7 @@ export const platformNavItems: PlatformNavItem[] = [
   // Integrations
   {
     title: 'Payment Providers',
-    href: '/payment-providers',
+    href: '/platform/payments#providers',
     color: 'slate',
     description: 'Configure payment gateways and provider settings.',
     icon: CreditCard,

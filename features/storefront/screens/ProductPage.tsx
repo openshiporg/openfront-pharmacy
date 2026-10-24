@@ -7,7 +7,7 @@ import { AddProductButton } from '../components/AddProductButton'
 import { ProductImage } from '../components/ProductImage'
 import { Field, Notice, TitleLine } from '../components/rx-ui'
 import { prescriptionRequirementLabel, publicCatalogAvailability } from '../lib/catalog-availability'
-import { getStorefrontProduct } from '../lib/data/store'
+import { fetchCatalogPage, getStorefrontProduct } from '../lib/data/store'
 import { formatMoney, formatStatus } from '../lib/money'
 
 type Props = { params: Promise<{ handle: string }> }
@@ -28,6 +28,8 @@ export async function ProductPage({ params }: Props) {
   const requirement = prescriptionRequirementLabel(product.prescriptionRequirement)
   const price = formatMoney(product.priceAmount, product.currencyCode)
   const canBuy = location.onlineOrderingEnabled && availability.canOrder
+  const relatedPage = product.category ? await fetchCatalogPage({ locationId: location.id, category: product.category, first: 5 }).catch(() => null) : null
+  const related = relatedPage?.success ? relatedPage.data.items.filter((entry) => entry.id !== product.id).slice(0, 4) : []
 
   return <div className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-16">
     <Link href="/products" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft aria-hidden="true" className="size-4" />Shop</Link>
@@ -55,6 +57,22 @@ export async function ProductPage({ params }: Props) {
         </dl>
       </div>
     </section>
+
+    {related.length > 0 && <section aria-labelledby="related-title" className="mt-16">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="related-title" className="text-xl font-semibold tracking-tight">More in {formatStatus(product.category || '')}</h2>
+        <Link href={`/products?category=${product.category}#products`} className="text-sm font-semibold text-primary">See all</Link>
+      </div>
+      <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 lg:grid-cols-4">
+        {related.map((entry) => <li key={entry.id} className="min-w-0">
+          <Link href={`/products/${encodeURIComponent(entry.handle)}`} className="group block">
+            <span className="relative block aspect-square overflow-hidden rounded-2xl border border-border bg-muted"><ProductImage src={entry.imageUrl} alt={entry.title} fallbackLabel={entry.title} sizes="(max-width: 1024px) 50vw, 25vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /></span>
+            <span className="mt-3 block text-[15px] font-semibold leading-snug group-hover:underline group-hover:underline-offset-4">{entry.title}</span>
+            <span className="rx-num mt-1 block text-sm text-muted-foreground">{formatMoney(entry.priceAmount, entry.currencyCode)}</span>
+          </Link>
+        </li>)}
+      </ul>
+    </section>}
 
     <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 backdrop-blur-md sm:hidden">
       <div className="flex items-center justify-between gap-3">

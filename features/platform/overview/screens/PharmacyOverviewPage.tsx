@@ -102,6 +102,16 @@ export async function PharmacyOverviewPage() {
     { title: 'Recalls', href: `${basePath}/platform/recalls`, total: recalls.page?.totalCount ?? 0, partial: Boolean(recalls.page?.hasMore), error: recalls.error, lead: { label: 'Open recalls', value: recOpen }, tone: recClassOne ? 'danger' : recOpen ? 'warn' : 'ok', state: recClassOne ? 'Class I open' : recOpen ? 'Open' : 'Clear', metrics: [{ label: 'Class I', value: recClassOne }, { label: 'Outreach', value: recOutreach }, { label: 'Lot gaps', value: recGap }], action: { href: `${basePath}/platform/recalls/open`, label: 'Open recall' } },
   ]
   const urgent = queues.filter((queue) => queue.tone === 'danger').length
+  const [refills, requests, sessions] = await Promise.all([
+    keystoneClient<{ refillRequestsCount: number }>('query { refillRequestsCount(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }) }'),
+    keystoneClient<{ pharmacyPrescriptionRequestQueue: Array<{ id: string }> }>('query { pharmacyPrescriptionRequestQueue(status: "requested") { id } }'),
+    keystoneClient<{ paymentSessionsCount: number }>('query { paymentSessionsCount(where: { reconciliationStatus: { in: ["settled_unordered", "compensation_pending", "manual_review"] } }) }'),
+  ])
+  const waiting = [
+    { label: 'Refill requests', href: `${basePath}/platform/refills`, value: refills.success ? refills.data.refillRequestsCount : null },
+    { label: 'Online requests', href: `${basePath}/platform/requests`, value: requests.success ? requests.data.pharmacyPrescriptionRequestQueue.length : null },
+    { label: 'Payments to reconcile', href: `${basePath}/platform/payments`, value: sessions.success ? sessions.data.paymentSessionsCount : null },
+  ].filter((entry) => entry.value !== null)
   const destinations = platformNavItems.filter((item) => !['/platform/overview', '/platform/prescriptions', '/platform/orders', '/platform/inventory', '/platform/recalls'].includes(item.href))
 
   return (
@@ -125,6 +135,13 @@ export async function PharmacyOverviewPage() {
         <div className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border sm:grid-cols-2 xl:grid-cols-4">
           {queues.map((queue) => <QueueCard key={queue.href} queue={queue} />)}
         </div>
+
+        {waiting.length > 0 && <nav aria-label="Also waiting" className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border sm:grid-cols-3">
+          {waiting.map((entry) => <Link key={entry.href} href={entry.href} className="group flex items-center justify-between gap-3 bg-background px-4 py-3 hover:bg-muted/50">
+            <span className="inline-flex items-baseline gap-2 text-sm font-medium text-foreground"><Dot tone={entry.value ? 'warn' : 'ok'} />{entry.label}</span>
+            <span className="flex items-center gap-1.5 font-mono text-lg tabular-nums">{entry.value}<ChevronRight aria-hidden="true" className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" /></span>
+          </Link>)}
+        </nav>}
 
         <section aria-labelledby="overview-more">
           <h2 id="overview-more" className="mb-3 text-sm font-semibold text-foreground">Records and settings</h2>

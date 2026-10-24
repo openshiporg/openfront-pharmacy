@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { setStoredLocationId } from './cookies'
 import { fetchCatalogPage, fetchTenantPage } from './store'
 
-export async function getCatalogPage(input: { locationId: string; search?: string | null; after?: string | null }) {
+export async function getCatalogPage(input: { locationId: string; search?: string | null; category?: string | null; after?: string | null }) {
   return fetchCatalogPage({ ...input, first: 50 })
 }
 

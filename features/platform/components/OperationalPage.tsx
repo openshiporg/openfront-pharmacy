@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { ChevronDown, ChevronRight, Plus, Search } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
@@ -19,6 +19,8 @@ export type OperationalItem = {
   subtitle?: string
   status?: string
   details?: Array<{ label: string; value: string }>
+  /** Row actions (state transitions) rendered next to the row. */
+  actions?: ReactNode
 }
 
 type SortMode = 'default' | 'title-asc' | 'status'
@@ -44,7 +46,8 @@ function OperationalRow({ item, attention }: { item: OperationalItem; attention:
       <dl className="hidden min-w-0 grid-cols-3 gap-4 md:grid">
         {preview.map((detail) => <div key={detail.label} className="min-w-0"><dt className="truncate font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">{detail.label}</dt><dd className="mt-0.5 truncate text-[13px] font-medium" title={detail.value}>{detail.value || 'Not recorded'}</dd></div>)}
       </dl>
-      <div className="flex items-center gap-1.5 justify-self-start md:justify-self-end">
+      <div className="flex flex-wrap items-center gap-1.5 justify-self-start md:justify-self-end">
+        {item.actions}
         {Boolean(item.details?.length) && <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-controls={`details-${item.id}`} className="inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground max-sm:min-h-10">Details<ChevronDown aria-hidden="true" className={cn('size-3.5 transition-transform duration-200', open && 'rotate-180')} /></button>}
         {item.href && <Link href={item.href} aria-label={`Open ${item.title}`} className="grid size-9 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground max-sm:size-10"><ChevronRight aria-hidden="true" className="size-4" /></Link>}
       </div>
@@ -64,6 +67,8 @@ export function OperationalPage(props: {
   disabledMessage?: string
   /** A link to a create screen, or a Keystone list key to create through the reference create drawer. */
   primaryAction?: { href: string; label: string } | { listKey: string; label: string }
+  /** Extra content above the list: secondary tracks, summaries. */
+  toolbar?: ReactNode
   attentionStatuses?: string[]
 }) {
   const [query, setQuery] = useState('')
@@ -111,6 +116,7 @@ export function OperationalPage(props: {
       <div className="space-y-4 px-4 pb-8 md:px-6">
         {props.error && <Callout tone="danger" title={`Couldn't load ${props.title.toLocaleLowerCase()}`}>{props.error}</Callout>}
         {!props.error && props.disabledMessage && props.items.length === 0 && <Callout tone="muted">{props.disabledMessage}</Callout>}
+        {!props.error && props.toolbar}
 
         {!props.error && props.items.length > 0 && <>
           <div className="flex flex-wrap items-center gap-2">

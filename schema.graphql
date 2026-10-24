@@ -4610,7 +4610,8 @@ type Query {
   redirectToInit: Boolean
   publicPharmacyTenant(tenantKey: String, search: String, first: Int, after: String): PublicPharmacyTenant!
   publicPharmacyLocations(tenantKey: String): [PublicPharmacyLocation!]!
-  publicPharmacyCatalog(tenantKey: String, locationId: ID!, search: String, first: Int, after: String): PublicPharmacyCatalogWorklist!
+  publicPharmacyCatalog(tenantKey: String, locationId: ID!, search: String, category: String, first: Int, after: String): PublicPharmacyCatalogWorklist!
+  publicPharmacyCategories(tenantKey: String, locationId: ID!): [PublicPharmacyCategory!]!
   pharmacyCatalogQueue: [PharmacyCatalogQueueItem!]!
   pharmacyPrescriptionIntakeOptions: PharmacyPrescriptionIntakeOptions!
   pharmacyInventoryReceiptOptions: PharmacyInventoryReceiptOptions!
@@ -4898,6 +4899,11 @@ type PharmacyCredentialReviewOptions {
   memberships: [PharmacyTaskOption!]!
   prescribers: [PharmacyTaskOption!]!
   drugReferences: [PharmacyTaskOption!]!
+}
+
+type PublicPharmacyCategory {
+  value: String!
+  count: Int!
 }
 
 type PublicPharmacyLocation {
@@ -5512,6 +5518,9 @@ type PatientSafeProjection {
   patientNumber: String!
   displayName: String!
   status: String!
+  email: String
+  phone: String
+  address: JSON
   preferredContactMethod: String!
   identityVerificationStatus: String!
   hasIdentityEvidence: Boolean!

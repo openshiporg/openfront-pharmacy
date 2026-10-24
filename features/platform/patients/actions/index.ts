@@ -28,3 +28,13 @@ export async function linkPatientAccountAction(input: { patientId: string; userI
   const response = await keystoneClient<{ linkPharmacyPatientAccount: { success: boolean; reused?: boolean | null; patientId: string; userId: string } }>(`mutation Link($patientId: ID!, $userId: ID!) { linkPharmacyPatientAccount(patientId: $patientId, userId: $userId) { success reused patientId userId } }`, input)
   return result(response, `/dashboard/platform/patients/${input.patientId}`).linkPharmacyPatientAccount
 }
+
+export async function updatePatientContactAction(input: { patientId: string; email: string; phone: string; preferredContactMethod: string; address: Record<string, string> | null; idempotencyKey: string; reason: string; attested: boolean }) {
+  const response = await keystoneClient<{ updatePharmacyPatientContact: { success: boolean } }>(
+    'mutation PatientContact($patientId: ID!, $email: String, $phone: String, $preferredContactMethod: String!, $address: JSON, $idempotencyKey: String!, $reason: String!, $attested: Boolean!) { updatePharmacyPatientContact(patientId: $patientId, email: $email, phone: $phone, preferredContactMethod: $preferredContactMethod, address: $address, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested) { success } }',
+    input,
+  )
+  if (!response.success) return { success: false as const, error: response.error }
+  revalidatePath(`/dashboard/platform/patients/${input.patientId}`)
+  return { success: true as const }
+}

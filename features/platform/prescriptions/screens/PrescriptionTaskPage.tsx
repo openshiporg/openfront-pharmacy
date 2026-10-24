@@ -6,6 +6,7 @@ import { DispensingLabelCard } from '../components/DispensingLabelCard'
 import { PrescriptionFillWorkbench } from '../components/PrescriptionFillWorkbench'
 import { fillWorkbenchSelection, type PharmacyFillWorkbench } from '@/features/pharmacy/fills'
 import { PrescriptionTaskActions } from '../components/PrescriptionTaskActions'
+import { TransferOutForm } from '../components/TransferOutForm'
 
 export async function PrescriptionTaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: prescriptionId } = await params
@@ -41,6 +42,10 @@ export async function PrescriptionTaskPage({ params }: { params: Promise<{ id: s
     </TaskSection>
     <TaskSection title="Fills">{workbench ? <PrescriptionFillWorkbench prescriptionId={prescription.id} workbench={workbench} /> : <Callout tone="danger" title="Couldn't load fills">{fillResponse.success ? null : fillResponse.error}</Callout>}</TaskSection>
     <TaskSection title="Actions"><PrescriptionTaskActions prescription={prescription} workbench={workbench} /></TaskSection>
+    <TaskSection title="Transfers" count={prescription.transfers.length}>
+      {prescription.transfers.length > 0 && <ListBand className="mb-4">{prescription.transfers.map((transfer) => <div key={transfer.id} className="bg-background px-3.5 py-2.5 text-sm"><TitleLine as="h3" titleClassName="text-sm capitalize" title={`${transfer.direction} · ${transfer.counterpartyName}`} tone={statusTone(transfer.status)} state={humanize(transfer.status)} /><p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{transfer.counterpartyPhone || 'No phone'} · {new Date(transfer.requestedAt).toLocaleDateString()}</p></div>)}</ListBand>}
+      {!['rejected', 'cancelled'].includes(prescription.status) && <TransferOutForm prescriptionId={prescription.id} patientId={prescription.patientId} />}
+    </TaskSection>
     <TaskSection title="Safety reviews" count={prescription.safetyReviews.length}>{prescription.safetyReviews.length ? <div className="divide-y">{prescription.safetyReviews.map((review) => <div key={review.id} className="py-3 text-sm first:pt-0 last:pb-0"><TitleLine as="h3" title={`Fill ${review.fillNumber}`} titleClassName="text-sm" tone={statusTone(review.outcome)} state={humanize(review.outcome)} /><p className="mt-0.5 text-muted-foreground">{review.reviewReference}</p>{review.overrideReason && <p className="mt-1 text-amber-800 dark:text-amber-200">Override: {review.overrideReason}</p>}<p className="mt-1 font-mono text-[11px] text-muted-foreground">{review.pharmacistName} · {new Date(review.reviewedAt).toLocaleString()}</p></div>)}</div> : <p className="text-sm text-muted-foreground">No safety review recorded for the current fill.</p>}</TaskSection>
     {prescription.dispensingLabels.length > 0 && <TaskSection title="Dispensing labels" count={prescription.dispensingLabels.length}><div className="grid gap-3">{prescription.dispensingLabels.map((label) => <DispensingLabelCard key={label.id} label={label} />)}</div></TaskSection>}
     <TaskSection title="Pharmacist reviews" count={prescription.reviews.length}>{prescription.reviews.length ? <div className="divide-y">{prescription.reviews.map((review) => <div key={review.id} className="py-3 text-sm first:pt-0 last:pb-0"><TitleLine as="h3" title={humanize(review.decision)} titleClassName="text-sm capitalize" /><p className="mt-0.5 text-muted-foreground">{review.reason}</p><p className="mt-1 font-mono text-[11px] text-muted-foreground">{review.pharmacistName} · {new Date(review.reviewedAt).toLocaleString()}</p></div>)}</div> : <p className="text-sm text-muted-foreground">No reviews recorded.</p>}</TaskSection>

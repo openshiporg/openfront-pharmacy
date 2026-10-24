@@ -4930,8 +4930,26 @@ async function publicPharmacyTenant(_root, args, context) {
 async function publicPharmacyLocations(root, args, context) {
   return (await publicPharmacyTenant(root, args, context)).locations;
 }
+var PUBLIC_CATALOG_CATEGORIES = ["otc_medication", "first_aid", "wellness", "personal_care", "medical_supply", "allergy", "cold_and_flu", "digestive_health", "vitamins", "health_devices"];
+function normalizePublicCatalogCategory(value) {
+  if (value == null || value === "") return null;
+  if (!PUBLIC_CATALOG_CATEGORIES.includes(value)) throw new Error("Category is not available");
+  return value;
+}
+async function publicPharmacyCategories(_root, args, context) {
+  const organization = await loadPublicTenant(context, args.tenantKey);
+  const products = await context.sudo().query.Product.findMany({
+    where: { organization: { id: { equals: organization.id } }, location: { id: { equals: args.locationId }, status: { equals: "active" } }, status: { equals: "published" }, onlineAvailable: { equals: true }, prescriptionRequirement: { equals: "none" } },
+    take: 2e3,
+    query: "category"
+  });
+  const counts = /* @__PURE__ */ new Map();
+  for (const product of products) if (PUBLIC_CATALOG_CATEGORIES.includes(product.category)) counts.set(product.category, (counts.get(product.category) || 0) + 1);
+  return PUBLIC_CATALOG_CATEGORIES.filter((value) => counts.has(value)).map((value) => ({ value, count: counts.get(value) || 0 }));
+}
 async function publicPharmacyCatalog(_root, args, context) {
   const organization = await loadPublicTenant(context, args.tenantKey);
+  const category = normalizePublicCatalogCategory(args.category);
   const location = (await context.sudo().query.PharmacyLocation.findMany({
     take: 1,
     where: {
@@ -4951,7 +4969,8 @@ async function publicPharmacyCatalog(_root, args, context) {
     location: { id: { equals: args.locationId } },
     status: { equals: "published" },
     onlineAvailable: { equals: true },
-    prescriptionRequirement: { equals: "none" }
+    prescriptionRequirement: { equals: "none" },
+    ...category ? { category: { equals: category } } : {}
   };
   if (search) {
     baseWhere.OR = [
@@ -4966,6 +4985,7 @@ async function publicPharmacyCatalog(_root, args, context) {
     organizationId: organization.id,
     locationId: args.locationId,
     search,
+    category,
     status: "published",
     onlineAvailable: true,
     prescriptionRequirement: "none"
@@ -8784,10 +8804,10 @@ async function pharmacyPatientSafeView(_root, args, context) {
   const scope = await tenantScope(context);
   const patient = await context.sudo().query.PatientProfile.findOne({
     where: { id: args.patientId },
-    query: "id patientNumber displayName status preferredContactMethod identityVerificationStatus identityReference identityVerifiedAt organizations { id name } consents(orderBy: { grantedAt: desc }) { accepted grantedAt revokedAt } allergies(orderBy: { recordedAt: desc }, take: 100) { id allergen reaction severity status source recordedAt } medications(orderBy: { recordedAt: desc }, take: 100) { id medicationName directions status source recordedAt } prescriptionsCount"
+    query: "id patientNumber displayName status email phone address preferredContactMethod identityVerificationStatus identityReference identityVerifiedAt organizations { id name } consents(orderBy: { grantedAt: desc }) { accepted grantedAt revokedAt } allergies(orderBy: { recordedAt: desc }, take: 100) { id allergen reaction severity status source recordedAt } medications(orderBy: { recordedAt: desc }, take: 100) { id medicationName directions status source recordedAt } prescriptionsCount"
   });
   if (!patient || !patient.organizations?.some((organization) => scope.organizationIds.includes(organization.id))) throw new Error("Patient not found");
-  return patientSafeProjection(patient);
+  return { ...patientSafeProjection(patient), email: patient.email || null, phone: patient.phone || null, address: patient.address || null };
 }
 async function pharmacyIntegrationStatus(_root, _args, context) {
   requireAny(context, ["canManageIntegrations"]);
@@ -10727,6 +10747,7 @@ function extendGraphqlSchema(baseSchema) {
         drugReferences: [PharmacyTaskOption!]!
       }
 
+      type PublicPharmacyCategory { value: String!, count: Int! }
       type PublicPharmacyLocation {
         id: ID!
         name: String!
@@ -11154,6 +11175,9 @@ function extendGraphqlSchema(baseSchema) {
         patientNumber: String!
         displayName: String!
         status: String!
+        email: String
+        phone: String
+        address: JSON
         preferredContactMethod: String!
         identityVerificationStatus: String!
         hasIdentityEvidence: Boolean!
@@ -11340,7 +11364,8 @@ function extendGraphqlSchema(baseSchema) {
         redirectToInit: Boolean
         publicPharmacyTenant(tenantKey: String, search: String, first: Int, after: String): PublicPharmacyTenant!
         publicPharmacyLocations(tenantKey: String): [PublicPharmacyLocation!]!
-        publicPharmacyCatalog(tenantKey: String, locationId: ID!, search: String, first: Int, after: String): PublicPharmacyCatalogWorklist!
+        publicPharmacyCatalog(tenantKey: String, locationId: ID!, search: String, category: String, first: Int, after: String): PublicPharmacyCatalogWorklist!
+        publicPharmacyCategories(tenantKey: String, locationId: ID!): [PublicPharmacyCategory!]!
         pharmacyCatalogQueue: [PharmacyCatalogQueueItem!]!
         pharmacyPrescriptionIntakeOptions: PharmacyPrescriptionIntakeOptions!
         pharmacyInventoryReceiptOptions: PharmacyInventoryReceiptOptions!
@@ -11451,6 +11476,7 @@ function extendGraphqlSchema(baseSchema) {
         publicPharmacyTenant,
         publicPharmacyLocations,
         publicPharmacyCatalog,
+        publicPharmacyCategories,
         pharmacyCatalogQueue,
         pharmacyPrescriptionIntakeOptions,
         pharmacyInventoryReceiptOptions,

@@ -1,6 +1,8 @@
 import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
 import type { PharmacyAuditTimelineProjection, PharmacyOutboxTimelineProjection } from '@/features/pharmacy/contracts'
 import { OperationalPage, type OperationalItem } from '@/features/platform/components/OperationalPage'
+import { TransitionPills } from '@/features/platform/components/TransitionPills'
+import { replayOutboxEvent } from '../actions'
 
 export async function AuditTimelinePage() {
   const response = await keystoneClient<{
@@ -33,6 +35,7 @@ export async function AuditTimelinePage() {
             { label: 'Replays', value: String(event.replayCount) },
             { label: 'Error', value: event.hasError ? 'Review required' : 'None' },
           ],
+          actions: ['failed', 'dead_letter'].includes(event.status) ? <TransitionPills label="Replay delivery" options={[{ label: 'Replay', action: replayOutboxEvent.bind(null, event.id) }]} /> : undefined,
         })),
       ]
     : []

@@ -8,7 +8,7 @@ import { LocationPicker } from '../components/LocationPicker'
 import { ProductGrid } from '../components/ProductGrid'
 import { Dot, Field, TitleLine } from '../components/rx-ui'
 import { retrieveCart } from '../lib/data/cart'
-import { getStorefront, getStorefrontCatalog, type Storefront } from '../lib/data/store'
+import { getStorefront, getStorefrontCatalog, getStorefrontCategories, type Storefront } from '../lib/data/store'
 import { formatAddress } from '../lib/money'
 import { StoreUnavailable } from './MainLayout'
 
@@ -30,15 +30,17 @@ export function NoLocations({ storefront }: { storefront: Storefront }) {
 }
 
 /** Location picker and product grid for the selected location, shared by the home and shop pages. */
-export async function StoreCatalog({ storefront, title, eyebrow }: { storefront: Storefront; title?: string; eyebrow?: string }) {
+export async function StoreCatalog({ storefront, title, eyebrow, category = null }: { storefront: Storefront; title?: string; eyebrow?: string; category?: string | null }) {
   const location = storefront.location!
-  const [catalog, cart] = await Promise.all([getStorefrontCatalog(location.id), retrieveCart()])
+  const categories = await getStorefrontCategories(location.id)
+  const activeCategory = categories.some((entry) => entry.value === category) ? category : null
+  const [catalog, cart] = await Promise.all([getStorefrontCatalog(location.id, activeCategory), retrieveCart()])
   const lockedReason = cart?.items.length ? 'Empty your cart to change pharmacy.' : null
   return <>
     <LocationPicker key={`picker-${location.id}`} location={location} locations={storefront.locations} hasMore={storefront.hasMoreLocations} nextCursor={storefront.nextLocationCursor} lockedReason={lockedReason} />
     {!location.onlineOrderingEnabled && <p role="status" className="mx-auto mt-6 max-w-7xl px-4 text-sm text-muted-foreground sm:px-6 lg:px-8"><span className="inline-flex items-baseline gap-2"><Dot tone="warn" />Online ordering is off at {location.name}. Call the pharmacy to order.</span></p>}
     {catalog
-      ? <ProductGrid key={location.id} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} initialPage={catalog} title={title} eyebrow={eyebrow} />
+      ? <ProductGrid key={`${location.id}:${activeCategory || ''}`} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} initialPage={catalog} title={title} eyebrow={eyebrow} categories={categories} activeCategory={activeCategory} />
       : <p role="alert" className="mx-auto max-w-7xl px-4 py-14 text-sm text-destructive sm:px-6 lg:px-8">Products could not be loaded. Try again.</p>}
   </>
 }
