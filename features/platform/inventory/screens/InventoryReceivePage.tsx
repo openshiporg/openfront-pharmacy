@@ -1,4 +1,4 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyInventoryReceiptOptions, PharmacyProductOptionWorklistProjection } from '@/features/pharmacy/contracts'
 import { TaskDataReadiness } from '@/features/platform/components/TaskDataReadiness'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
@@ -7,13 +7,13 @@ import { InventoryReceiveForm } from '../components/InventoryReceiveForm'
 const emptyProductWorklist: PharmacyProductOptionWorklistProjection = { items: [], totalCount: 0, hasMore: false, nextCursor: null }
 
 export async function InventoryReceivePage() {
-  const response = await keystoneClient<{ pharmacyInventoryReceiptOptions: PharmacyInventoryReceiptOptions }>(`query { pharmacyInventoryReceiptOptions { locations { id label scopeId detail } suppliers { id label scopeId detail } } }`)
+  const response = await platformRequest<{ pharmacyInventoryReceiptOptions: PharmacyInventoryReceiptOptions }>(`query { pharmacyInventoryReceiptOptions { locations { id label scopeId detail } suppliers { id label scopeId detail } } }`)
   if (!response.success) return <TaskPage parent={{ label: 'Inventory', href: '/platform/inventory' }} title="Receive lot" description={response.error} />
   const options = response.data.pharmacyInventoryReceiptOptions
   const initialLocationId = options.locations[0]?.id
   let initialProductWorklist = emptyProductWorklist
   if (initialLocationId) {
-    const productsResponse = await keystoneClient<{ pharmacyInventoryReceiptProductWorklist: PharmacyProductOptionWorklistProjection }>(
+    const productsResponse = await platformRequest<{ pharmacyInventoryReceiptProductWorklist: PharmacyProductOptionWorklistProjection }>(
       `query ReceiptProducts($locationId: ID!, $first: Int, $after: String, $status: String) { pharmacyInventoryReceiptProductWorklist(locationId: $locationId, first: $first, after: $after, status: $status) { items { id label scopeId detail } totalCount hasMore nextCursor } }`,
       { locationId: initialLocationId, first: 50, after: null, status: null },
     )

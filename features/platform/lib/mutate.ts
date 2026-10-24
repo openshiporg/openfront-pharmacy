@@ -1,11 +1,11 @@
 import { revalidatePath } from 'next/cache'
 
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from './request'
 import type { TransitionResult } from '../components/TransitionPills'
 
 /** Runs one GraphQL mutation as the signed-in user and revalidates the given dashboard paths. */
 export async function runMutation(query: string, variables: Record<string, unknown>, paths: string[]): Promise<TransitionResult> {
-  const response = await keystoneClient(query, variables)
+  const response = await platformRequest(query, variables)
   if (!response.success) return { success: false, error: response.error }
   for (const path of paths) revalidatePath(path)
   return { success: true }

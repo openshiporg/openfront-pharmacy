@@ -59,6 +59,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
   const [supportPhone, setSupportPhone] = useState(store.supportPhone || '');
   const [privacyNotice, setPrivacyNotice] = useState(store.privacyNotice || '');
   const [isLoading, setIsLoading] = useState(false);
+  const [saved, setSaved] = useState<{ ok: boolean; text: string } | null>(null);
 
   const handleSave = async () => {
     setIsLoading(true);
@@ -74,8 +75,10 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
 
     if (result.success) {
       toast.success('Store settings saved');
+      setSaved({ ok: true, text: `Saved ${new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}` });
     } else {
       toast.error(result.error || 'Store settings could not be saved');
+      setSaved({ ok: false, text: result.error || 'Store settings could not be saved' });
     }
     setIsLoading(false);
   };
@@ -148,9 +151,12 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
           <Textarea id="privacy-notice" value={privacyNotice} onChange={(e) => setPrivacyNotice(e.target.value)} maxLength={50000} className="min-h-48 text-sm" />
         </section>
 
-        <Button onClick={handleSave} disabled={isLoading} className="min-h-10 px-5">
-          {isLoading ? 'Saving…' : 'Save settings'}
-        </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button onClick={() => { setSaved(null); handleSave(); }} disabled={isLoading} className="min-h-10 px-5">
+            {isLoading ? 'Saving…' : 'Save settings'}
+          </Button>
+          {saved && <p role="status" className={saved.ok ? 'text-sm text-muted-foreground' : 'text-sm text-red-700 dark:text-red-300'}>{saved.text}</p>}
+        </div>
       </div>
 
       <div className="space-y-2 lg:sticky lg:top-4">

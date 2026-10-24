@@ -5,10 +5,7 @@ import { CHECKOUT_POLICY, CHECKOUT_PRIVACY_STATEMENT } from '../lib/constants'
 import { getPrivacyNotice, getStorefront } from '../lib/data/store'
 import { StoreUnavailable } from './MainLayout'
 
-export async function generateMetadata(): Promise<Metadata> {
-  const storefront = await getStorefront()
-  return { title: storefront ? `Privacy notice | ${storefront.brand.displayName}` : 'Privacy notice' }
-}
+export const metadata: Metadata = { title: 'Privacy notice' }
 
 export async function PrivacyPage() {
   const [storefront, notice] = await Promise.all([getStorefront(), getPrivacyNotice()])

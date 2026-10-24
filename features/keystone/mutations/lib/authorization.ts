@@ -1,12 +1,13 @@
 import type { Context } from '.keystone/types'
 import { permissions } from '../../access'
+import { DomainError } from './errors'
 
 export async function requireTenantMembership(
   context: Context,
   input: { organizationId: string; locationId?: string | null; organizationWide?: boolean; pharmacist?: boolean },
 ) {
   const userId = context.session?.itemId
-  if (!userId) throw new Error('Authentication required')
+  if (!userId) throw new DomainError('Authentication required')
 
   // Shared row locks participate in the calling transaction; deactivation and
   // credential edits cannot commit ahead of an already-authorized command.
@@ -19,7 +20,7 @@ export async function requireTenantMembership(
       query: 'id status organization { id status }',
     })
     if (!location || location.organization?.id !== input.organizationId || location.status !== 'active' || location.organization.status !== 'active') {
-      throw new Error('An active location is required')
+      throw new DomainError('An active location is required')
     }
   }
 
@@ -44,7 +45,7 @@ export async function requireTenantMembership(
     && (!membership.location || membership.location.status === 'active')
     && (!input.locationId || !membership.location || membership.location.id === input.locationId),
   )
-  if (!activeMemberships.length) throw new Error('You do not have access to this pharmacy')
+  if (!activeMemberships.length) throw new DomainError('You do not have access to this pharmacy')
 
   const hasCurrentCredentialEvidence = (membership: any) => {
     const credentialExpiresAt = membership.credentialExpiresAt ? new Date(membership.credentialExpiresAt).getTime() : Number.NaN
@@ -63,7 +64,7 @@ export async function requireTenantMembership(
     ? activeMemberships.find(hasCurrentCredentialEvidence)
     : activeMemberships.find((entry: any) => !entry.location) || activeMemberships[0]
   if (!membership && input.pharmacist) {
-    throw new Error('Current organization-recorded pharmacist credential review evidence is required; the software does not validate licensure')
+    throw new DomainError('Current organization-recorded pharmacist credential review evidence is required; the software does not validate licensure')
   }
   return { userId, membership: membership || activeMemberships[0] }
 }
@@ -73,6 +74,6 @@ export function requirePermission(
   permission: keyof typeof permissions,
 ) {
   if (!permissions[permission]({ session: context.session as any })) {
-    throw new Error(`Permission required: ${permission}`)
+    throw new DomainError(`Permission required: ${permission}`)
   }
 }

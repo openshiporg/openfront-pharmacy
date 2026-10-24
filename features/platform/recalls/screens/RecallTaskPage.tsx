@@ -1,20 +1,23 @@
 import Link from 'next/link'
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyRecallTaskProjection } from '@/features/pharmacy/contracts'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { Callout, Field, Mono, TitleLine, humanize, statusTone } from '@/features/platform/components/rx-ui'
 import { RecallTaskActions } from '../components/RecallTaskActions'
+import { formatDay } from '@/features/platform/lib/dates'
+import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
 
 export async function RecallTaskPage({ params }: { params: Promise<{ id: string }> }) {
+  const timeZone = await getStoreTimeZone()
   const { id: recallId } = await params
-  const response = await keystoneClient<{ pharmacyRecallTask: PharmacyRecallTaskProjection }>(`query Task($recallId: ID!) { pharmacyRecallTask(recallId: $recallId) { id recallNumber classification status reason source initiatedAt closedAt locationId locationName approvalRecorded approvedAt approvedBy canQuarantine canClose unlinkedExposureCount exposureReconciliationComplete exposures { id status quantityDispensed contactMethod outcome notes lastActionAt resolvedAt patientId patientDisplayName prescriptionId prescriptionNumber orderId orderNumber } lots { id lotNumber status quantityAvailable quantityQuarantined productTitle productSku locationName } } }`, { recallId })
+  const response = await platformRequest<{ pharmacyRecallTask: PharmacyRecallTaskProjection }>(`query Task($recallId: ID!) { pharmacyRecallTask(recallId: $recallId) { id recallNumber classification status reason source initiatedAt closedAt locationId locationName approvalRecorded approvedAt approvedBy canQuarantine canClose unlinkedExposureCount exposureReconciliationComplete exposures { id status quantityDispensed contactMethod outcome notes lastActionAt resolvedAt patientId patientDisplayName prescriptionId prescriptionNumber orderId orderNumber } lots { id lotNumber status quantityAvailable quantityQuarantined productTitle productSku locationName } } }`, { recallId })
   if (!response.success) return <TaskPage parent={{ label: 'Recalls', href: '/platform/recalls' }} title="Recall unavailable" description={response.error} />
   const recall = response.data.pharmacyRecallTask
   return <TaskPage parent={{ label: 'Recalls', href: '/platform/recalls' }} meta={`Recall · ${humanize(recall.classification)}`} title={recall.recallNumber} state={humanize(recall.status)} tone={recall.classification === 'class_i' && !['closed', 'resolved'].includes(recall.status) ? 'danger' : statusTone(recall.status)} description={recall.reason}>
     <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
       <Field label="Source">{recall.source || 'Not reported'}</Field>
       <Field label="Location">{recall.locationName || 'Organization-wide'}</Field>
-      <Field label="Initiated">{new Date(recall.initiatedAt).toLocaleDateString()}</Field>
+      <Field label="Initiated">{formatDay(recall.initiatedAt, timeZone)}</Field>
       <Field label="Approval">{recall.approvalRecorded ? (recall.approvedBy || 'Recorded') : 'Not recorded'}</Field>
     </dl>
     {!recall.exposureReconciliationComplete && <Callout tone="warn" title="Exposure reconciliation incomplete"><Mono>{recall.unlinkedExposureCount}</Mono> sold or dispensed movement(s) have no outreach record. The recall can&apos;t be closed yet.</Callout>}

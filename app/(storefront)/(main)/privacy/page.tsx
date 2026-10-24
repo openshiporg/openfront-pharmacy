@@ -1,1 +1,1 @@
-export { PrivacyPage as default, generateMetadata } from '@/features/storefront/screens/PrivacyPage'
+export { PrivacyPage as default, metadata } from '@/features/storefront/screens/PrivacyPage'

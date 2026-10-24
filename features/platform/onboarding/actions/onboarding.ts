@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient';
+import { platformRequest } from '@/features/platform/lib/request';
 
 export type OnboardingStatus = 'not_started' | 'in_progress' | 'completed' | 'dismissed';
 
@@ -16,7 +16,7 @@ export async function updateOnboardingStatus(status: OnboardingStatus) {
       }
     `;
 
-    const response = await keystoneClient(query, {
+    const response = await platformRequest(query, {
       data: { onboardingStatus: status },
     });
 
@@ -60,7 +60,7 @@ type OnboardingCounts = {
 
 // Creates the store, location, catalog and opening stock in one server transaction.
 export async function runOnboardingAction(template: 'minimal' | 'full') {
-  const response = await keystoneClient<{ runPharmacyOnboarding: { organizationId: string; counts: OnboardingCounts } }>(
+  const response = await platformRequest<{ runPharmacyOnboarding: { organizationId: string; counts: OnboardingCounts } }>(
     `mutation RunPharmacyOnboarding($template: String) {
       runPharmacyOnboarding(template: $template) {
         organizationId

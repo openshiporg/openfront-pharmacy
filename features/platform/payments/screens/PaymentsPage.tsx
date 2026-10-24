@@ -2,7 +2,7 @@ import Link from 'next/link'
 
 import { PageContainer } from '@/features/dashboard/components/PageContainer'
 import { basePath } from '@/features/dashboard/lib/config'
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { RecordDrawerButton } from '@/features/platform/components/RecordDrawerButton'
 import { TaskSection } from '@/features/platform/components/TaskPage'
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
@@ -22,7 +22,7 @@ const NEEDS_RECONCILIATION = ['settled_unordered', 'compensation_pending', 'manu
 export async function PaymentsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const status = typeof params?.status === 'string' && STATUS_TABS.some(([value]) => value === params.status) ? params.status : null
-  const response = await keystoneClient<{ payments: Payment[]; paymentSessions: Session[]; paymentProviders: Provider[]; organizations: Organization[] }>(
+  const response = await platformRequest<{ payments: Payment[]; paymentSessions: Session[]; paymentProviders: Provider[]; organizations: Organization[] }>(
     `query Payments($where: PaymentWhereInput!, $sessions: PaymentSessionWhereInput!) {
       payments(where: $where, orderBy: [{ createdAt: desc }], take: 100) { id amount currencyCode status tenderMethod processedAt createdAt order { id orderNumber } provider { name } location { name } }
       paymentSessions(where: $sessions, orderBy: [{ createdAt: desc }], take: 50) { id amount currencyCode status reconciliationStatus failureReason createdAt provider { name } location { name } }

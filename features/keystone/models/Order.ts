@@ -28,6 +28,8 @@ export const Order = list({
     checkoutEvidence: json({ access: { read: permissions.canViewAuditLogs, update: () => false } }),
     email: text({ access: { read: permissions.canViewPatientPrivateData } }),
     phone: text({ access: { read: permissions.canViewPatientPrivateData } }),
+    // The name staff match at pickup or delivery.
+    customerName: text({ access: { read: permissions.canViewPatientPrivateData } }),
     status: select({
       access: { update: () => false },
       type: 'string',

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { RecordDrawerButton } from '@/features/platform/components/RecordDrawerButton'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
@@ -33,7 +33,7 @@ type Product = {
 
 export async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const response = await keystoneClient<{ product: Product | null }>(
+  const response = await platformRequest<{ product: Product | null }>(
     `query Product($id: ID!) { product(where: { id: $id }) { id title handle sku description status category prescriptionRequirement priceAmount currencyCode taxable onlineAvailable posAvailable coldChainRequired imageUrl location { id name } drugReference { id ndc11 proprietaryName strength marketingStatus controlledSchedule } inventoryLots(orderBy: [{ expirationDate: asc }]) { id lotNumber status expirationDate quantityAvailable quantityQuarantined storageBin } orderLineItemsCount prescriptionItemsCount } }`,
     { id },
   )

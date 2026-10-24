@@ -3,7 +3,7 @@ import { ChevronRight, Plus } from 'lucide-react'
 
 import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 import { basePath } from '@/features/dashboard/lib/config'
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyInventoryWorklistProjection, PharmacyOrderWorklistProjection, PharmacyPrescriptionQueueProjection, PharmacyRecallQueueProjection } from '@/features/pharmacy/contracts'
 import { expiryContext } from '@/features/platform/components/workflowQueue'
 import { Callout, Count, Dot, ListBand, RaisedLink, primaryPillClass, type DotTone } from '@/features/platform/components/rx-ui'
@@ -29,7 +29,7 @@ type Queue = {
 const count = <T,>(items: T[], test: (item: T) => boolean) => items.reduce((sum, item) => sum + (test(item) ? 1 : 0), 0)
 
 async function loadQueue<K extends string, T>(key: K, query: string) {
-  const response = await keystoneClient<Record<K, Page<T>>>(query)
+  const response = await platformRequest<Record<K, Page<T>>>(query)
   return response.success ? { page: response.data[key], error: undefined } : { page: null, error: response.error }
 }
 
@@ -71,10 +71,21 @@ export async function PharmacyOverviewPage() {
     loadQueue<'pharmacyRecallWorklist', PharmacyRecallQueueProjection>('pharmacyRecallWorklist', `query { pharmacyRecallWorklist(first: 50) { items { id status classification unresolvedExposureCount quarantinedLotCount affectedLotCount } totalCount hasMore } }`),
   ])
 
+  const [refills, requests, sessions] = await Promise.all([
+    platformRequest<{ refillRequestsCount: number }>('query { refillRequestsCount(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }) }'),
+    platformRequest<{ pharmacyPrescriptionRequestQueue: Array<{ id: string }> }>('query { pharmacyPrescriptionRequestQueue(status: "requested") { id } }'),
+    platformRequest<{ paymentSessionsCount: number }>('query { paymentSessionsCount(where: { reconciliationStatus: { in: ["settled_unordered", "compensation_pending", "manual_review"] } }) }'),
+  ])
+  const waiting = [
+    { label: 'Refill requests', href: `${basePath}/platform/refills`, value: refills.success ? refills.data.refillRequestsCount : null },
+    { label: 'Online requests', href: `${basePath}/platform/requests`, value: requests.success ? requests.data.pharmacyPrescriptionRequestQueue.length : null },
+    { label: 'Payments to reconcile', href: `${basePath}/platform/payments`, value: sessions.success ? sessions.data.paymentSessionsCount : null },
+  ].filter((entry) => entry.value !== null)
+  const onlineRequests = requests.success ? requests.data.pharmacyPrescriptionRequestQueue.length : 0
+
   const rx = prescriptions.page?.items ?? []
   const rxReview = count(rx, (item) => ['draft', 'pending_review', 'needs_information'].includes(item.status))
   const rxRefills = rx.reduce((sum, item) => sum + (item.openRefillCount || 0), 0)
-  const rxTransfers = rx.reduce((sum, item) => sum + (item.openTransferCount || 0), 0)
   const rxReady = count(rx, (item) => ['approved', 'ready_to_dispense', 'partially_dispensed'].includes(item.status))
 
   const ord = orders.page?.items ?? []
@@ -96,22 +107,14 @@ export async function PharmacyOverviewPage() {
   const recGap = count(rec, (item) => item.quarantinedLotCount < item.affectedLotCount)
 
   const queues: Queue[] = [
-    { title: 'Prescriptions', href: `${basePath}/platform/prescriptions`, total: prescriptions.page?.totalCount ?? 0, partial: Boolean(prescriptions.page?.hasMore), error: prescriptions.error, lead: { label: 'Awaiting pharmacist review', value: rxReview }, tone: rxReview ? 'warn' : 'ok', state: rxReview ? 'Review' : 'Clear', metrics: [{ label: 'Refills', value: rxRefills }, { label: 'Transfers', value: rxTransfers }, { label: 'To fill', value: rxReady }], action: { href: `${basePath}/platform/prescriptions/intake`, label: 'New' } },
+    { title: 'Prescriptions', href: `${basePath}/platform/prescriptions`, total: prescriptions.page?.totalCount ?? 0, partial: Boolean(prescriptions.page?.hasMore), error: prescriptions.error, lead: { label: 'Awaiting pharmacist review', value: rxReview }, tone: rxReview || onlineRequests || rxRefills ? 'warn' : 'ok', state: rxReview ? 'Review' : onlineRequests ? 'Online requests' : rxRefills ? 'Refills' : 'Clear', metrics: [{ label: 'Refills', value: rxRefills }, { label: 'Online', value: onlineRequests }, { label: 'To fill', value: rxReady }], action: { href: `${basePath}/platform/prescriptions/intake`, label: 'New' } },
     { title: 'Orders', href: `${basePath}/platform/orders`, total: orders.page?.totalCount ?? 0, partial: Boolean(orders.page?.hasMore), error: orders.error, lead: { label: 'To prepare', value: ordToPrepare }, tone: ordPayment ? 'danger' : ordToPrepare ? 'info' : 'ok', state: ordPayment ? 'Payment issue' : ordToPrepare ? 'Open' : 'Clear', metrics: [{ label: 'Ready', value: ordReady }, { label: 'Payment', value: ordPayment }, { label: 'With Rx', value: ordRx }] },
     { title: 'Inventory', href: `${basePath}/platform/inventory`, total: inventory.page?.totalCount ?? 0, partial: Boolean(inventory.page?.hasMore), error: inventory.error, lead: { label: 'Expired or expiring in 60 days', value: lotsExpiring }, tone: lotsRecall || lotsColdChain ? 'danger' : lotsExpiring || lotsHeld ? 'warn' : 'ok', state: lotsRecall || lotsColdChain ? 'Hold' : lotsExpiring || lotsHeld ? 'Review' : 'Clear', metrics: [{ label: 'Quarantined', value: lotsHeld }, { label: 'Recall', value: lotsRecall }, { label: 'Cold chain', value: lotsColdChain }], action: { href: `${basePath}/platform/inventory/receive`, label: 'Receive' } },
     { title: 'Recalls', href: `${basePath}/platform/recalls`, total: recalls.page?.totalCount ?? 0, partial: Boolean(recalls.page?.hasMore), error: recalls.error, lead: { label: 'Open recalls', value: recOpen }, tone: recClassOne ? 'danger' : recOpen ? 'warn' : 'ok', state: recClassOne ? 'Class I open' : recOpen ? 'Open' : 'Clear', metrics: [{ label: 'Class I', value: recClassOne }, { label: 'Outreach', value: recOutreach }, { label: 'Lot gaps', value: recGap }], action: { href: `${basePath}/platform/recalls/open`, label: 'Open recall' } },
   ]
   const urgent = queues.filter((queue) => queue.tone === 'danger').length
-  const [refills, requests, sessions] = await Promise.all([
-    keystoneClient<{ refillRequestsCount: number }>('query { refillRequestsCount(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }) }'),
-    keystoneClient<{ pharmacyPrescriptionRequestQueue: Array<{ id: string }> }>('query { pharmacyPrescriptionRequestQueue(status: "requested") { id } }'),
-    keystoneClient<{ paymentSessionsCount: number }>('query { paymentSessionsCount(where: { reconciliationStatus: { in: ["settled_unordered", "compensation_pending", "manual_review"] } }) }'),
-  ])
-  const waiting = [
-    { label: 'Refill requests', href: `${basePath}/platform/refills`, value: refills.success ? refills.data.refillRequestsCount : null },
-    { label: 'Online requests', href: `${basePath}/platform/requests`, value: requests.success ? requests.data.pharmacyPrescriptionRequestQueue.length : null },
-    { label: 'Payments to reconcile', href: `${basePath}/platform/payments`, value: sessions.success ? sessions.data.paymentSessionsCount : null },
-  ].filter((entry) => entry.value !== null)
+  // Any queue that isn't clear, plus anything waiting outside the four queues.
+  const open = queues.filter((queue) => queue.tone !== 'ok').length + waiting.filter((entry) => entry.value).length
   const destinations = platformNavItems.filter((item) => !['/platform/overview', '/platform/prescriptions', '/platform/orders', '/platform/inventory', '/platform/recalls'].includes(item.href))
 
   return (
@@ -127,7 +130,7 @@ export async function PharmacyOverviewPage() {
         <header className="flex flex-wrap items-end justify-between gap-3">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">Overview</h1>
-            <span className="inline-flex items-baseline gap-1.5 text-sm text-muted-foreground"><Dot tone={urgent ? 'danger' : 'ok'} />{urgent ? `${urgent} ${urgent === 1 ? 'queue needs' : 'queues need'} action` : 'All queues clear'}</span>
+            <span className="inline-flex items-baseline gap-1.5 text-sm text-muted-foreground"><Dot tone={urgent ? 'danger' : open ? 'warn' : 'ok'} />{urgent ? `${urgent} ${urgent === 1 ? 'queue needs' : 'queues need'} action` : open ? `${open} ${open === 1 ? 'queue has' : 'queues have'} work waiting` : 'All queues clear'}</span>
           </div>
           <Link href={`${basePath}/platform/pos`} className={primaryPillClass}>Point of sale</Link>
         </header>

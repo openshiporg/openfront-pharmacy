@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Callout, Pill, RxButton as Button, Track } from '@/features/platform/components/rx-ui'
 import { recordDrugReferenceReviewAction } from '../../credentials/actions'
+import { unwrapAction } from '@/features/platform/lib/action-result'
 
 /** Records the organization's review of a drug reference: marketing status and schedule from a named source. */
 export function DrugReviewForm({ drugReferenceId, organizations }: { drugReferenceId: string; organizations: Array<{ id: string; name: string }> }) {
@@ -24,7 +25,7 @@ export function DrugReviewForm({ drugReferenceId, organizations }: { drugReferen
     setError('')
     startTransition(async () => {
       try {
-        await recordDrugReferenceReviewAction({ organizationId, drugReferenceId, marketingStatus, controlledSchedule, sourceName: value('sourceName'), sourceVersion: value('sourceVersion'), sourceReference: value('sourceReference'), reason: value('reason'), attested: data.get('attested') === 'on' })
+        await unwrapAction(recordDrugReferenceReviewAction({ organizationId, drugReferenceId, marketingStatus, controlledSchedule, sourceName: value('sourceName'), sourceVersion: value('sourceVersion'), sourceReference: value('sourceReference'), reason: value('reason'), attested: data.get('attested') === 'on' }))
         router.refresh()
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : 'Review could not be recorded')

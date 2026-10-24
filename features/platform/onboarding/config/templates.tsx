@@ -16,7 +16,7 @@ export const PHARMACY_TEMPLATES: Record<TemplateKey, PharmacyTemplate> = {
   },
   full: {
     name: 'Complete Setup',
-    description: 'Adds card payments, suppliers, a full front-store catalog, patients and prescribers.',
+    description: 'Adds Stripe (off until your Stripe keys are set), suppliers, a full front-store catalog, a sample prescription item, patients and prescribers.',
     icon: <Building2 className="h-5 w-5" />,
   },
 };

@@ -14,6 +14,9 @@ const inputClass = 'h-11 rounded-xl bg-background'
 export function LoginPage({ from }: { from?: string }) {
   const [view, setView] = useState<'signin' | 'signup'>('signin')
   const [signinError, signinAction, signinPending] = useActionState(login, null)
+  // Controlled so a failed attempt keeps what was typed (a form action resets uncontrolled fields).
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
   const [signupError, signupAction, signupPending] = useActionState(signUp, null)
 
   return <div className="w-full max-w-md">
@@ -27,7 +30,7 @@ export function LoginPage({ from }: { from?: string }) {
       {view === 'signin'
         ? <form action={signinAction} className="mt-6 grid gap-5">
           {from && <input type="hidden" name="from" value={from} />}
-          <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" autoComplete="email" required className={inputClass} /></div>
+          <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} /></div>
           <div className="grid gap-2">
             <div className="flex items-center justify-between gap-3"><Label htmlFor="password">Password</Label><Link href="/account/reset" className="text-sm font-medium text-primary hover:underline">Forgot password?</Link></div>
             <Input id="password" name="password" type="password" autoComplete="current-password" required className={inputClass} />
@@ -37,8 +40,8 @@ export function LoginPage({ from }: { from?: string }) {
         </form>
         : <form action={signupAction} className="mt-6 grid gap-5">
           {from && <input type="hidden" name="from" value={from} />}
-          <div className="grid gap-2"><Label htmlFor="signup-name">Full name</Label><Input id="signup-name" name="name" autoComplete="name" maxLength={120} required className={inputClass} /></div>
-          <div className="grid gap-2"><Label htmlFor="signup-email">Email</Label><Input id="signup-email" name="email" type="email" autoComplete="email" maxLength={254} required className={inputClass} /></div>
+          <div className="grid gap-2"><Label htmlFor="signup-name">Full name</Label><Input id="signup-name" name="name" autoComplete="name" maxLength={120} required value={name} onChange={(event) => setName(event.target.value)} className={inputClass} /></div>
+          <div className="grid gap-2"><Label htmlFor="signup-email">Email</Label><Input id="signup-email" name="email" type="email" autoComplete="email" maxLength={254} required value={email} onChange={(event) => setEmail(event.target.value)} className={inputClass} /></div>
           <div className="grid gap-2"><Label htmlFor="signup-password">Password</Label><Input id="signup-password" name="password" type="password" autoComplete="new-password" minLength={12} maxLength={1000} required aria-describedby="signup-password-rule" className={inputClass} /><p id="signup-password-rule" className="text-xs text-muted-foreground">At least 12 characters</p></div>
           {signupError && <p role="alert" className="text-sm font-medium text-destructive">{signupError}</p>}
           <button type="submit" disabled={signupPending} className={`${buttonClass} min-h-12 w-full`}>{signupPending && <Loader2 className="size-4 animate-spin" />}Create account</button>

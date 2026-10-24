@@ -28,7 +28,7 @@ export const PatientAllergy = list({
       ],
       defaultValue: 'unknown',
     }),
-    status: select({ type: 'string', options: [{ label: 'Active', value: 'active' }, { label: 'Entered in error', value: 'entered_in_error' }, { label: 'Inactive', value: 'inactive' }], defaultValue: 'active' }),
+    status: select({ type: 'string', options: [{ label: 'Active', value: 'active' }, { label: 'No known allergies', value: 'none_known' }, { label: 'Entered in error', value: 'entered_in_error' }, { label: 'Inactive', value: 'inactive' }], defaultValue: 'active' }),
     source: text({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     sourceReference: text({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     recordedAt: timestamp({ defaultValue: { kind: 'now' }, validation: { isRequired: true } }),

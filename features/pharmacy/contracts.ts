@@ -350,6 +350,9 @@ export type PharmacyOrderTaskProjection = {
   orderNumber: string
   status: string
   fulfillmentMethod: string
+  customerName?: string | null
+  customerEmail?: string | null
+  customerPhone?: string | null
   subtotalAmount: number
   taxAmount: number
   deliveryAmount: number

@@ -5,6 +5,7 @@ import { normalizeStorefrontTenantKey } from '../../pharmacy/branding'
 import { permissions } from '../access'
 import { recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
+import { DomainError } from './lib/errors'
 
 type OnboardingTemplate = 'minimal' | 'full'
 
@@ -12,16 +13,16 @@ const ONBOARDING_STATUSES = ['not_started', 'in_progress', 'completed', 'dismiss
 
 export async function pharmacyOnboardingState(_root: unknown, _args: unknown, context: Context) {
   const userId = context.session?.itemId
-  if (!userId) throw new Error('Authentication required')
+  if (!userId) throw new DomainError('Authentication required')
   const user = await context.sudo().query.User.findOne({ where: { id: userId }, query: 'id onboardingStatus' })
-  if (!user) throw new Error('Authenticated user not found')
+  if (!user) throw new DomainError('Authenticated user not found')
   return { userId: user.id, status: user.onboardingStatus || 'not_started', canManageOnboarding: permissions.canManageOnboarding({ session: context.session as any }) }
 }
 
 export async function setPharmacyOnboardingStatus(_root: unknown, args: { status: string }, context: Context) {
   const userId = context.session?.itemId
-  if (!userId) throw new Error('Authentication required')
-  if (!ONBOARDING_STATUSES.includes(args.status)) throw new Error('Invalid onboarding status')
+  if (!userId) throw new DomainError('Authentication required')
+  if (!ONBOARDING_STATUSES.includes(args.status)) throw new DomainError('Invalid onboarding status')
   const user = await context.sudo().query.User.updateOne({ where: { id: userId }, data: { onboardingStatus: args.status }, query: 'id onboardingStatus' })
   return { userId: user.id, status: user.onboardingStatus || args.status }
 }
@@ -59,7 +60,7 @@ const withoutProfile = <T extends { profile?: string }>({ profile: _profile, ...
 
 export async function runPharmacyOnboarding(_root: unknown, args: { template?: OnboardingTemplate | null }, context: Context) {
   const userId = context.session?.itemId
-  if (!userId || !permissions.canManageOnboarding({ session: context.session as any })) throw new Error('You do not have permission to run onboarding')
+  if (!userId || !permissions.canManageOnboarding({ session: context.session as any })) throw new DomainError('You do not have permission to run onboarding')
   const template: OnboardingTemplate = args.template === 'minimal' ? 'minimal' : 'full'
   const seed: any = seedDefaults
   const products = forTemplate<any>(seed.products, template)
@@ -105,7 +106,7 @@ export async function runPharmacyOnboarding(_root: unknown, args: { template?: O
       }
     }
     if (memberships.some((entry: any) => entry.status === 'active') || organizationConflict || locationConflict) {
-      throw new Error('Store data already exists. Onboarding can only run on a new installation.')
+      throw new DomainError('Store data already exists. Onboarding can only run on a new installation.')
     }
 
     const organization = await sudo.query.Organization.createOne({
@@ -182,7 +183,7 @@ export async function runPharmacyOnboarding(_root: unknown, args: { template?: O
     }
     for (const entry of lots) {
       const productId = productIds.get(entry.sku)
-      if (!productId) throw new Error(`Product ${entry.sku} is missing for lot ${entry.lotNumber}`)
+      if (!productId) throw new DomainError(`Product ${entry.sku} is missing for lot ${entry.lotNumber}`)
       const lot = await sudo.query.InventoryLot.createOne({
         data: {
           lotNumber: entry.lotNumber,

@@ -689,7 +689,12 @@ function isSignedIn({ session }) {
   return Boolean(session);
 }
 function canChangeOwnPassword({ session, item }) {
-  return Boolean(session && session.itemId === item.id.toString());
+  return Boolean(session && session.itemId === item.id.toString() && session.data?.role);
+}
+function canChangeSignInEmail({ session, item }) {
+  if (!session) return false;
+  if (session.itemId !== item.id.toString()) return permissions.canManageUsers({ session });
+  return Boolean(session.data?.role);
 }
 function rolePermission(permission2) {
   return ({ session }) => session?.data.role?.[permission2] === true;
@@ -1365,6 +1370,7 @@ var DispensingLabel = (0, import_core6.list)({
 var import_core7 = require("@keystone-6/core");
 var import_access11 = require("@keystone-6/core/access");
 var import_fields8 = require("@keystone-6/core/fields");
+var REVIEW_ONLY = { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "read" } };
 var DrugReference = (0, import_core7.list)({
   access: {
     operation: {
@@ -1405,6 +1411,7 @@ var DrugReference = (0, import_core7.list)({
     rxNormCui: (0, import_fields8.text)(),
     controlledSchedule: (0, import_fields8.select)({
       access: { create: import_access11.denyAll, update: import_access11.denyAll },
+      ui: REVIEW_ONLY,
       type: "string",
       options: [
         { label: "Not scheduled", value: "none" },
@@ -1419,6 +1426,7 @@ var DrugReference = (0, import_core7.list)({
     }),
     marketingStatus: (0, import_fields8.select)({
       access: { create: import_access11.denyAll, update: import_access11.denyAll },
+      ui: REVIEW_ONLY,
       type: "string",
       options: [
         { label: "Active", value: "active" },
@@ -1427,15 +1435,33 @@ var DrugReference = (0, import_core7.list)({
       ],
       defaultValue: "unverified"
     }),
-    sourceName: (0, import_fields8.text)({ defaultValue: "manual", access: { create: import_access11.denyAll, update: import_access11.denyAll } }),
-    sourceVersion: (0, import_fields8.text)({ access: { create: import_access11.denyAll, update: import_access11.denyAll } }),
-    sourceReference: (0, import_fields8.text)({ access: { create: import_access11.denyAll, update: import_access11.denyAll } }),
+    sourceName: (0, import_fields8.text)({
+      defaultValue: "manual",
+      access: { create: import_access11.denyAll, update: import_access11.denyAll },
+      ui: REVIEW_ONLY
+    }),
+    sourceVersion: (0, import_fields8.text)({
+      access: { create: import_access11.denyAll, update: import_access11.denyAll },
+      ui: REVIEW_ONLY
+    }),
+    sourceReference: (0, import_fields8.text)({
+      access: { create: import_access11.denyAll, update: import_access11.denyAll },
+      ui: REVIEW_ONLY
+    }),
     sourceVerified: (0, import_fields8.checkbox)({
       defaultValue: false,
-      access: { create: import_access11.denyAll, update: import_access11.denyAll }
+      access: { create: import_access11.denyAll, update: import_access11.denyAll },
+      ui: REVIEW_ONLY
     }),
-    reviewedAt: (0, import_fields8.timestamp)({ access: { create: import_access11.denyAll, update: import_access11.denyAll } }),
-    reviewedBy: (0, import_fields8.relationship)({ ref: "User", access: { create: import_access11.denyAll, update: import_access11.denyAll } }),
+    reviewedAt: (0, import_fields8.timestamp)({
+      access: { create: import_access11.denyAll, update: import_access11.denyAll },
+      ui: REVIEW_ONLY
+    }),
+    reviewedBy: (0, import_fields8.relationship)({
+      ref: "User",
+      access: { create: import_access11.denyAll, update: import_access11.denyAll },
+      ui: REVIEW_ONLY
+    }),
     referenceData: (0, import_fields8.json)(),
     products: (0, import_fields8.relationship)({ ref: "Product.drugReference", many: true }),
     reviews: (0, import_fields8.relationship)({ ref: "DrugReferenceReview.drugReference", many: true }),
@@ -2125,6 +2151,8 @@ var Order = (0, import_core17.list)({
     checkoutEvidence: (0, import_fields18.json)({ access: { read: permissions.canViewAuditLogs, update: () => false } }),
     email: (0, import_fields18.text)({ access: { read: permissions.canViewPatientPrivateData } }),
     phone: (0, import_fields18.text)({ access: { read: permissions.canViewPatientPrivateData } }),
+    // The name staff match at pickup or delivery.
+    customerName: (0, import_fields18.text)({ access: { read: permissions.canViewPatientPrivateData } }),
     status: (0, import_fields18.select)({
       access: { update: () => false },
       type: "string",
@@ -2639,7 +2667,7 @@ var PatientAllergy = (0, import_core22.list)({
       ],
       defaultValue: "unknown"
     }),
-    status: (0, import_fields23.select)({ type: "string", options: [{ label: "Active", value: "active" }, { label: "Entered in error", value: "entered_in_error" }, { label: "Inactive", value: "inactive" }], defaultValue: "active" }),
+    status: (0, import_fields23.select)({ type: "string", options: [{ label: "Active", value: "active" }, { label: "No known allergies", value: "none_known" }, { label: "Entered in error", value: "entered_in_error" }, { label: "Inactive", value: "inactive" }], defaultValue: "active" }),
     source: (0, import_fields23.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     sourceReference: (0, import_fields23.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     recordedAt: (0, import_fields23.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
@@ -2667,7 +2695,7 @@ var PatientMedication = (0, import_core23.list)({
     requestFingerprint: (0, import_fields24.text)({ validation: { isRequired: true } }),
     medicationName: (0, import_fields24.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     directions: (0, import_fields24.text)({ access: { read: permissions.canViewPatientPrivateData } }),
-    status: (0, import_fields24.select)({ type: "string", options: [{ label: "Current", value: "current" }, { label: "Discontinued", value: "discontinued" }, { label: "Entered in error", value: "entered_in_error" }], defaultValue: "current" }),
+    status: (0, import_fields24.select)({ type: "string", options: [{ label: "Current", value: "current" }, { label: "No current medications", value: "none_known" }, { label: "Discontinued", value: "discontinued" }, { label: "Entered in error", value: "entered_in_error" }], defaultValue: "current" }),
     source: (0, import_fields24.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     sourceReference: (0, import_fields24.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     recordedAt: (0, import_fields24.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
@@ -3555,6 +3583,16 @@ var Product = (0, import_core37.list)({
     }
   },
   hooks: {
+    resolveInput: {
+      // An empty handle is generated from the title, made unique with a numeric suffix.
+      create: async ({ resolvedData, context }) => {
+        if (String(resolvedData.handle || "").trim() || !resolvedData.title) return resolvedData;
+        const base = String(resolvedData.title).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "product";
+        let handle = base;
+        for (let suffix = 2; await context.sudo().query.Product.count({ where: { handle: { equals: handle } } }); suffix += 1) handle = `${base}-${suffix}`;
+        return { ...resolvedData, handle };
+      }
+    },
     validate: {
       create: async ({ resolvedData, context, addValidationError }) => {
         const organizationId = resolvedData.organization?.connect?.id;
@@ -3609,7 +3647,7 @@ var Product = (0, import_core37.list)({
   ui: { listView: { initialColumns: ["title", "sku", "prescriptionRequirement", "status", "onlineAvailable"] } },
   fields: {
     title: (0, import_fields38.text)({ validation: { isRequired: true } }),
-    handle: (0, import_fields38.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    handle: (0, import_fields38.text)({ isIndexed: "unique", label: "Handle (optional)" }),
     sku: (0, import_fields38.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
     description: (0, import_fields38.text)({ ui: { displayMode: "textarea" } }),
     status: (0, import_fields38.select)({
@@ -3647,13 +3685,13 @@ var Product = (0, import_core37.list)({
       ],
       defaultValue: "none"
     }),
-    priceAmount: (0, import_fields38.integer)({ validation: { isRequired: true, min: 0 }, defaultValue: 0, label: "Price (minor units)" }),
+    priceAmount: (0, import_fields38.integer)({ validation: { isRequired: true, min: 0 }, defaultValue: 0, label: "Price (cents)" }),
     currencyCode: (0, import_fields38.text)({ defaultValue: "USD", validation: { isRequired: true } }),
     taxable: (0, import_fields38.checkbox)({ defaultValue: true }),
     onlineAvailable: (0, import_fields38.checkbox)({ defaultValue: false }),
     posAvailable: (0, import_fields38.checkbox)({ defaultValue: true }),
     coldChainRequired: (0, import_fields38.checkbox)({ defaultValue: false }),
-    imageUrl: (0, import_fields38.text)(),
+    imageUrl: (0, import_fields38.text)({ label: "Image URL" }),
     organization: (0, import_fields38.relationship)({ ref: "Organization.products", db: requiredRelationshipDb }),
     location: (0, import_fields38.relationship)({ ref: "PharmacyLocation.products", db: requiredRelationshipDb }),
     drugReference: (0, import_fields38.relationship)({ ref: "DrugReference.products" }),
@@ -4103,7 +4141,7 @@ var User = (0, import_core45.list)({
   },
   fields: {
     name: (0, import_fields49.text)({ validation: { isRequired: true } }),
-    email: (0, import_fields49.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    email: (0, import_fields49.text)({ validation: { isRequired: true }, isIndexed: "unique", access: { update: canChangeSignInEmail } }),
     password: (0, import_fields49.password)({
       validation: { isRequired: true, length: { min: 12, max: 1e3 }, rejectCommon: true },
       access: {
@@ -4195,7 +4233,7 @@ var models = {
 };
 
 // features/keystone/mutations/customerAccount.ts
-var import_graphql = require("graphql");
+var import_graphql2 = require("graphql");
 
 // features/keystone/security/cart-token.ts
 var import_node_crypto = require("node:crypto");
@@ -4211,18 +4249,26 @@ function verifyGuestCartToken(token, expectedHash) {
   return actual.length === expected.length && (0, import_node_crypto.timingSafeEqual)(actual, expected);
 }
 
+// features/keystone/mutations/lib/errors.ts
+var import_graphql = require("graphql");
+var DomainError = class extends import_graphql.GraphQLError {
+  constructor(message = "Invalid request", code = "BAD_USER_INPUT") {
+    super(message, { extensions: { code } });
+  }
+};
+
 // features/keystone/mutations/getGuestPharmacyOrder.ts
 async function getGuestPharmacyOrder(_root, args, context) {
-  if (!args.guestOrderToken?.trim()) throw new Error("Guest order token is required");
+  if (!args.guestOrderToken?.trim()) throw new DomainError("Guest order token is required");
   const order = await context.sudo().query.Order.findOne({
     where: { id: args.orderId },
     query: GUEST_ORDER_QUERY
   });
-  if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new Error("Guest order not found");
+  if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new DomainError("Guest order not found");
   return guestOrderProjection(order);
 }
 async function lookupPharmacyOrder(_root, args, context) {
-  const orderNumber2 = args.orderNumber?.trim();
+  const orderNumber2 = args.orderNumber?.trim().toUpperCase();
   const email = args.email?.trim().toLowerCase();
   if (!orderNumber2 || !email || orderNumber2.length > 64 || email.length > 254) return null;
   const order = await context.sudo().query.Order.findOne({ where: { orderNumber: orderNumber2 }, query: `email ${GUEST_ORDER_QUERY}` }).catch(() => null);
@@ -4272,7 +4318,7 @@ function guestOrderProjection(order) {
 
 // features/keystone/mutations/customerAccount.ts
 function userInputError(message) {
-  return new import_graphql.GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
+  return new import_graphql2.GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
 }
 async function registerPharmacyCustomer(_root, args, context) {
   if (context.session?.itemId) throw userInputError("Sign out before creating another account");
@@ -4288,25 +4334,25 @@ async function registerPharmacyCustomer(_root, args, context) {
 }
 async function pharmacyCustomerOrder(_root, args, context) {
   const userId = context.session?.itemId;
-  if (!userId || context.session?.listKey !== "User") throw new Error("Authentication required");
+  if (!userId || context.session?.listKey !== "User") throw new DomainError("Authentication required");
   const [order] = await context.query.Order.findMany({ where: { id: { equals: args.orderId }, customer: { id: { equals: userId } } }, take: 1, query: "id orderNumber status totalAmount currencyCode createdAt lineItems { title quantity unitPriceAmount }" });
-  if (!order) throw new Error("Order not found");
+  if (!order) throw new DomainError("Order not found");
   return order;
 }
 async function pharmacyCustomerOrderDetails(_root, args, context) {
   const userId = context.session?.itemId;
-  if (!userId || context.session?.listKey !== "User") throw new Error("Authentication required");
+  if (!userId || context.session?.listKey !== "User") throw new DomainError("Authentication required");
   const [owned] = await context.query.Order.findMany({ where: { id: { equals: args.orderId }, customer: { id: { equals: userId } } }, take: 1, query: "id" });
-  if (!owned) throw new Error("Order not found");
+  if (!owned) throw new DomainError("Order not found");
   const order = await context.sudo().query.Order.findOne({ where: { id: owned.id }, query: GUEST_ORDER_QUERY });
-  if (!order) throw new Error("Order not found");
+  if (!order) throw new DomainError("Order not found");
   return guestOrderProjection(order);
 }
 async function pharmacyCustomerAccount(_root, _args, context) {
   const userId = context.session?.itemId;
-  if (!userId || context.session?.listKey !== "User") throw new Error("Authentication required");
+  if (!userId || context.session?.listKey !== "User") throw new DomainError("Authentication required");
   const user = await context.query.User.findOne({ where: { id: userId }, query: "id name patientProfile { id }" });
-  if (!user) throw new Error("Account not found");
+  if (!user) throw new DomainError("Account not found");
   const orders = await context.query.Order.findMany({ where: { customer: { id: { equals: userId } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 50, query: "id orderNumber status totalAmount currencyCode createdAt lineItems { title quantity unitPriceAmount }" });
   return { id: user.id, name: user.name, hasPatientProfile: Boolean(user.patientProfile?.id), orders };
 }
@@ -4336,7 +4382,7 @@ function isLotEligible(lot, now = Date.now()) {
 // features/keystone/mutations/lib/authorization.ts
 async function requireTenantMembership(context, input) {
   const userId = context.session?.itemId;
-  if (!userId) throw new Error("Authentication required");
+  if (!userId) throw new DomainError("Authentication required");
   await context.prisma.$queryRaw`SELECT id FROM "OrganizationMembership" WHERE "user" = ${userId} AND organization = ${input.organizationId} FOR SHARE`;
   await context.prisma.$queryRaw`SELECT id FROM "Organization" WHERE id = ${input.organizationId} FOR SHARE`;
   if (input.locationId) {
@@ -4346,7 +4392,7 @@ async function requireTenantMembership(context, input) {
       query: "id status organization { id status }"
     });
     if (!location || location.organization?.id !== input.organizationId || location.status !== "active" || location.organization.status !== "active") {
-      throw new Error("An active location is required");
+      throw new DomainError("An active location is required");
     }
   }
   const memberships = await context.sudo().query.OrganizationMembership.findMany({
@@ -4366,20 +4412,20 @@ async function requireTenantMembership(context, input) {
   const activeMemberships = memberships.filter(
     (membership2) => membership2.organization?.status === "active" && (!membership2.location || membership2.location.status === "active") && (!input.locationId || !membership2.location || membership2.location.id === input.locationId)
   );
-  if (!activeMemberships.length) throw new Error("You do not have access to this pharmacy");
+  if (!activeMemberships.length) throw new DomainError("You do not have access to this pharmacy");
   const hasCurrentCredentialEvidence = (membership2) => {
     const credentialExpiresAt = membership2.credentialExpiresAt ? new Date(membership2.credentialExpiresAt).getTime() : Number.NaN;
     return ["owner", "pharmacist"].includes(membership2.membershipRole) && membership2.externalCredentialValidated === true && ["organization_recorded", "external_provider"].includes(membership2.credentialVerificationMethod || "") && Boolean(membership2.credentialType?.trim()) && Boolean(membership2.credentialJurisdiction?.trim()) && Boolean(membership2.credentialIdentifier?.trim()) && Boolean(membership2.credentialValidationReference?.trim()) && Boolean(membership2.credentialVerifiedBy?.id) && Number.isFinite(credentialExpiresAt) && credentialExpiresAt > Date.now();
   };
   const membership = input.pharmacist ? activeMemberships.find(hasCurrentCredentialEvidence) : activeMemberships.find((entry) => !entry.location) || activeMemberships[0];
   if (!membership && input.pharmacist) {
-    throw new Error("Current organization-recorded pharmacist credential review evidence is required; the software does not validate licensure");
+    throw new DomainError("Current organization-recorded pharmacist credential review evidence is required; the software does not validate licensure");
   }
   return { userId, membership: membership || activeMemberships[0] };
 }
 function requirePermission(context, permission2) {
   if (!permissions[permission2]({ session: context.session })) {
-    throw new Error(`Permission required: ${permission2}`);
+    throw new DomainError(`Permission required: ${permission2}`);
   }
 }
 
@@ -4452,7 +4498,7 @@ async function recordAuditAndOutbox(context, input) {
       const existingEvent = await sudo.query.OutboxEvent.findOne({ where: { id: existing.id }, query: "payload" });
       const existingComparable = { ...existingEvent?.payload, occurredAt: void 0 };
       if (evidencePayloadHash(comparable) !== evidencePayloadHash(existingComparable)) {
-        throw new Error("Evidence idempotency key was reused with a different snapshot");
+        throw new DomainError("Evidence idempotency key was reused with a different snapshot");
       }
     }
     return { created: false, auditEventId: null, outboxEventId: existing.id, status: existing.status };
@@ -4482,11 +4528,11 @@ async function assertCurrentTransactionActor(context) {
   await context.prisma.$queryRaw`SELECT id FROM "User" WHERE id = ${id} FOR SHARE`;
   await context.prisma.$queryRaw`SELECT id FROM "Role" WHERE id = (SELECT role FROM "User" WHERE id = ${id}) FOR SHARE`;
   const actor = await context.sudo().query.User.findOne({ where: { id }, query: CURRENT_ACTOR_SELECTION });
-  if (!actor) throw new Error("Current actor is unavailable");
+  if (!actor) throw new DomainError("Current actor is unavailable");
   const session = context.session;
-  if (session.tokenVersion !== void 0 && Number(session.tokenVersion) !== actor.tokenVersion) throw new Error("Current session was revoked");
+  if (session.tokenVersion !== void 0 && Number(session.tokenVersion) !== actor.tokenVersion) throw new DomainError("Current session was revoked");
   for (const permission2 of Object.keys(permissions)) {
-    if (session.data?.role?.[permission2] === true && actor.role?.[permission2] !== true) throw new Error("Current operator permission was revoked");
+    if (session.data?.role?.[permission2] === true && actor.role?.[permission2] !== true) throw new DomainError("Current operator permission was revoked");
   }
 }
 
@@ -4500,10 +4546,9 @@ async function acquireTransactionLocks(context, keys) {
     await sudo.prisma.$queryRaw`SELECT 1 AS "locked" FROM pg_advisory_xact_lock(hashtext(${`pharmacy:${key}`}))`;
   }
 }
-var DomainConflictError = class extends Error {
+var DomainConflictError = class extends DomainError {
   constructor() {
-    super("The record changed while this request was running. Retry the same idempotent request.");
-    this.code = "PHARMACY_CONFLICT";
+    super("The record changed while this request was running. Retry the same idempotent request.", "PHARMACY_CONFLICT");
   }
 };
 function isRetryableTransactionError(error) {
@@ -4533,8 +4578,8 @@ async function withDomainTransaction(context, lockKeys, operation, options = {})
 async function recordPharmacyCashPolicy(_root, args, context) {
   requirePermission(context, "canManagePayments");
   requirePermission(context, "canApproveConsequentialActions");
-  if (!Number.isInteger(args.taxRateBps) || args.taxRateBps < 0 || args.taxRateBps > 1e4) throw new Error("Tax rate must be integer basis points between 0 and 10000");
-  if (!args.policyReference?.trim()) throw new Error("Cash/tax policy source reference is required");
+  if (!Number.isInteger(args.taxRateBps) || args.taxRateBps < 0 || args.taxRateBps > 1e4) throw new DomainError("Tax rate must be integer basis points between 0 and 10000");
+  if (!args.policyReference?.trim()) throw new DomainError("Cash/tax policy source reference is required");
   return withDomainTransaction(context, [`cash-policy:${args.organizationId}`], async (transactionContext) => {
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId });
     const approval = await createHumanApproval(transactionContext, { organizationId: args.organizationId, actorId: userId, actionType: "cash_policy", reason: args.reason, attested: args.attested, evidence: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), scope: "operator_attested_cash_direct_pay" } });
@@ -4551,7 +4596,7 @@ async function readCommittedPosReceipt(sudo, orderId, reused) {
   const payment = order?.payments?.find((entry) => entry.tenderMethod === "cash");
   const lineSubtotal = (order?.lineItems || []).reduce((sum, line) => sum + line.lineTotalAmount, 0);
   if (!order || !payment || !["captured", "refunded"].includes(payment.status) || payment.amount !== order.totalAmount || payment.currencyCode !== order.currencyCode || payment.cashReceivedAmount == null || payment.changeDueAmount == null || payment.cashReceivedAmount < payment.amount || payment.changeDueAmount !== payment.cashReceivedAmount - payment.amount || lineSubtotal !== order.subtotalAmount || order.subtotalAmount + order.taxAmount !== order.totalAmount) {
-    throw new Error("Committed POS receipt evidence is incomplete or inconsistent; do not submit a new sale");
+    throw new DomainError("Committed POS receipt evidence is incomplete or inconsistent; do not submit a new sale");
   }
   return {
     success: true,
@@ -4574,7 +4619,7 @@ async function readCommittedPosReceipt(sudo, orderId, reused) {
 async function pharmacyPosCustomers(_root, args, context) {
   requirePermission(context, "canManageOrders");
   const location = await context.sudo().query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id organization { id }" });
-  if (!location) throw new Error("Location not found");
+  if (!location) throw new DomainError("Location not found");
   await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id });
   const carts = await context.sudo().query.Cart.findMany({ where: { organization: { id: { equals: location.organization.id } }, location: { id: { equals: location.id } }, status: { equals: "active" }, expiresAt: { gt: (/* @__PURE__ */ new Date()).toISOString() }, customer: { role: null }, items: { some: { quantity: { gt: 0 } } } }, orderBy: { createdAt: "desc" }, take: 100, query: "id customer { id name }" });
   const seen = /* @__PURE__ */ new Set();
@@ -4589,39 +4634,39 @@ async function submitPharmacyPosCashOrder(_root, args, context) {
   requirePermission(context, "canManagePayments");
   requirePermission(context, "canManageInventory");
   const method = args.fulfillmentMethod || "pos";
-  if (!["pos", "pickup"].includes(method)) throw new Error("Cash fulfillment method is invalid");
+  if (!["pos", "pickup"].includes(method)) throw new DomainError("Cash fulfillment method is invalid");
   const items = (args.items || []).filter((entry) => entry?.productId && Number.isInteger(entry.quantity) && entry.quantity > 0 && entry.quantity <= 99);
-  if (!items.length || items.length > 50 || items.length !== args.items.length) throw new Error("POS order must contain 1-50 valid line items");
-  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new Error("A request key is required");
+  if (!items.length || items.length > 50 || items.length !== args.items.length) throw new DomainError("POS order must contain 1-50 valid line items");
+  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError("A request key is required");
   const requestFingerprint = (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify({ locationId: args.locationId, ...args.customerCartId ? { customerCartId: args.customerCartId } : {}, ...method === "pickup" ? { fulfillmentMethod: method } : {}, items: [...items].sort((left, right) => left.productId.localeCompare(right.productId)), cashReceivedAmount: args.cashReceivedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`pos-cash:${args.idempotencyKey}`, ...args.customerCartId ? [`cart:${args.customerCartId}`] : [], ...items.map((entry) => `product:${entry.productId}`)], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.Order.findOne({ where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` }, query: "id orderNumber status totalAmount currencyCode checkoutEvidence payments { id status } organization { id } location { id }" });
     if (existing) {
-      if (!existing.organization?.id || !existing.location?.id) throw new Error("POS replay scope is incomplete; operator reconciliation is required");
+      if (!existing.organization?.id || !existing.location?.id) throw new DomainError("POS replay scope is incomplete; operator reconciliation is required");
       await requireTenantMembership(transactionContext, { organizationId: existing.organization.id, locationId: existing.location.id });
-      if (existing.checkoutEvidence?.requestFingerprint !== requestFingerprint) throw new Error("POS idempotency key was reused with different input");
+      if (existing.checkoutEvidence?.requestFingerprint !== requestFingerprint) throw new DomainError("POS idempotency key was reused with different input");
       return readCommittedPosReceipt(sudo, existing.id, true);
     }
     const location = await sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id name status pickupEnabled organization { id cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt }" });
-    if (!location || location.status !== "active") throw new Error("POS location not found");
+    if (!location || location.status !== "active") throw new DomainError("POS location not found");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: location.organization.id, locationId: location.id });
-    if (method === "pickup" && location.pickupEnabled !== true) throw new Error("Pickup is unavailable at this location");
+    if (method === "pickup" && location.pickupEnabled !== true) throw new DomainError("Pickup is unavailable at this location");
     let customerId;
     if (args.customerCartId) {
       const cart = await sudo.query.Cart.findOne({ where: { id: args.customerCartId }, query: "id status expiresAt organization { id } location { id } customer { id role { id } } items(take: 1) { id }" });
-      if (!cart || cart.organization?.id !== location.organization.id || cart.location?.id !== location.id || cart.status !== "active" || !cart.expiresAt || new Date(cart.expiresAt).getTime() <= Date.now() || !cart.customer?.id || cart.customer.role || !cart.items.length) throw new Error("Customer cart is not available in this tenant location");
+      if (!cart || cart.organization?.id !== location.organization.id || cart.location?.id !== location.id || cart.status !== "active" || !cart.expiresAt || new Date(cart.expiresAt).getTime() <= Date.now() || !cart.customer?.id || cart.customer.role || !cart.items.length) throw new DomainError("Customer cart is not available in this tenant location");
       customerId = cart.customer.id;
     }
-    if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new Error("Operator-attested cash and tax policy must be configured before POS sales");
+    if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new DomainError("Operator-attested cash and tax policy must be configured before POS sales");
     const productIds = [...new Set(items.map((entry) => entry.productId))];
-    if (productIds.length !== items.length) throw new Error("Combine duplicate POS product lines before submission");
+    if (productIds.length !== items.length) throw new DomainError("Combine duplicate POS product lines before submission");
     let products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }" });
-    if (products.length !== items.length || products.some((product) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== "published" || product.posAvailable !== true || product.prescriptionRequirement !== "none")) throw new Error("Every POS item must be an available OTC product in this tenant location");
+    if (products.length !== items.length || products.some((product) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== "published" || product.posAvailable !== true || product.prescriptionRequirement !== "none")) throw new DomainError("Every POS item must be an available OTC product in this tenant location");
     await acquireTransactionLocks(transactionContext, products.flatMap((product) => product.inventoryLots.map((lot) => `lot:${lot.id}`)));
     products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }" });
     const currencies = [...new Set(products.map((product) => product.currencyCode))];
-    if (currencies.length !== 1) throw new Error("POS order currency mismatch");
+    if (currencies.length !== 1) throw new DomainError("POS order currency mismatch");
     const pricedItems = items.map((entry) => ({ ...entry, product: products.find((product) => product.id === entry.productId) }));
     const subtotalAmount = pricedItems.reduce((sum, entry) => sum + entry.product.priceAmount * entry.quantity, 0);
     const taxableSubtotalAmount = calculateTaxableSubtotal(pricedItems.map((entry) => ({ unitPriceAmount: entry.product.priceAmount, quantity: entry.quantity, taxable: entry.product.taxable })));
@@ -4642,7 +4687,7 @@ async function submitPharmacyPosCashOrder(_root, args, context) {
         allocations.push({ lotId: lot.id, lotNumber: lot.lotNumber, quantity, expirationDate: lot.expirationDate });
         remaining -= quantity;
       }
-      if (remaining > 0) throw new Error(`Insufficient eligible inventory for ${product.title}`);
+      if (remaining > 0) throw new DomainError(`Insufficient eligible inventory for ${product.title}`);
       await sudo.query.OrderLineItem.createOne({ data: { title: product.title, sku: product.sku, ndc11Snapshot: product.drugReference?.ndc11 || void 0, quantity: entry.quantity, unitPriceAmount: product.priceAmount, lineTotalAmount: product.priceAmount * entry.quantity, imageUrl: product.imageUrl || void 0, prescriptionRequirementSnapshot: "none", metadata: { taxable: product.taxable !== false, taxableAmount: product.taxable === false ? 0 : product.priceAmount * entry.quantity }, lotAllocationSnapshot: allocations, order: { connect: { id: order.id } }, product: { connect: { id: product.id } } } });
       for (const allocation of allocations) {
         const lot = product.inventoryLots.find((candidate) => candidate.id === allocation.lotId);
@@ -4660,34 +4705,34 @@ async function submitPharmacyPosCashOrder(_root, args, context) {
 async function pharmacyPosCashReceipt(_root, args, context) {
   requirePermission(context, "canManageOrders");
   requirePermission(context, "canManagePayments");
-  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new Error("A request key is required");
+  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError("A request key is required");
   const sudo = context.sudo();
   const order = await sudo.query.Order.findOne({
     where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` },
     query: "id organization { id } location { id }"
   });
   if (!order) return null;
-  if (!order.organization?.id || !order.location?.id) throw new Error("POS receipt scope is incomplete; operator reconciliation is required");
+  if (!order.organization?.id || !order.location?.id) throw new DomainError("POS receipt scope is incomplete; operator reconciliation is required");
   await requireTenantMembership(context, { organizationId: order.organization.id, locationId: order.location.id });
   return readCommittedPosReceipt(sudo, order.id, true);
 }
 async function refundPharmacyCashPayment(_root, args, context) {
   requirePermission(context, "canManagePayments");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   const requestFingerprint = (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify({ paymentId: args.paymentId, cashReturnedAmount: args.cashReturnedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`payment:${args.paymentId}`, `cash-refund:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const payment = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: "id amount status tenderMethod data organization { id } location { id } order { id patient { id } } approval { id }" });
-    if (!payment || payment.tenderMethod !== "cash") throw new Error("Cash payment not found");
+    if (!payment || payment.tenderMethod !== "cash") throw new DomainError("Cash payment not found");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id });
     const eventKey = `payment.cash_refunded:${args.idempotencyKey}`;
     const existing = await sudo.query.AuditEvent.findOne({ where: { eventKey }, query: "id resourceId metadata" });
     if (existing) {
-      if (existing.resourceId !== payment.id || existing.metadata?.requestFingerprint !== requestFingerprint) throw new Error("Cash refund idempotency key was reused with different input");
+      if (existing.resourceId !== payment.id || existing.metadata?.requestFingerprint !== requestFingerprint) throw new DomainError("Cash refund idempotency key was reused with different input");
       return { success: true, reused: true, paymentId: payment.id, status: "refunded", amount: payment.amount };
     }
-    if (payment.status === "refunded") throw new Error("Cash payment was already refunded under a different request");
-    if (payment.status !== "captured" || args.cashReturnedAmount !== payment.amount) throw new Error("Bounded cash refunds must return the exact captured amount");
+    if (payment.status === "refunded") throw new DomainError("Cash payment was already refunded under a different request");
+    if (payment.status !== "captured" || args.cashReturnedAmount !== payment.amount) throw new DomainError("Bounded cash refunds must return the exact captured amount");
     const approval = await createHumanApproval(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, actionType: "cash_refund", reason: args.reason, attested: args.attested, evidence: { paymentId: payment.id, cashReturnedAmount: args.cashReturnedAmount, inventoryRestocked: false, custodyClaim: false } });
     await transactionContext.prisma.payment.update({ where: { id: payment.id }, data: { status: "refunded", data: { ...payment.data || {}, cashRefund: { returnedAmount: args.cashReturnedAmount, returnedAt: (/* @__PURE__ */ new Date()).toISOString(), actorId: userId, approvalId: approval.id, inventoryRestocked: false } }, approvalId: approval.id } });
     await recordAuditAndOutbox(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: "payment.cash_refunded", resourceType: "Payment", resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } });
@@ -4737,17 +4782,17 @@ async function loadAndAssertCartAccess(context, cartId, guestToken, options = {}
       order { id orderNumber idempotencyKey status totalAmount currencyCode fulfillment { status } }
     `
   });
-  if (!cart || cart.status !== "active" && !(options.allowSubmitted && cart.status === "submitted")) throw new Error("Active cart not found");
-  if (cart.expiresAt && new Date(cart.expiresAt).getTime() <= Date.now()) throw new Error("Cart has expired");
+  if (!cart || cart.status !== "active" && !(options.allowSubmitted && cart.status === "submitted")) throw new DomainError("Active cart not found");
+  if (cart.expiresAt && new Date(cart.expiresAt).getTime() <= Date.now()) throw new DomainError("Cart has expired");
   const userId = context.session?.itemId;
   if (userId) {
-    if (cart.customer?.id !== userId) throw new Error("You do not have access to this cart");
+    if (cart.customer?.id !== userId) throw new DomainError("You do not have access to this cart");
   } else {
     const validCartToken = Boolean(guestToken && !cart.customer && cart.guestTokenHash && verifyGuestCartToken(guestToken, cart.guestTokenHash));
     const validReplayToken = Boolean(
       options.allowSubmitted && cart.status === "submitted" && guestToken && cart.order?.idempotencyKey && verifyGuestOrderToken(cart.id, cart.order.idempotencyKey, guestToken)
     );
-    if (!validCartToken && !validReplayToken) throw new Error("You do not have access to this cart");
+    if (!validCartToken && !validReplayToken) throw new DomainError("You do not have access to this cart");
   }
   return cart;
 }
@@ -4758,28 +4803,28 @@ var PUBLIC_CATALOG_SEARCH_LIMIT = 100;
 var PUBLIC_CATALOG_CURSOR_LIMIT = 2048;
 function normalizePublicCatalogSearch(search) {
   if (search == null) return null;
-  if (typeof search !== "string") throw new Error("Catalog search is invalid");
+  if (typeof search !== "string") throw new DomainError("Catalog search is invalid");
   const normalized = search.trim();
   if (!normalized) return null;
   if (normalized.length > PUBLIC_CATALOG_SEARCH_LIMIT || /[\u0000-\u001f\u007f]/u.test(normalized)) {
-    throw new Error("Catalog search is invalid");
+    throw new DomainError("Catalog search is invalid");
   }
   return normalized;
 }
 function publicCatalogPageSize(first) {
   if (first == null) return 50;
-  if (!Number.isInteger(first) || first < 1) throw new Error("Catalog page size must be a positive integer");
+  if (!Number.isInteger(first) || first < 1) throw new DomainError("Catalog page size must be a positive integer");
   return Math.min(first, 100);
 }
 function decodePublicCatalogCursor(cursor, expectedScope) {
   if (cursor == null) return null;
-  if (typeof cursor !== "string" || cursor.length > PUBLIC_CATALOG_CURSOR_LIMIT) throw new Error("Catalog cursor is invalid");
+  if (typeof cursor !== "string" || cursor.length > PUBLIC_CATALOG_CURSOR_LIMIT) throw new DomainError("Catalog cursor is invalid");
   try {
     const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-    if (typeof value?.title !== "string" || value.title.length > 1e3 || typeof value?.id !== "string" || !value.id || value.id.length > 256 || value.scope !== expectedScope) throw new Error();
+    if (typeof value?.title !== "string" || value.title.length > 1e3 || typeof value?.id !== "string" || !value.id || value.id.length > 256 || value.scope !== expectedScope) throw new DomainError();
     return { title: value.title, id: value.id };
   } catch {
-    throw new Error("Catalog cursor is invalid");
+    throw new DomainError("Catalog cursor is invalid");
   }
 }
 function encodePublicCatalogCursor(record2, scope) {
@@ -4798,28 +4843,28 @@ function publicCatalogCursorWhere(where, cursor) {
 }
 function normalizePublicLocationSearch(search) {
   if (search == null) return null;
-  if (typeof search !== "string") throw new Error("Location search is invalid");
+  if (typeof search !== "string") throw new DomainError("Location search is invalid");
   const normalized = search.trim();
   if (!normalized) return null;
   if (normalized.length > PUBLIC_CATALOG_SEARCH_LIMIT || /[\u0000-\u001f\u007f]/u.test(normalized)) {
-    throw new Error("Location search is invalid");
+    throw new DomainError("Location search is invalid");
   }
   return normalized;
 }
 function publicLocationPageSize(first) {
   if (first == null) return 50;
-  if (!Number.isInteger(first) || first < 1) throw new Error("Location page size must be a positive integer");
+  if (!Number.isInteger(first) || first < 1) throw new DomainError("Location page size must be a positive integer");
   return Math.min(first, 100);
 }
 function decodePublicLocationCursor(cursor, expectedScope) {
   if (cursor == null) return null;
-  if (typeof cursor !== "string" || cursor.length > PUBLIC_CATALOG_CURSOR_LIMIT) throw new Error("Location cursor is invalid");
+  if (typeof cursor !== "string" || cursor.length > PUBLIC_CATALOG_CURSOR_LIMIT) throw new DomainError("Location cursor is invalid");
   try {
     const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-    if (typeof value?.name !== "string" || value.name.length > 1e3 || typeof value?.id !== "string" || !value.id || value.id.length > 256 || value.scope !== expectedScope) throw new Error();
+    if (typeof value?.name !== "string" || value.name.length > 1e3 || typeof value?.id !== "string" || !value.id || value.id.length > 256 || value.scope !== expectedScope) throw new DomainError();
     return { name: value.name, id: value.id };
   } catch {
-    throw new Error("Location cursor is invalid");
+    throw new DomainError("Location cursor is invalid");
   }
 }
 function encodePublicLocationCursor(record2, scope) {
@@ -4870,7 +4915,7 @@ async function loadPublicTenant(context, tenantKey) {
     query: PUBLIC_TENANT_QUERY
   });
   if (active.length === 1) return active[0];
-  throw new Error(active.length ? "Store not found" : "Store is not set up yet");
+  throw new DomainError(active.length ? "Store not found" : "Store is not set up yet");
 }
 async function publicPharmacyTenant(_root, args, context) {
   const search = normalizePublicLocationSearch(args.search);
@@ -4933,7 +4978,7 @@ async function publicPharmacyLocations(root, args, context) {
 var PUBLIC_CATALOG_CATEGORIES = ["otc_medication", "first_aid", "wellness", "personal_care", "medical_supply", "allergy", "cold_and_flu", "digestive_health", "vitamins", "health_devices"];
 function normalizePublicCatalogCategory(value) {
   if (value == null || value === "") return null;
-  if (!PUBLIC_CATALOG_CATEGORIES.includes(value)) throw new Error("Category is not available");
+  if (!PUBLIC_CATALOG_CATEGORIES.includes(value)) throw new DomainError("Category is not available");
   return value;
 }
 async function publicPharmacyCategories(_root, args, context) {
@@ -4960,7 +5005,7 @@ async function publicPharmacyCatalog(_root, args, context) {
     query: "id status pickupEnabled deliveryEnabled"
   }))[0];
   if (!location || location.status !== "active" || location.pickupEnabled !== true && location.deliveryEnabled !== true) {
-    throw new Error("This location is not available");
+    throw new DomainError("This location is not available");
   }
   const search = normalizePublicCatalogSearch(args.search);
   const pageSize = publicCatalogPageSize(args.first);
@@ -5032,7 +5077,7 @@ async function publicPharmacyCatalog(_root, args, context) {
   };
 }
 async function pharmacyOperationalSummary(_root, _args, context) {
-  if (!isSignedIn({ session: context.session })) throw new Error("Authentication required");
+  if (!isSignedIn({ session: context.session })) throw new DomainError("Authentication required");
   const sudo = context.sudo();
   const memberships = await sudo.query.OrganizationMembership.findMany({
     where: { user: { id: { equals: context.session.itemId } }, status: { equals: "active" } },
@@ -5071,12 +5116,12 @@ async function createPharmacyCart(_root, args, context) {
     query: "id status onlineOrderingEnabled pickupEnabled deliveryEnabled organization { id slug storefrontKey storefrontHost }"
   });
   const staffPos = permissions.canManageOrders({ session: context.session });
-  if (!location || location.status !== "active" || !location.onlineOrderingEnabled && !staffPos) throw new Error("Location is not accepting orders");
+  if (!location || location.status !== "active" || !location.onlineOrderingEnabled && !staffPos) throw new DomainError("Location is not accepting orders");
   if (staffPos) await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id });
   if (!staffPos) {
     const organization = await loadPublicTenant(context, args.tenantKey);
-    if (organization.id !== location.organization.id) throw new Error("This location is not available");
-    if (location.pickupEnabled !== true && location.deliveryEnabled !== true) throw new Error("Location is not accepting orders");
+    if (organization.id !== location.organization.id) throw new DomainError("This location is not available");
+    if (location.pickupEnabled !== true && location.deliveryEnabled !== true) throw new DomainError("Location is not accepting orders");
   }
   const guestToken = context.session?.itemId ? null : createGuestCartToken();
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1e3).toISOString();
@@ -5097,22 +5142,22 @@ async function pharmacyCart(_root, args, context) {
   return cartResponse(context, cart.id);
 }
 async function addPharmacyCartItem(_root, args, context) {
-  if (!Number.isInteger(args.quantity) || args.quantity < 1 || args.quantity > 99) throw new Error("Quantity must be between 1 and 99");
+  if (!Number.isInteger(args.quantity) || args.quantity < 1 || args.quantity > 99) throw new DomainError("Quantity must be between 1 and 99");
   return withDomainTransaction(context, [`cart:${args.cartId}`], async (transactionContext) => {
     const cart = await loadAndAssertCartAccess(transactionContext, args.cartId, args.guestToken);
     const product = await transactionContext.sudo().query.Product.findOne({
       where: { id: args.productId },
       query: "id status onlineAvailable prescriptionRequirement priceAmount location { id } inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }"
     });
-    if (!product || product.location?.id !== cart.location.id) throw new Error("Product is not available at this location");
+    if (!product || product.location?.id !== cart.location.id) throw new DomainError("Product is not available at this location");
     assertProductCanEnterPublicCart(product);
     const existing = cart.items.find((item) => item.product?.id === product.id);
     const requestedQuantity = (existing?.quantity || 0) + args.quantity;
     const availableQuantity = (product.inventoryLots || []).filter((lot) => lot.location?.id === cart.location.id).reduce((sum, lot) => sum + eligibleLotQuantity(lot), 0);
-    if (requestedQuantity > availableQuantity) throw new Error("Requested quantity is not available from eligible inventory");
+    if (requestedQuantity > availableQuantity) throw new DomainError("Requested quantity is not available from eligible inventory");
     if (existing) {
       const quantity = requestedQuantity;
-      if (quantity > 99) throw new Error("Quantity must be between 1 and 99");
+      if (quantity > 99) throw new DomainError("Quantity must be between 1 and 99");
       await transactionContext.sudo().query.CartItem.updateOne({ where: { id: existing.id }, data: { quantity } });
     } else {
       await transactionContext.sudo().query.CartItem.createOne({
@@ -5128,15 +5173,15 @@ async function addPharmacyCartItem(_root, args, context) {
 }
 async function updatePharmacyCartItem(_root, args, context) {
   const item = await context.sudo().query.CartItem.findOne({ where: { id: args.cartItemId }, query: "id cart { id }" });
-  if (!item?.cart) throw new Error("Cart item not found");
-  if (!Number.isInteger(args.quantity) || args.quantity < 0 || args.quantity > 99) throw new Error("Quantity must be between 0 and 99");
+  if (!item?.cart) throw new DomainError("Cart item not found");
+  if (!Number.isInteger(args.quantity) || args.quantity < 0 || args.quantity > 99) throw new DomainError("Quantity must be between 0 and 99");
   return withDomainTransaction(context, [`cart:${item.cart.id}`], async (transactionContext) => {
     const cart = await loadAndAssertCartAccess(transactionContext, item.cart.id, args.guestToken);
     const current = await transactionContext.sudo().query.CartItem.findOne({ where: { id: args.cartItemId }, query: "id cart { id } product { inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } } }" });
-    if (!current || current.cart?.id !== cart.id) throw new Error("Cart item not found");
+    if (!current || current.cart?.id !== cart.id) throw new DomainError("Cart item not found");
     if (args.quantity > 0) {
       const availableQuantity = (current.product?.inventoryLots || []).filter((lot) => lot.location?.id === cart.location.id).reduce((sum, lot) => sum + eligibleLotQuantity(lot), 0);
-      if (args.quantity > availableQuantity) throw new Error("Requested quantity is not available from eligible inventory");
+      if (args.quantity > availableQuantity) throw new DomainError("Requested quantity is not available from eligible inventory");
     }
     if (args.quantity === 0) await transactionContext.sudo().query.CartItem.deleteOne({ where: { id: current.id } });
     else await transactionContext.sudo().query.CartItem.updateOne({ where: { id: current.id }, data: { quantity: args.quantity } });
@@ -5337,23 +5382,23 @@ var FILL_QUERY = `id reservationKey requestFingerprint openKey status kind versi
 var connect = (id) => ({ connect: { id } });
 function fillStore(context) {
   const query = context.sudo().query;
-  if (!query.PrescriptionFill || !query.PrescriptionFillEvent) throw new Error("Per-fill lineage requires the isolated schema/migration gate; legacy records are not converted automatically");
+  if (!query.PrescriptionFill || !query.PrescriptionFillEvent) throw new DomainError("Per-fill lineage requires the isolated schema/migration gate; legacy records are not converted automatically");
   return query;
 }
 async function currentFillPermission(context, permission2) {
   requirePermission(context, permission2);
   const actor = await context.sudo().query.User.findOne({ where: { id: context.session.itemId }, query: `id role { ${permission2} }` });
-  if (!actor?.role?.[permission2]) throw new Error("Current operator permission was revoked");
+  if (!actor?.role?.[permission2]) throw new DomainError("Current operator permission was revoked");
 }
 async function loadFillPrescription(context, prescriptionId) {
   const p = await context.sudo().query.Prescription.findOne({ where: { id: prescriptionId }, query: FILL_PRESCRIPTION_QUERY });
-  if (!p?.organization?.id || !p.location?.id || !p.patient?.id || p.patient.status !== "active" || !p.patient.organizations?.some((o) => o.id === p.organization.id) || p.prescriber?.organization?.id !== p.organization.id) throw new Error("Current prescription/patient/prescriber scope requires reconciliation");
+  if (!p?.organization?.id || !p.location?.id || !p.patient?.id || p.patient.status !== "active" || !p.patient.organizations?.some((o) => o.id === p.organization.id) || p.prescriber?.organization?.id !== p.organization.id) throw new DomainError("Current prescription/patient/prescriber scope requires reconciliation");
   return p;
 }
 async function assertItemFillLedger(context, p, item) {
   if (item.fillLineage !== FILL_LINEAGE) return;
   const store = context.prisma.prescriptionFill;
-  if (!store) throw new Error("Per-fill schema gate is required");
+  if (!store) throw new DomainError("Per-fill schema gate is required");
   const where = { prescriptionId: p.id, prescriptionItemId: item.id, organizationId: p.organization.id, locationId: p.location.id, patientId: p.patient.id };
   const [totals, consumed, reserved] = await Promise.all([
     store.aggregate({ where, _sum: { quantityDispensed: true } }),
@@ -5362,18 +5407,18 @@ async function assertItemFillLedger(context, p, item) {
   ]);
   for (const value of [totals, consumed, reserved]) if (value instanceof Error) throw value;
   if ((totals._sum.quantityDispensed ?? 0) !== item.quantityDispensed || consumed !== item.refillsAuthorized - item.refillsRemaining || reserved !== item.refillsReserved) {
-    throw new Error("Item counters disagree with immutable fill lineage; reconciliation is required");
+    throw new DomainError("Item counters disagree with immutable fill lineage; reconciliation is required");
   }
 }
 function assertFillBinding(fill, p, item, clinical = true) {
   if (fill.prescription?.id !== p.id || fill.prescriptionItem?.id !== item?.id || fill.organization?.id !== p.organization.id || fill.location?.id !== p.location.id || fill.patient?.id !== p.patient.id || fill.itemVersion !== prescriptionItemVersion(p, item)) {
-    throw new Error("Prescription item or patient changed; reconcile without rewriting history");
+    throw new DomainError("Prescription item or patient changed; reconcile without rewriting history");
   }
   if (clinical) {
-    if (fill.priceSnapshot?.taxRateBps !== p.organization.cashTaxRateBps || fill.priceSnapshot?.taxPolicyReference !== p.organization.cashTaxPolicyReference) throw new Error("Cash tax policy changed after reservation; explicit reconciliation is required");
+    if (fill.priceSnapshot?.taxRateBps !== p.organization.cashTaxRateBps || fill.priceSnapshot?.taxPolicyReference !== p.organization.cashTaxPolicyReference) throw new DomainError("Cash tax policy changed after reservation; explicit reconciliation is required");
     assertPrescriptionClinicallyEligible(p);
     assertPrescriptionItemProductIdentity(item);
-    if (fill.authorityVersion !== prescriptionAuthorityVersion(p)) throw new Error("Prescriber/source/patient authority changed after reservation; fresh evidence is required");
+    if (fill.authorityVersion !== prescriptionAuthorityVersion(p)) throw new DomainError("Prescriber/source/patient authority changed after reservation; fresh evidence is required");
   }
 }
 async function appendFillEvent(context, fill, input) {
@@ -5434,35 +5479,35 @@ async function appendFillEvent(context, fill, input) {
 async function casFill(context, fill, data) {
   const result = await context.prisma.prescriptionFill.updateMany({ where: { id: fill.id, version: fill.version, status: fill.status }, data });
   if (result instanceof Error) throw result;
-  if (result.count !== 1) throw new Error("Fill version changed; refresh the workbench");
+  if (result.count !== 1) throw new DomainError("Fill version changed; refresh the workbench");
   return { ...fill, ...data };
 }
 async function reserveFillInTransaction(context, p, item, input) {
   const q = fillStore(context);
-  if (p.items.length !== 1) throw new Error("Per-fill workflow requires one prescription item; multi-item authority is not inferred");
-  if (item.fillLineage !== FILL_LINEAGE) throw new Error("Legacy item has no per-fill entitlement provenance; explicit reconciliation is required");
+  if (p.items.length !== 1) throw new DomainError("Per-fill workflow requires one prescription item; multi-item authority is not inferred");
+  if (item.fillLineage !== FILL_LINEAGE) throw new DomainError("Legacy item has no per-fill entitlement provenance; explicit reconciliation is required");
   assertPrescriptionClinicallyEligible(p);
   assertPrescriptionItemProductIdentity(item);
   await assertItemFillLedger(context, p, item);
-  if (!input.expectedItemVersion || input.expectedItemVersion !== prescriptionItemVersion(p, item)) throw new Error("Prescription item version changed; refresh before reserving");
+  if (!input.expectedItemVersion || input.expectedItemVersion !== prescriptionItemVersion(p, item)) throw new DomainError("Prescription item version changed; refresh before reserving");
   const existing = await q.PrescriptionFill.findOne({ where: { reservationKey: input.key }, query: FILL_QUERY });
   if (existing) {
     assertFillBinding(existing, p, item);
-    if (existing.requestFingerprint !== input.fingerprint) throw new Error("Fill reservation key is already bound to another request");
+    if (existing.requestFingerprint !== input.fingerprint) throw new DomainError("Fill reservation key is already bound to another request");
     return { fill: existing, reused: true };
   }
-  if (await q.PrescriptionFill.findOne({ where: { openKey: `item:${item.id}` }, query: "id" })) throw new Error("This item already has an open fill; recover or release that fill");
-  if (!p.organization.prescriptionFillPolicy?.approvalId) throw new Error("Fill policy lacks recorded operator approval");
-  if (p.organization.cashSalesEnabled !== true || !p.organization.cashTaxPolicyReference?.trim() || !p.organization.cashPolicyReviewedAt || !Number.isInteger(p.organization.cashTaxRateBps)) throw new Error("Reviewed cash/tax policy is required before fill reservation");
-  if (item.product.currencyCode !== "USD" || !Number.isSafeInteger(item.product.priceAmount) || item.product.priceAmount < 0) throw new Error("Fill price/currency requires bounded USD cash policy reconciliation");
+  if (await q.PrescriptionFill.findOne({ where: { openKey: `item:${item.id}` }, query: "id" })) throw new DomainError("This item already has an open fill; recover or release that fill");
+  if (!p.organization.prescriptionFillPolicy?.approvalId) throw new DomainError("Fill policy lacks recorded operator approval");
+  if (p.organization.cashSalesEnabled !== true || !p.organization.cashTaxPolicyReference?.trim() || !p.organization.cashPolicyReviewedAt || !Number.isInteger(p.organization.cashTaxRateBps)) throw new DomainError("Reviewed cash/tax policy is required before fill reservation");
+  if (item.product.currencyCode !== "USD" || !Number.isSafeInteger(item.product.priceAmount) || item.product.priceAmount < 0) throw new DomainError("Fill price/currency requires bounded USD cash policy reconciliation");
   const cashPolicy = { taxRateBps: p.organization.cashTaxRateBps, policyReference: p.organization.cashTaxPolicyReference };
   const policySnapshot = { ...parseFillPolicy(p.organization.prescriptionFillPolicy), approvalId: p.organization.prescriptionFillPolicy.approvalId };
-  if (!Number.isSafeInteger(item.quantityPrescribed) || item.quantityPrescribed < 1) throw new Error("Prescribed quantity requires reconciliation");
+  if (!Number.isSafeInteger(item.quantityPrescribed) || item.quantityPrescribed < 1) throw new DomainError("Prescribed quantity requires reconciliation");
   let fillNumber = 1;
   if (input.kind === "original") {
-    if (!["approved", "fill_closed"].includes(p.status) || item.quantityDispensed !== 0 || item.refillsRemaining !== item.refillsAuthorized || item.refillsReserved !== 0) throw new Error("Original fill requires approved unused authority");
+    if (!["approved", "fill_closed"].includes(p.status) || item.quantityDispensed !== 0 || item.refillsRemaining !== item.refillsAuthorized || item.refillsReserved !== 0) throw new DomainError("Original fill requires approved unused authority");
   } else {
-    if (!["dispensed", "fill_closed"].includes(p.status) || item.quantityDispensed < 1 || item.refillsRemaining - item.refillsReserved < 1) throw new Error("No unreserved refill entitlement is available");
+    if (!["dispensed", "fill_closed"].includes(p.status) || item.quantityDispensed < 1 || item.refillsRemaining - item.refillsReserved < 1) throw new DomainError("No unreserved refill entitlement is available");
     fillNumber = 2 + item.refillsAuthorized - item.refillsRemaining;
     await context.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved + 1 } });
   }
@@ -5495,19 +5540,19 @@ async function reserveFillInTransaction(context, p, item, input) {
 }
 async function reservePharmacyPrescriptionFill(_root, args, context) {
   await currentFillPermission(context, "canReviewPrescriptions");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `prescription-item:${args.prescriptionItemId}`, `fill-command:${args.idempotencyKey}`], async (tx) => {
     const p = await loadFillPrescription(tx, args.prescriptionId);
     const { userId } = await requireTenantMembership(tx, { organizationId: p.organization.id, locationId: p.location.id, pharmacist: true });
     await currentFillPermission(tx, "canReviewPrescriptions");
     const item = p.items.find((i) => i.id === args.prescriptionItemId);
-    if (!item) throw new Error("Prescription item not found");
+    if (!item) throw new DomainError("Prescription item not found");
     const fingerprint2 = fillHash({ ...args, actorId: userId });
     const existing = await fillStore(tx).PrescriptionFill.findOne({ where: { reservationKey: args.idempotencyKey }, query: FILL_QUERY });
     if (existing) {
       assertFillBinding(existing, p, item);
       await assertItemFillLedger(tx, p, item);
-      if (existing.requestFingerprint !== fingerprint2) throw new Error("Fill reservation key is already bound to another request");
+      if (existing.requestFingerprint !== fingerprint2) throw new DomainError("Fill reservation key is already bound to another request");
       return { success: true, reused: true, fillId: existing.id, status: existing.status, version: existing.version };
     }
     const approval = await createHumanApproval(tx, {
@@ -5526,21 +5571,21 @@ async function reservePharmacyPrescriptionFill(_root, args, context) {
 }
 async function releasePharmacyPrescriptionFill(_root, args, context) {
   await currentFillPermission(context, "canReviewPrescriptions");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `fill-command:${args.idempotencyKey}`], async (tx) => {
     const p = await loadFillPrescription(tx, args.prescriptionId);
     const { userId } = await requireTenantMembership(tx, { organizationId: p.organization.id, locationId: p.location.id, pharmacist: true });
     await currentFillPermission(tx, "canReviewPrescriptions");
     const q = fillStore(tx), fill = await q.PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY });
     const item = p.items.find((i) => i.id === fill?.prescriptionItem?.id);
-    if (!fill || !item) throw new Error("Fill not found");
+    if (!fill || !item) throw new DomainError("Fill not found");
     assertFillBinding(fill, p, item, false);
     await assertItemFillLedger(tx, p, item);
     const fingerprint2 = fillHash({ ...args, actorId: userId });
     const eventKey = `fill.release:${args.idempotencyKey}`;
     const prior = await q.PrescriptionFillEvent.findOne({ where: { eventKey }, query: "id commandFingerprint result" });
     if (prior) {
-      if (prior.commandFingerprint !== fingerprint2) throw new Error("Fill release key is already bound to another request");
+      if (prior.commandFingerprint !== fingerprint2) throw new DomainError("Fill release key is already bound to another request");
       return { ...prior.result, reused: true };
     }
     const plan = releaseFillPlan(fill, args.expectedVersion, args.cause);
@@ -5554,7 +5599,7 @@ async function releasePharmacyPrescriptionFill(_root, args, context) {
       evidence: { stage: "fill_release", fillId: fill.id, cause: args.cause, entitlementRestored: false, inventoryRestocked: false }
     });
     if (plan.releaseRefill) {
-      if (item.refillsReserved < 1) throw new Error("Refill reservation counter requires reconciliation");
+      if (item.refillsReserved < 1) throw new DomainError("Refill reservation counter requires reconciliation");
       await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1 } });
     }
     const { releaseRefill, ...data } = plan;
@@ -5578,7 +5623,7 @@ async function releasePharmacyPrescriptionFill(_root, args, context) {
 async function consumeFillInTransaction(tx, fill, item, expectedVersion, quantity, input) {
   const plan = dispenseFillPlan(fill, expectedVersion, quantity);
   if (plan.debitRefill) {
-    if (item.refillsReserved < 1 || item.refillsRemaining < 1) throw new Error("Refill reservation evidence requires reconciliation");
+    if (item.refillsReserved < 1 || item.refillsRemaining < 1) throw new DomainError("Refill reservation evidence requires reconciliation");
     await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1, refillsRemaining: item.refillsRemaining - 1 } });
   }
   const { debitRefill, ...data } = plan;
@@ -5600,14 +5645,14 @@ async function pharmacyFillPolicy(_root, args, context) {
   await currentFillPermission(context, "canApproveConsequentialActions");
   await requireTenantMembership(context, { organizationId: args.organizationId, organizationWide: true, pharmacist: true });
   const organization = await context.sudo().query.Organization.findOne({ where: { id: args.organizationId }, query: "id prescriptionFillPolicy" });
-  if (!organization) throw new Error("Organization not found");
+  if (!organization) throw new DomainError("Organization not found");
   return { organizationId: organization.id, configured: Boolean(organization.prescriptionFillPolicy?.approvalId), version: organization.prescriptionFillPolicy?.version || null };
 }
 async function recordPharmacyFillPolicy(_root, args, context) {
   await currentFillPermission(context, "canManageOrganizations");
   await currentFillPermission(context, "canApproveConsequentialActions");
   const policy = parseFillPolicy(args.policy);
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   return withDomainTransaction(context, [`fill-policy:${args.organizationId}`, `fill-policy-command:${args.idempotencyKey}`], async (tx) => {
     const { userId } = await requireTenantMembership(tx, { organizationId: args.organizationId, organizationWide: true, pharmacist: true });
     await currentFillPermission(tx, "canManageOrganizations");
@@ -5615,11 +5660,11 @@ async function recordPharmacyFillPolicy(_root, args, context) {
     const fingerprint2 = fillHash({ ...args, policy, actorId: userId }), eventKey = `fill.policy:${args.idempotencyKey}`;
     const prior = await tx.sudo().query.AuditEvent.findOne({ where: { eventKey }, query: "id metadata" });
     if (prior) {
-      if (prior.metadata?.commandFingerprint !== fingerprint2) throw new Error("Policy key is already bound to another request");
+      if (prior.metadata?.commandFingerprint !== fingerprint2) throw new DomainError("Policy key is already bound to another request");
       return { success: true, reused: true, status: "configured" };
     }
     const organization = await tx.sudo().query.Organization.findOne({ where: { id: args.organizationId }, query: "id prescriptionFillPolicy" });
-    if (organization.prescriptionFillPolicy?.version === policy.version && fillHash(parseFillPolicy(organization.prescriptionFillPolicy)) !== fillHash(policy)) throw new Error("Changed policy requires a new version");
+    if (organization.prescriptionFillPolicy?.version === policy.version && fillHash(parseFillPolicy(organization.prescriptionFillPolicy)) !== fillHash(policy)) throw new DomainError("Changed policy requires a new version");
     const approval = await createHumanApproval(tx, {
       organizationId: args.organizationId,
       actorId: userId,
@@ -5646,16 +5691,16 @@ async function recordPharmacyFillPolicy(_root, args, context) {
 async function recordPharmacyDrugReferenceReview(_root, args, context) {
   requirePermission(context, "canManageCatalog");
   requirePermission(context, "canApproveConsequentialActions");
-  if (!["active", "inactive"].includes(args.marketingStatus)) throw new Error("Marketing status is invalid");
-  if (!["none", "controlled_or_unsupported"].includes(args.controlledSchedule)) throw new Error("Controlled schedule review is invalid");
-  if (![args.sourceName, args.sourceVersion, args.sourceReference].every((value) => value?.trim())) throw new Error("Drug source name, version, and reference are required");
+  if (!["active", "inactive"].includes(args.marketingStatus)) throw new DomainError("Marketing status is invalid");
+  if (!["none", "controlled_or_unsupported"].includes(args.controlledSchedule)) throw new DomainError("Controlled schedule review is invalid");
+  if (![args.sourceName, args.sourceVersion, args.sourceReference].every((value) => value?.trim())) throw new DomainError("Drug source name, version, and reference are required");
   return withDomainTransaction(context, [`drug-reference:${args.drugReferenceId}`, `drug-reference-review:${args.organizationId}:${args.drugReferenceId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const [drugReference, existing] = await Promise.all([
       sudo.query.DrugReference.findOne({ where: { id: args.drugReferenceId }, query: "id ndc11" }),
       sudo.query.DrugReferenceReview.findMany({ where: { reviewKey: { equals: `${args.organizationId}:${args.drugReferenceId}` } }, take: 1, query: "id status marketingStatusSnapshot controlledScheduleSnapshot sourceName sourceVersion sourceReference approval { id }" }).then((records) => records[0])
     ]);
-    if (!drugReference) throw new Error("Drug reference not found");
+    if (!drugReference) throw new DomainError("Drug reference not found");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId, pharmacist: true });
     if (existing && existing.status === "active" && existing.marketingStatusSnapshot === args.marketingStatus && existing.controlledScheduleSnapshot === args.controlledSchedule && existing.sourceName === args.sourceName.trim() && existing.sourceVersion === args.sourceVersion.trim() && existing.sourceReference === args.sourceReference.trim()) {
       return { success: true, reused: true, reviewId: existing.id, status: existing.status, approvalId: existing.approval?.id };
@@ -5680,8 +5725,8 @@ function clinicalSafetyReviewRequestFingerprint(input) {
 }
 async function recordPrescriptionClinicalSafetyReview(_root, args, context) {
   requirePermission(context, "canReviewPrescriptions");
-  if (!["clear", "override", "rejected"].includes(args.outcome)) throw new Error("Clinical safety review outcome is invalid");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  if (!["clear", "override", "rejected"].includes(args.outcome)) throw new DomainError("Clinical safety review outcome is invalid");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   const candidate = {
     fillNumber: 1,
     ...args,
@@ -5692,9 +5737,9 @@ async function recordPrescriptionClinicalSafetyReview(_root, args, context) {
     const sudo = transactionContext.sudo();
     const prescription = await sudo.query.Prescription.findOne({
       where: { id: args.prescriptionId },
-      query: 'id status organization { id } location { id } patient { id identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } allergies(where: { status: { equals: "active" } }) { id updatedAt } medications(where: { status: { equals: "current" } }) { id updatedAt } } items { id fillLineage activeFillNumber refillsAuthorized refillsRemaining drugReference { id } }'
+      query: 'id status organization { id } location { id } patient { id identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } allergies(where: { status: { in: ["active", "none_known"] } }) { id updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id updatedAt } } items { id fillLineage activeFillNumber refillsAuthorized refillsRemaining drugReference { id } }'
     });
-    if (!prescription || !["pending_review", "needs_information", "approved"].includes(prescription.status)) throw new Error("Prescription is not available for clinical safety review");
+    if (!prescription || !["pending_review", "needs_information", "approved"].includes(prescription.status)) throw new DomainError("Prescription is not available for clinical safety review");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: prescription.organization.id, locationId: prescription.location.id, pharmacist: true });
     let fill = null;
     if (prescription.items.some((item) => item.fillLineage === FILL_LINEAGE)) {
@@ -5703,10 +5748,10 @@ async function recordPrescriptionClinicalSafetyReview(_root, args, context) {
       if (args.fillId) {
         fill = await fillStore(transactionContext).PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY });
         const item = current.items.find((entry) => entry.id === fill?.prescriptionItem?.id);
-        if (!fill || !item || fill.version !== args.expectedFillVersion || !["approved", "partially_dispensed"].includes(fill.status) || new Date(fill.expiresAt).getTime() <= Date.now()) throw new Error("A current fill identity/version is required for safety review");
+        if (!fill || !item || fill.version !== args.expectedFillVersion || !["approved", "partially_dispensed"].includes(fill.status) || new Date(fill.expiresAt).getTime() <= Date.now()) throw new DomainError("A current fill identity/version is required for safety review");
         assertFillBinding(fill, current, item);
         await assertItemFillLedger(transactionContext, current, item);
-      } else if (!["pending_review", "needs_information"].includes(prescription.status)) throw new Error("Exact fill reservation is required; an intake review does not clear a new reservation");
+      } else if (!["pending_review", "needs_information"].includes(prescription.status)) throw new DomainError("Exact fill reservation is required; an intake review does not clear a new reservation");
     }
     const requestFingerprint = clinicalSafetyReviewRequestFingerprint({
       organizationId: prescription.organization.id,
@@ -5728,15 +5773,15 @@ async function recordPrescriptionClinicalSafetyReview(_root, args, context) {
       reason: args.reason,
       attested: args.attested
     });
-    if (prescription.patient.identityVerificationStatus !== "confirmed" || !prescription.patient.identityReference?.trim() || !prescription.patient.identityVerifiedAt || !prescription.patient.identityVerifiedBy?.id) throw new Error("Current operator-recorded patient identity evidence is required before clinical review");
-    if (!prescription.patient.allergies?.length || !prescription.patient.medications?.length) throw new Error("Explicit allergy and medication history evidence is required; record no-known/no-current entries when applicable");
+    if (prescription.patient.identityVerificationStatus !== "confirmed" || !prescription.patient.identityReference?.trim() || !prescription.patient.identityVerifiedAt || !prescription.patient.identityVerifiedBy?.id) throw new DomainError("Current operator-recorded patient identity evidence is required before clinical review");
+    if (!prescription.patient.allergies?.length || !prescription.patient.medications?.length) throw new DomainError("Explicit allergy and medication history evidence is required; record no-known/no-current entries when applicable");
     const fillNumbers = prescription.items.map((item) => currentFillNumber(item));
     const fillNumber = Math.max(...fillNumbers);
-    if (!fillNumbers.length || fillNumbers.some((value) => value !== fillNumber)) throw new Error("Prescription items are not aligned to one fill review");
+    if (!fillNumbers.length || fillNumbers.some((value) => value !== fillNumber)) throw new DomainError("Prescription items are not aligned to one fill review");
     if (args.outcome !== "rejected") assertCurrentHumanSafetyReview({ ...candidate, fillNumber }, fillNumber);
     const reviewKey = `${prescription.id}:${fillNumber}:${args.idempotencyKey.trim()}`;
     const existing = (await sudo.query.ClinicalSafetyReview.findMany({ where: { reviewKey: { equals: reviewKey } }, take: 1, query: "id outcome evidenceSnapshot approval { id }" }))[0];
-    if (existing && existing.evidenceSnapshot?.requestFingerprint !== requestFingerprint) throw new Error("Clinical safety review idempotency key was reused with different input");
+    if (existing && existing.evidenceSnapshot?.requestFingerprint !== requestFingerprint) throw new DomainError("Clinical safety review idempotency key was reused with different input");
     if (existing) return { success: true, reused: true, reviewId: existing.id, prescriptionId: prescription.id, outcome: existing.outcome, approvalId: existing.approval?.id };
     const drugReferenceIds = [...new Set(prescription.items.map((item) => item.drugReference?.id).filter(Boolean))];
     const drugReviews = await sudo.query.DrugReferenceReview.findMany({
@@ -5744,7 +5789,7 @@ async function recordPrescriptionClinicalSafetyReview(_root, args, context) {
       take: 100,
       query: "id drugReference { id } status marketingStatusSnapshot controlledScheduleSnapshot sourceName sourceVersion sourceReference reviewedAt"
     });
-    if (!drugReferenceIds.length || drugReviews.length !== drugReferenceIds.length) throw new Error("Every prescription item requires drug reference review evidence");
+    if (!drugReferenceIds.length || drugReviews.length !== drugReferenceIds.length) throw new DomainError("Every prescription item requires drug reference review evidence");
     for (const review2 of drugReviews) assertDrugReferenceEligibleForBoundedDispensing({ sourceVerified: review2.status === "active", marketingStatus: review2.marketingStatusSnapshot, controlledSchedule: review2.controlledScheduleSnapshot, sourceName: review2.sourceName, sourceVersion: review2.sourceVersion, sourceReference: review2.sourceReference, reviewedAt: review2.reviewedAt });
     const approval = await createHumanApproval(transactionContext, { organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, actionType: "clinical_safety_review", reason: args.reason, attested: args.attested, evidence: { prescriptionId: prescription.id, fillId: fill?.id || null, itemVersion: fill?.itemVersion || null, authorityVersion: fill?.authorityVersion || null, fillNumber, outcome: args.outcome, reviewReference: args.reviewReference.trim(), softwareClinicalDecisionPerformed: false } });
     const review = await sudo.query.ClinicalSafetyReview.createOne({
@@ -5779,14 +5824,14 @@ async function recordPrescriptionClinicalSafetyReview(_root, args, context) {
 }
 async function holdPrescriptionForClinicalReReview(_root, args, context) {
   requirePermission(context, "canReviewPrescriptions");
-  if (!args.reason?.trim()) throw new Error("A reason for the clinical safety hold is required");
+  if (!args.reason?.trim()) throw new DomainError("A reason for the clinical safety hold is required");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const prescription = await sudo.query.Prescription.findOne({
       where: { id: args.prescriptionId },
-      query: 'id status approval { id actionType reason evidence } organization { id } location { id } patient { id identityVerifiedAt allergies(where: { status: { equals: "active" } }) { id updatedAt } medications(where: { status: { equals: "current" } }) { id updatedAt } } items { id fillLineage activeFillNumber refillsAuthorized refillsRemaining drugReference { id } } safetyReviews(orderBy: { reviewedAt: desc }, take: 1) { id fillNumber outcome reviewedAt }'
+      query: 'id status approval { id actionType reason evidence } organization { id } location { id } patient { id identityVerifiedAt allergies(where: { status: { in: ["active", "none_known"] } }) { id updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id updatedAt } } items { id fillLineage activeFillNumber refillsAuthorized refillsRemaining drugReference { id } } safetyReviews(orderBy: { reviewedAt: desc }, take: 1) { id fillNumber outcome reviewedAt }'
     });
-    if (!prescription) throw new Error("Prescription not found");
+    if (!prescription) throw new DomainError("Prescription not found");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: prescription.organization.id, locationId: prescription.location.id, pharmacist: true });
     const fillNumbers = prescription.items.map((item) => currentFillNumber(item));
     const fillNumber = fillNumbers.length ? Math.max(...fillNumbers) : 0;
@@ -5801,11 +5846,11 @@ async function holdPrescriptionForClinicalReReview(_root, args, context) {
     const latestEvidenceChange = evidenceChanges.sort((a, b) => new Date(a).getTime() - new Date(b).getTime()).at(-1);
     const requestFingerprint = (0, import_node_crypto7.createHash)("sha256").update(JSON.stringify({ prescriptionId: prescription.id, organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, reason: args.reason.trim(), attested: args.attested, safetyReviewId: latestReview?.id || null, latestEvidenceChange: latestEvidenceChange || null })).digest("hex");
     if (prescription.status === "approved" && prescription.approval?.actionType === "clinical_safety_hold") {
-      if (prescription.approval.evidence?.requestFingerprint !== requestFingerprint) throw new Error("Clinical safety hold replay does not match the recorded action");
+      if (prescription.approval.evidence?.requestFingerprint !== requestFingerprint) throw new DomainError("Clinical safety hold replay does not match the recorded action");
       return { success: true, reused: true, prescriptionId: prescription.id, status: "approved", approvalId: prescription.approval.id };
     }
     if (!["ready_to_dispense", "partially_dispensed"].includes(prescription.status) || !latestReview || !isHumanSafetyReviewStale(latestReview, fillNumber, latestEvidenceChange)) {
-      throw new Error("A clinical safety re-review hold is available only when new patient or drug-reference evidence invalidates the current fill review");
+      throw new DomainError("A clinical safety re-review hold is available only when new patient or drug-reference evidence invalidates the current fill review");
     }
     const approval = await createHumanApproval(transactionContext, {
       organizationId: prescription.organization.id,
@@ -5836,10 +5881,10 @@ async function holdPrescriptionForClinicalReReview(_root, args, context) {
 function validateCredentialEvidence(args) {
   const expiresAt = new Date(args.expiresAt);
   if (![args.credentialType, args.jurisdiction, args.identifier, args.verificationReference].every((value) => value?.trim())) {
-    throw new Error("Credential type, jurisdiction, identifier, expiration, and source reference are required");
+    throw new DomainError("Credential type, jurisdiction, identifier, expiration, and source reference are required");
   }
-  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) throw new Error("Credential review expiration must be in the future");
-  if (expiresAt.getTime() > Date.now() + 5 * 366 * 864e5) throw new Error("Credential review expiration is outside the supported review window");
+  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) throw new DomainError("Credential review expiration must be in the future");
+  if (expiresAt.getTime() > Date.now() + 5 * 366 * 864e5) throw new DomainError("Credential review expiration is outside the supported review window");
   return expiresAt;
 }
 async function recordPharmacyStaffCredentialReview(_root, args, context) {
@@ -5852,7 +5897,7 @@ async function recordPharmacyStaffCredentialReview(_root, args, context) {
       where: { id: args.membershipId },
       query: "id membershipRole status organization { id } location { id } user { id } externalCredentialValidated credentialValidationReference credentialExpiresAt"
     });
-    if (!membership || membership.status !== "active" || !["owner", "pharmacist"].includes(membership.membershipRole)) throw new Error("Active owner or pharmacist membership not found");
+    if (!membership || membership.status !== "active" || !["owner", "pharmacist"].includes(membership.membershipRole)) throw new DomainError("Active owner or pharmacist membership not found");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: membership.organization.id, locationId: membership.location?.id });
     const approval = await createHumanApproval(transactionContext, {
       organizationId: membership.organization.id,
@@ -5898,7 +5943,7 @@ async function recordPharmacyPrescriberCredentialReview(_root, args, context) {
   return withDomainTransaction(context, [`prescriber:${args.prescriberId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const prescriber = await sudo.query.Prescriber.findOne({ where: { id: args.prescriberId }, query: "id npi organization { id }" });
-    if (!prescriber || !isValidNpi(prescriber.npi)) throw new Error("Prescriber with a valid NPI is required");
+    if (!prescriber || !isValidNpi(prescriber.npi)) throw new DomainError("Prescriber with a valid NPI is required");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: prescriber.organization.id, pharmacist: true });
     const approval = await createHumanApproval(transactionContext, {
       organizationId: prescriber.organization.id,
@@ -6136,13 +6181,13 @@ async function readEventPage(context, scope, fill, take, boundary = {}) {
 
 // features/keystone/mutations/fillReadback.ts
 async function authorizedFillReadback(context, prescriptionId) {
-  if (!context.session?.itemId || !permissions.canViewPatientPrivateData({ session: context.session })) throw new Error("Patient private-data permission required");
+  if (!context.session?.itemId || !permissions.canViewPatientPrivateData({ session: context.session })) throw new DomainError("Patient private-data permission required");
   const permission2 = permissions.canReviewPrescriptions({ session: context.session }) ? "canReviewPrescriptions" : "canDispenseMedications";
   await currentFillPermission(context, permission2);
   const q = readStore(context);
   const actor = record(await q.User.findOne({ where: { id: context.session.itemId }, query: "id role { canViewPatientPrivateData canManageOrganizations canApproveConsequentialActions }" }));
   const role = record(actor.role);
-  if (actor.id !== context.session.itemId || role.canViewPatientPrivateData !== true) throw new Error("Current patient private-data permission was revoked");
+  if (actor.id !== context.session.itemId || role.canViewPatientPrivateData !== true) throw new DomainError("Current patient private-data permission was revoked");
   const metadata = await q.Prescription.findOne({ where: { id: prescriptionId }, query: "id organization { id } location { id } patient { id } prescriber { id organization { id } } items { id prescription { id } }" });
   const scope = prescriptionReadScope(metadata, prescriptionId);
   await requireTenantMembership(context, { organizationId: scope.organizationId, locationId: scope.locationId, pharmacist: true });
@@ -6157,7 +6202,7 @@ async function pharmacyFillWorkbench(_root, args, context) {
   if (args.after) {
     const cursor = readCursor(args.after, scope, "operator_fill_workbench");
     const anchor = scopedFill(await q.PrescriptionFill.findOne({ where: { id: cursor.id }, query: fillMetadataQuery }), scope, cursor.id);
-    if (anchor.createdAt !== cursor.createdAt || anchor.version !== cursor.version) throw new Error("Invalid or stale fill cursor");
+    if (anchor.createdAt !== cursor.createdAt || anchor.version !== cursor.version) throw new DomainError("Invalid or stale fill cursor");
     boundary = cursorBoundary(cursor);
   }
   const base = fillReadWhere(scope);
@@ -6212,13 +6257,13 @@ async function pharmacyFillHistory(_root, args, context) {
   const { scope } = await authorizedFillReadback(context, args.prescriptionId);
   const q = readStore(context);
   const value = await q.PrescriptionFill.findOne({ where: { id: args.fillId }, query: fillMetadataQuery });
-  if (!value) throw new Error("Fill not found in current prescription scope");
+  if (!value) throw new DomainError("Fill not found in current prescription scope");
   const fill = scopedFill(value, scope, args.fillId);
   let boundary = {};
   if (args.after) {
     const cursor = readCursor(args.after, scope, "operator_fill_history", fill.id);
     const anchor = scopedEvent(await q.PrescriptionFillEvent.findOne({ where: { id: cursor.id }, query: eventMetadataQuery }), scope, fill, cursor.id);
-    if (anchor.createdAt !== cursor.createdAt || anchor.version !== cursor.version) throw new Error("Invalid or stale history cursor");
+    if (anchor.createdAt !== cursor.createdAt || anchor.version !== cursor.version) throw new DomainError("Invalid or stale history cursor");
     boundary = cursorBoundary(cursor);
   }
   const records = await readEventPage(context, scope, fill, 21, boundary);
@@ -6342,18 +6387,18 @@ async function activePharmacyPaymentProviders(_root, args, context) {
   return providers.map(paymentProviderOption);
 }
 async function refundPharmacyPayment(_root, args, context) {
-  if (!permissions.canManagePayments({ session: context.session })) throw new Error("Permission required: canManagePayments");
-  if (!args.attested || args.reason.trim().length < 3) throw new Error("A refund reason and human confirmation are required");
+  if (!permissions.canManagePayments({ session: context.session })) throw new DomainError("Permission required: canManagePayments");
+  if (!args.attested || args.reason.trim().length < 3) throw new DomainError("A refund reason and human confirmation are required");
   const prepared = await withDomainTransaction(context, [`payment:${args.paymentId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const payment = await sudo.query.Payment.findOne({
       where: { id: args.paymentId },
       query: `id status amount currencyCode externalPaymentId data order { id orderNumber organization { id } location { id } } provider { ${PAYMENT_PROVIDER_ADAPTER_FIELDS} }`
     });
-    if (!payment?.order || !payment.provider) throw new Error("Payment not found");
+    if (!payment?.order || !payment.provider) throw new DomainError("Payment not found");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: payment.order.organization.id, locationId: payment.order.location.id });
     if (payment.status === "refunded") return { reused: true, payment, userId };
-    if (!["captured", "refund_pending"].includes(payment.status) || !payment.externalPaymentId) throw new Error("Only captured payments can be refunded");
+    if (!["captured", "refund_pending"].includes(payment.status) || !payment.externalPaymentId) throw new DomainError("Only captured payments can be refunded");
     if (payment.status === "captured") {
       await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: "refund_pending", data: { ...payment.data || {}, refundReason: args.reason.trim() } } });
     }
@@ -6367,11 +6412,11 @@ async function refundPharmacyPayment(_root, args, context) {
     currency: prepared.payment.currencyCode,
     idempotencyKey: `refund:${prepared.payment.id}`
   });
-  if (!["refunded", "succeeded"].includes(providerResult.status)) throw new Error(`Refund remains pending: ${providerResult.status || "unknown"}`);
+  if (!["refunded", "succeeded"].includes(providerResult.status)) throw new DomainError(`Refund remains pending: ${providerResult.status || "unknown"}`);
   return withDomainTransaction(context, [`payment:${args.paymentId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const current = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: "id status amount order { id organization { id } location { id } }" });
-    if (!current?.order) throw new Error("Payment not found");
+    if (!current?.order) throw new DomainError("Payment not found");
     if (current.status === "refunded") return { success: true, reused: true, paymentId: current.id, status: current.status, amount: current.amount };
     await sudo.query.Payment.updateOne({ where: { id: current.id }, data: { status: "refunded", data: { refund: providerResult, reason: args.reason.trim() } } });
     await recordAuditAndOutbox(transactionContext, {
@@ -6389,13 +6434,13 @@ async function refundPharmacyPayment(_root, args, context) {
 }
 async function initiatePharmacyPaymentSession(_root, args, context) {
   const cart = await loadAndAssertCartAccess(context, args.cartId, args.guestToken);
-  if (!cart.items.length || cart.totalAmount < 1) throw new Error("Cart is empty");
+  if (!cart.items.length || cart.totalAmount < 1) throw new DomainError("Cart is empty");
   const provider = (await context.sudo().query.PaymentProvider.findMany({
     where: { code: { equals: args.providerCode }, organization: { id: { equals: cart.organization.id } } },
     take: 1,
     query: `${PAYMENT_PROVIDER_ADAPTER_FIELDS} organization { id }`
   }))[0];
-  if (!provider?.isInstalled) throw new Error("Payment provider is not available for this cart");
+  if (!provider?.isInstalled) throw new DomainError("Payment provider is not available for this cart");
   const idempotencyKey = (0, import_node_crypto8.createHash)("sha256").update(`${cart.id}:${provider.id}:${cart.totalAmount}`).digest("hex");
   const prepared = await withDomainTransaction(context, [`cart:${cart.id}`, `payment-session:${idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
@@ -6439,7 +6484,7 @@ async function initiatePharmacyPaymentSession(_root, args, context) {
     throw error;
   }
   const externalPaymentId = providerData?.paymentIntentId || providerData?.orderId || (isManualPaymentProvider(provider) ? `manual:${prepared.id}` : null);
-  if (!externalPaymentId) throw new Error("Payment provider did not return a payment reference");
+  if (!externalPaymentId) throw new DomainError("Payment provider did not return a payment reference");
   return withDomainTransaction(context, [`payment-session:${prepared.id}`], async (transactionContext) => {
     const session = await transactionContext.sudo().query.PaymentSession.updateOne({
       where: { id: prepared.id },
@@ -6466,24 +6511,25 @@ var ORDER_STATUS = {
 };
 async function transitionOrderFulfillment(_root, args, context) {
   requirePermission(context, "canManageOrders");
-  if (!ORDER_STATUS[args.status]) throw new Error("Unsupported fulfillment status");
+  if (!ORDER_STATUS[args.status]) throw new DomainError("Unsupported fulfillment status");
   return withDomainTransaction(context, [`fulfillment:${args.fulfillmentId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const fulfillment = await sudo.query.Fulfillment.findOne({
       where: { id: args.fulfillmentId },
       query: "id method status organization { id } location { id } assignedTo { id } order { id status patient { id } approval { id } payments { id status provider { createPaymentFunction } } }"
     });
-    if (!fulfillment?.order) throw new Error("Fulfillment not found");
+    if (!fulfillment?.order) throw new DomainError("Fulfillment not found");
     const { userId } = await requireTenantMembership(transactionContext, {
       organizationId: fulfillment.organization.id,
       locationId: fulfillment.location.id
     });
-    if (args.status === "out_for_delivery" && fulfillment.method !== "delivery") throw new Error("Only delivery orders can go out for delivery");
-    if (args.status === "cancelled") throw new Error("Cancelling a paid order requires a refund; use the refund action instead");
-    if (args.status === "handed_off" && fulfillment.assignedTo?.id !== userId) throw new Error("Only the assigned staff member can record the handoff");
+    if (args.status === "out_for_delivery" && fulfillment.method !== "delivery") throw new DomainError("Only delivery orders can go out for delivery");
+    if (args.status === "cancelled") throw new DomainError("Cancelling a paid order requires a refund; use the refund action instead");
+    const assigneeId = fulfillment.assignedTo?.id || userId;
+    if (args.status === "handed_off" && assigneeId !== userId) throw new DomainError("Only the assigned staff member can record the handoff");
     const payments = fulfillment.order.payments || [];
     const pickupPayments = payments.filter((payment) => payment.status === "pending" && isManualPaymentProvider(payment.provider || {}));
-    if (args.status === "handed_off" && !payments.some((payment) => payment.status === "captured") && !pickupPayments.length) throw new Error("Payment must be captured before handoff");
+    if (args.status === "handed_off" && !payments.some((payment) => payment.status === "captured") && !pickupPayments.length) throw new DomainError("Payment must be captured before handoff");
     if (fulfillment.status === args.status) {
       return { success: true, reused: true, fulfillmentId: fulfillment.id, orderId: fulfillment.order.id, status: args.status, approvalId: fulfillment.order.approval?.id };
     }
@@ -6506,7 +6552,7 @@ async function transitionOrderFulfillment(_root, args, context) {
         });
       }
     }
-    await sudo.query.Fulfillment.updateOne({ where: { id: fulfillment.id }, data: { status: args.status, ...args.status === "preparing" ? { assignedTo: { connect: { id: userId } } } : {} } });
+    await sudo.query.Fulfillment.updateOne({ where: { id: fulfillment.id }, data: { status: args.status, ...args.status === "preparing" || !fulfillment.assignedTo ? { assignedTo: { connect: { id: userId } } } : {} } });
     await sudo.query.Order.updateOne({
       where: { id: fulfillment.order.id },
       data: { status: ORDER_STATUS[args.status], ...approval ? { approval: { connect: { id: approval.id } } } : {} }
@@ -6528,12 +6574,12 @@ async function transitionOrderFulfillment(_root, args, context) {
 
 // features/keystone/mutations/prescriptionRequests.ts
 var import_node_crypto9 = require("node:crypto");
-var import_graphql2 = require("graphql");
+var import_graphql3 = require("graphql");
 var KINDS = ["registration", "transfer", "new_prescription"];
 var RESOLUTIONS = ["in_review", "completed", "declined"];
 var REQUEST_FIELDS = "id kind status createdAt resolvedAt resolutionNote firstName lastName dateOfBirth phone email allergies insurance counterpartyName counterpartyPhone prescriberName prescriberPhone medications note organization { id } location { id name } user { id name email } patient { id }";
 function userInputError2(message) {
-  return new import_graphql2.GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
+  return new import_graphql3.GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
 }
 function clean(value, max) {
   const text45 = String(value ?? "").trim();
@@ -6548,6 +6594,7 @@ function staffProjection(request) {
     ...customerProjection(request),
     customerName: request.user?.name || "",
     customerEmail: request.user?.email || "",
+    organizationId: request.organization?.id || "",
     patientId: request.patient?.id || null,
     firstName: request.firstName || null,
     lastName: request.lastName || null,
@@ -6644,8 +6691,8 @@ function canWorkRequests(context) {
 }
 async function pharmacyPrescriptionRequestQueue(_root, args, context) {
   const userId = context.session?.itemId;
-  if (!userId) throw new Error("Authentication required");
-  if (!canWorkRequests(context)) throw new Error("Permission required: canManagePatients or canManagePrescriptions");
+  if (!userId) throw new DomainError("Authentication required");
+  if (!canWorkRequests(context)) throw new DomainError("Permission required: canManagePatients or canManagePrescriptions");
   const sudo = context.sudo();
   const memberships = await sudo.query.OrganizationMembership.findMany({
     where: { user: { id: { equals: String(userId) } }, status: { equals: "active" }, organization: { status: { equals: "active" } } },
@@ -6655,7 +6702,7 @@ async function pharmacyPrescriptionRequestQueue(_root, args, context) {
   if (!scopes.length) return [];
   const status = args.status && ["requested", ...RESOLUTIONS].includes(args.status) ? args.status : null;
   const requests = await sudo.query.PrescriptionRequest.findMany({
-    where: { AND: [{ OR: scopes }, ...status ? [{ status: { equals: status } }] : []] },
+    where: { AND: [{ OR: scopes }, ...status ? [{ status: { equals: status } }] : [], ...args.requestId ? [{ id: { equals: args.requestId } }] : []] },
     orderBy: [{ createdAt: "desc" }],
     take: 100,
     query: REQUEST_FIELDS
@@ -6663,19 +6710,37 @@ async function pharmacyPrescriptionRequestQueue(_root, args, context) {
   return requests.map(staffProjection);
 }
 async function resolvePharmacyPrescriptionRequest(_root, args, context) {
-  if (!canWorkRequests(context)) throw new Error("Permission required: canManagePatients or canManagePrescriptions");
-  if (!RESOLUTIONS.includes(args.status)) throw new Error("Choose in review, completed or declined");
+  if (!canWorkRequests(context)) throw new DomainError("Permission required: canManagePatients or canManagePrescriptions");
+  if (!RESOLUTIONS.includes(args.status)) throw new DomainError("Choose in review, completed or declined");
   const note = clean(args.note, 1e3);
   if (args.status === "declined" && note.length < 3) throw userInputError2("Give the reason for declining.");
   const sudo = context.sudo();
   const request = await sudo.query.PrescriptionRequest.findOne({ where: { id: args.requestId }, query: REQUEST_FIELDS });
-  if (!request) throw new Error("Request not found");
+  if (!request) throw new DomainError("Request not found");
   const { userId } = await requireTenantMembership(context, { organizationId: request.organization.id, locationId: request.location.id });
   if (["completed", "declined"].includes(request.status)) throw userInputError2("This request is already closed.");
   const terminal = args.status !== "in_review";
+  const patient = args.patientId ? await sudo.query.PatientProfile.findOne({ where: { id: args.patientId }, query: "id user { id } organizations { id }" }) : null;
+  if (args.patientId && !patient?.organizations?.some((organization) => organization.id === request.organization.id)) throw new DomainError("Patient not found in this pharmacy");
+  if (patient && !patient.user && request.user?.id) {
+    const customer = await sudo.query.User.findOne({ where: { id: request.user.id }, query: "id patientProfile { id }" });
+    if (customer && !customer.patientProfile) {
+      await sudo.query.PatientProfile.updateOne({ where: { id: patient.id }, data: { user: { connect: { id: customer.id } } } });
+      await recordAuditAndOutbox(context, {
+        eventKey: `patient.account_linked:${patient.id}:${customer.id}`,
+        organizationId: request.organization.id,
+        actorId: String(userId),
+        patientId: patient.id,
+        eventType: "patient.account_linked",
+        resourceType: "PatientProfile",
+        resourceId: patient.id,
+        metadata: { userId: customer.id, requestId: request.id }
+      });
+    }
+  }
   const updated = await sudo.query.PrescriptionRequest.updateOne({
     where: { id: request.id },
-    data: { status: args.status, resolutionNote: note || request.resolutionNote || "", ...terminal ? { resolvedAt: (/* @__PURE__ */ new Date()).toISOString(), resolvedBy: { connect: { id: String(userId) } } } : {} },
+    data: { status: args.status, resolutionNote: note || request.resolutionNote || "", ...patient ? { patient: { connect: { id: patient.id } } } : {}, ...terminal ? { resolvedAt: (/* @__PURE__ */ new Date()).toISOString(), resolvedBy: { connect: { id: String(userId) } } } : {} },
     query: REQUEST_FIELDS
   });
   await recordAuditAndOutbox(context, {
@@ -6705,11 +6770,11 @@ function isProductAtActiveTenantLocation(product, location) {
 // features/keystone/mutations/inventoryWorkflows.ts
 async function receiveInventoryLot(_root, args, context) {
   requirePermission(context, "canManageInventory");
-  if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new Error("Received quantity must be a positive integer");
-  if (!args.idempotencyKey?.trim() || !args.lotNumber?.trim()) throw new Error("Lot number and idempotency key are required");
+  if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new DomainError("Received quantity must be a positive integer");
+  if (!args.idempotencyKey?.trim() || !args.lotNumber?.trim()) throw new DomainError("Lot number and idempotency key are required");
   const expirationDate = new Date(args.expirationDate);
-  if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new Error("Expiration date must be in the future");
-  if (args.coldChainRequired) throw new Error("Cold-chain receiving is not supported yet");
+  if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new DomainError("Expiration date must be in the future");
+  if (args.coldChainRequired) throw new DomainError("Cold-chain receiving is not supported yet");
   const requestFingerprint = (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify({ productId: args.productId, locationId: args.locationId, supplierId: args.supplierId || null, lotNumber: args.lotNumber.trim(), serialNumber: args.serialNumber?.trim() || null, expirationDate: expirationDate.toISOString(), quantity: args.quantity, coldChainRequired: args.coldChainRequired, minimumTemperatureC: args.minimumTemperatureC ?? null, maximumTemperatureC: args.maximumTemperatureC ?? null, coldChainEvidenceComplete: args.coldChainEvidenceComplete, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${args.lotNumber}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
@@ -6717,9 +6782,9 @@ async function receiveInventoryLot(_root, args, context) {
     if (existing) {
       const organizationId = existing.lot?.product?.organization?.id;
       const locationId = existing.lot?.location?.id;
-      if (!organizationId || !locationId) throw new Error("Receiving replay scope is incomplete; operator reconciliation is required");
+      if (!organizationId || !locationId) throw new DomainError("Receiving replay scope is incomplete; operator reconciliation is required");
       await requireTenantMembership(transactionContext, { organizationId, locationId });
-      if (existing.requestFingerprint !== requestFingerprint) throw new Error("Receiving idempotency key was reused with different input");
+      if (existing.requestFingerprint !== requestFingerprint) throw new DomainError("Receiving idempotency key was reused with different input");
       return { success: true, reused: true, movementId: existing.id, lotId: existing.lot.id, quantityAvailable: existing.lot.quantityAvailable };
     }
     const [product, location, supplier] = await Promise.all([
@@ -6728,10 +6793,10 @@ async function receiveInventoryLot(_root, args, context) {
       args.supplierId ? sudo.query.Supplier.findOne({ where: { id: args.supplierId }, query: "id organization { id } status" }) : null
     ]);
     if (!isProductAtActiveTenantLocation(product, location)) {
-      throw new Error("This product cannot be received at this location");
+      throw new DomainError("This product cannot be received at this location");
     }
     if (args.supplierId && (!supplier || supplier.organization?.id !== location.organization.id || supplier.status !== "active")) {
-      throw new Error("Supplier must be active in the receiving organization");
+      throw new DomainError("Supplier must be active in the receiving organization");
     }
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: location.organization.id, locationId: location.id });
     const approval = await createHumanApproval(transactionContext, {
@@ -6793,8 +6858,8 @@ async function receiveInventoryLot(_root, args, context) {
 }
 async function adjustInventoryLot(_root, args, context) {
   requirePermission(context, "canManageInventory");
-  if (!Number.isInteger(args.targetQuantity) || args.targetQuantity < 0) throw new Error("Target quantity must be a non-negative integer");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  if (!Number.isInteger(args.targetQuantity) || args.targetQuantity < 0) throw new DomainError("Target quantity must be a non-negative integer");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   const requestFingerprint = (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify({ lotId: args.lotId, targetQuantity: args.targetQuantity, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `lot:${args.lotId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
@@ -6805,21 +6870,21 @@ async function adjustInventoryLot(_root, args, context) {
     if (existing) {
       const organizationId = existing.lot?.product?.organization?.id;
       const locationId = existing.lot?.location?.id;
-      if (!organizationId || !locationId) throw new Error("Inventory replay scope is incomplete; operator reconciliation is required");
+      if (!organizationId || !locationId) throw new DomainError("Inventory replay scope is incomplete; operator reconciliation is required");
       await requireTenantMembership(transactionContext, { organizationId, locationId });
-      if (existing.lot?.id !== args.lotId || existing.requestFingerprint !== requestFingerprint) throw new Error("Inventory idempotency key was reused with different input");
+      if (existing.lot?.id !== args.lotId || existing.requestFingerprint !== requestFingerprint) throw new DomainError("Inventory idempotency key was reused with different input");
       return { success: true, reused: true, movementId: existing.id, quantityAvailable: existing.lot.quantityAvailable };
     }
     const lot = await sudo.query.InventoryLot.findOne({
       where: { id: args.lotId },
       query: "id quantityAvailable quantityQuarantined status product { id organization { id } } location { id }"
     });
-    if (!lot) throw new Error("Inventory lot not found");
+    if (!lot) throw new DomainError("Inventory lot not found");
     const { userId } = await requireTenantMembership(transactionContext, {
       organizationId: lot.product.organization.id,
       locationId: lot.location.id
     });
-    if (args.targetQuantity < lot.quantityQuarantined) throw new Error("Available quantity cannot be lower than quarantined quantity");
+    if (args.targetQuantity < lot.quantityQuarantined) throw new DomainError("Available quantity cannot be lower than quarantined quantity");
     const approval = await createHumanApproval(transactionContext, {
       organizationId: lot.product.organization.id,
       locationId: lot.location.id,
@@ -6866,7 +6931,7 @@ async function adjustInventoryLot(_root, args, context) {
 async function quarantineRecallLots(_root, args, context) {
   requirePermission(context, "canManageRecalls");
   const candidate = await context.sudo().query.Recall.findOne({ where: { id: args.recallId }, query: "id lots { id }" });
-  if (!candidate) throw new Error("Recall not found");
+  if (!candidate) throw new DomainError("Recall not found");
   return withDomainTransaction(
     context,
     [`recall:${args.recallId}`, ...candidate.lots.map((lot) => `lot:${lot.id}`)],
@@ -6876,7 +6941,7 @@ async function quarantineRecallLots(_root, args, context) {
         where: { id: args.recallId },
         query: "id status organization { id } location { id } approval { id } lots { id quantityAvailable product { id } location { id } }"
       });
-      if (!recall) throw new Error("Recall not found");
+      if (!recall) throw new DomainError("Recall not found");
       const { userId } = await requireTenantMembership(transactionContext, {
         organizationId: recall.organization.id,
         locationId: recall.location?.id,
@@ -6885,8 +6950,8 @@ async function quarantineRecallLots(_root, args, context) {
       if (recall.status === "quarantined") {
         return { success: true, reused: true, recallId: recall.id, status: recall.status, lotCount: recall.lots.length, approvalId: recall.approval?.id };
       }
-      if (recall.status !== "active") throw new Error("Recall must be active before quarantine");
-      if (!recall.lots.length) throw new Error("Recall has no affected lots");
+      if (recall.status !== "active") throw new DomainError("Recall must be active before quarantine");
+      if (!recall.lots.length) throw new DomainError("Recall has no affected lots");
       const approval = await createHumanApproval(transactionContext, {
         organizationId: recall.organization.id,
         locationId: recall.location?.id,
@@ -7066,12 +7131,12 @@ async function handleWebhook2({
 
 // features/keystone/mutations/integrationWorkflows.ts
 async function configurePharmacyIntegrationProvider(_root, args, context) {
-  if (!permissions.canManageIntegrations({ session: context.session })) throw new Error("Permission required: canManageIntegrations");
-  if (args.bearerToken.length < 16 || args.webhookSecret.length < 32) throw new Error("Provider credentials do not meet minimum length requirements");
+  if (!permissions.canManageIntegrations({ session: context.session })) throw new DomainError("Permission required: canManageIntegrations");
+  if (args.bearerToken.length < 16 || args.webhookSecret.length < 32) throw new DomainError("Provider credentials do not meet minimum length requirements");
   const provider = await context.sudo().query.IntegrationProvider.findOne({ where: { id: args.providerId }, query: "id providerType organization { id }" });
-  if (!provider || !["erx", "insurance"].includes(provider.providerType)) throw new Error("Configurable integration provider not found");
+  if (!provider || !["erx", "insurance"].includes(provider.providerType)) throw new DomainError("Configurable integration provider not found");
   const { userId } = await requireTenantMembership(context, { organizationId: provider.organization.id });
-  if (provider.providerType === "erx" && (!args.prescriberValidationPath || !args.prescriberValidationPath.includes("{npi}"))) throw new Error("eRx configuration requires a prescriber validation path containing {npi}");
+  if (provider.providerType === "erx" && (!args.prescriberValidationPath || !args.prescriberValidationPath.includes("{npi}"))) throw new DomainError("eRx configuration requires a prescriber validation path containing {npi}");
   const configuration = normalizeConfiguration(args);
   const credentials = { bearerToken: args.bearerToken, webhookSecret: args.webhookSecret };
   const adapterFunctions = { submitFunction: "manual", statusFunction: "manual", webhookFunction: "manual" };
@@ -7094,18 +7159,18 @@ async function configurePharmacyIntegrationProvider(_root, args, context) {
   });
 }
 async function validatePharmacyPrescriber(_root, args, context) {
-  if (!permissions.canManagePrescriptions({ session: context.session })) throw new Error("Permission required: canManagePrescriptions");
+  if (!permissions.canManagePrescriptions({ session: context.session })) throw new DomainError("Permission required: canManagePrescriptions");
   const [provider, prescriber] = await Promise.all([
     context.sudo().query.IntegrationProvider.findOne({ where: { id: args.providerId }, query: "id providerType status externalValidationComplete configuration credentials submitFunction organization { id }" }),
     context.sudo().query.Prescriber.findOne({ where: { id: args.prescriberId }, query: "id npi organization { id }" })
   ]);
-  if (!provider || provider.providerType !== "erx" || provider.status !== "active" || !provider.externalValidationComplete || !provider.configuration?.prescriberValidationPath) throw new Error("Active eRx prescriber validation provider not found");
-  if (!prescriber || prescriber.organization.id !== provider.organization.id || !isValidNpi(prescriber.npi)) throw new Error("Prescriber has no valid NPI in this provider tenant");
+  if (!provider || provider.providerType !== "erx" || provider.status !== "active" || !provider.externalValidationComplete || !provider.configuration?.prescriberValidationPath) throw new DomainError("Active eRx prescriber validation provider not found");
+  if (!prescriber || prescriber.organization.id !== provider.organization.id || !isValidNpi(prescriber.npi)) throw new DomainError("Prescriber has no valid NPI in this provider tenant");
   const { userId } = await requireTenantMembership(context, { organizationId: prescriber.organization.id });
   const result = await validatePrescriber({ provider, npi: prescriber.npi });
   const credentialExpiresAt = result.credentialExpiresAt ? new Date(result.credentialExpiresAt) : null;
   if (result.valid !== true || !result.validationReference || !result.credentialType || !result.credentialJurisdiction || !result.credentialIdentifier || !credentialExpiresAt || Number.isNaN(credentialExpiresAt.getTime()) || credentialExpiresAt.getTime() <= Date.now()) {
-    throw new Error("External provider response lacks current prescriber identity and credential evidence");
+    throw new DomainError("External provider response lacks current prescriber identity and credential evidence");
   }
   return withDomainTransaction(context, [`prescriber:${prescriber.id}`], async (transactionContext) => {
     await transactionContext.prisma.prescriber.update({ where: { id: prescriber.id }, data: { verificationStatus: "validated", externalValidationComplete: true, verificationMethod: "external_provider", credentialType: String(result.credentialType).slice(0, 200), credentialJurisdiction: String(result.credentialJurisdiction).slice(0, 200), credentialIdentifier: String(result.credentialIdentifier).slice(0, 200), credentialExpiresAt, validationReference: String(result.validationReference).slice(0, 500), validatedAt: /* @__PURE__ */ new Date(), verifiedById: userId } });
@@ -7127,27 +7192,27 @@ async function resourcePayload(context, providerType, resourceId) {
       where: { id: resourceId },
       query: "id prescriptionNumber source sourceVerificationStatus writtenAt expiresAt organization { id } location { id } patient { patientNumber displayName dateOfBirth } prescriber { name npi verificationStatus externalValidationComplete } items { medicationNameSnapshot sig quantityPrescribed refillsAuthorized product { sku drugReference { ndc11 } } }"
     });
-    if (!prescription) throw new Error("Prescription not found");
+    if (!prescription) throw new DomainError("Prescription not found");
     return { resourceType: "Prescription", organizationId: prescription.organization.id, locationId: prescription.location.id, payload: prescription };
   }
   const order = await context.sudo().query.Order.findOne({
     where: { id: resourceId },
     query: "id orderNumber totalAmount currencyCode organization { id } location { id } patient { patientNumber } lineItems { title ndc11Snapshot quantity unitPriceAmount }"
   });
-  if (!order) throw new Error("Order not found");
+  if (!order) throw new DomainError("Order not found");
   return { resourceType: "Order", organizationId: order.organization.id, locationId: order.location.id, payload: order };
 }
 async function submitPharmacyExternalWorkflow(_root, args, context) {
-  if (!args.idempotencyKey.trim() || args.idempotencyKey.length > 200) throw new Error("A bounded idempotency key is required");
+  if (!args.idempotencyKey.trim() || args.idempotencyKey.length > 200) throw new DomainError("A bounded idempotency key is required");
   const provider = await context.sudo().query.IntegrationProvider.findOne({
     where: { id: args.providerId },
     query: "id providerType status externalValidationComplete configuration credentials submitFunction organization { id }"
   });
-  if (!provider || !["erx", "insurance"].includes(provider.providerType) || provider.status !== "active" || !provider.externalValidationComplete) throw new Error("Active validated integration provider not found");
+  if (!provider || !["erx", "insurance"].includes(provider.providerType) || provider.status !== "active" || !provider.externalValidationComplete) throw new DomainError("Active validated integration provider not found");
   const required = provider.providerType === "erx" ? "canManagePrescriptions" : "canManagePayments";
-  if (!permissions[required]({ session: context.session })) throw new Error(`Permission required: ${required}`);
+  if (!permissions[required]({ session: context.session })) throw new DomainError(`Permission required: ${required}`);
   const resource = await resourcePayload(context, provider.providerType, args.resourceId);
-  if (resource.organizationId !== provider.organization.id) throw new Error("Integration provider and resource tenant do not match");
+  if (resource.organizationId !== provider.organization.id) throw new DomainError("Integration provider and resource tenant do not match");
   const { userId } = await requireTenantMembership(context, { organizationId: resource.organizationId, locationId: resource.locationId });
   const requestSnapshot = {
     providerId: provider.id,
@@ -7168,7 +7233,7 @@ async function submitPharmacyExternalWorkflow(_root, args, context) {
     });
     if (existing) {
       if (!externalIntegrationRequestMatches(existing, requestSnapshot)) {
-        throw new Error("Integration idempotency key was reused with a different provider, scope, resource, or payload");
+        throw new DomainError("Integration idempotency key was reused with a different provider, scope, resource, or payload");
       }
       return existing;
     }
@@ -7216,9 +7281,9 @@ async function refreshPharmacyExternalWorkflow(_root, args, context) {
     where: { id: args.workflowId },
     query: "id status externalReference attempts resourceType organization { id } location { id } provider { id providerType status externalValidationComplete configuration credentials statusFunction }"
   });
-  if (!workflow?.provider || !workflow.externalReference) throw new Error("Submitted integration workflow not found");
+  if (!workflow?.provider || !workflow.externalReference) throw new DomainError("Submitted integration workflow not found");
   const required = workflow.provider.providerType === "erx" ? "canManagePrescriptions" : "canManagePayments";
-  if (!permissions[required]({ session: context.session })) throw new Error(`Permission required: ${required}`);
+  if (!permissions[required]({ session: context.session })) throw new DomainError(`Permission required: ${required}`);
   await requireTenantMembership(context, { organizationId: workflow.organization.id, locationId: workflow.location.id });
   const result = await getWorkflowStatus({ provider: workflow.provider, externalReference: workflow.externalReference });
   const status = ["accepted", "rejected", "pending"].includes(result.status) ? result.status : "pending";
@@ -7227,11 +7292,11 @@ async function refreshPharmacyExternalWorkflow(_root, args, context) {
 }
 async function ingestPharmacyIntegrationWebhook(_root, args, context) {
   const provider = await context.sudo().query.IntegrationProvider.findOne({ where: { providerKey: args.providerKey }, query: "id providerType status credentials webhookFunction organization { id }" });
-  if (!provider || provider.status !== "active") throw new Error("Webhook provider not found");
+  if (!provider || provider.status !== "active") throw new DomainError("Webhook provider not found");
   const headers = Object.fromEntries(Object.entries(args.headers || {}).map(([key, value]) => [key === "__rawBody" ? key : key.toLowerCase(), String(value ?? "")]));
   await handleWebhook2({ provider, event: args.event, headers });
   const payload = args.event || {};
-  if (!payload.eventId || !payload.externalReference || !["accepted", "rejected", "pending"].includes(payload.status)) throw new Error("Webhook envelope is invalid");
+  if (!payload.eventId || !payload.externalReference || !["accepted", "rejected", "pending"].includes(payload.status)) throw new DomainError("Webhook envelope is invalid");
   const eventKey = `${provider.id}:${payload.eventId}`;
   return withDomainTransaction(context, [`integration-webhook:${eventKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
@@ -7249,18 +7314,18 @@ var import_node_crypto13 = require("node:crypto");
 async function intakePharmacyPrescription(_root, args, context) {
   requirePermission(context, "canManagePrescriptions");
   if (!["paper", "phone"].includes(args.source)) {
-    throw new Error("Bounded launch intake supports only operator-reviewed paper or phone sources; eRx, transfer conversion, and generic manual intake require their dedicated authority and evidence workflows");
+    throw new DomainError("Bounded launch intake supports only operator-reviewed paper or phone sources; eRx, transfer conversion, and generic manual intake require their dedicated authority and evidence workflows");
   }
-  if (!args.prescriptionNumber?.trim() || !args.items.length) throw new Error("Prescription number and at least one item are required");
-  if (args.items.length !== 1) throw new Error("Enter one prescription item per prescription");
+  if (!args.prescriptionNumber?.trim() || !args.items.length) throw new DomainError("Prescription number and at least one item are required");
+  if (args.items.length !== 1) throw new DomainError("Enter one prescription item per prescription");
   const writtenAt = new Date(args.writtenAt);
   const expiresAt = new Date(args.expiresAt);
   if (Number.isNaN(writtenAt.getTime()) || Number.isNaN(expiresAt.getTime()) || writtenAt.getTime() > Date.now() || expiresAt.getTime() <= writtenAt.getTime()) {
-    throw new Error("Prescription written and expiration dates are invalid");
+    throw new DomainError("Prescription written and expiration dates are invalid");
   }
   for (const item of args.items) {
     if (!item.productId || !item.medicationName?.trim() || !item.sig?.trim() || !Number.isInteger(item.quantity) || item.quantity < 1 || !Number.isInteger(item.refillsAuthorized) || item.refillsAuthorized < 0) {
-      throw new Error("Prescription item is invalid");
+      throw new DomainError("Prescription item is invalid");
     }
   }
   const requestFingerprint = (0, import_node_crypto13.createHash)("sha256").update(JSON.stringify({ organizationId: args.organizationId, locationId: args.locationId, patientId: args.patientId, prescriberId: args.prescriberId, prescriptionNumber: args.prescriptionNumber.trim(), source: args.source, externalReference: args.externalReference?.trim() || null, writtenAt: writtenAt.toISOString(), expiresAt: expiresAt.toISOString(), items: args.items, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
@@ -7268,9 +7333,9 @@ async function intakePharmacyPrescription(_root, args, context) {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.Prescription.findOne({ where: { prescriptionNumber: args.prescriptionNumber.trim() }, query: "id status intakeRequestFingerprint organization { id } location { id } approval { id }" });
     if (existing) {
-      if (!existing.organization?.id || !existing.location?.id) throw new Error("Prescription replay scope is incomplete; operator reconciliation is required");
+      if (!existing.organization?.id || !existing.location?.id) throw new DomainError("Prescription replay scope is incomplete; operator reconciliation is required");
       await requireTenantMembership(transactionContext, { organizationId: existing.organization.id, locationId: existing.location.id, pharmacist: true });
-      if (!existing.intakeRequestFingerprint || existing.intakeRequestFingerprint !== requestFingerprint) throw new Error("Prescription number is already bound to different or legacy intake evidence; do not replay it");
+      if (!existing.intakeRequestFingerprint || existing.intakeRequestFingerprint !== requestFingerprint) throw new DomainError("Prescription number is already bound to different or legacy intake evidence; do not replay it");
       return { success: true, reused: true, prescriptionId: existing.id, status: existing.status, approvalId: existing.approval?.id };
     }
     const { userId } = await requireTenantMembership(transactionContext, {
@@ -7280,7 +7345,7 @@ async function intakePharmacyPrescription(_root, args, context) {
     });
     const organization = await sudo.query.Organization.findOne({ where: { id: args.organizationId }, query: "id prescriptionFillPolicy" });
     parseFillPolicy(organization?.prescriptionFillPolicy);
-    if (!organization?.prescriptionFillPolicy?.approvalId) throw new Error("Fill policy requires recorded pharmacist approval before intake");
+    if (!organization?.prescriptionFillPolicy?.approvalId) throw new DomainError("Fill policy requires recorded pharmacist approval before intake");
     const [products, patient, prescriber] = await Promise.all([
       sudo.query.Product.findMany({
         where: { id: { in: [...new Set(args.items.map((item) => item.productId))] } },
@@ -7289,15 +7354,15 @@ async function intakePharmacyPrescription(_root, args, context) {
       sudo.query.PatientProfile.findOne({ where: { id: args.patientId }, query: "id status organizations { id }" }),
       sudo.query.Prescriber.findOne({ where: { id: args.prescriberId }, query: "id npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } organization { id }" })
     ]);
-    if (!patient || patient.status !== "active" || !patient.organizations?.some((organization2) => organization2.id === args.organizationId)) throw new Error("Active patient is not in the prescription organization");
-    if (!prescriber || prescriber.organization?.id !== args.organizationId) throw new Error("Prescriber is not in the prescription organization");
+    if (!patient || patient.status !== "active" || !patient.organizations?.some((organization2) => organization2.id === args.organizationId)) throw new DomainError("Active patient is not in the prescription organization");
+    if (!prescriber || prescriber.organization?.id !== args.organizationId) throw new DomainError("Prescriber is not in the prescription organization");
     assertPrescriptionClinicallyEligible({ sourceVerificationStatus: "human_verified", writtenAt, expiresAt, prescriber });
     if (products.length !== new Set(args.items.map((item) => item.productId)).size || products.some((product) => product.organization?.id !== args.organizationId || product.location?.id !== args.locationId || !product.drugReference?.id)) {
-      throw new Error("Every prescription item must use an NDC-linked product from this pharmacy");
+      throw new DomainError("Every prescription item must use an NDC-linked product from this pharmacy");
     }
     const drugReferenceIds = [...new Set(products.map((product) => product.drugReference.id))];
     const drugReviews = await sudo.query.DrugReferenceReview.findMany({ where: { organization: { id: { equals: args.organizationId } }, drugReference: { id: { in: drugReferenceIds } }, status: { equals: "active" } }, take: 100, query: "id status marketingStatusSnapshot controlledScheduleSnapshot sourceName sourceVersion sourceReference reviewedAt drugReference { id }" });
-    if (drugReviews.length !== drugReferenceIds.length) throw new Error("Every prescription item requires drug reference review evidence");
+    if (drugReviews.length !== drugReferenceIds.length) throw new DomainError("Every prescription item requires drug reference review evidence");
     for (const review of drugReviews) assertDrugReferenceEligibleForBoundedDispensing({ sourceVerified: review.status === "active", marketingStatus: review.marketingStatusSnapshot, controlledSchedule: review.controlledScheduleSnapshot, sourceName: review.sourceName, sourceVersion: review.sourceVersion, sourceReference: review.sourceReference, reviewedAt: review.reviewedAt });
     const approval = await createHumanApproval(transactionContext, {
       organizationId: args.organizationId,
@@ -7328,7 +7393,7 @@ async function intakePharmacyPrescription(_root, args, context) {
     });
     for (const item of args.items) {
       const product = products.find((entry) => entry.id === item.productId);
-      if (!product) throw new Error("Prescription product disappeared during intake");
+      if (!product) throw new DomainError("Prescription product disappeared during intake");
       await sudo.query.PrescriptionItem.createOne({
         data: {
           medicationNameSnapshot: item.medicationName.trim(),
@@ -7370,7 +7435,7 @@ function digest(value) {
 }
 function safePatientNumber(value) {
   const normalized = value.trim().toUpperCase();
-  if (!/^[A-Z0-9-]{3,40}$/.test(normalized)) throw new Error("Patient number must use 3-40 letters, numbers, or hyphens");
+  if (!/^[A-Z0-9-]{3,40}$/.test(normalized)) throw new DomainError("Patient number must use 3-40 letters, numbers, or hyphens");
   return normalized;
 }
 async function createPharmacyPatient(_root, args, context) {
@@ -7379,9 +7444,9 @@ async function createPharmacyPatient(_root, args, context) {
   const firstName = normalize(args.firstName);
   const lastName = normalize(args.lastName);
   const dateOfBirth = new Date(args.dateOfBirth);
-  if (!firstName || !lastName || Number.isNaN(dateOfBirth.getTime()) || dateOfBirth.getTime() >= Date.now()) throw new Error("Patient name and a past date of birth are required");
-  if (!["phone", "sms", "email", "portal", "none"].includes(args.preferredContactMethod)) throw new Error("Preferred contact method is invalid");
-  if (!args.identityMethod?.trim() || !args.identityReference?.trim()) throw new Error("Operator identity matching method and reference are required");
+  if (!firstName || !lastName || Number.isNaN(dateOfBirth.getTime()) || dateOfBirth.getTime() >= Date.now()) throw new DomainError("Patient name and a past date of birth are required");
+  if (!["phone", "sms", "email", "portal", "none"].includes(args.preferredContactMethod)) throw new DomainError("Preferred contact method is invalid");
+  if (!args.identityMethod?.trim() || !args.identityReference?.trim()) throw new DomainError("Operator identity matching method and reference are required");
   const identityKey = `${args.organizationId}:${patientNumber}`;
   const requestFingerprint = digest({ organizationId: args.organizationId, patientNumber, firstName, lastName, dateOfBirth: dateOfBirth.toISOString().slice(0, 10), email: args.email?.trim().toLowerCase() || "", phone: args.phone?.trim() || "", preferredContactMethod: args.preferredContactMethod, address: args.address || null, identityMethod: args.identityMethod.trim(), identityReference: args.identityReference.trim(), reason: args.reason?.trim(), attested: args.attested });
   return withDomainTransaction(context, [`patient-identity:${identityKey}`], async (transactionContext) => {
@@ -7389,7 +7454,7 @@ async function createPharmacyPatient(_root, args, context) {
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId, organizationWide: true });
     const existing = (await sudo.query.PatientProfile.findMany({ where: { identityKey: { equals: identityKey } }, take: 1, query: "id patientNumber requestFingerprint status" }))[0];
     if (existing) {
-      if (existing.requestFingerprint !== requestFingerprint) throw new Error("Patient identity already exists with different matching data");
+      if (existing.requestFingerprint !== requestFingerprint) throw new DomainError("Patient identity already exists with different matching data");
       return { success: true, reused: true, patientId: existing.id, patientNumber: existing.patientNumber, status: existing.status };
     }
     const approval = await createHumanApproval(transactionContext, { organizationId: args.organizationId, actorId: userId, actionType: "patient_record", reason: args.reason, attested: args.attested, evidence: { identityMethod: args.identityMethod.trim(), identityReference: args.identityReference.trim(), softwareIdentityValidationPerformed: false } });
@@ -7420,18 +7485,18 @@ async function createPharmacyPatient(_root, args, context) {
 }
 async function updatePharmacyPatientContact(_root, args, context) {
   requirePermission(context, "canManagePatients");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
-  if (!["phone", "sms", "email", "portal", "none"].includes(args.preferredContactMethod)) throw new Error("Preferred contact method is invalid");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
+  if (!["phone", "sms", "email", "portal", "none"].includes(args.preferredContactMethod)) throw new DomainError("Preferred contact method is invalid");
   const requestFingerprint = digest({ patientId: args.patientId, email: args.email?.trim().toLowerCase() || "", phone: args.phone?.trim() || "", preferredContactMethod: args.preferredContactMethod, address: args.address || null, reason: args.reason?.trim(), attested: args.attested });
   return withDomainTransaction(context, [`patient:${args.patientId}`, `patient-contact:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const patient = await sudo.query.PatientProfile.findOne({ where: { id: args.patientId }, query: "id organizations { id }" });
-    if (!patient?.organizations?.length) throw new Error("Patient not found");
+    if (!patient?.organizations?.length) throw new DomainError("Patient not found");
     const organizationId = patient.organizations[0].id;
     const { userId } = await requireTenantMembership(transactionContext, { organizationId, organizationWide: true });
     const existingEvent = await sudo.query.AuditEvent.findOne({ where: { eventKey: `patient.contact_updated:${args.idempotencyKey}` }, query: "id resourceId metadata" });
     if (existingEvent) {
-      if (existingEvent.resourceId !== patient.id || existingEvent.metadata?.requestFingerprint !== requestFingerprint) throw new Error("Patient contact idempotency key was reused with different input");
+      if (existingEvent.resourceId !== patient.id || existingEvent.metadata?.requestFingerprint !== requestFingerprint) throw new DomainError("Patient contact idempotency key was reused with different input");
       return { success: true, reused: true, patientId: patient.id, status: "active" };
     }
     const approval = await createHumanApproval(transactionContext, { organizationId, actorId: userId, actionType: "patient_record", reason: args.reason, attested: args.attested, evidence: { action: "contact_update", patientId: patient.id, requestFingerprint } });
@@ -7442,39 +7507,50 @@ async function updatePharmacyPatientContact(_root, args, context) {
 }
 async function recordPharmacyPatientAllergy(_root, args, context) {
   requirePermission(context, "canManagePatients");
-  if (!["unknown", "mild", "moderate", "severe"].includes(args.severity)) throw new Error("Allergy severity is invalid");
+  if (!["unknown", "mild", "moderate", "severe"].includes(args.severity)) throw new DomainError("Allergy severity is invalid");
   return recordPatientHistoryEntry(transactionInput("allergy", args), context);
 }
 async function recordPharmacyPatientMedication(_root, args, context) {
   requirePermission(context, "canManagePatients");
   return recordPatientHistoryEntry(transactionInput("medication", args), context);
 }
+async function recordPharmacyPatientNoneKnown(_root, args, context) {
+  requirePermission(context, "canManagePatients");
+  if (args.kind !== "allergy" && args.kind !== "medication") throw new DomainError("Kind must be allergy or medication");
+  const statement = args.kind === "allergy" ? { allergen: NONE_KNOWN.allergy, reaction: "None reported", severity: "unknown" } : { medicationName: NONE_KNOWN.medication };
+  return recordPatientHistoryEntry({ ...transactionInput(args.kind, { ...args, ...statement }), noneKnown: true }, context);
+}
+var NONE_KNOWN = { allergy: "No known allergies (NKA)", medication: "No current medications" };
 function transactionInput(kind, args) {
   return { kind, args };
 }
 async function recordPatientHistoryEntry(input, context) {
-  const { kind, args } = input;
-  if (!args.idempotencyKey?.trim() || !args.source?.trim() || !args.sourceReference?.trim()) throw new Error("Idempotency key and source evidence are required");
+  const { kind, args, noneKnown = false } = input;
+  if (!args.idempotencyKey?.trim() || !args.source?.trim() || !args.sourceReference?.trim()) throw new DomainError("Idempotency key and source evidence are required");
   const label = normalize(kind === "allergy" ? args.allergen : args.medicationName);
-  if (!label || kind === "allergy" && !normalize(args.reaction)) throw new Error(`${kind === "allergy" ? "Allergen and reaction" : "Medication name"} are required`);
+  if (!label || kind === "allergy" && !normalize(args.reaction)) throw new DomainError(`${kind === "allergy" ? "Allergen and reaction" : "Medication name"} are required`);
   return withDomainTransaction(context, [`patient:${args.patientId}`, `${kind}:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const patient = await sudo.query.PatientProfile.findOne({ where: { id: args.patientId }, query: "id organizations { id }" });
-    if (!patient?.organizations?.length) throw new Error("Patient not found");
+    if (!patient?.organizations?.length) throw new DomainError("Patient not found");
     const organizationId = patient.organizations[0].id;
     const { userId } = await requireTenantMembership(transactionContext, { organizationId, organizationWide: true });
-    const requestFingerprint = digest({ organizationId, patientId: patient.id, kind, label, reaction: args.reaction?.trim() || "", directions: args.directions?.trim() || "", severity: args.severity || "", source: args.source.trim(), sourceReference: args.sourceReference.trim(), reason: args.reason?.trim(), attested: args.attested });
+    const requestFingerprint = digest({ organizationId, patientId: patient.id, kind, noneKnown, label, reaction: args.reaction?.trim() || "", directions: args.directions?.trim() || "", severity: args.severity || "", source: args.source.trim(), sourceReference: args.sourceReference.trim(), reason: args.reason?.trim(), attested: args.attested });
     const key = `${kind}:${organizationId}:${args.idempotencyKey.trim()}`;
     const model = kind === "allergy" ? sudo.query.PatientAllergy : sudo.query.PatientMedication;
     const uniqueField = kind === "allergy" ? "allergyKey" : "medicationKey";
     const existing = (await model.findMany({ where: { [uniqueField]: { equals: key } }, take: 1, query: `id requestFingerprint` }))[0];
     if (existing) {
-      if (existing.requestFingerprint !== requestFingerprint) throw new Error(`${kind} idempotency key is already bound to different evidence`);
+      if (existing.requestFingerprint !== requestFingerprint) throw new DomainError(`${kind} idempotency key is already bound to different evidence`);
       return { success: true, reused: true, recordId: existing.id, status: "active" };
     }
-    const approval = await createHumanApproval(transactionContext, { organizationId, actorId: userId, actionType: "patient_record", reason: args.reason, attested: args.attested, evidence: { action: `${kind}_recorded`, sourceReference: args.sourceReference.trim() } });
+    const activeStatus = kind === "allergy" ? "active" : "current";
+    const current = await model.findMany({ where: { patient: { id: { equals: patient.id } }, status: { in: [activeStatus, "none_known"] } }, query: "id status" });
+    if (noneKnown && current.some((entry) => entry.status === activeStatus)) throw new DomainError(kind === "allergy" ? "This patient has recorded allergies. Mark them inactive first." : "This patient has current medications. Mark them discontinued first.");
+    const approval = await createHumanApproval(transactionContext, { organizationId, actorId: userId, actionType: "patient_record", reason: args.reason, attested: args.attested, evidence: { action: noneKnown ? `${kind}_none_known_recorded` : `${kind}_recorded`, sourceReference: args.sourceReference.trim() } });
+    for (const entry of current.filter((entry2) => entry2.status === "none_known")) await model.updateOne({ where: { id: entry.id }, data: { status: kind === "allergy" ? "inactive" : "discontinued" } });
     const common = { [uniqueField]: key, requestFingerprint, source: args.source.trim(), sourceReference: args.sourceReference.trim(), organization: { connect: { id: organizationId } }, patient: { connect: { id: patient.id } }, recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } };
-    const record2 = kind === "allergy" ? await sudo.query.PatientAllergy.createOne({ data: { ...common, allergen: label, reaction: normalize(args.reaction), severity: args.severity }, query: "id status" }) : await sudo.query.PatientMedication.createOne({ data: { ...common, medicationName: label, directions: args.directions?.trim() || void 0 }, query: "id status" });
+    const record2 = kind === "allergy" ? await sudo.query.PatientAllergy.createOne({ data: { ...common, allergen: label, reaction: normalize(args.reaction), severity: args.severity, ...noneKnown ? { status: "none_known" } : {} }, query: "id status" }) : await sudo.query.PatientMedication.createOne({ data: { ...common, medicationName: label, directions: args.directions?.trim() || void 0, ...noneKnown ? { status: "none_known" } : {} }, query: "id status" });
     await recordAuditAndOutbox(transactionContext, { eventKey: `patient.${kind}_recorded:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: `patient.${kind}_recorded`, resourceType: kind === "allergy" ? "PatientAllergy" : "PatientMedication", resourceId: record2.id, metadata: { approvalId: approval.id, sourceReference: args.sourceReference.trim() } });
     return { success: true, reused: false, recordId: record2.id, status: record2.status };
   });
@@ -7482,6 +7558,27 @@ async function recordPatientHistoryEntry(input, context) {
 
 // features/keystone/mutations/patientWorkflows.ts
 var import_node_crypto15 = require("node:crypto");
+
+// features/keystone/mutations/lib/patient-accounts.ts
+async function patientAccountWhere(context, organizationIds, patientEmail) {
+  const requests = await context.sudo().query.PrescriptionRequest.findMany({
+    where: { organization: { id: { in: organizationIds } } },
+    orderBy: { createdAt: "desc" },
+    take: 500,
+    query: "user { id }"
+  });
+  const requesterIds = [...new Set(requests.map((request) => request.user?.id).filter(Boolean))];
+  const email = patientEmail?.trim();
+  return {
+    OR: [
+      { memberships: { some: { status: { equals: "active" }, organization: { id: { in: organizationIds } } } } },
+      ...requesterIds.length ? [{ id: { in: requesterIds } }] : [],
+      ...email ? [{ email: { equals: email, mode: "insensitive" } }] : []
+    ]
+  };
+}
+
+// features/keystone/mutations/patientWorkflows.ts
 var TRANSFER_CONSENT = {
   policyVersion: "2026-07-18",
   statementKey: "openfront_pharmacy_prescription_transfer_consent_v1"
@@ -7489,28 +7586,29 @@ var TRANSFER_CONSENT = {
 async function patientAccess(context, patientId, organizationId, locationId) {
   const patient = await context.sudo().query.PatientProfile.findOne({ where: { id: patientId }, query: "id status user { id } organizations { id }" });
   const location = await context.sudo().query.PharmacyLocation.findOne({ where: { id: locationId }, query: "id status organization { id status }" });
-  if (!location || location.status !== "active" || location.organization?.id !== organizationId || location.organization.status !== "active") throw new Error("An active location is required");
-  if (!patient || patient.status !== "active" || !patient.organizations.some((organization) => organization.id === organizationId)) throw new Error("Patient not found in this organization");
+  if (!location || location.status !== "active" || location.organization?.id !== organizationId || location.organization.status !== "active") throw new DomainError("An active location is required");
+  if (!patient || patient.status !== "active" || !patient.organizations.some((organization) => organization.id === organizationId)) throw new DomainError("Patient not found in this organization");
   if (patient.user?.id === context.session?.itemId) return { patient, actorId: context.session.itemId };
-  if (!permissions.canManagePrescriptions({ session: context.session })) throw new Error("You do not have access to this patient workflow");
+  if (!permissions.canManagePrescriptions({ session: context.session })) throw new DomainError("You do not have access to this patient workflow");
   await currentFillPermission(context, "canManagePrescriptions");
   const { userId } = await requireTenantMembership(context, { organizationId, locationId });
   return { patient, actorId: userId };
 }
 async function linkPharmacyPatientAccount(_root, args, context) {
-  if (!permissions.canManagePatients({ session: context.session })) throw new Error("Permission required: canManagePatients");
+  if (!permissions.canManagePatients({ session: context.session })) throw new DomainError("Permission required: canManagePatients");
   return withDomainTransaction(context, [`patient:${args.patientId}`, `user:${args.userId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const [patient, user] = await Promise.all([
-      sudo.query.PatientProfile.findOne({ where: { id: args.patientId }, query: "id user { id } organizations { id }" }),
-      sudo.query.User.findOne({ where: { id: args.userId }, query: 'id patientProfile { id } memberships(where: { status: { equals: "active" } }) { organization { id } }' })
+      sudo.query.PatientProfile.findOne({ where: { id: args.patientId }, query: "id email user { id } organizations { id }" }),
+      sudo.query.User.findOne({ where: { id: args.userId }, query: "id patientProfile { id }" })
     ]);
-    if (!patient?.organizations?.length || !user) throw new Error("Patient or user not found");
+    if (!patient?.organizations?.length || !user) throw new DomainError("Patient or user not found");
     const organizationId = patient.organizations[0].id;
     const { userId: actorId } = await requireTenantMembership(transactionContext, { organizationId });
-    if (!user.memberships?.some((membership) => membership.organization?.id === organizationId)) throw new Error("User is not available in the patient organization");
+    const eligible = await sudo.query.User.count({ where: { AND: [{ id: { equals: user.id } }, await patientAccountWhere(transactionContext, [organizationId], patient.email)] } });
+    if (!eligible) throw new DomainError("This account has no connection to the pharmacy: it needs an online request from the customer or the patient's email");
     if (patient.user?.id === user.id && user.patientProfile?.id === patient.id) return { success: true, reused: true, patientId: patient.id, userId: user.id };
-    if (patient.user?.id || user.patientProfile?.id) throw new Error("Patient or user is already linked to another account");
+    if (patient.user?.id || user.patientProfile?.id) throw new DomainError("Patient or user is already linked to another account");
     await sudo.query.PatientProfile.updateOne({ where: { id: patient.id }, data: { user: { connect: { id: user.id } } } });
     await recordAuditAndOutbox(transactionContext, {
       eventKey: `patient.account_linked:${patient.id}:${user.id}`,
@@ -7526,8 +7624,8 @@ async function linkPharmacyPatientAccount(_root, args, context) {
   });
 }
 async function requestPrescriptionRefill(_root, args, context) {
-  if (!context.session?.itemId) throw new Error("Authentication required");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  if (!context.session?.itemId) throw new DomainError("Authentication required");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   return withDomainTransaction(context, [`refill-idempotency:${args.idempotencyKey}`, `prescription:${args.prescriptionId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.RefillRequest.findOne({
@@ -7538,10 +7636,10 @@ async function requestPrescriptionRefill(_root, args, context) {
       where: { id: args.prescriptionId },
       query: "id status organization { id } location { id } patient { id } items { id fillLineage refillsRemaining refillsReserved }"
     });
-    if (!prescription || prescription.patient.id !== args.patientId || prescription.location.id !== args.locationId) throw new Error("Prescription not found");
+    if (!prescription || prescription.patient.id !== args.patientId || prescription.location.id !== args.locationId) throw new DomainError("Prescription not found");
     const { actorId } = await patientAccess(transactionContext, args.patientId, prescription.organization.id, prescription.location.id);
     const item = prescription.items.find((entry) => entry.id === args.prescriptionItemId);
-    if (!item) throw new Error("Prescription item does not belong to this prescription");
+    if (!item) throw new DomainError("Prescription item does not belong to this prescription");
     const requestFingerprint = (0, import_node_crypto15.createHash)("sha256").update(JSON.stringify({
       organizationId: prescription.organization.id,
       actorId,
@@ -7554,22 +7652,22 @@ async function requestPrescriptionRefill(_root, args, context) {
     })).digest("hex");
     if (existing) {
       if (!existing.requestFingerprint || existing.requestFingerprint !== requestFingerprint) {
-        throw new Error("Refill idempotency key is already bound to another request");
+        throw new DomainError("Refill idempotency key is already bound to another request");
       }
       if (item.fillLineage === FILL_LINEAGE) {
         const current2 = await loadFillPrescription(transactionContext, prescription.id);
         const fill = await fillStore(transactionContext).PrescriptionFill.findOne({ where: { reservationKey: `refill:${args.idempotencyKey}` }, query: FILL_QUERY });
-        if (!fill) throw new Error("Refill lineage is missing");
+        if (!fill) throw new DomainError("Refill lineage is missing");
         assertFillBinding(fill, current2, current2.items.find((entry) => entry.id === item.id));
       }
       return { success: true, reused: true, refillRequestId: existing.id, status: existing.status };
     }
-    if (item.fillLineage !== FILL_LINEAGE) throw new Error("Legacy refill authority requires explicit reconciliation; no historical counter conversion is inferred");
-    if (!["dispensed", "fill_closed"].includes(prescription.status)) throw new Error("Current authorized fill must be completely dispensed before requesting a refill");
-    if (item.refillsRemaining - item.refillsReserved < 1) throw new Error("No unreserved refills remain for this prescription item");
+    if (item.fillLineage !== FILL_LINEAGE) throw new DomainError("Legacy refill authority requires explicit reconciliation; no historical counter conversion is inferred");
+    if (!["dispensed", "fill_closed"].includes(prescription.status)) throw new DomainError("Current authorized fill must be completely dispensed before requesting a refill");
+    if (item.refillsRemaining - item.refillsReserved < 1) throw new DomainError("No unreserved refills remain for this prescription item");
     const openRequestKey = `refill:${item.id}`;
     const openRequest = await sudo.query.RefillRequest.findOne({ where: { openRequestKey }, query: "id status" });
-    if (openRequest) throw new Error("An open refill request already owns this entitlement; recover that request");
+    if (openRequest) throw new DomainError("An open refill request already owns this entitlement; recover that request");
     const refill = await sudo.query.RefillRequest.createOne({
       data: {
         idempotencyKey: args.idempotencyKey,
@@ -7602,41 +7700,41 @@ async function requestPrescriptionRefill(_root, args, context) {
   });
 }
 async function resolvePrescriptionRefill(_root, args, context) {
-  if (!permissions.canReviewPrescriptions({ session: context.session })) throw new Error("Permission required: canReviewPrescriptions");
-  if (!["approved", "rejected"].includes(args.decision)) throw new Error("Refill decision must be approved or rejected");
+  if (!permissions.canReviewPrescriptions({ session: context.session })) throw new DomainError("Permission required: canReviewPrescriptions");
+  if (!["approved", "rejected"].includes(args.decision)) throw new DomainError("Refill decision must be approved or rejected");
   await currentFillPermission(context, "canReviewPrescriptions");
   const identity = await context.sudo().query.RefillRequest.findOne({ where: { id: args.refillRequestId }, query: "id prescription { id }" });
-  if (!identity?.prescription?.id) throw new Error("Refill request not found");
+  if (!identity?.prescription?.id) throw new DomainError("Refill request not found");
   return withDomainTransaction(context, [`refill:${args.refillRequestId}`, `prescription:${identity.prescription.id}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const refill = await sudo.query.RefillRequest.findOne({
       where: { id: args.refillRequestId },
       query: "id status patient { id } location { id } prescriptionItem { id fillLineage refillsRemaining refillsReserved } prescription { id status organization { id } location { id } } approval { id reason }"
     });
-    if (!refill?.prescriptionItem || !refill.prescription) throw new Error("Refill request not found");
+    if (!refill?.prescriptionItem || !refill.prescription) throw new DomainError("Refill request not found");
     const { userId } = await requireTenantMembership(transactionContext, {
       organizationId: refill.prescription.organization.id,
       locationId: refill.prescription.location.id,
       pharmacist: true
     });
-    if (refill.prescription.id !== identity.prescription.id || refill.patient.id !== (await loadFillPrescription(transactionContext, identity.prescription.id)).patient.id || refill.location?.id !== refill.prescription.location.id) throw new Error("Refill scope changed");
+    if (refill.prescription.id !== identity.prescription.id || refill.patient.id !== (await loadFillPrescription(transactionContext, identity.prescription.id)).patient.id || refill.location?.id !== refill.prescription.location.id) throw new DomainError("Refill scope changed");
     await currentFillPermission(transactionContext, "canReviewPrescriptions");
     if (refill.prescriptionItem.fillLineage === FILL_LINEAGE) {
       const q = fillStore(transactionContext), p = await loadFillPrescription(transactionContext, refill.prescription.id);
       const fill = (await q.PrescriptionFill.findMany({ where: { refillRequest: { id: { equals: refill.id } } }, take: 2, query: FILL_QUERY }))[0];
       const item = p.items.find((i) => i.id === refill.prescriptionItem.id);
-      if (!fill || !item) throw new Error("Refill fill lineage is missing");
+      if (!fill || !item) throw new DomainError("Refill fill lineage is missing");
       assertFillBinding(fill, p, item, args.decision === "approved");
       await assertItemFillLedger(transactionContext, p, item);
       const fingerprint2 = fillHash({ ...args, actorId: userId }), eventKey = `fill.resolve:${refill.id}`;
       const prior = await q.PrescriptionFillEvent.findOne({ where: { eventKey }, query: "commandFingerprint result" });
       if (prior) {
-        if (prior.commandFingerprint !== fingerprint2) throw new Error("Refill decision replay differs from the original intent");
+        if (prior.commandFingerprint !== fingerprint2) throw new DomainError("Refill decision replay differs from the original intent");
         return { ...prior.result, reused: true };
       }
-      if (refill.status !== "requested" || fill.status !== "requested" || fill.version !== args.expectedFillVersion) throw new Error("Refill state/version changed; refresh the workbench");
-      if (item.refillsReserved < 1 || item.refillsRemaining < 1) throw new Error("Refill reservation evidence is missing");
-      if (args.decision === "approved" && new Date(fill.expiresAt).getTime() <= Date.now()) throw new Error("Refill reservation expired; record an authorized release");
+      if (refill.status !== "requested" || fill.status !== "requested" || fill.version !== args.expectedFillVersion) throw new DomainError("Refill state/version changed; refresh the workbench");
+      if (item.refillsReserved < 1 || item.refillsRemaining < 1) throw new DomainError("Refill reservation evidence is missing");
+      if (args.decision === "approved" && new Date(fill.expiresAt).getTime() <= Date.now()) throw new DomainError("Refill reservation expired; record an authorized release");
       const approval2 = await createHumanApproval(transactionContext, {
         organizationId: p.organization.id,
         locationId: p.location.id,
@@ -7660,11 +7758,11 @@ async function resolvePrescriptionRefill(_root, args, context) {
       return result;
     }
     if (["approved", "rejected"].includes(refill.status)) {
-      if (refill.status !== args.decision || refill.approval?.reason !== args.reason) throw new Error("Refill resolution replay does not match the recorded decision and reason");
+      if (refill.status !== args.decision || refill.approval?.reason !== args.reason) throw new DomainError("Refill resolution replay does not match the recorded decision and reason");
       return { success: true, reused: true, refillRequestId: refill.id, status: refill.status, approvalId: refill.approval?.id };
     }
-    if (args.decision === "approved") throw new Error("Legacy refill approval requires explicit lineage reconciliation");
-    if (refill.prescriptionItem.refillsReserved < 1) throw new Error("Refill reservation evidence is missing");
+    if (args.decision === "approved") throw new DomainError("Legacy refill approval requires explicit lineage reconciliation");
+    if (refill.prescriptionItem.refillsReserved < 1) throw new DomainError("Refill reservation evidence is missing");
     const approval = await createHumanApproval(transactionContext, {
       organizationId: refill.prescription.organization.id,
       locationId: refill.prescription.location.id,
@@ -7699,27 +7797,27 @@ async function resolvePrescriptionRefill(_root, args, context) {
   });
 }
 async function requestPrescriptionTransfer(_root, args, context) {
-  if (!context.session?.itemId) throw new Error("Authentication required");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
+  if (!context.session?.itemId) throw new DomainError("Authentication required");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   if (!args.consentAccepted || args.policyVersion !== TRANSFER_CONSENT.policyVersion || args.statementKey !== TRANSFER_CONSENT.statementKey) {
-    throw new Error("Current prescription transfer consent is required");
+    throw new DomainError("Current prescription transfer consent is required");
   }
-  if (!["inbound", "outbound"].includes(args.direction)) throw new Error("Invalid transfer direction");
+  if (!["inbound", "outbound"].includes(args.direction)) throw new DomainError("Invalid transfer direction");
   const requestFingerprint = (0, import_node_crypto15.createHash)("sha256").update(JSON.stringify({ prescriptionId: args.prescriptionId, patientId: args.patientId, direction: args.direction, counterpartyName: args.counterpartyName?.trim(), counterpartyPhone: args.counterpartyPhone?.trim() || null, consentAccepted: args.consentAccepted, policyVersion: args.policyVersion, statementKey: args.statementKey })).digest("hex");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `transfer-idempotency:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.PrescriptionTransfer.findOne({ where: { idempotencyKey: args.idempotencyKey }, query: "id status patient { id } prescription { id organization { id } location { id } patient { id } } consent { evidence }" });
     if (existing) {
-      if (existing.prescription?.id !== args.prescriptionId || existing.patient?.id !== args.patientId || existing.prescription.patient?.id !== args.patientId || !existing.prescription.organization?.id || !existing.prescription.location?.id) throw new Error("Transfer replay scope is incomplete or does not match");
+      if (existing.prescription?.id !== args.prescriptionId || existing.patient?.id !== args.patientId || existing.prescription.patient?.id !== args.patientId || !existing.prescription.organization?.id || !existing.prescription.location?.id) throw new DomainError("Transfer replay scope is incomplete or does not match");
       await patientAccess(transactionContext, existing.patient.id, existing.prescription.organization.id, existing.prescription.location.id);
-      if (existing.consent?.evidence?.requestFingerprint !== requestFingerprint) throw new Error("Transfer idempotency key was reused with different input");
+      if (existing.consent?.evidence?.requestFingerprint !== requestFingerprint) throw new DomainError("Transfer idempotency key was reused with different input");
       return { success: true, reused: true, transferId: existing.id, status: existing.status };
     }
     const prescription = await sudo.query.Prescription.findOne({
       where: { id: args.prescriptionId },
       query: "id organization { id } location { id } patient { id }"
     });
-    if (!prescription || prescription.patient.id !== args.patientId) throw new Error("Prescription not found");
+    if (!prescription || prescription.patient.id !== args.patientId) throw new DomainError("Prescription not found");
     const { actorId } = await patientAccess(transactionContext, args.patientId, prescription.organization.id, prescription.location.id);
     const transfer = await sudo.query.PrescriptionTransfer.createOne({
       data: {
@@ -7763,24 +7861,24 @@ async function requestPrescriptionTransfer(_root, args, context) {
   });
 }
 async function approvePrescriptionTransfer(_root, args, context) {
-  if (!permissions.canReviewPrescriptions({ session: context.session })) throw new Error("Permission required: canReviewPrescriptions");
+  if (!permissions.canReviewPrescriptions({ session: context.session })) throw new DomainError("Permission required: canReviewPrescriptions");
   return withDomainTransaction(context, [`transfer:${args.transferId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const transfer = await sudo.query.PrescriptionTransfer.findOne({
       where: { id: args.transferId },
       query: "id status patient { id } consent { id accepted } approval { id reason actionType } prescription { id organization { id } location { id } }"
     });
-    if (!transfer) throw new Error("Transfer is not ready for authorized review");
+    if (!transfer) throw new DomainError("Transfer is not ready for authorized review");
     const { userId } = await requireTenantMembership(transactionContext, {
       organizationId: transfer.prescription.organization.id,
       locationId: transfer.prescription.location.id,
       pharmacist: true
     });
-    if (transfer.status === "accepted" && transfer.approval?.id && (transfer.approval.actionType !== "transfer" || transfer.approval.reason !== args.reason)) throw new Error("Transfer approval replay does not match the recorded reason");
+    if (transfer.status === "accepted" && transfer.approval?.id && (transfer.approval.actionType !== "transfer" || transfer.approval.reason !== args.reason)) throw new DomainError("Transfer approval replay does not match the recorded reason");
     if (transfer.status === "accepted" && transfer.approval?.id) {
       return { success: true, reused: true, transferId: transfer.id, status: transfer.status, approvalId: transfer.approval.id };
     }
-    if (transfer.status !== "consent_recorded" || !transfer.consent?.accepted) throw new Error("Transfer is not ready for authorized review");
+    if (transfer.status !== "consent_recorded" || !transfer.consent?.accepted) throw new DomainError("Transfer is not ready for authorized review");
     const approval = await createHumanApproval(transactionContext, {
       organizationId: transfer.prescription.organization.id,
       locationId: transfer.prescription.location.id,
@@ -7840,14 +7938,14 @@ function assessRecallExposureReconciliation(input) {
 // features/keystone/mutations/operationalQueries.ts
 function decodeStableCursor(cursor, expectedScope) {
   if (!cursor) return null;
-  if (cursor.length > 2048) throw new Error("Worklist cursor is invalid");
+  if (cursor.length > 2048) throw new DomainError("Worklist cursor is invalid");
   try {
     const value = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-    if (typeof value?.createdAt !== "string" || Number.isNaN(new Date(value.createdAt).getTime()) || typeof value?.id !== "string" || !value.id || value.id.length > 256) throw new Error();
-    if (expectedScope !== void 0 && value.scope !== expectedScope) throw new Error();
+    if (typeof value?.createdAt !== "string" || Number.isNaN(new Date(value.createdAt).getTime()) || typeof value?.id !== "string" || !value.id || value.id.length > 256) throw new DomainError();
+    if (expectedScope !== void 0 && value.scope !== expectedScope) throw new DomainError();
     return { createdAt: new Date(value.createdAt).toISOString(), id: value.id };
   } catch {
-    throw new Error("Worklist cursor is invalid");
+    throw new DomainError("Worklist cursor is invalid");
   }
 }
 function stableCursorWhere(where, cursor, timestampField = "createdAt", direction = "desc") {
@@ -7863,18 +7961,18 @@ function encodeStableCursor(record2, scope) {
 }
 function boundedPageSize(value) {
   if (value == null) return 50;
-  if (!Number.isInteger(value) || value < 1) throw new Error("Worklist page size must be a positive integer");
+  if (!Number.isInteger(value) || value < 1) throw new DomainError("Worklist page size must be a positive integer");
   return Math.min(value, 100);
 }
 function requireAny(context, allowed) {
-  if (!context.session?.itemId) throw new Error("Authentication required");
+  if (!context.session?.itemId) throw new DomainError("Authentication required");
   if (!allowed.some((permission2) => permissions[permission2]({ session: context.session }))) {
-    throw new Error("You do not have permission to read this pharmacy projection");
+    throw new DomainError("You do not have permission to read this pharmacy projection");
   }
 }
 function requirePatientPrivateData(context) {
   if (!permissions.canViewPatientPrivateData({ session: context.session })) {
-    throw new Error("Patient private-data permission is required for this projection");
+    throw new DomainError("Patient private-data permission is required for this projection");
   }
 }
 var fulfillmentTransitions = {
@@ -7889,7 +7987,7 @@ function prescriptionActions(status) {
   return [];
 }
 async function tenantScope(context) {
-  if (!context.session?.itemId) throw new Error("Authentication required");
+  if (!context.session?.itemId) throw new DomainError("Authentication required");
   const memberships = await context.sudo().query.OrganizationMembership.findMany({
     where: {
       user: { id: { equals: context.session.itemId } },
@@ -7967,7 +8065,7 @@ async function pharmacyPrescriptionIntakeOptions(_root, _args, context) {
   requireAny(context, ["canManagePrescriptions"]);
   requirePatientPrivateData(context);
   const scope = await validatedPharmacistScope(context);
-  if (!scope.organizationIds.length) throw new Error("Current organization-recorded pharmacist credential review evidence is required for intake");
+  if (!scope.organizationIds.length) throw new DomainError("Current organization-recorded pharmacist credential review evidence is required for intake");
   const sudo = context.sudo();
   const [organizations, locations, patients, prescribers, products] = await Promise.all([
     sudo.query.Organization.findMany({ where: { id: { in: scope.organizationIds } }, orderBy: { name: "asc" }, query: "id name" }),
@@ -7995,7 +8093,7 @@ async function pharmacyCredentialReviewOptions(_root, _args, context) {
   requireAny(context, ["canManageUsers", "canReviewPrescriptions"]);
   const scope = await tenantScope(context);
   const sudo = context.sudo();
-  const [memberships, prescribers, products, organizations] = await Promise.all([
+  const [memberships, prescribers, products, organizations, catalog, stockedPrescriptionLots] = await Promise.all([
     sudo.query.OrganizationMembership.findMany({
       where: { organization: { id: { in: scope.organizationIds } }, status: { equals: "active" }, membershipRole: { in: ["owner", "pharmacist"] } },
       orderBy: { createdAt: "asc" },
@@ -8004,7 +8102,10 @@ async function pharmacyCredentialReviewOptions(_root, _args, context) {
     }),
     sudo.query.Prescriber.findMany({ where: { organization: { id: { in: scope.organizationIds } } }, orderBy: { name: "asc" }, take: 200, query: "id name npi credentialExpiresAt organization { id }" }),
     sudo.query.Product.findMany({ where: { organization: { id: { in: scope.organizationIds } } }, orderBy: { title: "asc" }, take: 300, query: "id title sku organization { id } drugReference { id ndc11 proprietaryName reviews { id status organization { id } reviewedAt } }" }),
-    sudo.query.Organization.findMany({ where: { id: { in: scope.organizationIds } }, orderBy: { name: "asc" }, take: 100, query: "id name cashSalesEnabled cashTaxRateBps cashTaxPolicyReference" })
+    sudo.query.Organization.findMany({ where: { id: { in: scope.organizationIds } }, orderBy: { name: "asc" }, take: 100, query: "id name cashSalesEnabled cashTaxRateBps cashTaxPolicyReference" }),
+    // The drug reference catalog is shared; each pharmacy reviews an entry before stocking or dispensing it.
+    sudo.query.DrugReference.findMany({ orderBy: { proprietaryName: "asc" }, take: 200, query: "id ndc11 proprietaryName reviews { id status organization { id } reviewedAt }" }),
+    sudo.query.InventoryLot.count({ where: { status: { equals: "available" }, quantityAvailable: { gt: 0 }, product: { organization: { id: { in: scope.organizationIds } }, prescriptionRequirement: { not: { equals: "none" } } } } })
   ]);
   const drugReferences = /* @__PURE__ */ new Map();
   for (const product of products) {
@@ -8012,8 +8113,26 @@ async function pharmacyCredentialReviewOptions(_root, _args, context) {
     const currentReview = product.drugReference.reviews?.find((review) => review.organization?.id === product.organization?.id && review.status === "active");
     drugReferences.set(`${product.organization?.id}:${product.drugReference.id}`, { id: product.drugReference.id, label: product.drugReference.proprietaryName || product.title, scopeId: product.organization?.id, detail: `${product.drugReference.ndc11 || "NDC missing"} \xB7 ${currentReview ? `reviewed ${new Date(currentReview.reviewedAt).toISOString().slice(0, 10)}` : "review required"}` });
   }
+  for (const organization of organizations) {
+    for (const reference of catalog) {
+      if (drugReferences.has(`${organization.id}:${reference.id}`)) continue;
+      const currentReview = reference.reviews?.find((review) => review.organization?.id === organization.id && review.status === "active");
+      drugReferences.set(`${organization.id}:${reference.id}`, { id: reference.id, label: reference.proprietaryName, scopeId: organization.id, detail: `${reference.ndc11 || "NDC missing"} \xB7 ${currentReview ? `reviewed ${new Date(currentReview.reviewedAt).toISOString().slice(0, 10)}` : "review required"}` });
+    }
+  }
+  const now = Date.now();
+  const current = (value) => Boolean(value && new Date(value).getTime() > now);
+  const reviewedReferenceIds = new Set(catalog.filter((reference) => reference.reviews?.some((review) => review.status === "active" && scope.organizationIds.includes(review.organization?.id))).map((reference) => reference.id));
   return {
     organizationWideOrganizationIds: scope.organizationWideIds,
+    setup: {
+      pharmacistReviewed: memberships.some((entry) => current(entry.credentialExpiresAt)),
+      prescriberHasNpi: prescribers.some((entry) => isValidNpi(entry.npi)),
+      prescriberReady: prescribers.some((entry) => isValidNpi(entry.npi) && current(entry.credentialExpiresAt)),
+      drugReferenceReviewed: reviewedReferenceIds.size > 0 || products.some((product) => product.drugReference?.reviews?.some((review) => review.status === "active" && review.organization?.id === product.organization?.id)),
+      cashPolicyRecorded: organizations.some((entry) => entry.cashSalesEnabled),
+      prescriptionProductStocked: stockedPrescriptionLots > 0
+    },
     organizations: organizations.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.id, detail: entry.cashSalesEnabled ? `Cash enabled \xB7 ${(entry.cashTaxRateBps / 100).toFixed(2)}% \xB7 ${entry.cashTaxPolicyReference}` : "Cash/tax policy review required" })),
     memberships: memberships.map((entry) => ({ id: entry.id, label: `${entry.user?.name || "Staff member"} \xB7 ${entry.membershipRole}`, scopeId: entry.organization?.id, detail: entry.credentialExpiresAt ? `Review expires ${new Date(entry.credentialExpiresAt).toISOString().slice(0, 10)}` : entry.location?.name || entry.organization?.name })),
     prescribers: prescribers.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id, detail: `${entry.npi ? `NPI ${entry.npi}` : "NPI missing"}${entry.credentialExpiresAt ? ` \xB7 review expires ${new Date(entry.credentialExpiresAt).toISOString().slice(0, 10)}` : ""}` })),
@@ -8039,11 +8158,11 @@ function inventoryReceiptProductQueueFilter(scope, filters) {
   const authorizedLocationIds = [...new Set(scope.locationIds)].sort();
   const locationId = filters.locationId;
   if (typeof locationId !== "string" || !locationId.trim() || !authorizedLocationIds.includes(locationId)) {
-    throw new Error("You do not have access to this location");
+    throw new DomainError("You do not have access to this location");
   }
   const status = filters.status ?? null;
   if (status !== null && (typeof status !== "string" || !receiptProductStatuses.has(status))) {
-    throw new Error("Product selector status filter is invalid");
+    throw new DomainError("Product selector status filter is invalid");
   }
   const where = {
     organization: { id: { in: organizationIds } },
@@ -8187,7 +8306,7 @@ async function pharmacyPrescriptionTask(_root, args, context) {
     query: `
       id prescriptionNumber status source sourceVerificationStatus writtenAt expiresAt
       organization { id operatorDisplayName supportPhone cashSalesEnabled cashTaxRateBps cashTaxPolicyReference } location { id name }
-      patient { id displayName identityVerificationStatus identityReference identityVerifiedAt allergies(where: { status: { equals: "active" } }) { id allergen reaction severity updatedAt } medications(where: { status: { equals: "current" } }) { id medicationName directions updatedAt } } prescriber { id name verificationStatus }
+      patient { id displayName identityVerificationStatus identityReference identityVerifiedAt allergies(where: { status: { in: ["active", "none_known"] } }) { id allergen reaction severity updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id medicationName directions updatedAt } } prescriber { id name verificationStatus }
       approval { id approvedAt }
       items {
         id fillLineage activeFillNumber medicationNameSnapshot sig quantityPrescribed daysSupply refillsAuthorized refillsRemaining substitutionAllowed drugReference { id }
@@ -8208,7 +8327,7 @@ async function pharmacyPrescriptionTask(_root, args, context) {
     `
   });
   if (!prescription || !scope.organizationIds.includes(prescription.organization?.id) || !scope.locationIds.includes(prescription.location?.id) || !pharmacistScope.locationIds.includes(prescription.location?.id)) {
-    throw new Error("Prescription not found");
+    throw new DomainError("Prescription not found");
   }
   const now = Date.now();
   const fillNumbers = prescription.items.map((item) => currentFillNumber(item));
@@ -8294,13 +8413,13 @@ function inventoryLotQueueFilter(locationIds, filters) {
   let scopedLocationIds = allowedLocationIds;
   if (filters.locationId != null) {
     if (typeof filters.locationId !== "string" || !filters.locationId.trim() || !allowedLocationIds.includes(filters.locationId)) {
-      throw new Error("You do not have access to this location");
+      throw new DomainError("You do not have access to this location");
     }
     scopedLocationIds = [filters.locationId];
   }
   const status = filters.status ?? null;
   if (status !== null && (typeof status !== "string" || !inventoryLotQueueStatuses.has(status))) {
-    throw new Error("Inventory status filter is invalid");
+    throw new DomainError("Inventory status filter is invalid");
   }
   const where = { location: { id: { in: scopedLocationIds } } };
   if (status) where.status = { equals: status };
@@ -8361,7 +8480,7 @@ async function pharmacyInventoryLotTask(_root, args, context) {
       movements(orderBy: { occurredAt: desc }, take: 50) { id movementType quantityDelta reason occurredAt actor { name } }
     `
   });
-  if (!lot || !scope.locationIds.includes(lot.location?.id)) throw new Error("Inventory lot not found");
+  if (!lot || !scope.locationIds.includes(lot.location?.id)) throw new DomainError("Inventory lot not found");
   return {
     id: lot.id,
     lotNumber: lot.lotNumber,
@@ -8524,7 +8643,7 @@ async function pharmacyRecallTask(_root, args, context) {
     },
     query: "id recallNumber classification status reason source initiatedAt closedAt organization { id } location { id name } lots { id lotNumber status quantityAvailable quantityQuarantined product { title sku } location { name } } exposures(orderBy: { createdAt: asc }, take: 10000) { id status quantityDispensed contactMethod outcome notes lastActionAt resolvedAt patient { id displayName } prescription { id prescriptionNumber } order { id orderNumber } } approval { id approvedAt actor { name } }"
   }))[0];
-  if (!recall) throw new Error("Recall not found");
+  if (!recall) throw new DomainError("Recall not found");
   const candidateWhere = recallExposureMovementWhere((recall.lots || []).map((lot) => lot.id));
   const [candidateMovementCount, candidateMovements, exposureCount] = await Promise.all([
     context.sudo().query.InventoryMovement.count({ where: candidateWhere }),
@@ -8574,10 +8693,10 @@ function pharmacyOrderQueueFilter(scope, filters) {
   const status = filters.status ?? null;
   const fulfillmentMethod = filters.fulfillmentMethod ?? null;
   if (status !== null && (typeof status !== "string" || !orderStatuses.has(status))) {
-    throw new Error("Order status filter is invalid");
+    throw new DomainError("Order status filter is invalid");
   }
   if (fulfillmentMethod !== null && (typeof fulfillmentMethod !== "string" || !orderFulfillmentMethods.has(fulfillmentMethod))) {
-    throw new Error("Order fulfillment filter is invalid");
+    throw new DomainError("Order fulfillment filter is invalid");
   }
   const where = {
     organization: { id: { in: organizationIds } },
@@ -8640,18 +8759,23 @@ async function pharmacyOrderTask(_root, args, context) {
     where: { id: args.orderId },
     query: `
       id orderNumber status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode createdAt pickupAt deliveryWindow
+      customerName email phone
       organization { id } location { id name }
       lineItems { id title sku ndc11Snapshot quantity unitPriceAmount lineTotalAmount prescriptionRequirementSnapshot }
       fulfillment { id method status readyAt handedOffAt assignedTo { name } }
       payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount processedAt provider { name code } }
     `
   });
-  if (!order || !scope.organizationIds.includes(order.organization?.id) || !scope.locationIds.includes(order.location?.id)) throw new Error("Order not found");
+  if (!order || !scope.organizationIds.includes(order.organization?.id) || !scope.locationIds.includes(order.location?.id)) throw new DomainError("Order not found");
+  const contact = permissions.canViewPatientPrivateData({ session: context.session });
   return {
     id: order.id,
     orderNumber: order.orderNumber,
     status: order.status,
     fulfillmentMethod: order.fulfillmentMethod,
+    customerName: contact ? order.customerName || null : null,
+    customerEmail: contact ? order.email || null : null,
+    customerPhone: contact ? order.phone || null : null,
     subtotalAmount: order.subtotalAmount,
     taxAmount: order.taxAmount,
     deliveryAmount: order.deliveryAmount,
@@ -8717,14 +8841,14 @@ async function pharmacyPatientAccountCandidates(_root, args, context) {
   requireAny(context, ["canManagePatients"]);
   requirePatientPrivateData(context);
   const scope = await tenantScope(context);
-  const patient = await context.sudo().query.PatientProfile.findOne({ where: { id: args.patientId }, query: "id user { id email name } organizations { id }" });
-  if (!patient || !patient.organizations?.some((organization) => scope.organizationIds.includes(organization.id))) throw new Error("Patient not found");
+  const patient = await context.sudo().query.PatientProfile.findOne({ where: { id: args.patientId }, query: "id email user { id email name } organizations { id }" });
+  if (!patient || !patient.organizations?.some((organization) => scope.organizationIds.includes(organization.id))) throw new DomainError("Patient not found");
   const patientOrganizationIds = patient.organizations.map((organization) => organization.id).filter((id) => scope.organizationIds.includes(id));
   const users = await context.sudo().query.User.findMany({
     where: {
       OR: [
         ...patient.user?.id ? [{ id: { equals: patient.user.id } }] : [],
-        { memberships: { some: { status: { equals: "active" }, organization: { id: { in: patientOrganizationIds } } } } }
+        await patientAccountWhere(context, patientOrganizationIds, patient.email)
       ]
     },
     orderBy: { name: "asc" },
@@ -8735,7 +8859,7 @@ async function pharmacyPatientAccountCandidates(_root, args, context) {
   return available.map((user) => ({ id: user.id, label: user.name, scopeId: user.id, detail: user.email }));
 }
 async function pharmacyPatientPortal(_root, _args, context) {
-  if (!context.session?.itemId) throw new Error("Authentication required");
+  if (!context.session?.itemId) throw new DomainError("Authentication required");
   const patient = (await context.sudo().query.PatientProfile.findMany({
     where: { user: { id: { equals: context.session.itemId } } },
     take: 1,
@@ -8751,7 +8875,7 @@ async function pharmacyPatientPortal(_root, _args, context) {
       }
     `
   }))[0];
-  if (!patient) throw new Error("No patient profile is linked to this account");
+  if (!patient) throw new DomainError("No patient profile is linked to this account");
   return {
     id: patient.id,
     patientNumber: patient.patientNumber,
@@ -8806,7 +8930,7 @@ async function pharmacyPatientSafeView(_root, args, context) {
     where: { id: args.patientId },
     query: "id patientNumber displayName status email phone address preferredContactMethod identityVerificationStatus identityReference identityVerifiedAt organizations { id name } consents(orderBy: { grantedAt: desc }) { accepted grantedAt revokedAt } allergies(orderBy: { recordedAt: desc }, take: 100) { id allergen reaction severity status source recordedAt } medications(orderBy: { recordedAt: desc }, take: 100) { id medicationName directions status source recordedAt } prescriptionsCount"
   });
-  if (!patient || !patient.organizations?.some((organization) => scope.organizationIds.includes(organization.id))) throw new Error("Patient not found");
+  if (!patient || !patient.organizations?.some((organization) => scope.organizationIds.includes(organization.id))) throw new DomainError("Patient not found");
   return { ...patientSafeProjection(patient), email: patient.email || null, phone: patient.phone || null, address: patient.address || null };
 }
 async function pharmacyIntegrationStatus(_root, _args, context) {
@@ -8895,7 +9019,7 @@ async function pharmacyOperatorLocations(_root, _args, context) {
 async function pharmacyPosCatalog(_root, args, context) {
   requireAny(context, ["canManageOrders"]);
   const scope = await tenantScope(context);
-  if (!scope.locationIds.includes(args.locationId)) throw new Error("Location not found");
+  if (!scope.locationIds.includes(args.locationId)) throw new DomainError("Location not found");
   const records = await context.sudo().query.Product.findMany({
     where: {
       location: { id: { equals: args.locationId } },
@@ -8923,13 +9047,13 @@ async function replayPharmacyOutboxEvent(_root, args, context) {
       where: { id: args.eventId },
       query: "id eventKey status replayCount organization { id } location { id }"
     });
-    if (!event) throw new Error("Outbox event not found");
+    if (!event) throw new DomainError("Outbox event not found");
     await requireTenantMembership(transactionContext, {
       organizationId: event.organization.id,
       locationId: event.location?.id
     });
     if (event.status === "pending") return { id: event.id, status: event.status, replayCount: event.replayCount, reused: true };
-    if (!["failed", "dead_letter"].includes(event.status)) throw new Error("Only failed or dead-letter outbox events can be replayed");
+    if (!["failed", "dead_letter"].includes(event.status)) throw new DomainError("Only failed or dead-letter outbox events can be replayed");
     const updated = await sudo.db.OutboxEvent.updateOne({
       where: { id: event.id },
       data: {
@@ -8974,7 +9098,7 @@ function assertProviderAmount(providerCode, resource, payment) {
   if (providerCode.includes("stripe")) {
     const amount = Number(resource.amount_received ?? resource.amount);
     if (amount !== payment.amount || String(resource.currency).toUpperCase() !== expectedCurrency) {
-      throw new Error("Provider webhook amount or currency mismatch");
+      throw new DomainError("Provider webhook amount or currency mismatch");
     }
     return;
   }
@@ -8982,7 +9106,7 @@ function assertProviderAmount(providerCode, resource, payment) {
     const evidence = resource.amount;
     const divisor = NO_DIVISION_CURRENCIES2.has(expectedCurrency) ? 1 : 100;
     if (!evidence || Number(evidence.value) !== payment.amount / divisor || String(evidence.currency_code).toUpperCase() !== expectedCurrency) {
-      throw new Error("Provider webhook amount or currency mismatch");
+      throw new DomainError("Provider webhook amount or currency mismatch");
     }
   }
 }
@@ -9005,12 +9129,12 @@ async function handlePaymentProviderWebhook(_root, { providerId, event, headers 
     where: { id: providerId },
     query: "id code isInstalled handleWebhookFunction organization { id }"
   });
-  if (!provider?.isInstalled) throw new Error("Payment provider not found");
+  if (!provider?.isInstalled) throw new DomainError("Payment provider not found");
   const verified = await handleWebhook({ provider, event, headers: normalizedHeaders(headers) });
   const type = String(verified?.type || "");
   const resource = verified?.resource || {};
   const providerEventId = String(verified?.event?.id || event?.id || resource.id || "");
-  if (!verified?.isValid || !type || !providerEventId) throw new Error("Webhook signature or event envelope is invalid");
+  if (!verified?.isValid || !type || !providerEventId) throw new DomainError("Webhook signature or event envelope is invalid");
   const eventKey = `${provider.id}:${providerEventId}`;
   return withDomainTransaction(context, [`payment-webhook:${eventKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
@@ -9076,12 +9200,12 @@ var handlePaymentProviderWebhook_default = handlePaymentProviderWebhook;
 
 // features/keystone/mutations/paymentRecovery.ts
 async function reconcilePharmacyPaymentSession(_root, args, context) {
-  if (!permissions.canManagePayments({ session: context.session })) throw new Error("Permission required: canManagePayments");
+  if (!permissions.canManagePayments({ session: context.session })) throw new DomainError("Permission required: canManagePayments");
   const session = await context.sudo().query.PaymentSession.findOne({
     where: { id: args.paymentSessionId },
     query: `id status reconciliationStatus reconciliationAttempts externalPaymentId amount currencyCode data cart { id status organization { id } location { id } order { id } } provider { ${PAYMENT_PROVIDER_ADAPTER_FIELDS} }`
   });
-  if (!session?.cart || !session.provider || !session.externalPaymentId) throw new Error("Payment session not found");
+  if (!session?.cart || !session.provider || !session.externalPaymentId) throw new DomainError("Payment session not found");
   const { userId } = await requireTenantMembership(context, { organizationId: session.cart.organization.id, locationId: session.cart.location.id });
   if (session.cart.order?.id) {
     return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
@@ -9091,7 +9215,7 @@ async function reconcilePharmacyPaymentSession(_root, args, context) {
   }
   if (session.reconciliationStatus === "compensation_pending") {
     const compensation = await refundPayment({ provider: session.provider, paymentId: session.externalPaymentId, amount: session.amount, currency: session.currencyCode, idempotencyKey: `checkout-compensation:${session.id}` });
-    if (!["refunded", "succeeded"].includes(compensation?.status)) throw new Error("Payment compensation is still pending");
+    if (!["refunded", "succeeded"].includes(compensation?.status)) throw new DomainError("Payment compensation is still pending");
     return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
       await transactionContext.sudo().query.PaymentSession.updateOne({ where: { id: session.id }, data: { status: "compensated", reconciliationStatus: "compensated", reconciliationAttempts: session.reconciliationAttempts + 1, lastReconciledAt: (/* @__PURE__ */ new Date()).toISOString(), failureReason: null, data: { ...session.data || {}, compensation } } });
       await recordAuditAndOutbox(transactionContext, {
@@ -9127,25 +9251,25 @@ async function reconcilePharmacyPaymentSession(_root, args, context) {
 var import_node_crypto17 = require("node:crypto");
 var CLINICAL_QUERY = "sourceVerificationStatus writtenAt expiresAt prescriber { npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }";
 var SAFETY_QUERY = `
-  patient { id displayName identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } allergies(where: { status: { equals: "active" } }) { id updatedAt } medications(where: { status: { equals: "current" } }) { id updatedAt } }
+  patient { id displayName identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } allergies(where: { status: { in: ["active", "none_known"] } }) { id updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id updatedAt } }
   safetyReviews(orderBy: { reviewedAt: desc }, take: 1) {
     id fillNumber outcome allergiesReviewed medicationHistoryReviewed interactionsReviewed duplicateTherapyReviewed contraindicationsReviewed doseReviewed counselingPlanReviewed reviewReference overrideReason reviewedAt evidenceSnapshot
   }
 `;
 async function assertPrescriptionSafetyEvidence(context, prescription, fillSpecific = false) {
   if (prescription.patient?.identityVerificationStatus !== "confirmed" || !prescription.patient?.identityReference?.trim() || !prescription.patient?.identityVerifiedAt || !prescription.patient?.identityVerifiedBy?.id) {
-    throw new Error("Current operator-recorded patient identity evidence is required");
+    throw new DomainError("Current operator-recorded patient identity evidence is required");
   }
-  if (!prescription.patient.allergies?.length || !prescription.patient.medications?.length) throw new Error("Explicit allergy and medication history evidence is required for this fill");
+  if (!prescription.patient.allergies?.length || !prescription.patient.medications?.length) throw new DomainError("Explicit allergy and medication history evidence is required for this fill");
   const fillNumbers = prescription.items.map((item) => currentFillNumber(item));
   const fillNumber = Math.max(...fillNumbers);
-  if (!fillNumbers.length || fillNumbers.some((value) => value !== fillNumber)) throw new Error("Prescription items are not aligned to one fill review");
+  if (!fillNumbers.length || fillNumbers.some((value) => value !== fillNumber)) throw new DomainError("Prescription items are not aligned to one fill review");
   const latestPatientChange = [...prescription.patient?.allergies || [], ...prescription.patient?.medications || [], { updatedAt: prescription.patient.identityVerifiedAt }].map((entry) => entry.updatedAt).filter(Boolean).sort().at(-1);
   const review = prescription.safetyReviews?.[0];
   if (fillSpecific && prescription.items.some((item) => item.fillLineage === FILL_LINEAGE)) {
     const fills = await fillStore(context).PrescriptionFill.findMany({ where: { prescription: { id: { equals: prescription.id } }, openKey: { not: { equals: null } } }, take: 2, query: FILL_QUERY });
     const fill = fills[0], evidence = review?.evidenceSnapshot;
-    if (fills.length !== 1 || !fill || evidence?.fillId !== fill.id || evidence.itemVersion !== fill.itemVersion || evidence.authorityVersion !== fill.authorityVersion || new Date(review.reviewedAt).getTime() < new Date(fill.createdAt).getTime()) throw new Error("A versioned human safety review for this exact fill reservation is required");
+    if (fills.length !== 1 || !fill || evidence?.fillId !== fill.id || evidence.itemVersion !== fill.itemVersion || evidence.authorityVersion !== fill.authorityVersion || new Date(review.reviewedAt).getTime() < new Date(fill.createdAt).getTime()) throw new DomainError("A versioned human safety review for this exact fill reservation is required");
   }
   assertCurrentHumanSafetyReview(review, fillNumber, latestPatientChange);
   const drugReferenceIds = [...new Set(prescription.items.map((item) => item.drugReference?.id).filter(Boolean))];
@@ -9154,30 +9278,30 @@ async function assertPrescriptionSafetyEvidence(context, prescription, fillSpeci
     take: 100,
     query: "id status marketingStatusSnapshot controlledScheduleSnapshot sourceName sourceVersion sourceReference reviewedAt"
   });
-  if (!drugReferenceIds.length || drugReviews.length !== drugReferenceIds.length) throw new Error("Current drug reference review evidence is required");
+  if (!drugReferenceIds.length || drugReviews.length !== drugReferenceIds.length) throw new DomainError("Current drug reference review evidence is required");
   for (const drugReview of drugReviews) {
     assertDrugReferenceEligibleForBoundedDispensing({ sourceVerified: drugReview.status === "active", marketingStatus: drugReview.marketingStatusSnapshot, controlledSchedule: drugReview.controlledScheduleSnapshot, sourceName: drugReview.sourceName, sourceVersion: drugReview.sourceVersion, sourceReference: drugReview.sourceReference, reviewedAt: drugReview.reviewedAt });
-    if (new Date(drugReview.reviewedAt).getTime() > new Date(review.reviewedAt).getTime()) throw new Error("Drug reference evidence changed after the clinical safety review");
+    if (new Date(drugReview.reviewedAt).getTime() > new Date(review.reviewedAt).getTime()) throw new DomainError("Drug reference evidence changed after the clinical safety review");
   }
   return review;
 }
 async function recordPrescriptionReview(_root, args, context) {
   requirePermission(context, "canReviewPrescriptions");
-  if (!["approved", "needs_information", "rejected"].includes(args.decision)) throw new Error("Invalid review decision");
+  if (!["approved", "needs_information", "rejected"].includes(args.decision)) throw new DomainError("Invalid review decision");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const prescription = await sudo.query.Prescription.findOne({
       where: { id: args.prescriptionId },
       query: `id status ${CLINICAL_QUERY} ${SAFETY_QUERY} organization { id } location { id } items { id fillLineage activeFillNumber refillsAuthorized refillsRemaining drugReference { id } } reviews(orderBy: { reviewedAt: desc }, take: 1) { id decision reason approval { id reason } }`
     });
-    if (!prescription) throw new Error("Prescription not found");
+    if (!prescription) throw new DomainError("Prescription not found");
     const { userId } = await requireTenantMembership(transactionContext, {
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
       pharmacist: true
     });
     const prior = prescription.reviews?.[0];
-    if (prescription.status === args.decision && prior?.decision === args.decision && (prior.reason !== args.reason || prior.approval?.reason !== args.reason)) throw new Error("Prescription review replay does not match the recorded reason");
+    if (prescription.status === args.decision && prior?.decision === args.decision && (prior.reason !== args.reason || prior.approval?.reason !== args.reason)) throw new DomainError("Prescription review replay does not match the recorded reason");
     if (prescription.status === args.decision && prior?.decision === args.decision) {
       return { success: true, reused: true, prescriptionId: prescription.id, reviewId: prior.id, approvalId: prior.approval?.id, status: args.decision };
     }
@@ -9237,7 +9361,7 @@ async function authorizePrescriptionDispensing(_root, args, context) {
       where: { id: args.prescriptionId },
       query: `id status ${CLINICAL_QUERY} ${SAFETY_QUERY} organization { id } location { id } items { id fillLineage activeFillNumber refillsAuthorized refillsRemaining drugReference { id } } approval { id reason actionType } reviews(orderBy: { reviewedAt: desc }, take: 1) { id decision }`
     });
-    if (!prescription) throw new Error("Prescription not found");
+    if (!prescription) throw new DomainError("Prescription not found");
     const { userId } = await requireTenantMembership(transactionContext, {
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -9247,21 +9371,21 @@ async function authorizePrescriptionDispensing(_root, args, context) {
       await currentFillPermission(transactionContext, "canDispenseMedications");
       const current = await loadFillPrescription(transactionContext, prescription.id);
       const fills = await fillStore(transactionContext).PrescriptionFill.findMany({ where: { prescription: { id: { equals: prescription.id } }, openKey: { not: { equals: null } } }, take: 2, query: FILL_QUERY });
-      if (fills.length !== 1 || current.items.length !== 1) throw new Error("Exactly one current item/fill is required");
+      if (fills.length !== 1 || current.items.length !== 1) throw new DomainError("Exactly one current item/fill is required");
       const fill = fills[0];
       const item = current.items.find((entry) => entry.id === fill?.prescriptionItem?.id);
-      if (!fill || !item || !["approved", "partially_dispensed"].includes(fill.status) || new Date(fill.expiresAt).getTime() <= Date.now()) throw new Error("An approved current fill reservation is required");
+      if (!fill || !item || !["approved", "partially_dispensed"].includes(fill.status) || new Date(fill.expiresAt).getTime() <= Date.now()) throw new DomainError("An approved current fill reservation is required");
       assertFillBinding(fill, current, item);
       await assertItemFillLedger(transactionContext, current, item);
       await assertPrescriptionSafetyEvidence(transactionContext, prescription, true);
     }
-    if (prescription.status === "ready_to_dispense" && prescription.approval?.id && (prescription.approval.actionType !== "dispense" || prescription.approval.reason !== args.reason)) throw new Error("Dispensing authorization replay does not match the recorded reason");
+    if (prescription.status === "ready_to_dispense" && prescription.approval?.id && (prescription.approval.actionType !== "dispense" || prescription.approval.reason !== args.reason)) throw new DomainError("Dispensing authorization replay does not match the recorded reason");
     if (prescription.status === "ready_to_dispense" && prescription.approval?.id) {
       return { success: true, reused: true, prescriptionId: prescription.id, status: prescription.status, approvalId: prescription.approval.id };
     }
     assertPrescriptionClinicallyEligible(prescription);
     const safetyReview = await assertPrescriptionSafetyEvidence(transactionContext, prescription, true);
-    if (!prescription.reviews?.some((review) => review.decision === "approved")) throw new Error("Approved pharmacist review required");
+    if (!prescription.reviews?.some((review) => review.decision === "approved")) throw new DomainError("Approved pharmacist review required");
     assertPrescriptionTransition(prescription.status, "ready_to_dispense");
     const approval = await createHumanApproval(transactionContext, {
       organizationId: prescription.organization.id,
@@ -9292,11 +9416,11 @@ async function authorizePrescriptionDispensing(_root, args, context) {
 }
 async function recordPrescriptionDispensing(_root, args, context) {
   requirePermission(context, "canDispenseMedications");
-  if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new Error("Dispensed quantity must be a positive integer");
-  if (!args.idempotencyKey?.trim()) throw new Error("Idempotency key is required");
-  if (!["offered_accepted", "offered_declined"].includes(args.counselingOutcome)) throw new Error("Counseling offer outcome must be recorded");
+  if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new DomainError("Dispensed quantity must be a positive integer");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
+  if (!["offered_accepted", "offered_declined"].includes(args.counselingOutcome)) throw new DomainError("Counseling offer outcome must be recorded");
   const auxiliaryWarnings = [...new Set((args.auxiliaryWarnings || []).map((value) => value.trim()).filter(Boolean))];
-  if (!auxiliaryWarnings.length || auxiliaryWarnings.length > 20 || auxiliaryWarnings.some((value) => value.length > 200)) throw new Error("Auxiliary warning evidence is invalid");
+  if (!auxiliaryWarnings.length || auxiliaryWarnings.length > 20 || auxiliaryWarnings.some((value) => value.length > 200)) throw new DomainError("Auxiliary warning evidence is invalid");
   return withDomainTransaction(context, [
     `dispense:${args.idempotencyKey}`,
     `lot:${args.lotId}`,
@@ -9320,20 +9444,20 @@ async function recordPrescriptionDispensing(_root, args, context) {
         reviews(where: { decision: { equals: "approved" } }, orderBy: { reviewedAt: desc }, take: 1) { id }
       `
     });
-    if (!prescription) throw new Error("Prescription not found");
+    if (!prescription) throw new DomainError("Prescription not found");
     const { userId } = await requireTenantMembership(transactionContext, {
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
       pharmacist: true
     });
     const item = prescription.items.find((entry) => entry.id === args.prescriptionItemId);
-    if (!item) throw new Error("Prescription item does not belong to this prescription");
+    if (!item) throw new DomainError("Prescription item does not belong to this prescription");
     let fill = null;
     if (item.fillLineage === FILL_LINEAGE) {
       await currentFillPermission(transactionContext, "canDispenseMedications");
       const current = await loadFillPrescription(transactionContext, prescription.id);
       fill = args.fillId ? await fillStore(transactionContext).PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY }) : null;
-      if (!fill || !Number.isSafeInteger(args.expectedFillVersion)) throw new Error("Fill identity and expected version are required");
+      if (!fill || !Number.isSafeInteger(args.expectedFillVersion)) throw new DomainError("Fill identity and expected version are required");
       const currentItem = current.items.find((entry) => entry.id === item.id);
       assertFillBinding(fill, current, currentItem);
       await assertItemFillLedger(transactionContext, current, currentItem);
@@ -9355,7 +9479,7 @@ async function recordPrescriptionDispensing(_root, args, context) {
     })).digest("hex");
     if (existingMovement) {
       if (!existingMovement.requestFingerprint || existingMovement.requestFingerprint !== requestFingerprint) {
-        throw new Error("Dispensing idempotency key is already bound to another operation");
+        throw new DomainError("Dispensing idempotency key is already bound to another operation");
       }
       return { success: true, reused: true, prescriptionId: prescription.id, status: prescription.status, approvalId: existingMovement.approval?.id, orderId: existingMovement.order?.id, orderNumber: existingMovement.order?.orderNumber, receiptItemTitle: existingMovement.order?.lineItems?.[0]?.title, paymentId: existingMovement.order?.payments?.[0]?.id, labelId: existingMovement.order?.dispensingLabels?.[0]?.id, totalAmount: existingMovement.order?.totalAmount, cashReceivedAmount: existingMovement.order?.payments?.[0]?.cashReceivedAmount, changeDueAmount: existingMovement.order?.payments?.[0]?.changeDueAmount, currencyCode: existingMovement.order?.currencyCode };
     }
@@ -9363,18 +9487,18 @@ async function recordPrescriptionDispensing(_root, args, context) {
     assertPrescriptionClinicallyEligible(prescription);
     const safetyReview = await assertPrescriptionSafetyEvidence(transactionContext, prescription, true);
     if (!["ready_to_dispense", "partially_dispensed"].includes(prescription.status) || !prescription.approval || !prescription.reviews?.length) {
-      throw new Error("Prescription is not authorized for dispensing");
+      throw new DomainError("Prescription is not authorized for dispensing");
     }
     const fillPlan = fill ? dispenseFillPlan(fill, args.expectedFillVersion, args.quantity) : null;
     const authorizedFills = 1 + item.refillsAuthorized - item.refillsRemaining;
     const authorizedQuantity = item.quantityPrescribed * authorizedFills;
     const remainingAuthorizedQuantity = fill ? fill.authorizedQuantity - fill.quantityDispensed - fill.quantityReleased : authorizedQuantity - item.quantityDispensed;
-    if (args.quantity > remainingAuthorizedQuantity) throw new Error("Dispensed quantity exceeds the remaining authorized quantity");
+    if (args.quantity > remainingAuthorizedQuantity) throw new DomainError("Dispensed quantity exceeds the remaining authorized quantity");
     if (prescription.items.length !== 1 || !fill && (remainingAuthorizedQuantity !== item.quantityPrescribed || args.quantity !== item.quantityPrescribed)) {
-      throw new Error("Dispense one complete prescription item per cash pickup; partial and multi-item dispensing are not supported");
+      throw new DomainError("Dispense one complete prescription item per cash pickup; partial and multi-item dispensing are not supported");
     }
     if (prescription.organization.cashSalesEnabled !== true || !prescription.organization.cashTaxPolicyReference?.trim() || !prescription.organization.cashPolicyReviewedAt) {
-      throw new Error("Operator-attested cash and tax policy must be configured before dispensing");
+      throw new DomainError("Operator-attested cash and tax policy must be configured before dispensing");
     }
     const currencyCode = fill ? fill.priceSnapshot.currencyCode : item.product.currencyCode;
     const subtotalAmount = fill ? fillPricePortion(fill.priceSnapshot.amount, fill.authorizedQuantity, fill.quantityDispensed, args.quantity) : item.product.priceAmount;
@@ -9387,8 +9511,8 @@ async function recordPrescriptionDispensing(_root, args, context) {
       where: { id: args.lotId },
       query: "id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } product { id } location { id }"
     });
-    if (!lot || lot.location.id !== prescription.location.id || lot.product.id !== item.product?.id) throw new Error("Inventory lot does not match this prescription item and location");
-    if (!isLotEligible(lot) || lot.quantityAvailable - lot.quantityQuarantined < args.quantity) throw new Error("Inventory lot is not eligible for dispensing");
+    if (!lot || lot.location.id !== prescription.location.id || lot.product.id !== item.product?.id) throw new DomainError("Inventory lot does not match this prescription item and location");
+    if (!isLotEligible(lot) || lot.quantityAvailable - lot.quantityQuarantined < args.quantity) throw new DomainError("Inventory lot is not eligible for dispensing");
     const approval = await createHumanApproval(transactionContext, {
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -9569,7 +9693,7 @@ async function reconcileRecallExposures(context, recallId) {
   return withDomainTransaction(context, [`recall-exposures:${recallId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const recall = await sudo.query.Recall.findOne({ where: { id: recallId }, query: "id status recallNumber classification sourceValidationReference organization { id } location { id } lots { id } approval { id }" });
-    if (!recall?.organization?.id) throw new Error("Recall exposure reconciliation scope is incomplete");
+    if (!recall?.organization?.id) throw new DomainError("Recall exposure reconciliation scope is incomplete");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: recall.organization.id, locationId: recall.location?.id, organizationWide: !recall.location?.id });
     const lotIds = (recall.lots || []).map((lot) => lot.id);
     const candidateWhere = recallExposureMovementWhere(lotIds);
@@ -9632,16 +9756,16 @@ async function reconcileRecallExposures(context, recallId) {
 }
 async function openPharmacyRecall(_root, args, context) {
   requirePermission(context, "canManageRecalls");
-  if (!["class_i", "class_ii", "class_iii", "market_withdrawal"].includes(args.classification)) throw new Error("Recall classification is invalid");
-  if (!args.recallNumber?.trim() || !args.reason?.trim() || !args.source?.trim() || !args.sourceReference?.trim() || !args.lotIds.length) throw new Error("Recall number, reason, source, source reference, and affected lots are required");
+  if (!["class_i", "class_ii", "class_iii", "market_withdrawal"].includes(args.classification)) throw new DomainError("Recall classification is invalid");
+  if (!args.recallNumber?.trim() || !args.reason?.trim() || !args.source?.trim() || !args.sourceReference?.trim() || !args.lotIds.length) throw new DomainError("Recall number, reason, source, source reference, and affected lots are required");
   const requestFingerprint = (0, import_node_crypto18.createHash)("sha256").update(JSON.stringify({ organizationId: args.organizationId, locationId: args.locationId || null, recallNumber: args.recallNumber.trim(), classification: args.classification, reason: args.reason.trim(), source: args.source.trim(), sourceReference: args.sourceReference.trim(), lotIds: [...new Set(args.lotIds)].sort(), attested: args.attested })).digest("hex");
   const holdResult = await withDomainTransaction(context, [`recall-number:${args.recallNumber.trim()}`, ...args.lotIds.map((id) => `lot:${id}`)], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.Recall.findOne({ where: { recallNumber: args.recallNumber.trim() }, query: "id status organization { id } location { id } lots { id } approval { id evidence }" });
     if (existing) {
-      if (!existing.organization?.id) throw new Error("Recall replay scope is incomplete; operator reconciliation is required");
+      if (!existing.organization?.id) throw new DomainError("Recall replay scope is incomplete; operator reconciliation is required");
       await requireTenantMembership(transactionContext, { organizationId: existing.organization.id, locationId: existing.location?.id, organizationWide: !existing.location?.id });
-      if (existing.approval?.evidence?.requestFingerprint !== requestFingerprint) throw new Error("Recall number was reused with different input");
+      if (existing.approval?.evidence?.requestFingerprint !== requestFingerprint) throw new DomainError("Recall number was reused with different input");
       return { success: true, reused: true, recallId: existing.id, status: existing.status, lotCount: existing.lots.length, approvalId: existing.approval?.id };
     }
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId, locationId: args.locationId, organizationWide: !args.locationId });
@@ -9650,7 +9774,7 @@ async function openPharmacyRecall(_root, args, context) {
       query: "id quantityAvailable product { id organization { id } } location { id }"
     });
     if (lots.length !== new Set(args.lotIds).size || lots.some((lot) => lot.product?.organization?.id !== args.organizationId || args.locationId && lot.location?.id !== args.locationId)) {
-      throw new Error("Every affected lot must belong to this pharmacy");
+      throw new DomainError("Every affected lot must belong to this pharmacy");
     }
     const approval = await createHumanApproval(transactionContext, {
       organizationId: args.organizationId,
@@ -9703,22 +9827,22 @@ async function openPharmacyRecall(_root, args, context) {
     const reconciliation = await reconcileRecallExposures(context, holdResult.recallId);
     return { ...holdResult, unlinkedExposureCount: reconciliation.unlinkedExposureCount };
   } catch {
-    throw new Error(`Recall hold ${holdResult.recallId} is committed, but exposure reconciliation did not complete. Verify the recall task and retry the same recall input; do not assume the hold failed.`);
+    throw new DomainError(`Recall hold ${holdResult.recallId} is committed, but exposure reconciliation did not complete. Verify the recall task and retry the same recall input; do not assume the hold failed.`);
   }
 }
 async function recordRecallExposureAction(_root, args, context) {
   requirePermission(context, "canManageRecalls");
-  if (!["contacted", "returned", "resolved", "unable_to_reach"].includes(args.status)) throw new Error("Recall exposure status is invalid");
-  if (!args.contactMethod?.trim() || !args.outcome?.trim()) throw new Error("Contact method and outcome are required");
+  if (!["contacted", "returned", "resolved", "unable_to_reach"].includes(args.status)) throw new DomainError("Recall exposure status is invalid");
+  if (!args.contactMethod?.trim() || !args.outcome?.trim()) throw new DomainError("Contact method and outcome are required");
   const requestFingerprint = (0, import_node_crypto18.createHash)("sha256").update(JSON.stringify({ exposureId: args.exposureId, status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), notes: args.notes?.trim() || null, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`recall-exposure:${args.exposureId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const exposure = await sudo.query.RecallExposure.findOne({ where: { id: args.exposureId }, query: "id status organization { id } location { id } recall { id status } patient { id } approval { id evidence }" });
-    if (!exposure || !["quarantined", "resolved"].includes(exposure.recall?.status)) throw new Error("Recall exposure is not actionable");
+    if (!exposure || !["quarantined", "resolved"].includes(exposure.recall?.status)) throw new DomainError("Recall exposure is not actionable");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: exposure.organization.id, locationId: exposure.location.id });
-    if (exposure.status === args.status && exposure.approval?.id && exposure.approval.evidence?.requestFingerprint !== requestFingerprint) throw new Error("Recall exposure replay input does not match the recorded action");
+    if (exposure.status === args.status && exposure.approval?.id && exposure.approval.evidence?.requestFingerprint !== requestFingerprint) throw new DomainError("Recall exposure replay input does not match the recorded action");
     if (exposure.status === args.status && exposure.approval?.id) return { success: true, reused: true, exposureId: exposure.id, status: exposure.status, approvalId: exposure.approval.id };
-    if (["returned", "resolved", "unable_to_reach"].includes(exposure.status)) throw new Error("Recall exposure is already resolved");
+    if (["returned", "resolved", "unable_to_reach"].includes(exposure.status)) throw new DomainError("Recall exposure is already resolved");
     const approval = await createHumanApproval(transactionContext, { organizationId: exposure.organization.id, locationId: exposure.location.id, actorId: userId, actionType: "recall_disposition", reason: args.reason, attested: args.attested, evidence: { exposureId: exposure.id, status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), requestFingerprint, custodyClaimed: false } });
     const resolved = ["returned", "resolved", "unable_to_reach"].includes(args.status);
     await transactionContext.prisma.recallExposure.update({ where: { id: exposure.id }, data: { status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), notes: args.notes?.trim() || null, lastActionAt: /* @__PURE__ */ new Date(), resolvedAt: resolved ? /* @__PURE__ */ new Date() : null, lastActorId: userId, approvalId: approval.id } });
@@ -9728,21 +9852,21 @@ async function recordRecallExposureAction(_root, args, context) {
 }
 async function disposeRecallLot(_root, args, context) {
   requirePermission(context, "canManageRecalls");
-  if (!Number.isInteger(args.quantity) || args.quantity < 1 || !args.dispositionReference?.trim() || !args.idempotencyKey?.trim()) throw new Error("Quantity, disposition reference, and idempotency key are required");
+  if (!Number.isInteger(args.quantity) || args.quantity < 1 || !args.dispositionReference?.trim() || !args.idempotencyKey?.trim()) throw new DomainError("Quantity, disposition reference, and idempotency key are required");
   const requestFingerprint = (0, import_node_crypto18.createHash)("sha256").update(JSON.stringify({ recallId: args.recallId, lotId: args.lotId, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`recall:${args.recallId}`, `lot:${args.lotId}`, `recall-disposition:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const recall = await sudo.query.Recall.findOne({ where: { id: args.recallId }, query: "id status organization { id } location { id } lots { id quantityAvailable quantityQuarantined product { id } location { id } }" });
     const lot = recall?.lots?.find((entry) => entry.id === args.lotId);
-    if (!recall || !recall.organization?.id || !lot?.location?.id) throw new Error("Recall disposition scope is incomplete; operator reconciliation is required");
+    if (!recall || !recall.organization?.id || !lot?.location?.id) throw new DomainError("Recall disposition scope is incomplete; operator reconciliation is required");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: recall.organization.id, locationId: lot.location.id });
     const existing = await sudo.query.InventoryMovement.findOne({ where: { idempotencyKey: `recall-disposition:${args.idempotencyKey}` }, query: "id requestFingerprint lot { id }" });
     if (existing) {
-      if (existing.lot?.id !== args.lotId || existing.requestFingerprint !== requestFingerprint) throw new Error("Disposition idempotency key was reused with different input");
+      if (existing.lot?.id !== args.lotId || existing.requestFingerprint !== requestFingerprint) throw new DomainError("Disposition idempotency key was reused with different input");
       return { success: true, reused: true, recallId: args.recallId, lotId: args.lotId, movementId: existing.id, status: "disposed" };
     }
-    if (recall.status !== "quarantined") throw new Error("Quarantined recall lot not found");
-    if (args.quantity !== lot.quantityQuarantined || args.quantity > lot.quantityAvailable) throw new Error("Bounded recall disposition must dispose the complete quarantined quantity");
+    if (recall.status !== "quarantined") throw new DomainError("Quarantined recall lot not found");
+    if (args.quantity !== lot.quantityQuarantined || args.quantity > lot.quantityAvailable) throw new DomainError("Bounded recall disposition must dispose the complete quarantined quantity");
     const approval = await createHumanApproval(transactionContext, { organizationId: recall.organization.id, locationId: lot.location.id, actorId: userId, actionType: "recall_disposition", reason: args.reason, attested: args.attested, evidence: { recallId: recall.id, lotId: lot.id, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), physicalDispositionRecorded: true } });
     await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable - args.quantity, quantityQuarantined: 0, status: lot.quantityAvailable - args.quantity === 0 ? "depleted" : "recalled" } });
     const movement = await sudo.query.InventoryMovement.createOne({ data: { movementType: "destroy", quantityDelta: -args.quantity, reason: args.reason, idempotencyKey: `recall-disposition:${args.idempotencyKey}`, requestFingerprint, organization: { connect: { id: recall.organization.id } }, location: { connect: { id: lot.location.id } }, product: { connect: { id: lot.product.id } }, lot: { connect: { id: lot.id } }, actor: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: "id" });
@@ -9755,7 +9879,7 @@ async function closePharmacyRecall(_root, args, context) {
   return withDomainTransaction(context, [`recall:${args.recallId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const recall = await sudo.query.Recall.findOne({ where: { id: args.recallId }, query: "id status organization { id } location { id } closedAt approval { id reason actionType } lots { id quantityQuarantined } exposures(take: 10000) { id status }" });
-    if (!recall) throw new Error("Recall not found");
+    if (!recall) throw new DomainError("Recall not found");
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: recall.organization.id, locationId: recall.location?.id, organizationWide: !recall.location?.id });
     const candidateWhere = recallExposureMovementWhere((recall.lots || []).map((lot) => lot.id));
     const [candidateMovementCount, candidateMovements, exposureCount] = await Promise.all([
@@ -9768,13 +9892,13 @@ async function closePharmacyRecall(_root, args, context) {
     const linkedMovementIds = linkedRows.map((entry) => entry.movement?.id).filter(Boolean);
     const reconciliation = assessRecallExposureReconciliation({ candidateMovementCount, linkedMovementIds, exposureCount, linkedExposureCount: linkedRows.length });
     const exposureReconciliationComplete = reconciliation.exposureReconciliationComplete && exposureCount === (recall.exposures || []).length;
-    if (recall.status === "closed" && !exposureReconciliationComplete) throw new Error("Recall exposure reconciliation is incomplete; closure evidence requires operator review");
-    if (recall.status === "closed" && (recall.approval?.actionType !== "recall_disposition" || recall.approval?.reason !== args.reason)) throw new Error("Recall closure replay does not match the recorded reason");
+    if (recall.status === "closed" && !exposureReconciliationComplete) throw new DomainError("Recall exposure reconciliation is incomplete; closure evidence requires operator review");
+    if (recall.status === "closed" && (recall.approval?.actionType !== "recall_disposition" || recall.approval?.reason !== args.reason)) throw new DomainError("Recall closure replay does not match the recorded reason");
     if (recall.status === "closed") return { success: true, reused: true, recallId: recall.id, status: recall.status, approvalId: recall.approval?.id };
-    if (!["quarantined", "resolved"].includes(recall.status)) throw new Error("Recall is not ready for closure");
-    if (!exposureReconciliationComplete) throw new Error("Every sale/dispense movement must have a recorded exposure before recall closure");
-    if (recall.lots.some((lot) => lot.quantityQuarantined > 0)) throw new Error("All quarantined lot quantities require recorded disposition before closure");
-    if (recall.exposures.some((exposure) => !["returned", "resolved", "unable_to_reach"].includes(exposure.status))) throw new Error("Every dispensed exposure requires a resolved outreach record before closure");
+    if (!["quarantined", "resolved"].includes(recall.status)) throw new DomainError("Recall is not ready for closure");
+    if (!exposureReconciliationComplete) throw new DomainError("Every sale/dispense movement must have a recorded exposure before recall closure");
+    if (recall.lots.some((lot) => lot.quantityQuarantined > 0)) throw new DomainError("All quarantined lot quantities require recorded disposition before closure");
+    if (recall.exposures.some((exposure) => !["returned", "resolved", "unable_to_reach"].includes(exposure.status))) throw new DomainError("Every dispensed exposure requires a resolved outreach record before closure");
     const approval = await createHumanApproval(transactionContext, { organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, actionType: "recall_disposition", reason: args.reason, attested: args.attested, evidence: { recallId: recall.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length, allDispositionRecorded: true } });
     await sudo.query.Recall.updateOne({ where: { id: recall.id }, data: { status: "closed", closedAt: (/* @__PURE__ */ new Date()).toISOString(), approval: { connect: { id: approval.id } } } });
     await recordAuditAndOutbox(transactionContext, { eventKey: `recall.closed:${recall.id}:${approval.id}`, organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, eventType: "recall.closed", resourceType: "Recall", resourceId: recall.id, metadata: { approvalId: approval.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length } });
@@ -9797,19 +9921,20 @@ async function updateActiveUser(_root, { data, oldPassword }, context) {
   const sudoContext = context.sudo();
   const session = context.session;
   if (!session?.itemId) {
-    throw new Error("Not authenticated");
+    throw new DomainError("Not authenticated");
   }
   const existingUser = await sudoContext.query.User.findOne({
     where: { id: session.itemId },
     query: "id email"
   });
   if (!existingUser) {
-    throw new Error("User not found");
+    throw new DomainError("User not found");
   }
-  if (data.password && !oldPassword) {
-    throw new Error("Old password is required to update password");
+  const emailChanged = data.email != null && data.email.trim().toLowerCase() !== String(existingUser.email).toLowerCase();
+  if ((data.password || emailChanged) && !oldPassword) {
+    throw new DomainError("Enter your current password");
   }
-  if (data.password) {
+  if (data.password || emailChanged) {
     const result = await sudoContext.graphql.raw({
       query: `
         mutation VerifyPassword($email: String!, $password: String!) {
@@ -9821,7 +9946,7 @@ async function updateActiveUser(_root, { data, oldPassword }, context) {
       variables: { email: existingUser.email, password: oldPassword }
     });
     if (result.data?.authenticateUserWithPassword?.__typename !== "UserAuthenticationWithPasswordSuccess") {
-      throw new Error("Invalid old password");
+      throw new DomainError("Current password is incorrect");
     }
   }
   const update = Object.fromEntries(
@@ -9837,7 +9962,7 @@ var updateActiveUser_default = updateActiveUser;
 // features/platform/onboarding/lib/seed.json
 var seed_default = {
   organization: {
-    name: "Cedar & Elm Community Pharmacy",
+    name: "Cedar & Elm Pharmacy",
     slug: "cedar-elm-community-pharmacy",
     storefrontKey: "cedar-elm",
     operatorDisplayName: "Cedar & Elm Pharmacy",
@@ -9928,7 +10053,17 @@ var seed_default = {
       status: "active"
     }
   ],
-  drugReferences: [],
+  drugReferences: [
+    {
+      ndc11: "99999050001",
+      proprietaryName: "Amoxicillin (sample)",
+      genericName: "amoxicillin",
+      labelerName: "Sample labeler",
+      dosageForm: "capsule",
+      route: "oral",
+      strength: "500 mg"
+    }
+  ],
   products: [
     {
       profile: "minimal",
@@ -9939,7 +10074,7 @@ var seed_default = {
       category: "otc_medication",
       prescriptionRequirement: "none",
       priceAmount: 899,
-      imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=80"
+      imageUrl: "https://images.unsplash.com/photo-1519161720427-f7711f9efce3?auto=format&fit=crop&w=900&q=80"
     },
     {
       profile: "minimal",
@@ -9961,7 +10096,7 @@ var seed_default = {
       category: "digestive_health",
       prescriptionRequirement: "none",
       priceAmount: 1099,
-      imageUrl: "https://images.unsplash.com/photo-1550572017-edd951b55104?auto=format&fit=crop&w=900&q=80"
+      imageUrl: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=80"
     },
     {
       profile: "full",
@@ -9983,7 +10118,7 @@ var seed_default = {
       category: "health_devices",
       prescriptionRequirement: "none",
       priceAmount: 1499,
-      imageUrl: "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=900&q=80"
+      imageUrl: "https://images.unsplash.com/photo-1609725236589-d987ffc8133a?auto=format&fit=crop&w=900&q=80"
     },
     {
       profile: "full",
@@ -10005,7 +10140,7 @@ var seed_default = {
       category: "first_aid",
       prescriptionRequirement: "none",
       priceAmount: 749,
-      imageUrl: "https://images.unsplash.com/photo-1609840114035-3c981b782dfe?auto=format&fit=crop&w=900&q=80"
+      imageUrl: "https://images.unsplash.com/photo-1609840534195-e6385ca0d10a?auto=format&fit=crop&w=900&q=80"
     },
     {
       profile: "full",
@@ -10016,7 +10151,18 @@ var seed_default = {
       category: "vitamins",
       prescriptionRequirement: "none",
       priceAmount: 1599,
-      imageUrl: "https://images.unsplash.com/photo-1550572017-4fcdbb59cc32?auto=format&fit=crop&w=900&q=80"
+      imageUrl: "https://images.unsplash.com/photo-1763667926453-6a992d38ac43?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      profile: "full",
+      title: "Amoxicillin 500 mg Capsules",
+      handle: "amoxicillin-500-mg-capsules",
+      sku: "RX-AMOX-500",
+      description: "Sample prescription item for trying the dispensing workflow.",
+      category: "prescription",
+      prescriptionRequirement: "prescription_required",
+      priceAmount: 1299,
+      ndc11: "99999050001"
     }
   ],
   lots: [
@@ -10075,6 +10221,13 @@ var seed_default = {
       quantity: 40,
       expirationOffsetDays: 450,
       coldChainRequired: false
+    },
+    {
+      lotNumber: "LOT-RX-AMOX-500-001",
+      sku: "RX-AMOX-500",
+      quantity: 200,
+      expirationOffsetDays: 540,
+      coldChainRequired: false
     }
   ],
   patients: [
@@ -10107,7 +10260,8 @@ var seed_default = {
     {
       name: "Dr. Elena Ruiz, MD",
       phone: "(212) 555-0110",
-      fax: "(212) 555-0111"
+      fax: "(212) 555-0111",
+      npi: "1234567893"
     },
     {
       name: "Dr. Samuel Okafor, DO",
@@ -10121,15 +10275,15 @@ var seed_default = {
 var ONBOARDING_STATUSES = ["not_started", "in_progress", "completed", "dismissed"];
 async function pharmacyOnboardingState(_root, _args, context) {
   const userId = context.session?.itemId;
-  if (!userId) throw new Error("Authentication required");
+  if (!userId) throw new DomainError("Authentication required");
   const user = await context.sudo().query.User.findOne({ where: { id: userId }, query: "id onboardingStatus" });
-  if (!user) throw new Error("Authenticated user not found");
+  if (!user) throw new DomainError("Authenticated user not found");
   return { userId: user.id, status: user.onboardingStatus || "not_started", canManageOnboarding: permissions.canManageOnboarding({ session: context.session }) };
 }
 async function setPharmacyOnboardingStatus(_root, args, context) {
   const userId = context.session?.itemId;
-  if (!userId) throw new Error("Authentication required");
-  if (!ONBOARDING_STATUSES.includes(args.status)) throw new Error("Invalid onboarding status");
+  if (!userId) throw new DomainError("Authentication required");
+  if (!ONBOARDING_STATUSES.includes(args.status)) throw new DomainError("Invalid onboarding status");
   const user = await context.sudo().query.User.updateOne({ where: { id: userId }, data: { onboardingStatus: args.status }, query: "id onboardingStatus" });
   return { userId: user.id, status: user.onboardingStatus || args.status };
 }
@@ -10160,7 +10314,7 @@ var forTemplate = (entries, template) => (entries || []).filter((entry) => templ
 var withoutProfile = ({ profile: _profile, ...entry }) => entry;
 async function runPharmacyOnboarding(_root, args, context) {
   const userId = context.session?.itemId;
-  if (!userId || !permissions.canManageOnboarding({ session: context.session })) throw new Error("You do not have permission to run onboarding");
+  if (!userId || !permissions.canManageOnboarding({ session: context.session })) throw new DomainError("You do not have permission to run onboarding");
   const template = args.template === "minimal" ? "minimal" : "full";
   const seed = seed_default;
   const products = forTemplate(seed.products, template);
@@ -10201,7 +10355,7 @@ async function runPharmacyOnboarding(_root, args, context) {
       };
     }
     if (memberships.some((entry) => entry.status === "active") || organizationConflict || locationConflict) {
-      throw new Error("Store data already exists. Onboarding can only run on a new installation.");
+      throw new DomainError("Store data already exists. Onboarding can only run on a new installation.");
     }
     const organization = await sudo.query.Organization.createOne({
       data: {
@@ -10273,7 +10427,7 @@ async function runPharmacyOnboarding(_root, args, context) {
     }
     for (const entry of lots) {
       const productId = productIds.get(entry.sku);
-      if (!productId) throw new Error(`Product ${entry.sku} is missing for lot ${entry.lotNumber}`);
+      if (!productId) throw new DomainError(`Product ${entry.sku} is missing for lot ${entry.lotNumber}`);
       const lot = await sudo.query.InventoryLot.createOne({
         data: {
           lotNumber: entry.lotNumber,
@@ -10351,21 +10505,23 @@ var CHECKOUT_CONSENT = {
   statementKey: "openfront_pharmacy_checkout_privacy_acknowledgement_v1"
 };
 function requireCheckoutConsent(input) {
-  if (!input.privacyConsentAccepted) throw new Error("Privacy acknowledgement is required");
+  if (!input.privacyConsentAccepted) throw new DomainError("Privacy acknowledgement is required");
   if (input.policyVersion !== CHECKOUT_CONSENT.policyVersion || input.statementKey !== CHECKOUT_CONSENT.statementKey) {
-    throw new Error("Privacy acknowledgement does not match the current policy");
+    throw new DomainError("Privacy acknowledgement does not match the current policy");
   }
 }
 function normalizedEmail(value) {
   const email = value.trim().toLowerCase();
-  if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error("A valid email address is required");
+  if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new DomainError("A valid email address is required");
   return email;
 }
+var ORDER_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ";
 function orderNumber() {
-  return `RXO-${Date.now().toString(36).toUpperCase()}-${(0, import_node_crypto19.randomBytes)(3).toString("hex").toUpperCase()}`;
+  const code = [...(0, import_node_crypto19.randomBytes)(8)].map((byte) => ORDER_ALPHABET[byte % ORDER_ALPHABET.length]).join("");
+  return `RXO-${code.slice(0, 4)}-${code.slice(4)}`;
 }
 function checkoutReplay(cart, idempotencyKey, guestToken) {
-  if (!cart.order || cart.order.idempotencyKey !== idempotencyKey) throw new Error("Cart was already submitted with another idempotency key");
+  if (!cart.order || cart.order.idempotencyKey !== idempotencyKey) throw new DomainError("Cart was already submitted with another idempotency key");
   return {
     success: true,
     reused: true,
@@ -10380,13 +10536,15 @@ function checkoutReplay(cart, idempotencyKey, guestToken) {
 }
 async function submitPharmacyOrder(_root, args, context) {
   const input = args.input;
-  if (!["pickup", "delivery", "pos"].includes(input.fulfillmentMethod)) throw new Error("Fulfillment method is invalid");
+  if (!["pickup", "delivery", "pos"].includes(input.fulfillmentMethod)) throw new DomainError("Fulfillment method is invalid");
   requireCheckoutConsent(input);
   const idempotencyKey = input.idempotencyKey?.trim();
-  if (!idempotencyKey || idempotencyKey.length > 200) throw new Error("A bounded idempotency key is required");
+  if (!idempotencyKey || idempotencyKey.length > 200) throw new DomainError("A bounded idempotency key is required");
   const email = normalizedEmail(input.email);
+  const customerName = input.customerName?.trim().replace(/\s+/g, " ") || "";
+  if (customerName.length > 120 || !customerName && input.fulfillmentMethod !== "pos") throw new DomainError(input.fulfillmentMethod === "delivery" ? "Enter the name for delivery" : "Enter the name for pickup");
   const shippingAddress = input.fulfillmentMethod === "delivery" ? input.shippingAddress || null : null;
-  if (input.fulfillmentMethod === "delivery" && !shippingAddress) throw new Error("A delivery address is required");
+  if (input.fulfillmentMethod === "delivery" && !shippingAddress) throw new DomainError("A delivery address is required");
   const cart = await loadAndAssertCartAccess(context, input.cartId, input.guestToken, { allowSubmitted: true });
   const replayToken = context.session?.itemId ? null : createGuestOrderToken(cart.id, idempotencyKey);
   if (cart.status === "submitted") return checkoutReplay(cart, idempotencyKey, replayToken);
@@ -10394,21 +10552,21 @@ async function submitPharmacyOrder(_root, args, context) {
     requirePermission(context, "canManageOrders");
     await requireTenantMembership(context, { organizationId: cart.organization.id, locationId: cart.location.id });
   }
-  if (!cart.items.length) throw new Error("Cart is empty");
-  if (input.fulfillmentMethod === "pickup" && !cart.location.pickupEnabled) throw new Error("Pickup is not enabled at this location");
-  if (input.fulfillmentMethod === "delivery" && !cart.location.deliveryEnabled) throw new Error("Delivery is not available at this location");
-  if (input.fulfillmentMethod === "pos" && !context.session?.itemId) throw new Error("Point-of-sale checkout requires an authenticated staff session");
+  if (!cart.items.length) throw new DomainError("Cart is empty");
+  if (input.fulfillmentMethod === "pickup" && !cart.location.pickupEnabled) throw new DomainError("Pickup is not enabled at this location");
+  if (input.fulfillmentMethod === "delivery" && !cart.location.deliveryEnabled) throw new DomainError("Delivery is not available at this location");
+  if (input.fulfillmentMethod === "pos" && !context.session?.itemId) throw new DomainError("Point-of-sale checkout requires an authenticated staff session");
   const paymentSession = cart.paymentSessions.find((session) => session.id === input.paymentSessionId);
-  if (!paymentSession?.isSelected || !paymentSession.provider?.isInstalled) throw new Error("Selected payment session not found for this cart");
-  if (paymentSession.amount !== cart.totalAmount) throw new Error("Payment amount does not match cart total");
+  if (!paymentSession?.isSelected || !paymentSession.provider?.isInstalled) throw new DomainError("Selected payment session not found for this cart");
+  if (paymentSession.amount !== cart.totalAmount) throw new DomainError("Payment amount does not match cart total");
   const paymentId = paymentSession.externalPaymentId || paymentSession.data?.paymentIntentId || paymentSession.data?.orderId;
-  if (!paymentId) throw new Error("Payment session is missing provider payment id");
+  if (!paymentId) throw new DomainError("Payment session is missing provider payment id");
   const provider = await context.sudo().query.PaymentProvider.findOne({ where: { id: paymentSession.provider.id }, query: PAYMENT_PROVIDER_ADAPTER_FIELDS });
-  if (!provider?.isInstalled) throw new Error("Selected payment session not found for this cart");
+  if (!provider?.isInstalled) throw new DomainError("Selected payment session not found for this cart");
   const manualTender = isManualPaymentProvider(provider);
-  if (manualTender && input.fulfillmentMethod === "delivery") throw new Error("Delivery orders are paid online. Choose card payment.");
+  if (manualTender && input.fulfillmentMethod === "delivery") throw new DomainError("Delivery orders are paid online. Choose card payment.");
   const paymentStatus = manualTender ? { status: "pending" } : await getPaymentStatus({ provider, paymentId });
-  if (!manualTender && !["captured", "succeeded"].includes(paymentStatus.status)) throw new Error(`Payment is not settled: ${paymentStatus.status || "unknown"}`);
+  if (!manualTender && !["captured", "succeeded"].includes(paymentStatus.status)) throw new DomainError(`Payment is not settled: ${paymentStatus.status || "unknown"}`);
   await withDomainTransaction(context, [`payment-session:${paymentSession.id}`], async (transactionContext) => {
     await transactionContext.sudo().query.PaymentSession.updateOne({
       where: { id: paymentSession.id },
@@ -10453,14 +10611,14 @@ async function submitPharmacyOrder(_root, args, context) {
         }
       `
       });
-      if (!current || current.status !== "active" || !current.items.length) throw new Error("Cart is no longer available");
+      if (!current || current.status !== "active" || !current.items.length) throw new DomainError("Cart is no longer available");
       for (const item of current.items) {
-        if (item.product.prescriptionRequirement !== "none") throw new Error("Prescription products require the authorized prescription workflow");
-        if (item.product.status !== "published" || !item.product.onlineAvailable) throw new Error(`${item.product.title} is no longer available`);
-        if (item.unitPriceAmount !== item.product.priceAmount) throw new Error("Product price changed; review the cart before checkout");
+        if (item.product.prescriptionRequirement !== "none") throw new DomainError("Prescription products require the authorized prescription workflow");
+        if (item.product.status !== "published" || !item.product.onlineAvailable) throw new DomainError(`${item.product.title} is no longer available`);
+        if (item.unitPriceAmount !== item.product.priceAmount) throw new DomainError("Product price changed; review the cart before checkout");
       }
       const totals = calculateCartTotals(current.items, current.taxAmount, current.deliveryAmount);
-      if (totals.totalAmount !== current.totalAmount) throw new Error("Cart total changed; review the cart before checkout");
+      if (totals.totalAmount !== current.totalAmount) throw new DomainError("Cart total changed; review the cart before checkout");
       const createdOrder = await sudo.query.Order.createOne({
         data: {
           orderNumber: orderNumber(),
@@ -10475,6 +10633,7 @@ async function submitPharmacyOrder(_root, args, context) {
           },
           email,
           phone: input.phone?.trim() || void 0,
+          customerName: customerName || void 0,
           status: "processing",
           fulfillmentMethod: input.fulfillmentMethod,
           subtotalAmount: totals.subtotalAmount,
@@ -10519,7 +10678,7 @@ async function submitPharmacyOrder(_root, args, context) {
           allocations.push({ lotId: lot.id, lotNumber: lot.lotNumber, quantity: allocated, expirationDate: lot.expirationDate });
           remaining -= allocated;
         }
-        if (remaining > 0) throw new Error(`Insufficient eligible lot inventory for ${item.product.title}`);
+        if (remaining > 0) throw new DomainError(`Insufficient eligible lot inventory for ${item.product.title}`);
         await sudo.query.OrderLineItem.createOne({
           data: {
             order: { connect: { id: createdOrder.id } },
@@ -10612,14 +10771,14 @@ async function submitPharmacyOrder(_root, args, context) {
     });
     if (completedCart?.status === "submitted" && completedCart.order) {
       if (completedCart.order.idempotencyKey === idempotencyKey) return checkoutReplay({ ...cart, order: completedCart.order }, idempotencyKey, replayToken);
-      throw new Error("Cart was committed by another checkout request; payment remains bound to the committed order");
+      throw new DomainError("Cart was committed by another checkout request; payment remains bound to the committed order");
     }
     const recoveryState = await context.sudo().query.PaymentSession.findOne({
       where: { id: paymentSession.id },
       query: "id payment { id order { id } } cart { order { id } }"
     });
     if (recoveryState?.payment?.order?.id || recoveryState?.cart?.order?.id) {
-      throw new Error("Payment is already bound to a committed order and cannot be compensated");
+      throw new DomainError("Payment is already bound to a committed order and cannot be compensated");
     }
     if (manualTender) throw error;
     let compensation = null;
@@ -10632,7 +10791,7 @@ async function submitPharmacyOrder(_root, args, context) {
         currency: cart.items[0]?.product?.currencyCode || "USD",
         idempotencyKey: `checkout-compensation:${paymentSession.id}`
       });
-      if (!["refunded", "succeeded"].includes(compensation?.status)) throw new Error(`Provider returned ${compensation?.status || "unknown"}`);
+      if (!["refunded", "succeeded"].includes(compensation?.status)) throw new DomainError(`Provider returned ${compensation?.status || "unknown"}`);
     } catch (cause) {
       compensationError = cause;
     }
@@ -10658,8 +10817,8 @@ async function submitPharmacyOrder(_root, args, context) {
         metadata: { cartId: cart.id, idempotencyKey, paymentId }
       });
     });
-    if (compensationError) throw new Error("Payment settled but order creation failed. Recovery is pending; contact the pharmacy with the cart reference.");
-    throw new Error("Order creation failed after payment. The payment was automatically refunded; retry checkout with a new payment session.");
+    if (compensationError) throw new DomainError("Payment settled but order creation failed. Recovery is pending; contact the pharmacy with the cart reference.");
+    throw new DomainError("Order creation failed after payment. The payment was automatically refunded; retry checkout with a new payment session.");
   }
 }
 
@@ -10739,8 +10898,17 @@ function extendGraphqlSchema(baseSchema) {
       }
       type PharmacyProductOptionWorklist { items: [PharmacyTaskOption!]!, totalCount: Int!, hasMore: Boolean!, nextCursor: String }
       type PharmacyPatientRecordOptions { organizations: [PharmacyTaskOption!]! }
+      type PharmacyDispensingSetup {
+        pharmacistReviewed: Boolean!
+        prescriberReady: Boolean!
+        prescriberHasNpi: Boolean!
+        drugReferenceReviewed: Boolean!
+        cashPolicyRecorded: Boolean!
+        prescriptionProductStocked: Boolean!
+      }
       type PharmacyCredentialReviewOptions {
         organizationWideOrganizationIds: [ID!]!
+        setup: PharmacyDispensingSetup!
         organizations: [PharmacyTaskOption!]!
         memberships: [PharmacyTaskOption!]!
         prescribers: [PharmacyTaskOption!]!
@@ -11119,6 +11287,9 @@ function extendGraphqlSchema(baseSchema) {
         orderNumber: String!
         status: String!
         fulfillmentMethod: String!
+        customerName: String
+        customerEmail: String
+        customerPhone: String
         subtotalAmount: Int!
         taxAmount: Int!
         deliveryAmount: Int!
@@ -11296,6 +11467,7 @@ function extendGraphqlSchema(baseSchema) {
         guestToken: String
         email: String!
         phone: String
+        customerName: String
         fulfillmentMethod: String!
         pickupAt: String
         deliveryWindow: String
@@ -11328,6 +11500,7 @@ function extendGraphqlSchema(baseSchema) {
       type PharmacyCustomerPrescriptionRequest { id: ID!, kind: String!, status: String!, createdAt: String!, resolvedAt: String, resolutionNote: String, locationName: String!, counterpartyName: String, medications: String }
       type PharmacyPrescriptionRequest {
         id: ID!
+        organizationId: ID!
         kind: String!
         status: String!
         createdAt: String!
@@ -11357,7 +11530,7 @@ function extendGraphqlSchema(baseSchema) {
         pharmacyCustomerOrder(orderId: ID!): PharmacyCustomerOrder!
         pharmacyCustomerOrderDetails(orderId: ID!): GuestPharmacyOrder!
         pharmacyCustomerPrescriptionRequests: [PharmacyCustomerPrescriptionRequest!]!
-        pharmacyPrescriptionRequestQueue(status: String): [PharmacyPrescriptionRequest!]!
+        pharmacyPrescriptionRequestQueue(status: String, requestId: ID): [PharmacyPrescriptionRequest!]!
         pharmacyFillPolicy(organizationId: ID!): PharmacyFillPolicyReadback!
         pharmacyFillHistory(prescriptionId: ID!, fillId: ID!, after: String): PharmacyFillHistory!
         pharmacyFillWorkbench(prescriptionId: ID!, after: String): PharmacyFillWorkbench!
@@ -11405,7 +11578,7 @@ function extendGraphqlSchema(baseSchema) {
 
       type Mutation {
         submitPharmacyPrescriptionRequest(input: PharmacyPrescriptionRequestInput!): PharmacyCustomerPrescriptionRequest!
-        resolvePharmacyPrescriptionRequest(requestId: ID!, status: String!, note: String): PharmacyPrescriptionRequest!
+        resolvePharmacyPrescriptionRequest(requestId: ID!, status: String!, note: String, patientId: ID): PharmacyPrescriptionRequest!
         registerPharmacyCustomer(name: String!, email: String!, password: String!): Boolean!
         updateActiveUser(data: UserUpdateProfileInput!, oldPassword: String): User
         recordPharmacyFillPolicy(organizationId: ID!, policy: JSON!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
@@ -11437,6 +11610,7 @@ function extendGraphqlSchema(baseSchema) {
         updatePharmacyPatientContact(patientId: ID!, email: String, phone: String, preferredContactMethod: String!, address: JSON, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
         recordPharmacyPatientAllergy(patientId: ID!, allergen: String!, reaction: String!, severity: String!, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
         recordPharmacyPatientMedication(patientId: ID!, medicationName: String!, directions: String, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
+        recordPharmacyPatientNoneKnown(patientId: ID!, kind: String!, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
         linkPharmacyPatientAccount(patientId: ID!, userId: ID!): PharmacyPatientAccountLinkResult!
         requestPrescriptionRefill(prescriptionId: ID!, prescriptionItemId: ID!, patientId: ID!, locationId: ID!, note: String, idempotencyKey: String!, expectedItemVersion: String): PharmacyRefillResult!
         resolvePrescriptionRefill(refillRequestId: ID!, decision: String!, reason: String!, attested: Boolean!, expectedFillVersion: Int): PharmacyRefillResult!
@@ -11546,6 +11720,7 @@ function extendGraphqlSchema(baseSchema) {
         updatePharmacyPatientContact,
         recordPharmacyPatientAllergy,
         recordPharmacyPatientMedication,
+        recordPharmacyPatientNoneKnown,
         linkPharmacyPatientAccount,
         requestPrescriptionRefill,
         resolvePrescriptionRefill,

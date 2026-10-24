@@ -1,6 +1,7 @@
 import type { Context } from '.keystone/types'
 import { handleWebhook } from '../utils/paymentProviderAdapter'
 import { withDomainTransaction } from './lib/transaction'
+import { DomainError } from './lib/errors'
 
 const NO_DIVISION_CURRENCIES = new Set([
   'JPY', 'KRW', 'VND', 'CLP', 'PYG', 'XAF', 'XOF', 'BIF', 'DJF',
@@ -12,7 +13,7 @@ function assertProviderAmount(providerCode: string, resource: any, payment: { am
   if (providerCode.includes('stripe')) {
     const amount = Number(resource.amount_received ?? resource.amount)
     if (amount !== payment.amount || String(resource.currency).toUpperCase() !== expectedCurrency) {
-      throw new Error('Provider webhook amount or currency mismatch')
+      throw new DomainError('Provider webhook amount or currency mismatch')
     }
     return
   }
@@ -24,7 +25,7 @@ function assertProviderAmount(providerCode: string, resource: any, payment: { am
       Number(evidence.value) !== payment.amount / divisor ||
       String(evidence.currency_code).toUpperCase() !== expectedCurrency
     ) {
-      throw new Error('Provider webhook amount or currency mismatch')
+      throw new DomainError('Provider webhook amount or currency mismatch')
     }
   }
 }
@@ -54,7 +55,7 @@ async function handlePaymentProviderWebhook(
     where: { id: providerId },
     query: 'id code isInstalled handleWebhookFunction organization { id }',
   })
-  if (!provider?.isInstalled) throw new Error('Payment provider not found')
+  if (!provider?.isInstalled) throw new DomainError('Payment provider not found')
 
   // Provider verification is the authorization boundary for this external
   // callback. Stripe receives the exact raw body from the HTTP route.
@@ -62,7 +63,7 @@ async function handlePaymentProviderWebhook(
   const type = String(verified?.type || '')
   const resource = verified?.resource || {}
   const providerEventId = String(verified?.event?.id || event?.id || resource.id || '')
-  if (!verified?.isValid || !type || !providerEventId) throw new Error('Webhook signature or event envelope is invalid')
+  if (!verified?.isValid || !type || !providerEventId) throw new DomainError('Webhook signature or event envelope is invalid')
 
   const eventKey = `${provider.id}:${providerEventId}`
   return withDomainTransaction(context, [`payment-webhook:${eventKey}`], async (transactionContext) => {

@@ -29,7 +29,7 @@ export async function CheckoutPage() {
     </PageHead>
     <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
       <section aria-label="Checkout details" className="min-w-0 rounded-2xl border border-border bg-card p-5 sm:p-7">
-        <CheckoutForm providers={providers} pickupEnabled={cart.location.pickupEnabled} deliveryEnabled={cart.location.deliveryEnabled} defaultEmail={customer?.email} stripeKey={process.env.NEXT_PUBLIC_STRIPE_KEY || null} totalLabel={formatMoney(cart.totalAmount, currencyCode)} pickupHours={pickupHours} />
+        <CheckoutForm providers={providers} pickupEnabled={cart.location.pickupEnabled} deliveryEnabled={cart.location.deliveryEnabled} defaultEmail={customer?.email} defaultName={customer?.name} stripeKey={process.env.NEXT_PUBLIC_STRIPE_KEY || null} totalLabel={formatMoney(cart.totalAmount, currencyCode)} pickupHours={pickupHours} />
       </section>
       <aside aria-label="Order summary" className="h-fit rounded-2xl bg-muted p-6 shadow-[var(--rx-recess)] lg:sticky lg:top-28">
         <div className="flex items-baseline justify-between gap-3"><h2 className="font-semibold">Order summary</h2><Link href="/cart" className="text-sm font-semibold text-primary">Edit</Link></div>

@@ -1,7 +1,8 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyPrescriptionQueueProjection } from '@/features/pharmacy/contracts'
 import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/components/WorkflowQueuePage'
 import { reportedAge, strongestPriority } from '@/features/platform/components/workflowQueue'
+import { formatCalendarDate } from '@/features/platform/lib/dates'
 
 const decisionByStatus: Record<string, { label: string; hint: string }> = {
   draft: { label: 'Complete intake triage', hint: 'Review the reported source, patient, prescriber, and item evidence before recording a pharmacist decision.' },
@@ -21,7 +22,7 @@ const decisionByStatus: Record<string, { label: string; hint: string }> = {
 export async function PrescriptionQueuePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const after = typeof params?.after === 'string' ? params.after : null
-  const response = await keystoneClient<{ pharmacyPrescriptionWorklist: { items: PharmacyPrescriptionQueueProjection[]; totalCount: number; hasMore: boolean; nextCursor?: string | null } }>(`query PrescriptionWorklist($first: Int, $after: String) { pharmacyPrescriptionWorklist(first: $first, after: $after) { items { id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patientDisplayName prescriberName prescriberVerificationStatus locationName medicationName quantityPrescribed refillsRemaining openRefillCount openTransferCount } totalCount hasMore nextCursor } }`, { first: 50, after })
+  const response = await platformRequest<{ pharmacyPrescriptionWorklist: { items: PharmacyPrescriptionQueueProjection[]; totalCount: number; hasMore: boolean; nextCursor?: string | null } }>(`query PrescriptionWorklist($first: Int, $after: String) { pharmacyPrescriptionWorklist(first: $first, after: $after) { items { id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patientDisplayName prescriberName prescriberVerificationStatus locationName medicationName quantityPrescribed refillsRemaining openRefillCount openTransferCount } totalCount hasMore nextCursor } }`, { first: 50, after })
   const worklist = response.success ? response.data.pharmacyPrescriptionWorklist : null
   const items = worklist ? worklist.items.map((prescription) => {
     const exceptions = [
@@ -54,7 +55,7 @@ export async function PrescriptionQueuePage({ searchParams }: { searchParams?: P
         { label: 'Patient', value: prescription.patientDisplayName },
         { label: 'Prescriber', value: prescription.prescriberName },
         { label: 'Source', value: `${prescription.source} · ${prescription.sourceVerificationStatus.replaceAll('_', ' ')}` },
-        { label: 'Written', value: prescription.writtenAt ? new Date(prescription.writtenAt).toLocaleDateString() : 'Not reported' },
+        { label: 'Written', value: prescription.writtenAt ? formatCalendarDate(prescription.writtenAt) : 'Not reported' },
         { label: 'Quantity / refills', value: `${prescription.quantityPrescribed ?? 'Not reported'} / ${prescription.refillsRemaining ?? 'Not reported'}` },
         { label: 'Open requests', value: `${prescription.openRefillCount || 0} refill · ${prescription.openTransferCount || 0} transfer` },
       ],

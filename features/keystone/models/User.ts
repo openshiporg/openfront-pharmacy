@@ -2,7 +2,7 @@ import { list } from '@keystone-6/core'
 import { denyAll } from '@keystone-6/core/access'
 import { integer, password, relationship, select, text } from '@keystone-6/core/fields'
 
-import { canChangeOwnPassword, isSignedIn, permissions, rules } from '../access'
+import { canChangeOwnPassword, canChangeSignInEmail, isSignedIn, permissions, rules } from '../access'
 import { nextSessionTokenVersion } from '../session-revocation'
 import { canCreateUserRole, firstUserAdminRoleId, resolvePublicUserCreateData } from '../security/user-create'
 import { immutableRelationship } from './immutableRelationship'
@@ -39,7 +39,7 @@ export const User = list({
   },
   fields: {
     name: text({ validation: { isRequired: true } }),
-    email: text({ validation: { isRequired: true }, isIndexed: 'unique' }),
+    email: text({ validation: { isRequired: true }, isIndexed: 'unique', access: { update: canChangeSignInEmail as any } }),
     password: password({
       validation: { isRequired: true, length: { min: 12, max: 1000 }, rejectCommon: true },
       access: {

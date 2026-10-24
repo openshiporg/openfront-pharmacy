@@ -1,17 +1,18 @@
 import type { Context } from '.keystone/types'
 import { verifyGuestCartToken } from '../security/cart-token'
+import { DomainError } from './lib/errors'
 
 export async function getGuestPharmacyOrder(
   _root: unknown,
   args: { orderId: string; guestOrderToken: string },
   context: Context,
 ) {
-  if (!args.guestOrderToken?.trim()) throw new Error('Guest order token is required')
+  if (!args.guestOrderToken?.trim()) throw new DomainError('Guest order token is required')
   const order = await context.sudo().query.Order.findOne({
     where: { id: args.orderId },
     query: GUEST_ORDER_QUERY,
   })
-  if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new Error('Guest order not found')
+  if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new DomainError('Guest order not found')
   return guestOrderProjection(order)
 }
 
@@ -20,7 +21,7 @@ export async function getGuestPharmacyOrder(
  * checkout. Returns null for any mismatch, so it never reveals whether an order number exists.
  */
 export async function lookupPharmacyOrder(_root: unknown, args: { orderNumber: string; email: string }, context: Context) {
-  const orderNumber = args.orderNumber?.trim()
+  const orderNumber = args.orderNumber?.trim().toUpperCase()
   const email = args.email?.trim().toLowerCase()
   if (!orderNumber || !email || orderNumber.length > 64 || email.length > 254) return null
   const order = await context.sudo().query.Order.findOne({ where: { orderNumber }, query: `email ${GUEST_ORDER_QUERY}` }).catch(() => null)

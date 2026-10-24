@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { RecordDrawerButton } from '@/features/platform/components/RecordDrawerButton'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
@@ -18,7 +18,7 @@ type Prescriber = {
 
 export async function PrescriberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const response = await keystoneClient<{ prescriber: Prescriber | null; pharmacyIntegrationStatus: Array<{ id: string; name: string; providerType: string; status: string }> }>(
+  const response = await platformRequest<{ prescriber: Prescriber | null; pharmacyIntegrationStatus: Array<{ id: string; name: string; providerType: string; status: string }> }>(
     `query Prescriber($id: ID!) { prescriber(where: { id: $id }) { id name npi phone fax verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validatedAt verifiedBy { name } organization { name } prescriptionsCount prescriptions(orderBy: [{ createdAt: desc }], take: 25) { id prescriptionNumber status createdAt location { name } } } pharmacyIntegrationStatus { id name providerType status } }`,
     { id },
   )

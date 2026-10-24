@@ -5,6 +5,7 @@ import { RxButton as Button } from '@/features/platform/components/rx-ui'
 import { Input } from '@/components/ui/input'
 import type { PharmacyPrescriptionIntakeOptions } from '@/features/pharmacy/contracts'
 import { intakePrescriptionAction } from '../actions'
+import { unwrapAction } from '@/features/platform/lib/action-result'
 
 function relativeDateInput(days: number) {
   return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
@@ -34,11 +35,11 @@ export function PrescriptionIntakeForm({ options }: { options: PharmacyPrescript
 
   function submit() {
     setMessage(''); setError('')
-    startTransition(() => intakePrescriptionAction({
+    startTransition(() => unwrapAction(intakePrescriptionAction({
       organizationId, locationId, patientId, prescriberId, prescriptionNumber, source, writtenAt, expiresAt,
       items: [{ productId, medicationName, sig, quantity, refillsAuthorized: refills, substitutionAllowed: false }],
       reason, attested,
-    }).then((result) => setMessage(`Prescription recorded (${String(result.status).replaceAll('_', ' ')}).`)).catch((cause) => setError(cause instanceof Error ? cause.message : 'Intake failed')))
+    })).then((result) => setMessage(`Prescription recorded (${String(result.status).replaceAll('_', ' ')}).`)).catch((cause) => setError(cause instanceof Error ? cause.message : 'Intake failed')))
   }
 
   const ready = organizationId && locationId && patientId && prescriberId && productId && prescriptionNumber.trim() && source && writtenAt && expiresAt && new Date(expiresAt).getTime() > new Date(writtenAt).getTime() && medicationName.trim() && sig.trim() && quantity > 0 && reason.trim().length >= 8 && attested

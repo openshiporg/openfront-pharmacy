@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { RecordDrawerButton } from '@/features/platform/components/RecordDrawerButton'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { Callout, Field, ListBand, Mono, TitleLine, humanize, statusTone } from '@/features/platform/components/rx-ui'
@@ -16,7 +16,7 @@ type Drug = {
 
 export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const response = await keystoneClient<{ drugReference: Drug | null; organizations: Array<{ id: string; name: string }> }>(
+  const response = await platformRequest<{ drugReference: Drug | null; organizations: Array<{ id: string; name: string }> }>(
     `query Drug($id: ID!) { drugReference(where: { id: $id }) { id ndc11 proprietaryName genericName labelerName dosageForm route strength rxNormCui controlledSchedule marketingStatus sourceName sourceVersion sourceReference reviewedAt products(orderBy: [{ title: asc }], take: 50) { id title sku status } reviews(orderBy: [{ reviewedAt: desc }]) { id status marketingStatusSnapshot controlledScheduleSnapshot sourceName sourceVersion sourceReference reviewedAt reviewedBy { name } organization { name } } } organizations(take: 20, orderBy: { name: asc }) { id name } }`,
     { id },
   )

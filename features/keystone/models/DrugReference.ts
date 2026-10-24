@@ -5,6 +5,9 @@ import { checkbox, json, relationship, select, text, timestamp } from '@keystone
 import { permissions } from '../access'
 import { trackingFields } from './trackingFields'
 
+// Set only by a drug reference review; read-only in the admin forms.
+const REVIEW_ONLY = { createView: { fieldMode: 'hidden' as const }, itemView: { fieldMode: 'read' as const } }
+
 export const DrugReference = list({
   access: {
     operation: {
@@ -46,6 +49,7 @@ export const DrugReference = list({
     rxNormCui: text(),
     controlledSchedule: select({
       access: { create: denyAll, update: denyAll },
+      ui: REVIEW_ONLY,
       type: 'string',
       options: [
         { label: 'Not scheduled', value: 'none' },
@@ -60,6 +64,7 @@ export const DrugReference = list({
     }),
     marketingStatus: select({
       access: { create: denyAll, update: denyAll },
+      ui: REVIEW_ONLY,
       type: 'string',
       options: [
         { label: 'Active', value: 'active' },
@@ -68,15 +73,21 @@ export const DrugReference = list({
       ],
       defaultValue: 'unverified',
     }),
-    sourceName: text({ defaultValue: 'manual', access: { create: denyAll, update: denyAll } }),
-    sourceVersion: text({ access: { create: denyAll, update: denyAll } }),
-    sourceReference: text({ access: { create: denyAll, update: denyAll } }),
+    sourceName: text({ defaultValue: 'manual', access: { create: denyAll, update: denyAll },
+      ui: REVIEW_ONLY }),
+    sourceVersion: text({ access: { create: denyAll, update: denyAll },
+      ui: REVIEW_ONLY }),
+    sourceReference: text({ access: { create: denyAll, update: denyAll },
+      ui: REVIEW_ONLY }),
     sourceVerified: checkbox({
       defaultValue: false,
       access: { create: denyAll, update: denyAll },
+      ui: REVIEW_ONLY,
     }),
-    reviewedAt: timestamp({ access: { create: denyAll, update: denyAll } }),
-    reviewedBy: relationship({ ref: 'User', access: { create: denyAll, update: denyAll } }),
+    reviewedAt: timestamp({ access: { create: denyAll, update: denyAll },
+      ui: REVIEW_ONLY }),
+    reviewedBy: relationship({ ref: 'User', access: { create: denyAll, update: denyAll },
+      ui: REVIEW_ONLY }),
     referenceData: json(),
     products: relationship({ ref: 'Product.drugReference', many: true }),
     reviews: relationship({ ref: 'DrugReferenceReview.drugReference', many: true }),

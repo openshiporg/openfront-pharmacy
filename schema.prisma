@@ -507,6 +507,7 @@ model Order {
   checkoutEvidence             Json?
   email                        String              @default("")
   phone                        String              @default("")
+  customerName                 String              @default("")
   status                       String?             @default("pending")
   fulfillmentMethod            String?             @default("pickup")
   subtotalAmount               Int

@@ -18,7 +18,7 @@ export const PatientMedication = list({
     requestFingerprint: text({ validation: { isRequired: true } }),
     medicationName: text({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     directions: text({ access: { read: permissions.canViewPatientPrivateData } }),
-    status: select({ type: 'string', options: [{ label: 'Current', value: 'current' }, { label: 'Discontinued', value: 'discontinued' }, { label: 'Entered in error', value: 'entered_in_error' }], defaultValue: 'current' }),
+    status: select({ type: 'string', options: [{ label: 'Current', value: 'current' }, { label: 'No current medications', value: 'none_known' }, { label: 'Discontinued', value: 'discontinued' }, { label: 'Entered in error', value: 'entered_in_error' }], defaultValue: 'current' }),
     source: text({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     sourceReference: text({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     recordedAt: timestamp({ defaultValue: { kind: 'now' }, validation: { isRequired: true } }),

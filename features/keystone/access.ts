@@ -41,7 +41,15 @@ export function isSignedIn({ session }: AccessArgs) {
 }
 
 export function canChangeOwnPassword({ session, item }: AccessArgs & { item: { id: { toString(): string } } }) {
-  return Boolean(session && session.itemId === item.id.toString())
+  // Storefront customers (no role) change their sign-in details only through updateActiveUser, which
+  // checks the current password; staff keep the dashboard's own-profile form.
+  return Boolean(session && session.itemId === item.id.toString() && session.data?.role)
+}
+
+export function canChangeSignInEmail({ session, item }: AccessArgs & { item: { id: { toString(): string } } }) {
+  if (!session) return false
+  if (session.itemId !== item.id.toString()) return permissions.canManageUsers({ session })
+  return Boolean(session.data?.role)
 }
 
 export const denyAccess = () => false

@@ -34,8 +34,8 @@ export function ProfileName({ name }: { name: string }) {
 export function ProfileEmail({ email }: { email: string }) {
   const [state, action, pending] = useActionState(updateCustomerEmail, initial)
   return <Row title="Email" action={action}>
-    <Label htmlFor="profile-email" className="sr-only">Email</Label>
-    <Input id="profile-email" name="email" type="email" defaultValue={email} autoComplete="email" maxLength={254} required className={inputClass} />
+    <div className="grid gap-2"><Label htmlFor="profile-email">New email</Label><Input id="profile-email" name="email" type="email" defaultValue={email} autoComplete="email" maxLength={254} required className={inputClass} /></div>
+    <div className="grid gap-2"><Label htmlFor="profile-email-password">Current password</Label><Input id="profile-email-password" name="currentPassword" type="password" autoComplete="current-password" required className={inputClass} /></div>
     <Status state={state} message="Email updated." />
     <button type="submit" disabled={pending} className={`${buttonClass} w-fit min-h-10`}>{pending ? 'Saving…' : 'Save'}</button>
   </Row>
@@ -44,6 +44,7 @@ export function ProfileEmail({ email }: { email: string }) {
 export function ProfilePassword() {
   const [state, action, pending] = useActionState(updateCustomerPassword, initial)
   return <Row title="Password" action={action}>
+    <div className="grid gap-2"><Label htmlFor="profile-current-password">Current password</Label><Input id="profile-current-password" name="currentPassword" type="password" autoComplete="current-password" required className={inputClass} /></div>
     <div className="grid gap-2"><Label htmlFor="profile-password">New password</Label><Input id="profile-password" name="password" type="password" autoComplete="new-password" minLength={12} required className={inputClass} /></div>
     <div className="grid gap-2"><Label htmlFor="profile-password-confirm">Confirm new password</Label><Input id="profile-password-confirm" name="confirmPassword" type="password" autoComplete="new-password" minLength={12} required className={inputClass} /></div>
     <Status state={state} message="Password updated." />

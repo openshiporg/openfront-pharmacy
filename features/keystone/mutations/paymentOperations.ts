@@ -6,6 +6,7 @@ import { loadAndAssertCartAccess } from './lib/cartAccess'
 import { requireTenantMembership } from './lib/authorization'
 import { recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
+import { DomainError } from './lib/errors'
 
 export const PAYMENT_PROVIDER_ADAPTER_FIELDS = 'id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction'
 
@@ -55,18 +56,18 @@ export async function refundPharmacyPayment(
   args: { paymentId: string; reason: string; attested: boolean },
   context: Context,
 ) {
-  if (!permissions.canManagePayments({ session: context.session as any })) throw new Error('Permission required: canManagePayments')
-  if (!args.attested || args.reason.trim().length < 3) throw new Error('A refund reason and human confirmation are required')
+  if (!permissions.canManagePayments({ session: context.session as any })) throw new DomainError('Permission required: canManagePayments')
+  if (!args.attested || args.reason.trim().length < 3) throw new DomainError('A refund reason and human confirmation are required')
   const prepared = await withDomainTransaction(context, [`payment:${args.paymentId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const payment = await sudo.query.Payment.findOne({
       where: { id: args.paymentId },
       query: `id status amount currencyCode externalPaymentId data order { id orderNumber organization { id } location { id } } provider { ${PAYMENT_PROVIDER_ADAPTER_FIELDS} }`,
     })
-    if (!payment?.order || !payment.provider) throw new Error('Payment not found')
+    if (!payment?.order || !payment.provider) throw new DomainError('Payment not found')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: payment.order.organization.id, locationId: payment.order.location.id })
     if (payment.status === 'refunded') return { reused: true, payment, userId }
-    if (!['captured', 'refund_pending'].includes(payment.status) || !payment.externalPaymentId) throw new Error('Only captured payments can be refunded')
+    if (!['captured', 'refund_pending'].includes(payment.status) || !payment.externalPaymentId) throw new DomainError('Only captured payments can be refunded')
     if (payment.status === 'captured') {
       await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: 'refund_pending', data: { ...(payment.data || {}), refundReason: args.reason.trim() } } })
     }
@@ -81,12 +82,12 @@ export async function refundPharmacyPayment(
     currency: prepared.payment.currencyCode,
     idempotencyKey: `refund:${prepared.payment.id}`,
   })
-  if (!['refunded', 'succeeded'].includes(providerResult.status)) throw new Error(`Refund remains pending: ${providerResult.status || 'unknown'}`)
+  if (!['refunded', 'succeeded'].includes(providerResult.status)) throw new DomainError(`Refund remains pending: ${providerResult.status || 'unknown'}`)
 
   return withDomainTransaction(context, [`payment:${args.paymentId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const current = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: 'id status amount order { id organization { id } location { id } }' })
-    if (!current?.order) throw new Error('Payment not found')
+    if (!current?.order) throw new DomainError('Payment not found')
     if (current.status === 'refunded') return { success: true, reused: true, paymentId: current.id, status: current.status, amount: current.amount }
     await sudo.query.Payment.updateOne({ where: { id: current.id }, data: { status: 'refunded', data: { refund: providerResult, reason: args.reason.trim() } } })
     await recordAuditAndOutbox(transactionContext, {
@@ -109,13 +110,13 @@ export async function initiatePharmacyPaymentSession(
   context: Context,
 ) {
   const cart = await loadAndAssertCartAccess(context, args.cartId, args.guestToken)
-  if (!cart.items.length || cart.totalAmount < 1) throw new Error('Cart is empty')
+  if (!cart.items.length || cart.totalAmount < 1) throw new DomainError('Cart is empty')
   const provider = (await context.sudo().query.PaymentProvider.findMany({
     where: { code: { equals: args.providerCode }, organization: { id: { equals: cart.organization.id } } },
     take: 1,
     query: `${PAYMENT_PROVIDER_ADAPTER_FIELDS} organization { id }`,
   }))[0]
-  if (!provider?.isInstalled) throw new Error('Payment provider is not available for this cart')
+  if (!provider?.isInstalled) throw new DomainError('Payment provider is not available for this cart')
   const idempotencyKey = createHash('sha256').update(`${cart.id}:${provider.id}:${cart.totalAmount}`).digest('hex')
 
   const prepared = await withDomainTransaction(context, [`cart:${cart.id}`, `payment-session:${idempotencyKey}`], async (transactionContext) => {
@@ -161,7 +162,7 @@ export async function initiatePharmacyPaymentSession(
     throw error
   }
   const externalPaymentId = providerData?.paymentIntentId || providerData?.orderId || (isManualPaymentProvider(provider) ? `manual:${prepared.id}` : null)
-  if (!externalPaymentId) throw new Error('Payment provider did not return a payment reference')
+  if (!externalPaymentId) throw new DomainError('Payment provider did not return a payment reference')
 
   return withDomainTransaction(context, [`payment-session:${prepared.id}`], async (transactionContext) => {
     const session = await transactionContext.sudo().query.PaymentSession.updateOne({

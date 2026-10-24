@@ -7,6 +7,7 @@ import { loadAndAssertCartAccess } from './lib/cartAccess'
 import { requireTenantMembership } from './lib/authorization'
 import { withDomainTransaction } from './lib/transaction'
 import { loadPublicTenant } from './publicQueries'
+import { DomainError } from './lib/errors'
 
 const CART_QUERY = `
   id status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount expiresAt
@@ -33,12 +34,12 @@ export async function createPharmacyCart(
     query: 'id status onlineOrderingEnabled pickupEnabled deliveryEnabled organization { id slug storefrontKey storefrontHost }',
   })
   const staffPos = permissions.canManageOrders({ session: context.session as any })
-  if (!location || location.status !== 'active' || (!location.onlineOrderingEnabled && !staffPos)) throw new Error('Location is not accepting orders')
+  if (!location || location.status !== 'active' || (!location.onlineOrderingEnabled && !staffPos)) throw new DomainError('Location is not accepting orders')
   if (staffPos) await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id })
   if (!staffPos) {
     const organization = await loadPublicTenant(context, args.tenantKey)
-    if (organization.id !== location.organization.id) throw new Error('This location is not available')
-    if (location.pickupEnabled !== true && location.deliveryEnabled !== true) throw new Error('Location is not accepting orders')
+    if (organization.id !== location.organization.id) throw new DomainError('This location is not available')
+    if (location.pickupEnabled !== true && location.deliveryEnabled !== true) throw new DomainError('Location is not accepting orders')
   }
 
   const guestToken = context.session?.itemId ? null : createGuestCartToken()
@@ -70,14 +71,14 @@ export async function addPharmacyCartItem(
   args: { cartId: string; productId: string; quantity: number; guestToken?: string | null },
   context: Context,
 ) {
-  if (!Number.isInteger(args.quantity) || args.quantity < 1 || args.quantity > 99) throw new Error('Quantity must be between 1 and 99')
+  if (!Number.isInteger(args.quantity) || args.quantity < 1 || args.quantity > 99) throw new DomainError('Quantity must be between 1 and 99')
   return withDomainTransaction(context, [`cart:${args.cartId}`], async (transactionContext) => {
     const cart = await loadAndAssertCartAccess(transactionContext, args.cartId, args.guestToken)
     const product = await transactionContext.sudo().query.Product.findOne({
       where: { id: args.productId },
       query: 'id status onlineAvailable prescriptionRequirement priceAmount location { id } inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }',
     })
-    if (!product || product.location?.id !== cart.location.id) throw new Error('Product is not available at this location')
+    if (!product || product.location?.id !== cart.location.id) throw new DomainError('Product is not available at this location')
     assertProductCanEnterPublicCart(product)
 
     const existing = cart.items.find((item: any) => item.product?.id === product.id)
@@ -85,10 +86,10 @@ export async function addPharmacyCartItem(
     const availableQuantity = (product.inventoryLots || [])
       .filter((lot: any) => lot.location?.id === cart.location.id)
       .reduce((sum: number, lot: any) => sum + eligibleLotQuantity(lot), 0)
-    if (requestedQuantity > availableQuantity) throw new Error('Requested quantity is not available from eligible inventory')
+    if (requestedQuantity > availableQuantity) throw new DomainError('Requested quantity is not available from eligible inventory')
     if (existing) {
       const quantity = requestedQuantity
-      if (quantity > 99) throw new Error('Quantity must be between 1 and 99')
+      if (quantity > 99) throw new DomainError('Quantity must be between 1 and 99')
       await transactionContext.sudo().query.CartItem.updateOne({ where: { id: existing.id }, data: { quantity } })
     } else {
       await transactionContext.sudo().query.CartItem.createOne({
@@ -109,17 +110,17 @@ export async function updatePharmacyCartItem(
   context: Context,
 ) {
   const item = await context.sudo().query.CartItem.findOne({ where: { id: args.cartItemId }, query: 'id cart { id }' })
-  if (!item?.cart) throw new Error('Cart item not found')
-  if (!Number.isInteger(args.quantity) || args.quantity < 0 || args.quantity > 99) throw new Error('Quantity must be between 0 and 99')
+  if (!item?.cart) throw new DomainError('Cart item not found')
+  if (!Number.isInteger(args.quantity) || args.quantity < 0 || args.quantity > 99) throw new DomainError('Quantity must be between 0 and 99')
   return withDomainTransaction(context, [`cart:${item.cart.id}`], async (transactionContext) => {
     const cart = await loadAndAssertCartAccess(transactionContext, item.cart.id, args.guestToken)
     const current = await transactionContext.sudo().query.CartItem.findOne({ where: { id: args.cartItemId }, query: 'id cart { id } product { inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } } }' })
-    if (!current || current.cart?.id !== cart.id) throw new Error('Cart item not found')
+    if (!current || current.cart?.id !== cart.id) throw new DomainError('Cart item not found')
     if (args.quantity > 0) {
       const availableQuantity = (current.product?.inventoryLots || [])
         .filter((lot: any) => lot.location?.id === cart.location.id)
         .reduce((sum: number, lot: any) => sum + eligibleLotQuantity(lot), 0)
-      if (args.quantity > availableQuantity) throw new Error('Requested quantity is not available from eligible inventory')
+      if (args.quantity > availableQuantity) throw new DomainError('Requested quantity is not available from eligible inventory')
     }
     if (args.quantity === 0) await transactionContext.sudo().query.CartItem.deleteOne({ where: { id: current.id } })
     else await transactionContext.sudo().query.CartItem.updateOne({ where: { id: current.id }, data: { quantity: args.quantity } })

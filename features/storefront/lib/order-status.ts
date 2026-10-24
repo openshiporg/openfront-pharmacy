@@ -7,3 +7,19 @@ export function orderTone(status: string): DotTone {
   if (['review_required', 'on_hold', 'pending'].includes(status)) return 'warn'
   return 'info'
 }
+
+const ORDER_LABELS: Record<string, string> = {
+  processing: 'Preparing',
+  preparing: 'Preparing',
+  ready: 'Ready for pickup',
+  ready_for_pickup: 'Ready for pickup',
+  out_for_delivery: 'Out for delivery',
+  handed_off: 'Completed',
+  completed: 'Completed',
+  payment_failed: 'Payment failed',
+}
+
+/** One name per order state, whether it comes from the order or its fulfillment. */
+export function orderStatusLabel(status: string) {
+  return ORDER_LABELS[status] || status.replaceAll('_', ' ')
+}

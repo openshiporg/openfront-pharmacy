@@ -3,13 +3,14 @@ import type { Metadata } from 'next'
 import { getStorefront } from '../lib/data/store'
 import { NoLocations, StoreCatalog } from './HomePage'
 import { StoreUnavailable } from './MainLayout'
+import { categoryLabel } from '../lib/categories'
 
 type Props = { searchParams?: Promise<{ category?: string }> }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const [storefront, params] = await Promise.all([getStorefront(), searchParams])
-  const section = params?.category ? params.category.replaceAll('_', ' ') : 'Shop'
-  return { title: storefront ? `${section} | ${storefront.brand.displayName}` : section }
+  const params = await searchParams
+  const section = params?.category ? categoryLabel(params.category) : 'Shop'
+  return { title: section }
 }
 
 export async function StorePage({ searchParams }: Props) {
@@ -19,7 +20,7 @@ export async function StorePage({ searchParams }: Props) {
   if (!storefront) return <StoreUnavailable />
   if (!storefront.location) return <NoLocations storefront={storefront} />
   return <div className="pt-8 sm:pt-10">
-    <StoreCatalog storefront={storefront} title={category ? category.replaceAll('_', ' ').replace(/^./, (letter) => letter.toUpperCase()) : 'Shop'} eyebrow={storefront.location.name} category={category} />
+    <StoreCatalog storefront={storefront} title={category ? categoryLabel(category) : 'Shop'} eyebrow={storefront.location.name} category={category} />
   </div>
 }
 

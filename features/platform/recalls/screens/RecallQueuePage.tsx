@@ -1,4 +1,4 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyRecallQueueProjection } from '@/features/pharmacy/contracts'
 import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/components/WorkflowQueuePage'
 import { reportedAge, strongestPriority } from '@/features/platform/components/workflowQueue'
@@ -16,7 +16,7 @@ function recallDecision(recall: PharmacyRecallQueueProjection) {
 export async function RecallQueuePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const after = typeof params?.after === 'string' ? params.after : null
-  const response = await keystoneClient<{ pharmacyRecallWorklist: { items: PharmacyRecallQueueProjection[]; totalCount: number; hasMore: boolean; nextCursor?: string | null } }>(`query RecallWorklist($first: Int, $after: String) { pharmacyRecallWorklist(first: $first, after: $after) { items { id recallNumber classification status reason source initiatedAt locationName affectedLotCount quarantinedLotCount unresolvedExposureCount approvalRecorded approvedAt approvedBy } totalCount hasMore nextCursor } }`, { first: 50, after })
+  const response = await platformRequest<{ pharmacyRecallWorklist: { items: PharmacyRecallQueueProjection[]; totalCount: number; hasMore: boolean; nextCursor?: string | null } }>(`query RecallWorklist($first: Int, $after: String) { pharmacyRecallWorklist(first: $first, after: $after) { items { id recallNumber classification status reason source initiatedAt locationName affectedLotCount quarantinedLotCount unresolvedExposureCount approvalRecorded approvedAt approvedBy } totalCount hasMore nextCursor } }`, { first: 50, after })
   const worklist = response.success ? response.data.pharmacyRecallWorklist : null
   const items = worklist ? worklist.items.map((recall) => {
     const exceptions = [

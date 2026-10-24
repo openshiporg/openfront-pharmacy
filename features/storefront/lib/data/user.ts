@@ -109,10 +109,19 @@ export async function updateCustomerName(_state: ProfileState, formData: FormDat
   return updateOwnUser({ name }, 'Your name could not be updated. Please try again.')
 }
 
+/** Email and password changes go through updateActiveUser, which checks the current password. */
+async function updateSignIn(data: { email?: string; password?: string }, currentPassword: string, fallback: string): Promise<ProfileState> {
+  if (!currentPassword) return { success: false, error: 'Enter your current password.' }
+  const response = await storefrontRequest('mutation StorefrontUpdateSignIn($data: UserUpdateProfileInput!, $oldPassword: String) { updateActiveUser(data: $data, oldPassword: $oldPassword) { id } }', { data, oldPassword: currentPassword }, fallback)
+  if (!response.success) return { success: false, error: response.error }
+  revalidatePath('/account', 'layout')
+  return { success: true, error: null }
+}
+
 export async function updateCustomerEmail(_state: ProfileState, formData: FormData) {
   const email = String(formData.get('email') || '').trim().toLowerCase()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { success: false, error: 'Enter a valid email address.' }
-  return updateOwnUser({ email }, 'Your email could not be updated. It may already be in use.')
+  return updateSignIn({ email }, String(formData.get('currentPassword') || ''), 'Your email could not be updated. It may already be in use.')
 }
 
 export async function updateCustomerPassword(_state: ProfileState, formData: FormData) {
@@ -122,7 +131,7 @@ export async function updateCustomerPassword(_state: ProfileState, formData: For
   if (password !== confirm) return { success: false, error: 'Passwords do not match.' }
   const customer = await getCustomer()
   if (!customer) return { success: false, error: 'Sign in again to update your password.' }
-  const result = await updateOwnUser({ password }, 'Your password could not be updated. Choose a less common password.')
+  const result = await updateSignIn({ password }, String(formData.get('currentPassword') || ''), 'Your password could not be updated. Choose a less common password.')
   // A password change ends existing sessions; sign the customer back in with the new password.
   if (result.success) await authenticate(customer.email, password)
   return result

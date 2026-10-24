@@ -2,6 +2,7 @@ import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
+import { DomainError } from './lib/errors'
 
 export async function recordTemperatureExcursion(
   _root: unknown,
@@ -18,22 +19,22 @@ export async function recordTemperatureExcursion(
   context: Context,
 ) {
   requirePermission(context, 'canManageInventory')
-  if (!args.idempotencyKey?.trim() || !args.reason?.trim()) throw new Error('Idempotency key and reason are required')
+  if (!args.idempotencyKey?.trim() || !args.reason?.trim()) throw new DomainError('Idempotency key and reason are required')
   if (!Number.isFinite(args.observedMinimumC) || !Number.isFinite(args.observedMaximumC) || args.observedMinimumC > args.observedMaximumC) {
-    throw new Error('Observed temperature range is invalid')
+    throw new DomainError('Observed temperature range is invalid')
   }
   return withDomainTransaction(context, [`excursion-idempotency:${args.idempotencyKey}`, `lot:${args.lotId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const existing = await sudo.query.TemperatureExcursion.findOne({ where: { idempotencyKey: args.idempotencyKey }, query: 'id status lot { id } approval { id }' })
     if (existing) {
-      if (existing.lot?.id !== args.lotId) throw new Error('Excursion idempotency key belongs to another lot')
+      if (existing.lot?.id !== args.lotId) throw new DomainError('Excursion idempotency key belongs to another lot')
       return { success: true, reused: true, excursionId: existing.id, lotId: existing.lot.id, status: existing.status, approvalId: existing.approval?.id }
     }
     const lot = await sudo.query.InventoryLot.findOne({
       where: { id: args.lotId },
       query: 'id quantityAvailable product { id organization { id } } location { id } coldChainRequired',
     })
-    if (!lot?.coldChainRequired) throw new Error('Cold-chain inventory lot not found')
+    if (!lot?.coldChainRequired) throw new DomainError('Cold-chain inventory lot not found')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: lot.product.organization.id, locationId: lot.location.id })
     const approval = await createHumanApproval(transactionContext, {
       organizationId: lot.product.organization.id,

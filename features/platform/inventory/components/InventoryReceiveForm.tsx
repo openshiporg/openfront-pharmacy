@@ -5,6 +5,7 @@ import { RxButton as Button } from '@/features/platform/components/rx-ui'
 import { Input } from '@/components/ui/input'
 import type { PharmacyInventoryReceiptOptions, PharmacyProductOptionWorklistProjection, PharmacyTaskOption } from '@/features/pharmacy/contracts'
 import { loadInventoryReceiptProductPageAction, receiveInventoryAction } from '../actions'
+import { unwrapAction } from '@/features/platform/lib/action-result'
 
 const productPageSize = 50
 
@@ -39,7 +40,7 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
     setNextProductCursor(null)
     setProductId('')
     try {
-      const worklist = await loadInventoryReceiptProductPageAction({ locationId: nextLocationId, first: productPageSize, after: null, status: nextStatus || null })
+      const worklist = await unwrapAction(loadInventoryReceiptProductPageAction({ locationId: nextLocationId, first: productPageSize, after: null, status: nextStatus || null }))
       if (requestId !== productRequestId.current) return
       setProducts(worklist.items)
       setTotalProductCount(worklist.totalCount)
@@ -60,7 +61,7 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
     setProductLoading(true)
     setProductError('')
     try {
-      const worklist = await loadInventoryReceiptProductPageAction({ locationId, first: productPageSize, after: cursor, status: productStatus || null })
+      const worklist = await unwrapAction(loadInventoryReceiptProductPageAction({ locationId, first: productPageSize, after: cursor, status: productStatus || null }))
       if (requestId !== productRequestId.current) return
       setProducts((current) => {
         const seen = new Set(current.map((entry) => entry.id))
@@ -90,13 +91,13 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
 
   function submit() {
     setMessage(''); setError('')
-    startTransition(() => receiveInventoryAction({
+    startTransition(() => unwrapAction(receiveInventoryAction({
       productId, locationId, supplierId: supplierId || undefined, lotNumber, serialNumber: serialNumber.trim() || undefined,
       expirationDate: new Date(`${expirationDate}T12:00:00.000Z`).toISOString(), quantity,
       coldChainRequired: false,
       coldChainEvidenceComplete: true,
       reason, idempotencyKey: idempotencyKey.current || (idempotencyKey.current = `receive:${crypto.randomUUID()}`), attested,
-    }).then((result) => { idempotencyKey.current = null; setMessage(`Lot ${result.lotId} recorded with ${result.quantityAvailable} available.`) }).catch((cause) => setError(cause instanceof Error ? cause.message : 'Receipt failed')))
+    })).then((result) => { idempotencyKey.current = null; setMessage(`Lot ${lotNumber.trim()} recorded with ${result.quantityAvailable} available.`) }).catch((cause) => setError(cause instanceof Error ? cause.message : 'Receipt failed')))
   }
 
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)

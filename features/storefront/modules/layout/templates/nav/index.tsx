@@ -21,7 +21,7 @@ export default function Nav({ brand, location, cartCount }: { brand: Pick<Public
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
         <div className="min-w-0 flex-1"><StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} /></div>
         <DesktopNav />
-        <div className="flex flex-1 items-center justify-end gap-2">
+        <div className="flex shrink-0 items-center justify-end gap-2 lg:flex-1">
           <Link href="/account" className="hidden min-h-11 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"><UserRound aria-hidden="true" className="size-4" />Account</Link>
           <Link href="/cart" aria-label={`Cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-full bg-foreground px-4 text-sm font-semibold text-background transition-transform active:scale-[0.97]"><ShoppingBag aria-hidden="true" className="size-4" /><span className="rx-num">{cartCount}</span></Link>
           <MobileMenu brand={brand} />

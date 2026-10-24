@@ -1,6 +1,7 @@
 import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { withDomainTransaction } from './lib/transaction'
+import { DomainError } from './lib/errors'
 
 export async function replayPharmacyOutboxEvent(
   _root: unknown,
@@ -14,13 +15,13 @@ export async function replayPharmacyOutboxEvent(
       where: { id: args.eventId },
       query: 'id eventKey status replayCount organization { id } location { id }',
     })
-    if (!event) throw new Error('Outbox event not found')
+    if (!event) throw new DomainError('Outbox event not found')
     await requireTenantMembership(transactionContext, {
       organizationId: event.organization.id,
       locationId: event.location?.id,
     })
     if (event.status === 'pending') return { id: event.id, status: event.status, replayCount: event.replayCount, reused: true }
-    if (!['failed', 'dead_letter'].includes(event.status)) throw new Error('Only failed or dead-letter outbox events can be replayed')
+    if (!['failed', 'dead_letter'].includes(event.status)) throw new DomainError('Only failed or dead-letter outbox events can be replayed')
     const updated = await sudo.db.OutboxEvent.updateOne({
       where: { id: event.id },
       data: {

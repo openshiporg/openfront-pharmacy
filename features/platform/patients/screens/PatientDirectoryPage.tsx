@@ -1,9 +1,12 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PatientSafeProjection } from '@/features/pharmacy/contracts'
 import { OperationalPage } from '@/features/platform/components/OperationalPage'
+import { formatDay } from '@/features/platform/lib/dates'
+import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
 
 export async function PatientDirectoryPage() {
-  const response = await keystoneClient<{ pharmacyPatientDirectory: PatientSafeProjection[] }>(`query { pharmacyPatientDirectory { id patientNumber displayName status preferredContactMethod identityVerificationStatus hasIdentityEvidence organizationNames prescriptionCount activeConsentCount latestConsentAt } }`)
+  const timeZone = await getStoreTimeZone()
+  const response = await platformRequest<{ pharmacyPatientDirectory: PatientSafeProjection[] }>(`query { pharmacyPatientDirectory { id patientNumber displayName status preferredContactMethod identityVerificationStatus hasIdentityEvidence organizationNames prescriptionCount activeConsentCount latestConsentAt } }`)
   const items = response.success ? response.data.pharmacyPatientDirectory.map((patient) => ({
     id: patient.id,
     href: `/dashboard/platform/patients/${patient.id}`,
@@ -16,7 +19,7 @@ export async function PatientDirectoryPage() {
       { label: 'Identity evidence', value: patient.hasIdentityEvidence ? patient.identityVerificationStatus : 'not recorded' },
       { label: 'Prescriptions', value: String(patient.prescriptionCount) },
       { label: 'Active consents', value: String(patient.activeConsentCount) },
-      { label: 'Latest consent', value: patient.latestConsentAt ? new Date(patient.latestConsentAt).toLocaleDateString() : 'None' },
+      { label: 'Latest consent', value: patient.latestConsentAt ? formatDay(patient.latestConsentAt, timeZone) : 'None' },
     ],
   })) : []
   return <OperationalPage title="Patients" description="Manage patient profiles, safety history, and consent." items={items} emptyMessage="No patients yet" error={response.success ? undefined : response.error} attentionStatuses={['inactive', 'merged', 'restricted']} primaryAction={{ href: '/dashboard/platform/patients/create', label: 'Create patient' }} />

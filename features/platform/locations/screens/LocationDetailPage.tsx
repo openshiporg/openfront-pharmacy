@@ -1,4 +1,4 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { normalizeWeeklyHours } from '@/features/pharmacy/hours'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
@@ -12,7 +12,7 @@ const SWITCHES = [['onlineOrderingEnabled', 'Online ordering'], ['pickupEnabled'
 
 export async function LocationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const response = await keystoneClient<{ pharmacyLocation: LocationRow | null }>(`query Location($id: ID!) { pharmacyLocation(where: { id: $id }) { ${LOCATION_FIELDS} } }`, { id })
+  const response = await platformRequest<{ pharmacyLocation: LocationRow | null }>(`query Location($id: ID!) { pharmacyLocation(where: { id: $id }) { ${LOCATION_FIELDS} } }`, { id })
   const parent = { label: 'Locations', href: '/platform/locations' }
   if (!response.success || !response.data.pharmacyLocation) return <TaskPage parent={parent} title="Location unavailable" description={response.success ? 'Not found' : response.error} />
   const location = response.data.pharmacyLocation

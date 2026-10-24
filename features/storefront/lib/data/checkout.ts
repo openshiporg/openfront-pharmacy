@@ -20,6 +20,7 @@ export async function getPaymentProviders(locationId: string): Promise<PharmacyP
 
 export type PlaceOrderInput = {
   providerCode: string
+  name: string
   email: string
   phone: string
   fulfillmentMethod: 'pickup' | 'delivery'
@@ -36,6 +37,7 @@ export type CheckoutStep =
 
 function validate(input: PlaceOrderInput) {
   if (!input.consentAccepted) return 'Confirm that the pharmacy may use your details for this order.'
+  if (!input.name.trim()) return input.fulfillmentMethod === 'delivery' ? 'Enter the name for delivery.' : 'Enter the name for pickup.'
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) return 'Enter a valid email address.'
   if (!input.phone.trim()) return 'Enter a phone number.'
   return null
@@ -54,6 +56,7 @@ async function submit(input: PlaceOrderInput, paymentSessionId: string): Promise
         idempotencyKey: `checkout:${stored.cartId}:${paymentSessionId}`,
         email: input.email.trim(),
         phone: input.phone.trim(),
+        customerName: input.name.trim(),
         fulfillmentMethod: input.fulfillmentMethod,
         shippingAddress: input.fulfillmentMethod === 'delivery' ? input.shippingAddress ?? null : null,
         privacyConsentAccepted: true,
@@ -77,7 +80,7 @@ async function sendConfirmation(to: string, order: PlacedOrder) {
     const host = requestHeaders.get('x-forwarded-host') || requestHeaders.get('host')
     if (!host) return
     const protocol = requestHeaders.get('x-forwarded-proto') || (host.startsWith('localhost') ? 'http' : 'https')
-    const params = new URLSearchParams({ orderId: order.orderId, token: order.guestOrderToken || '' })
+    const params = new URLSearchParams({ orderId: order.orderId, ...(order.guestOrderToken ? { token: order.guestOrderToken } : {}) })
     const storefront = await getStorefront()
     await sendOrderConfirmationEmail({ to, orderNumber: order.orderNumber, storeName: storefront?.brand.displayName || 'Pharmacy', url: `${protocol}://${host}/order-status?${params}` })
   } catch {

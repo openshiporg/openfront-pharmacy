@@ -1,6 +1,7 @@
 import { GraphQLError } from 'graphql'
 import type { Context } from '.keystone/types'
 import { GUEST_ORDER_QUERY, guestOrderProjection } from './getGuestPharmacyOrder'
+import { DomainError } from './lib/errors'
 
 function userInputError(message: string) {
   return new GraphQLError(message, { extensions: { code: 'BAD_USER_INPUT' } })
@@ -22,29 +23,29 @@ export async function registerPharmacyCustomer(_root: unknown, args: { name: str
 
 export async function pharmacyCustomerOrder(_root: unknown, args: { orderId: string }, context: Context) {
   const userId = context.session?.itemId
-  if (!userId || context.session?.listKey !== 'User') throw new Error('Authentication required')
+  if (!userId || context.session?.listKey !== 'User') throw new DomainError('Authentication required')
   const [order] = await context.query.Order.findMany({ where: { id: { equals: args.orderId }, customer: { id: { equals: userId } } }, take: 1, query: 'id orderNumber status totalAmount currencyCode createdAt lineItems { title quantity unitPriceAmount }' })
-  if (!order) throw new Error('Order not found')
+  if (!order) throw new DomainError('Order not found')
   return order
 }
 
 /** The signed-in customer's own order with the same detail as order tracking. Ownership is checked with a scoped read. */
 export async function pharmacyCustomerOrderDetails(_root: unknown, args: { orderId: string }, context: Context) {
   const userId = context.session?.itemId
-  if (!userId || context.session?.listKey !== 'User') throw new Error('Authentication required')
+  if (!userId || context.session?.listKey !== 'User') throw new DomainError('Authentication required')
   const [owned] = await context.query.Order.findMany({ where: { id: { equals: args.orderId }, customer: { id: { equals: userId } } }, take: 1, query: 'id' })
-  if (!owned) throw new Error('Order not found')
+  if (!owned) throw new DomainError('Order not found')
   const order = await context.sudo().query.Order.findOne({ where: { id: owned.id }, query: GUEST_ORDER_QUERY })
-  if (!order) throw new Error('Order not found')
+  if (!order) throw new DomainError('Order not found')
   return guestOrderProjection(order)
 }
 
 export async function pharmacyCustomerAccount(_root: unknown, _args: unknown, context: Context) {
   const userId = context.session?.itemId
-  if (!userId || context.session?.listKey !== 'User') throw new Error('Authentication required')
+  if (!userId || context.session?.listKey !== 'User') throw new DomainError('Authentication required')
   // Normal scoped reads, no sudo and no email-based historical claiming.
   const user = await context.query.User.findOne({ where: { id: userId }, query: 'id name patientProfile { id }' })
-  if (!user) throw new Error('Account not found')
+  if (!user) throw new DomainError('Account not found')
   const orders = await context.query.Order.findMany({ where: { customer: { id: { equals: userId } } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 50, query: 'id orderNumber status totalAmount currencyCode createdAt lineItems { title quantity unitPriceAmount }' })
   return { id: user.id, name: user.name, hasPatientProfile: Boolean(user.patientProfile?.id), orders }
 }

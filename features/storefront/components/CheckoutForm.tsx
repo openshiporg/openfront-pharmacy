@@ -26,10 +26,10 @@ function Step({ number, title, children }: { number: number; title: string; chil
 }
 
 function orderStatusHref(order: { orderId: string; guestOrderToken?: string | null }) {
-  return `/order-status?${new URLSearchParams({ orderId: order.orderId, token: order.guestOrderToken || '', placed: '1' })}`
+  return `/order-status?${new URLSearchParams({ orderId: order.orderId, ...(order.guestOrderToken ? { token: order.guestOrderToken } : {}), placed: '1' })}`
 }
 
-export function CheckoutForm({ providers, pickupEnabled, deliveryEnabled, defaultEmail, stripeKey, totalLabel, pickupHours }: { providers: PharmacyPaymentProviderOption[]; pickupEnabled: boolean; deliveryEnabled: boolean; defaultEmail?: string | null; stripeKey?: string | null; totalLabel: string; pickupHours?: ReactNode }) {
+export function CheckoutForm({ providers, pickupEnabled, deliveryEnabled, defaultEmail, defaultName, stripeKey, totalLabel, pickupHours }: { providers: PharmacyPaymentProviderOption[]; pickupEnabled: boolean; deliveryEnabled: boolean; defaultEmail?: string | null; defaultName?: string | null; stripeKey?: string | null; totalLabel: string; pickupHours?: ReactNode }) {
   const router = useRouter()
   const methods = [pickupEnabled && { value: 'pickup' as const, label: 'Pickup' }, deliveryEnabled && { value: 'delivery' as const, label: 'Delivery' }].filter((method): method is { value: 'pickup' | 'delivery'; label: string } => Boolean(method))
   const [fulfillmentMethod, setFulfillmentMethod] = useState(methods[0]?.value ?? 'pickup')
@@ -61,6 +61,7 @@ export function CheckoutForm({ providers, pickupEnabled, deliveryEnabled, defaul
     const data = new FormData(form)
     return {
       providerCode: selectedCode,
+      name: String(data.get('name') || ''),
       email: String(data.get('email') || ''),
       phone: String(data.get('phone') || ''),
       fulfillmentMethod,
@@ -101,6 +102,7 @@ export function CheckoutForm({ providers, pickupEnabled, deliveryEnabled, defaul
     <fieldset disabled={Boolean(card)} className="grid gap-8 disabled:opacity-70">
       <Step number={1} title="Contact">
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2 sm:col-span-2"><Label htmlFor="checkout-name">{fulfillmentMethod === 'delivery' ? 'Name for delivery' : 'Name for pickup'}</Label><Input id="checkout-name" name="name" autoComplete="name" defaultValue={defaultName || ''} maxLength={120} required className={inputClass} /></div>
           <div className="grid gap-2"><Label htmlFor="checkout-email">Email</Label><Input id="checkout-email" name="email" type="email" autoComplete="email" defaultValue={defaultEmail || ''} maxLength={254} required className={inputClass} /></div>
           <div className="grid gap-2"><Label htmlFor="checkout-phone">Phone</Label><Input id="checkout-phone" name="phone" type="tel" autoComplete="tel" maxLength={40} required className={inputClass} /></div>
         </div>

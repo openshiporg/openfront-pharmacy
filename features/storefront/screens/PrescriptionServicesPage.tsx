@@ -10,10 +10,7 @@ import { getCustomer } from '../lib/data/user'
 import { formatAddress } from '../lib/money'
 import { StoreUnavailable } from './MainLayout'
 
-export async function generateMetadata(): Promise<Metadata> {
-  const storefront = await getStorefront()
-  return { title: storefront ? `Prescriptions | ${storefront.brand.displayName}` : 'Prescriptions' }
-}
+export const metadata: Metadata = { title: 'Prescriptions' }
 
 export async function PrescriptionServicesPage() {
   const [storefront, customer] = await Promise.all([getStorefront(), getCustomer()])

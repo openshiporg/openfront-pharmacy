@@ -3,13 +3,17 @@ import { CheckCircle2 } from 'lucide-react'
 
 import { OrderDetails, OrderLookupForm } from '../components/OrderStatusClient'
 import { PageHead } from '../components/rx-ui'
-import { lookupGuestOrder } from '../lib/data/orders'
+import { getCustomerOrderDetails, lookupGuestOrder } from '../lib/data/orders'
 
 export const metadata: Metadata = { title: 'Track order' }
 
 export async function OrderStatusPage({ searchParams }: { searchParams: Promise<{ orderId?: string; token?: string; placed?: string }> }) {
   const params = await searchParams
-  const result = params.orderId && params.token ? await lookupGuestOrder({ orderId: params.orderId, guestOrderToken: params.token }) : null
+  // Guests carry the order token; a signed-in customer's own order is read through their session.
+  const customerOrder = params.orderId && !params.token ? await getCustomerOrderDetails(params.orderId) : null
+  const result = customerOrder
+    ? { ok: true as const, order: customerOrder }
+    : params.orderId && params.token ? await lookupGuestOrder({ orderId: params.orderId, guestOrderToken: params.token }) : null
   const placed = result?.ok && params.placed === '1'
 
   return <div className="mx-auto max-w-3xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">

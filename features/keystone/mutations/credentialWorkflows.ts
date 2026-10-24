@@ -3,6 +3,7 @@ import { isValidNpi } from '../workflows/prescription-eligibility'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
+import { DomainError } from './lib/errors'
 
 type CredentialEvidence = {
   credentialType: string
@@ -17,10 +18,10 @@ type CredentialEvidence = {
 function validateCredentialEvidence(args: CredentialEvidence) {
   const expiresAt = new Date(args.expiresAt)
   if (![args.credentialType, args.jurisdiction, args.identifier, args.verificationReference].every((value) => value?.trim())) {
-    throw new Error('Credential type, jurisdiction, identifier, expiration, and source reference are required')
+    throw new DomainError('Credential type, jurisdiction, identifier, expiration, and source reference are required')
   }
-  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) throw new Error('Credential review expiration must be in the future')
-  if (expiresAt.getTime() > Date.now() + 5 * 366 * 86_400_000) throw new Error('Credential review expiration is outside the supported review window')
+  if (Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() <= Date.now()) throw new DomainError('Credential review expiration must be in the future')
+  if (expiresAt.getTime() > Date.now() + 5 * 366 * 86_400_000) throw new DomainError('Credential review expiration is outside the supported review window')
   return expiresAt
 }
 
@@ -38,7 +39,7 @@ export async function recordPharmacyStaffCredentialReview(
       where: { id: args.membershipId },
       query: 'id membershipRole status organization { id } location { id } user { id } externalCredentialValidated credentialValidationReference credentialExpiresAt',
     })
-    if (!membership || membership.status !== 'active' || !['owner', 'pharmacist'].includes(membership.membershipRole)) throw new Error('Active owner or pharmacist membership not found')
+    if (!membership || membership.status !== 'active' || !['owner', 'pharmacist'].includes(membership.membershipRole)) throw new DomainError('Active owner or pharmacist membership not found')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: membership.organization.id, locationId: membership.location?.id })
     const approval = await createHumanApproval(transactionContext, {
       organizationId: membership.organization.id,
@@ -89,7 +90,7 @@ export async function recordPharmacyPrescriberCredentialReview(
   return withDomainTransaction(context, [`prescriber:${args.prescriberId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const prescriber = await sudo.query.Prescriber.findOne({ where: { id: args.prescriberId }, query: 'id npi organization { id }' })
-    if (!prescriber || !isValidNpi(prescriber.npi)) throw new Error('Prescriber with a valid NPI is required')
+    if (!prescriber || !isValidNpi(prescriber.npi)) throw new DomainError('Prescriber with a valid NPI is required')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: prescriber.organization.id, pharmacist: true })
     const approval = await createHumanApproval(transactionContext, {
       organizationId: prescriber.organization.id,

@@ -1,1 +1,1 @@
-export { PrescriptionServicesPage as default, generateMetadata } from '@/features/storefront/screens/PrescriptionServicesPage'
+export { PrescriptionServicesPage as default, metadata } from '@/features/storefront/screens/PrescriptionServicesPage'

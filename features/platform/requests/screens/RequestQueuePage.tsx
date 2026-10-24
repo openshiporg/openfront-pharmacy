@@ -2,7 +2,9 @@ import Link from 'next/link'
 
 import { PageContainer } from '@/features/dashboard/components/PageContainer'
 import { basePath } from '@/features/dashboard/lib/config'
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
+import { formatCalendarDate, formatDay } from '@/features/platform/lib/dates'
+import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
 import { Callout, Count, Dot, EmptyBand, Field, ListBand, PillLink, RaisedLink, TitleLine, Track, humanize, type DotTone } from '@/features/platform/components/rx-ui'
 import { RequestActions } from '../components/RequestActions'
 
@@ -36,14 +38,11 @@ const KIND_LABELS = { registration: 'Patient registration', transfer: 'Transfer 
 const STATUS_TABS = [['requested', 'Requested'], ['in_review', 'In review'], ['completed', 'Completed'], ['declined', 'Declined']] as const
 const STATUS_TONES: Record<string, DotTone> = { requested: 'warn', in_review: 'info', completed: 'ok', declined: 'muted' }
 
-function day(value?: string | null) {
-  return value ? new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' }) : ''
-}
-
 export async function RequestQueuePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
+  const timeZone = await getStoreTimeZone()
   const status = typeof params?.status === 'string' && STATUS_TABS.some(([value]) => value === params.status) ? params.status : null
-  const response = await keystoneClient<{ pharmacyPrescriptionRequestQueue: PrescriptionRequest[] }>(
+  const response = await platformRequest<{ pharmacyPrescriptionRequestQueue: PrescriptionRequest[] }>(
     `query RequestQueue($status: String) { pharmacyPrescriptionRequestQueue(status: $status) { id kind status createdAt resolvedAt resolutionNote locationName counterpartyName medications customerName customerEmail patientId firstName lastName dateOfBirth phone email allergies insurance counterpartyPhone prescriberName prescriberPhone note } }`,
     { status },
   )
@@ -69,11 +68,11 @@ export async function RequestQueuePage({ searchParams }: { searchParams?: Promis
         const name = [request.firstName, request.lastName].filter(Boolean).join(' ') || request.customerName
         return <article key={request.id} className="grid gap-4 bg-background px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{KIND_LABELS[request.kind]} · {day(request.createdAt)} · {request.locationName}</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{KIND_LABELS[request.kind]} · {formatDay(request.createdAt, timeZone)} · {request.locationName}</p>
             <TitleLine as="h2" className="mt-1" title={name} tone={STATUS_TONES[request.status] || 'muted'} state={humanize(request.status)} />
             <p className="mt-0.5 truncate text-sm text-muted-foreground">{request.customerEmail}{request.patientId ? ' · Linked patient' : ' · Not linked to a patient'}</p>
             <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
-              {request.dateOfBirth && <Field label="Date of birth">{day(request.dateOfBirth)}</Field>}
+              {request.dateOfBirth && <Field label="Date of birth">{formatCalendarDate(request.dateOfBirth)}</Field>}
               {request.phone && <Field label="Phone"><a href={`tel:${request.phone}`} className="font-mono hover:underline">{request.phone}</a></Field>}
               {request.counterpartyName && <Field label="Transfer from">{request.counterpartyName}{request.counterpartyPhone ? <span className="block font-mono text-xs text-muted-foreground">{request.counterpartyPhone}</span> : null}</Field>}
               {request.prescriberName && <Field label="Prescriber">{request.prescriberName}{request.prescriberPhone ? <span className="block font-mono text-xs text-muted-foreground">{request.prescriberPhone}</span> : null}</Field>}
@@ -87,7 +86,7 @@ export async function RequestQueuePage({ searchParams }: { searchParams?: Promis
           <div className="flex min-w-0 flex-col gap-3 border-t border-dashed pt-3 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
             <RequestActions requestId={request.id} status={request.status} />
             <div className="flex flex-wrap gap-2">
-              {!request.patientId && <RaisedLink href={`${basePath}/platform/patients/create`}>Create patient</RaisedLink>}
+              {!request.patientId && <RaisedLink href={`${basePath}/platform/patients/create?request=${request.id}`}>Create patient</RaisedLink>}
               {request.kind !== 'registration' && <RaisedLink href={`${basePath}/platform/prescriptions/intake`}>Prescription intake</RaisedLink>}
               {request.patientId && <Link href={`${basePath}/platform/patients/${request.patientId}`} className="inline-flex min-h-9 items-center px-2 text-[13px] font-medium underline underline-offset-4">Patient</Link>}
             </div>

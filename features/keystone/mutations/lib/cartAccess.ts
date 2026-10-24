@@ -1,6 +1,7 @@
 import type { Context } from '.keystone/types'
 import { verifyGuestCartToken } from '../../security/cart-token'
 import { verifyGuestOrderToken } from '../../security/order-token'
+import { DomainError } from './errors'
 
 export async function loadAndAssertCartAccess(
   context: Context,
@@ -28,19 +29,19 @@ export async function loadAndAssertCartAccess(
       order { id orderNumber idempotencyKey status totalAmount currencyCode fulfillment { status } }
     `,
   })
-  if (!cart || (cart.status !== 'active' && !(options.allowSubmitted && cart.status === 'submitted'))) throw new Error('Active cart not found')
-  if (cart.expiresAt && new Date(cart.expiresAt).getTime() <= Date.now()) throw new Error('Cart has expired')
+  if (!cart || (cart.status !== 'active' && !(options.allowSubmitted && cart.status === 'submitted'))) throw new DomainError('Active cart not found')
+  if (cart.expiresAt && new Date(cart.expiresAt).getTime() <= Date.now()) throw new DomainError('Cart has expired')
 
   const userId = context.session?.itemId
   if (userId) {
-    if (cart.customer?.id !== userId) throw new Error('You do not have access to this cart')
+    if (cart.customer?.id !== userId) throw new DomainError('You do not have access to this cart')
   } else {
     const validCartToken = Boolean(guestToken && !cart.customer && cart.guestTokenHash && verifyGuestCartToken(guestToken, cart.guestTokenHash))
     const validReplayToken = Boolean(
       options.allowSubmitted && cart.status === 'submitted' && guestToken && cart.order?.idempotencyKey
       && verifyGuestOrderToken(cart.id, cart.order.idempotencyKey, guestToken),
     )
-    if (!validCartToken && !validReplayToken) throw new Error('You do not have access to this cart')
+    if (!validCartToken && !validReplayToken) throw new DomainError('You do not have access to this cart')
   }
   return cart
 }

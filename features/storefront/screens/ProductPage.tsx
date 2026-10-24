@@ -8,7 +8,8 @@ import { ProductImage } from '../components/ProductImage'
 import { Field, Notice, TitleLine } from '../components/rx-ui'
 import { prescriptionRequirementLabel, publicCatalogAvailability } from '../lib/catalog-availability'
 import { fetchCatalogPage, getStorefrontProduct } from '../lib/data/store'
-import { formatMoney, formatStatus } from '../lib/money'
+import { formatMoney } from '../lib/money'
+import { categoryLabel } from '../lib/categories'
 
 type Props = { params: Promise<{ handle: string }> }
 
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { handle } = await params
   const result = await getStorefrontProduct(decodeURIComponent(handle))
   if (!result) return { title: 'Product not found' }
-  return { title: `${result.product.title} | ${result.storefront.brand.displayName}`, description: result.product.description || undefined }
+  return { title: result.product.title, description: result.product.description || undefined }
 }
 
 export async function ProductPage({ params }: Props) {
@@ -38,7 +39,7 @@ export async function ProductPage({ params }: Props) {
         <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes="(max-width: 1024px) 100vw, 55vw" />
       </div>
       <div className="min-w-0 lg:pt-4">
-        {product.category && <p className="rx-eyebrow">{formatStatus(product.category)}</p>}
+        {product.category && <p className="rx-eyebrow">{categoryLabel(product.category)}</p>}
         <TitleLine as="h1" className="mt-2" title={product.title} titleClassName="text-[2rem] leading-[1.1] tracking-[-0.025em] sm:text-[2.5rem]" tone={availability.canOrder ? 'ok' : 'muted'} state={availability.canOrder ? 'In stock' : 'Unavailable'} />
         <p className="rx-num mt-4 text-2xl">{price}</p>
         {product.description && <p className="mt-5 max-w-prose text-[15px] leading-7 text-muted-foreground">{product.description}</p>}
@@ -60,7 +61,7 @@ export async function ProductPage({ params }: Props) {
 
     {related.length > 0 && <section aria-labelledby="related-title" className="mt-16">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 id="related-title" className="text-xl font-semibold tracking-tight">More in {formatStatus(product.category || '')}</h2>
+        <h2 id="related-title" className="text-xl font-semibold tracking-tight">More in {categoryLabel(product.category)}</h2>
         <Link href={`/products?category=${product.category}#products`} className="text-sm font-semibold text-primary">See all</Link>
       </div>
       <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 lg:grid-cols-4">

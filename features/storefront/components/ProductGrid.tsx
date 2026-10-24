@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input'
 import type { PublicPharmacyCatalogPageProjection } from '@/features/pharmacy/contracts'
 import { prescriptionRequirementLabel, publicCatalogAvailability } from '../lib/catalog-availability'
 import { getCatalogPage } from '../lib/data/catalog'
-import { formatMoney, formatStatus } from '../lib/money'
+import { formatMoney } from '../lib/money'
 import { AddProductButton } from './AddProductButton'
 import { ProductImage } from './ProductImage'
 import { Dot, PillLink, Track, pillClass, trackClass } from './rx-ui'
+import { categoryLabel } from '../lib/categories'
 
 export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 'Shop', eyebrow, categories = [], activeCategory = null }: { locationId: string; orderingEnabled: boolean; initialPage: PublicPharmacyCatalogPageProjection; title?: string; eyebrow?: string; categories?: Array<{ value: string; count: number }>; activeCategory?: string | null }) {
   const [products, setProducts] = useState(initialPage.items)
@@ -56,7 +57,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
 
     {categories.length > 1 && <Track label="Category" className="mt-6">
       <PillLink href="/products#products" active={!activeCategory} scroll={false}>All</PillLink>
-      {categories.map((entry) => <PillLink key={entry.value} href={`/products?category=${entry.value}#products`} active={activeCategory === entry.value} scroll={false} className="capitalize">{formatStatus(entry.value)} <span className="rx-num text-[11px] text-muted-foreground">{entry.count}</span></PillLink>)}
+      {categories.map((entry) => <PillLink key={entry.value} href={`/products?category=${entry.value}#products`} active={activeCategory === entry.value} scroll={false}>{categoryLabel(entry.value)} <span className="rx-num text-[11px] text-muted-foreground">{entry.count}</span></PillLink>)}
     </Track>}
 
     {appliedSearch && <p className="mt-4 text-sm text-muted-foreground" aria-live="polite"><span className="rx-num">{totalCount}</span> {totalCount === 1 ? 'result' : 'results'} for “{appliedSearch}”</p>}
@@ -72,7 +73,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
             <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes="(max-width: 1024px) 50vw, 25vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
             {requirement && <span className="absolute left-2.5 top-2.5 rounded-full bg-card/95 px-2.5 py-1 text-[11px] font-semibold shadow-[var(--rx-raise)]">{requirement}</span>}
           </Link>
-          {product.category && <p className="rx-eyebrow mt-3">{formatStatus(product.category)}</p>}
+          {product.category && <p className="rx-eyebrow mt-3">{categoryLabel(product.category)}</p>}
           <h3 className="mt-1 flex items-baseline gap-2 text-[15px] font-semibold leading-snug">
             <Dot tone={availability.canOrder ? 'ok' : 'muted'} />
             <Link href={href} className="min-w-0 hover:underline hover:underline-offset-4">{product.title}<span className="sr-only"> · {availability.canOrder ? 'In stock' : 'Unavailable'}</span></Link>

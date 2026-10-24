@@ -5,6 +5,7 @@ import type { Context } from '.keystone/types'
 import { permissions } from '../access'
 import { requireTenantMembership } from './lib/authorization'
 import { recordAuditAndOutbox } from './lib/evidence'
+import { DomainError } from './lib/errors'
 
 // Online prescription requests (patient registration, transfer, new prescription). The details are
 // patient-reported. Staff review them and record the patient and prescription through the controlled
@@ -53,6 +54,7 @@ function staffProjection(request: any) {
     ...customerProjection(request),
     customerName: request.user?.name || '',
     customerEmail: request.user?.email || '',
+    organizationId: request.organization?.id || '',
     patientId: request.patient?.id || null,
     firstName: request.firstName || null,
     lastName: request.lastName || null,
@@ -156,10 +158,10 @@ function canWorkRequests(context: Context) {
   return permissions.canManagePatients({ session }) || permissions.canManagePrescriptions({ session })
 }
 
-export async function pharmacyPrescriptionRequestQueue(_root: unknown, args: { status?: string | null }, context: Context) {
+export async function pharmacyPrescriptionRequestQueue(_root: unknown, args: { status?: string | null; requestId?: string | null }, context: Context) {
   const userId = context.session?.itemId
-  if (!userId) throw new Error('Authentication required')
-  if (!canWorkRequests(context)) throw new Error('Permission required: canManagePatients or canManagePrescriptions')
+  if (!userId) throw new DomainError('Authentication required')
+  if (!canWorkRequests(context)) throw new DomainError('Permission required: canManagePatients or canManagePrescriptions')
   const sudo = context.sudo()
   const memberships = await sudo.query.OrganizationMembership.findMany({
     where: { user: { id: { equals: String(userId) } }, status: { equals: 'active' }, organization: { status: { equals: 'active' } } },
@@ -171,7 +173,7 @@ export async function pharmacyPrescriptionRequestQueue(_root: unknown, args: { s
   if (!scopes.length) return []
   const status = args.status && ['requested', ...RESOLUTIONS].includes(args.status) ? args.status : null
   const requests = await sudo.query.PrescriptionRequest.findMany({
-    where: { AND: [{ OR: scopes }, ...(status ? [{ status: { equals: status } }] : [])] },
+    where: { AND: [{ OR: scopes }, ...(status ? [{ status: { equals: status } }] : []), ...(args.requestId ? [{ id: { equals: args.requestId } }] : [])] },
     orderBy: [{ createdAt: 'desc' }],
     take: 100,
     query: REQUEST_FIELDS,
@@ -179,20 +181,42 @@ export async function pharmacyPrescriptionRequestQueue(_root: unknown, args: { s
   return requests.map(staffProjection)
 }
 
-export async function resolvePharmacyPrescriptionRequest(_root: unknown, args: { requestId: string; status: string; note?: string | null }, context: Context) {
-  if (!canWorkRequests(context)) throw new Error('Permission required: canManagePatients or canManagePrescriptions')
-  if (!RESOLUTIONS.includes(args.status as typeof RESOLUTIONS[number])) throw new Error('Choose in review, completed or declined')
+export async function resolvePharmacyPrescriptionRequest(_root: unknown, args: { requestId: string; status: string; note?: string | null; patientId?: string | null }, context: Context) {
+  if (!canWorkRequests(context)) throw new DomainError('Permission required: canManagePatients or canManagePrescriptions')
+  if (!RESOLUTIONS.includes(args.status as typeof RESOLUTIONS[number])) throw new DomainError('Choose in review, completed or declined')
   const note = clean(args.note, 1000)
   if (args.status === 'declined' && note.length < 3) throw userInputError('Give the reason for declining.')
   const sudo = context.sudo()
   const request = await sudo.query.PrescriptionRequest.findOne({ where: { id: args.requestId }, query: REQUEST_FIELDS })
-  if (!request) throw new Error('Request not found')
+  if (!request) throw new DomainError('Request not found')
   const { userId } = await requireTenantMembership(context, { organizationId: request.organization.id, locationId: request.location.id })
   if (['completed', 'declined'].includes(request.status)) throw userInputError('This request is already closed.')
   const terminal = args.status !== 'in_review'
+  // Recording the patient made from this request: tie it to the request and, when neither side is linked
+  // yet, to the customer's storefront account so they see their prescriptions online.
+  const patient = args.patientId
+    ? await sudo.query.PatientProfile.findOne({ where: { id: args.patientId }, query: 'id user { id } organizations { id }' })
+    : null
+  if (args.patientId && !patient?.organizations?.some((organization: any) => organization.id === request.organization.id)) throw new DomainError('Patient not found in this pharmacy')
+  if (patient && !patient.user && request.user?.id) {
+    const customer = await sudo.query.User.findOne({ where: { id: request.user.id }, query: 'id patientProfile { id }' })
+    if (customer && !customer.patientProfile) {
+      await sudo.query.PatientProfile.updateOne({ where: { id: patient.id }, data: { user: { connect: { id: customer.id } } } })
+      await recordAuditAndOutbox(context, {
+        eventKey: `patient.account_linked:${patient.id}:${customer.id}`,
+        organizationId: request.organization.id,
+        actorId: String(userId),
+        patientId: patient.id,
+        eventType: 'patient.account_linked',
+        resourceType: 'PatientProfile',
+        resourceId: patient.id,
+        metadata: { userId: customer.id, requestId: request.id },
+      })
+    }
+  }
   const updated = await sudo.query.PrescriptionRequest.updateOne({
     where: { id: request.id },
-    data: { status: args.status, resolutionNote: note || request.resolutionNote || '', ...(terminal ? { resolvedAt: new Date().toISOString(), resolvedBy: { connect: { id: String(userId) } } } : {}) },
+    data: { status: args.status, resolutionNote: note || request.resolutionNote || '', ...(patient ? { patient: { connect: { id: patient.id } } } : {}), ...(terminal ? { resolvedAt: new Date().toISOString(), resolvedBy: { connect: { id: String(userId) } } } : {}) },
     query: REQUEST_FIELDS,
   })
   await recordAuditAndOutbox(context, {

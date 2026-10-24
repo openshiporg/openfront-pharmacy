@@ -15,7 +15,7 @@ import { pharmacyCustomerPrescriptionRequests, pharmacyPrescriptionRequestQueue,
 import { adjustInventoryLot, quarantineRecallLots, receiveInventoryLot } from './inventoryWorkflows'
 import { configurePharmacyIntegrationProvider, ingestPharmacyIntegrationWebhook, refreshPharmacyExternalWorkflow, submitPharmacyExternalWorkflow, validatePharmacyPrescriber } from './integrationWorkflows'
 import { intakePharmacyPrescription } from './intakeWorkflows'
-import { createPharmacyPatient, recordPharmacyPatientAllergy, recordPharmacyPatientMedication, updatePharmacyPatientContact } from './patientRecordWorkflows'
+import { createPharmacyPatient, recordPharmacyPatientAllergy, recordPharmacyPatientMedication, recordPharmacyPatientNoneKnown, updatePharmacyPatientContact } from './patientRecordWorkflows'
 import { approvePrescriptionTransfer, linkPharmacyPatientAccount, requestPrescriptionRefill, requestPrescriptionTransfer, resolvePrescriptionRefill } from './patientWorkflows'
 import {
   pharmacyAuditTimeline,
@@ -135,8 +135,17 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       }
       type PharmacyProductOptionWorklist { items: [PharmacyTaskOption!]!, totalCount: Int!, hasMore: Boolean!, nextCursor: String }
       type PharmacyPatientRecordOptions { organizations: [PharmacyTaskOption!]! }
+      type PharmacyDispensingSetup {
+        pharmacistReviewed: Boolean!
+        prescriberReady: Boolean!
+        prescriberHasNpi: Boolean!
+        drugReferenceReviewed: Boolean!
+        cashPolicyRecorded: Boolean!
+        prescriptionProductStocked: Boolean!
+      }
       type PharmacyCredentialReviewOptions {
         organizationWideOrganizationIds: [ID!]!
+        setup: PharmacyDispensingSetup!
         organizations: [PharmacyTaskOption!]!
         memberships: [PharmacyTaskOption!]!
         prescribers: [PharmacyTaskOption!]!
@@ -515,6 +524,9 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         orderNumber: String!
         status: String!
         fulfillmentMethod: String!
+        customerName: String
+        customerEmail: String
+        customerPhone: String
         subtotalAmount: Int!
         taxAmount: Int!
         deliveryAmount: Int!
@@ -692,6 +704,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         guestToken: String
         email: String!
         phone: String
+        customerName: String
         fulfillmentMethod: String!
         pickupAt: String
         deliveryWindow: String
@@ -724,6 +737,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type PharmacyCustomerPrescriptionRequest { id: ID!, kind: String!, status: String!, createdAt: String!, resolvedAt: String, resolutionNote: String, locationName: String!, counterpartyName: String, medications: String }
       type PharmacyPrescriptionRequest {
         id: ID!
+        organizationId: ID!
         kind: String!
         status: String!
         createdAt: String!
@@ -753,7 +767,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         pharmacyCustomerOrder(orderId: ID!): PharmacyCustomerOrder!
         pharmacyCustomerOrderDetails(orderId: ID!): GuestPharmacyOrder!
         pharmacyCustomerPrescriptionRequests: [PharmacyCustomerPrescriptionRequest!]!
-        pharmacyPrescriptionRequestQueue(status: String): [PharmacyPrescriptionRequest!]!
+        pharmacyPrescriptionRequestQueue(status: String, requestId: ID): [PharmacyPrescriptionRequest!]!
         pharmacyFillPolicy(organizationId: ID!): PharmacyFillPolicyReadback!
         pharmacyFillHistory(prescriptionId: ID!, fillId: ID!, after: String): PharmacyFillHistory!
         pharmacyFillWorkbench(prescriptionId: ID!, after: String): PharmacyFillWorkbench!
@@ -801,7 +815,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
 
       type Mutation {
         submitPharmacyPrescriptionRequest(input: PharmacyPrescriptionRequestInput!): PharmacyCustomerPrescriptionRequest!
-        resolvePharmacyPrescriptionRequest(requestId: ID!, status: String!, note: String): PharmacyPrescriptionRequest!
+        resolvePharmacyPrescriptionRequest(requestId: ID!, status: String!, note: String, patientId: ID): PharmacyPrescriptionRequest!
         registerPharmacyCustomer(name: String!, email: String!, password: String!): Boolean!
         updateActiveUser(data: UserUpdateProfileInput!, oldPassword: String): User
         recordPharmacyFillPolicy(organizationId: ID!, policy: JSON!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
@@ -833,6 +847,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updatePharmacyPatientContact(patientId: ID!, email: String, phone: String, preferredContactMethod: String!, address: JSON, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
         recordPharmacyPatientAllergy(patientId: ID!, allergen: String!, reaction: String!, severity: String!, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
         recordPharmacyPatientMedication(patientId: ID!, medicationName: String!, directions: String, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
+        recordPharmacyPatientNoneKnown(patientId: ID!, kind: String!, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
         linkPharmacyPatientAccount(patientId: ID!, userId: ID!): PharmacyPatientAccountLinkResult!
         requestPrescriptionRefill(prescriptionId: ID!, prescriptionItemId: ID!, patientId: ID!, locationId: ID!, note: String, idempotencyKey: String!, expectedItemVersion: String): PharmacyRefillResult!
         resolvePrescriptionRefill(refillRequestId: ID!, decision: String!, reason: String!, attested: Boolean!, expectedFillVersion: Int): PharmacyRefillResult!
@@ -942,6 +957,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         updatePharmacyPatientContact,
         recordPharmacyPatientAllergy,
         recordPharmacyPatientMedication,
+        recordPharmacyPatientNoneKnown,
         linkPharmacyPatientAccount,
         requestPrescriptionRefill,
         resolvePrescriptionRefill,

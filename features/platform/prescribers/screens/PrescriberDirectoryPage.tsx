@@ -1,10 +1,10 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { OperationalPage } from '@/features/platform/components/OperationalPage'
 
 type Prescriber = { id: string; name: string; npi?: string | null; phone?: string | null; fax?: string | null; verificationStatus: string; externalValidationComplete: boolean; organizationName: string; prescriptionCount: number }
 
 export async function PrescriberDirectoryPage() {
-  const response = await keystoneClient<{ pharmacyPrescriberDirectory: Prescriber[] }>(`query { pharmacyPrescriberDirectory { id name npi phone fax verificationStatus externalValidationComplete organizationName prescriptionCount } }`)
+  const response = await platformRequest<{ pharmacyPrescriberDirectory: Prescriber[] }>(`query { pharmacyPrescriberDirectory { id name npi phone fax verificationStatus externalValidationComplete organizationName prescriptionCount } }`)
   const items = response.success ? response.data.pharmacyPrescriberDirectory.map((entry) => ({
     id: entry.id,
     title: entry.name,

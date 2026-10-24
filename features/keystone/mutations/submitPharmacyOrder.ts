@@ -10,6 +10,7 @@ import { loadAndAssertCartAccess } from './lib/cartAccess'
 import { recordAuditAndOutbox } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { isManualPaymentProvider, PAYMENT_PROVIDER_ADAPTER_FIELDS } from './paymentOperations'
+import { DomainError } from './lib/errors'
 
 export const CHECKOUT_CONSENT = {
   policyVersion: '2026-07-18',
@@ -23,6 +24,7 @@ type CheckoutInput = {
   guestToken?: string | null
   email: string
   phone?: string | null
+  customerName?: string | null
   fulfillmentMethod: 'pickup' | 'delivery' | 'pos'
   pickupAt?: string | null
   deliveryWindow?: string | null
@@ -33,24 +35,28 @@ type CheckoutInput = {
 }
 
 function requireCheckoutConsent(input: CheckoutInput) {
-  if (!input.privacyConsentAccepted) throw new Error('Privacy acknowledgement is required')
+  if (!input.privacyConsentAccepted) throw new DomainError('Privacy acknowledgement is required')
   if (input.policyVersion !== CHECKOUT_CONSENT.policyVersion || input.statementKey !== CHECKOUT_CONSENT.statementKey) {
-    throw new Error('Privacy acknowledgement does not match the current policy')
+    throw new DomainError('Privacy acknowledgement does not match the current policy')
   }
 }
 
 function normalizedEmail(value: string) {
   const email = value.trim().toLowerCase()
-  if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('A valid email address is required')
+  if (email.length > 320 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new DomainError('A valid email address is required')
   return email
 }
 
+// Read aloud at the counter and over the phone: 8 random characters in two groups, without 0/O or 1/I/L.
+const ORDER_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'
+
 function orderNumber() {
-  return `RXO-${Date.now().toString(36).toUpperCase()}-${randomBytes(3).toString('hex').toUpperCase()}`
+  const code = [...randomBytes(8)].map((byte) => ORDER_ALPHABET[byte % ORDER_ALPHABET.length]).join('')
+  return `RXO-${code.slice(0, 4)}-${code.slice(4)}`
 }
 
 function checkoutReplay(cart: any, idempotencyKey: string, guestToken: string | null) {
-  if (!cart.order || cart.order.idempotencyKey !== idempotencyKey) throw new Error('Cart was already submitted with another idempotency key')
+  if (!cart.order || cart.order.idempotencyKey !== idempotencyKey) throw new DomainError('Cart was already submitted with another idempotency key')
   return {
     success: true,
     reused: true,
@@ -70,13 +76,15 @@ export async function submitPharmacyOrder(
   context: Context,
 ) {
   const input = args.input
-  if (!['pickup', 'delivery', 'pos'].includes(input.fulfillmentMethod)) throw new Error('Fulfillment method is invalid')
+  if (!['pickup', 'delivery', 'pos'].includes(input.fulfillmentMethod)) throw new DomainError('Fulfillment method is invalid')
   requireCheckoutConsent(input)
   const idempotencyKey = input.idempotencyKey?.trim()
-  if (!idempotencyKey || idempotencyKey.length > 200) throw new Error('A bounded idempotency key is required')
+  if (!idempotencyKey || idempotencyKey.length > 200) throw new DomainError('A bounded idempotency key is required')
   const email = normalizedEmail(input.email)
+  const customerName = input.customerName?.trim().replace(/\s+/g, ' ') || ''
+  if (customerName.length > 120 || (!customerName && input.fulfillmentMethod !== 'pos')) throw new DomainError(input.fulfillmentMethod === 'delivery' ? 'Enter the name for delivery' : 'Enter the name for pickup')
   const shippingAddress = input.fulfillmentMethod === 'delivery' ? input.shippingAddress || null : null
-  if (input.fulfillmentMethod === 'delivery' && !shippingAddress) throw new Error('A delivery address is required')
+  if (input.fulfillmentMethod === 'delivery' && !shippingAddress) throw new DomainError('A delivery address is required')
   const cart = await loadAndAssertCartAccess(context, input.cartId, input.guestToken, { allowSubmitted: true })
   const replayToken = context.session?.itemId ? null : createGuestOrderToken(cart.id, idempotencyKey)
   if (cart.status === 'submitted') return checkoutReplay(cart, idempotencyKey, replayToken)
@@ -85,24 +93,24 @@ export async function submitPharmacyOrder(
     requirePermission(context, 'canManageOrders')
     await requireTenantMembership(context, { organizationId: cart.organization.id, locationId: cart.location.id })
   }
-  if (!cart.items.length) throw new Error('Cart is empty')
-  if (input.fulfillmentMethod === 'pickup' && !cart.location.pickupEnabled) throw new Error('Pickup is not enabled at this location')
-  if (input.fulfillmentMethod === 'delivery' && !cart.location.deliveryEnabled) throw new Error('Delivery is not available at this location')
-  if (input.fulfillmentMethod === 'pos' && !context.session?.itemId) throw new Error('Point-of-sale checkout requires an authenticated staff session')
+  if (!cart.items.length) throw new DomainError('Cart is empty')
+  if (input.fulfillmentMethod === 'pickup' && !cart.location.pickupEnabled) throw new DomainError('Pickup is not enabled at this location')
+  if (input.fulfillmentMethod === 'delivery' && !cart.location.deliveryEnabled) throw new DomainError('Delivery is not available at this location')
+  if (input.fulfillmentMethod === 'pos' && !context.session?.itemId) throw new DomainError('Point-of-sale checkout requires an authenticated staff session')
 
   const paymentSession = cart.paymentSessions.find((session: any) => session.id === input.paymentSessionId)
-  if (!paymentSession?.isSelected || !paymentSession.provider?.isInstalled) throw new Error('Selected payment session not found for this cart')
-  if (paymentSession.amount !== cart.totalAmount) throw new Error('Payment amount does not match cart total')
+  if (!paymentSession?.isSelected || !paymentSession.provider?.isInstalled) throw new DomainError('Selected payment session not found for this cart')
+  if (paymentSession.amount !== cart.totalAmount) throw new DomainError('Payment amount does not match cart total')
   const paymentId = paymentSession.externalPaymentId || paymentSession.data?.paymentIntentId || paymentSession.data?.orderId
-  if (!paymentId) throw new Error('Payment session is missing provider payment id')
+  if (!paymentId) throw new DomainError('Payment session is missing provider payment id')
   const provider = await context.sudo().query.PaymentProvider.findOne({ where: { id: paymentSession.provider.id }, query: PAYMENT_PROVIDER_ADAPTER_FIELDS })
-  if (!provider?.isInstalled) throw new Error('Selected payment session not found for this cart')
+  if (!provider?.isInstalled) throw new DomainError('Selected payment session not found for this cart')
   // Manual tender (pay at pickup or delivery) is collected later; the order is
   // created with a pending payment instead of a provider settlement check.
   const manualTender = isManualPaymentProvider(provider)
-  if (manualTender && input.fulfillmentMethod === 'delivery') throw new Error('Delivery orders are paid online. Choose card payment.')
+  if (manualTender && input.fulfillmentMethod === 'delivery') throw new DomainError('Delivery orders are paid online. Choose card payment.')
   const paymentStatus = manualTender ? { status: 'pending' } : await getPaymentStatus({ provider, paymentId })
-  if (!manualTender && !['captured', 'succeeded'].includes(paymentStatus.status)) throw new Error(`Payment is not settled: ${paymentStatus.status || 'unknown'}`)
+  if (!manualTender && !['captured', 'succeeded'].includes(paymentStatus.status)) throw new DomainError(`Payment is not settled: ${paymentStatus.status || 'unknown'}`)
   await withDomainTransaction(context, [`payment-session:${paymentSession.id}`], async (transactionContext) => {
     await transactionContext.sudo().query.PaymentSession.updateOne({
       where: { id: paymentSession.id },
@@ -148,14 +156,14 @@ export async function submitPharmacyOrder(
         }
       `,
     })
-    if (!current || current.status !== 'active' || !current.items.length) throw new Error('Cart is no longer available')
+    if (!current || current.status !== 'active' || !current.items.length) throw new DomainError('Cart is no longer available')
     for (const item of current.items) {
-      if (item.product.prescriptionRequirement !== 'none') throw new Error('Prescription products require the authorized prescription workflow')
-      if (item.product.status !== 'published' || !item.product.onlineAvailable) throw new Error(`${item.product.title} is no longer available`)
-      if (item.unitPriceAmount !== item.product.priceAmount) throw new Error('Product price changed; review the cart before checkout')
+      if (item.product.prescriptionRequirement !== 'none') throw new DomainError('Prescription products require the authorized prescription workflow')
+      if (item.product.status !== 'published' || !item.product.onlineAvailable) throw new DomainError(`${item.product.title} is no longer available`)
+      if (item.unitPriceAmount !== item.product.priceAmount) throw new DomainError('Product price changed; review the cart before checkout')
     }
     const totals = calculateCartTotals(current.items, current.taxAmount, current.deliveryAmount)
-    if (totals.totalAmount !== current.totalAmount) throw new Error('Cart total changed; review the cart before checkout')
+    if (totals.totalAmount !== current.totalAmount) throw new DomainError('Cart total changed; review the cart before checkout')
 
     const createdOrder = await sudo.query.Order.createOne({
       data: {
@@ -171,6 +179,7 @@ export async function submitPharmacyOrder(
         },
         email,
         phone: input.phone?.trim() || undefined,
+        customerName: customerName || undefined,
         status: 'processing',
         fulfillmentMethod: input.fulfillmentMethod,
         subtotalAmount: totals.subtotalAmount,
@@ -216,7 +225,7 @@ export async function submitPharmacyOrder(
         allocations.push({ lotId: lot.id, lotNumber: lot.lotNumber, quantity: allocated, expirationDate: lot.expirationDate })
         remaining -= allocated
       }
-      if (remaining > 0) throw new Error(`Insufficient eligible lot inventory for ${item.product.title}`)
+      if (remaining > 0) throw new DomainError(`Insufficient eligible lot inventory for ${item.product.title}`)
       await sudo.query.OrderLineItem.createOne({
         data: {
           order: { connect: { id: createdOrder.id } },
@@ -311,14 +320,14 @@ export async function submitPharmacyOrder(
     })
     if (completedCart?.status === 'submitted' && completedCart.order) {
       if (completedCart.order.idempotencyKey === idempotencyKey) return checkoutReplay({ ...cart, order: completedCart.order }, idempotencyKey, replayToken)
-      throw new Error('Cart was committed by another checkout request; payment remains bound to the committed order')
+      throw new DomainError('Cart was committed by another checkout request; payment remains bound to the committed order')
     }
     const recoveryState = await context.sudo().query.PaymentSession.findOne({
       where: { id: paymentSession.id },
       query: 'id payment { id order { id } } cart { order { id } }',
     })
     if (recoveryState?.payment?.order?.id || recoveryState?.cart?.order?.id) {
-      throw new Error('Payment is already bound to a committed order and cannot be compensated')
+      throw new DomainError('Payment is already bound to a committed order and cannot be compensated')
     }
     if (manualTender) throw error
     let compensation: any = null
@@ -331,7 +340,7 @@ export async function submitPharmacyOrder(
         currency: cart.items[0]?.product?.currencyCode || 'USD',
         idempotencyKey: `checkout-compensation:${paymentSession.id}`,
       })
-      if (!['refunded', 'succeeded'].includes(compensation?.status)) throw new Error(`Provider returned ${compensation?.status || 'unknown'}`)
+      if (!['refunded', 'succeeded'].includes(compensation?.status)) throw new DomainError(`Provider returned ${compensation?.status || 'unknown'}`)
     } catch (cause) {
       compensationError = cause
     }
@@ -359,7 +368,7 @@ export async function submitPharmacyOrder(
         metadata: { cartId: cart.id, idempotencyKey, paymentId },
       })
     })
-    if (compensationError) throw new Error('Payment settled but order creation failed. Recovery is pending; contact the pharmacy with the cart reference.')
-    throw new Error('Order creation failed after payment. The payment was automatically refunded; retry checkout with a new payment session.')
+    if (compensationError) throw new DomainError('Payment settled but order creation failed. Recovery is pending; contact the pharmacy with the cart reference.')
+    throw new DomainError('Order creation failed after payment. The payment was automatically refunded; retry checkout with a new payment session.')
   }
 }

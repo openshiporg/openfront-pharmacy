@@ -1,7 +1,9 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyOrderWorklistProjection } from '@/features/pharmacy/contracts'
 import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/components/WorkflowQueuePage'
 import { reportedAge, strongestPriority } from '@/features/platform/components/workflowQueue'
+import { formatDateTime } from '@/features/platform/lib/dates'
+import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
 
 const orderStatuses = [
   ['pending', 'Pending'],
@@ -19,7 +21,12 @@ const fulfillmentMethods = [
   ['pos', 'Point of sale'],
 ] as const
 
-function orderDecision(fulfillmentStatus: string, paymentStatus: string) {
+// Same names the customer sees on the storefront for the same order.
+const ORDER_STATE_LABELS: Record<string, string> = { processing: 'preparing', ready: 'ready for pickup', handed_off: 'completed' }
+
+function orderDecision(fulfillmentStatus: string, paymentStatus: string, orderStatus: string) {
+  if (orderStatus === 'completed' || fulfillmentStatus === 'handed_off') return { label: 'Completed', hint: '' }
+  if (orderStatus === 'cancelled') return { label: 'Cancelled', hint: '' }
   if (paymentStatus === 'payment_failed') return { label: 'Resolve payment exception', hint: 'Review the recorded cash/payment evidence before any fulfillment transition.' }
   if (paymentStatus === 'refund_pending') return { label: 'Review refund evidence', hint: 'Complete the operator-authorized refund review; provider settlement is not implied.' }
   if (fulfillmentStatus === 'pending') return { label: 'Start pickup preparation', hint: 'Review immutable lines and prescription dependencies before recording preparation.' }
@@ -29,11 +36,12 @@ function orderDecision(fulfillmentStatus: string, paymentStatus: string) {
 }
 
 export async function OrderQueuePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  const timeZone = await getStoreTimeZone()
   const params = await searchParams
   const after = typeof params?.after === 'string' && params.after ? params.after : null
   const status = typeof params?.status === 'string' && params.status ? params.status : null
   const fulfillmentMethod = typeof params?.fulfillmentMethod === 'string' && params.fulfillmentMethod ? params.fulfillmentMethod : null
-  const response = await keystoneClient<{ pharmacyOrderQueue: PharmacyOrderWorklistProjection }>(
+  const response = await platformRequest<{ pharmacyOrderQueue: PharmacyOrderWorklistProjection }>(
     `query OrderWorklist($first: Int, $after: String, $status: String, $fulfillmentMethod: String) { pharmacyOrderQueue(first: $first, after: $after, status: $status, fulfillmentMethod: $fulfillmentMethod) { items { id orderNumber status fulfillmentMethod totalAmount currencyCode createdAt locationName lineItemCount hasPrescriptionLines fulfillmentId fulfillmentStatus paymentStatus } totalCount hasMore nextCursor } }`,
     { first: 50, after, status, fulfillmentMethod },
   )
@@ -47,13 +55,13 @@ export async function OrderQueuePage({ searchParams }: { searchParams?: Promise<
     ].filter(Boolean)
     const statePriority: WorkflowPriority = order.paymentStatus === 'payment_failed' || order.status === 'exception' ? 'critical' : order.paymentStatus === 'refund_pending' || order.hasPrescriptionLines ? 'attention' : 'routine'
     const priority = strongestPriority(statePriority, exceptions.length ? 'attention' : 'routine')
-    const decision = orderDecision(order.fulfillmentStatus, order.paymentStatus)
+    const decision = orderDecision(order.fulfillmentStatus, order.paymentStatus, order.status)
     return {
       id: order.id,
       href: `/dashboard/platform/orders/${order.id}`,
       title: order.orderNumber,
       subtitle: `${order.lineItemCount} line item(s) · ${order.fulfillmentMethod.replaceAll('_', ' ')}`,
-      state: order.status,
+      state: ORDER_STATE_LABELS[order.status] || order.status,
       priority,
       priorityLabel: priority === 'critical' ? 'Exception first' : priority === 'attention' ? 'Needs attention' : 'Routine pickup',
       ageLabel: reportedAge(order.createdAt),
@@ -61,10 +69,10 @@ export async function OrderQueuePage({ searchParams }: { searchParams?: Promise<
       location: order.locationName,
       exceptions,
       context: [
-        { label: 'Fulfillment', value: order.fulfillmentStatus.replaceAll('_', ' ') },
+        { label: 'Fulfillment', value: (ORDER_STATE_LABELS[order.fulfillmentStatus] || order.fulfillmentStatus).replaceAll('_', ' ') },
         { label: 'Payment', value: order.paymentStatus.replaceAll('_', ' ') },
         { label: 'Total', value: new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currencyCode || 'USD' }).format((order.totalAmount || 0) / 100) },
-        { label: 'Created', value: new Date(order.createdAt).toLocaleString() },
+        { label: 'Created', value: formatDateTime(order.createdAt, timeZone) },
       ],
       nextDecision: decision.label,
       decisionHint: decision.hint,

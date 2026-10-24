@@ -6,19 +6,22 @@ import { currentFillNumber, isHumanSafetyReviewStale } from '../workflows/clinic
 import { eligibleLotQuantity, isLotEligible } from '../workflows/lot-eligibility'
 import { assessRecallExposureReconciliation, recallExposureMovementWhere } from '../workflows/recall-exposure'
 import type { PharmacyCatalogQueueProjection } from '../../pharmacy/contracts'
+import { DomainError } from './lib/errors'
+import { isValidNpi } from '../workflows/prescription-eligibility'
+import { patientAccountWhere } from './lib/patient-accounts'
 
 type StableCursor = { createdAt: string; id: string }
 
 export function decodeStableCursor(cursor?: string | null, expectedScope?: string): StableCursor | null {
   if (!cursor) return null
-  if (cursor.length > 2048) throw new Error('Worklist cursor is invalid')
+  if (cursor.length > 2048) throw new DomainError('Worklist cursor is invalid')
   try {
     const value = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'))
-    if (typeof value?.createdAt !== 'string' || Number.isNaN(new Date(value.createdAt).getTime()) || typeof value?.id !== 'string' || !value.id || value.id.length > 256) throw new Error()
-    if (expectedScope !== undefined && value.scope !== expectedScope) throw new Error()
+    if (typeof value?.createdAt !== 'string' || Number.isNaN(new Date(value.createdAt).getTime()) || typeof value?.id !== 'string' || !value.id || value.id.length > 256) throw new DomainError()
+    if (expectedScope !== undefined && value.scope !== expectedScope) throw new DomainError()
     return { createdAt: new Date(value.createdAt).toISOString(), id: value.id }
   } catch {
-    throw new Error('Worklist cursor is invalid')
+    throw new DomainError('Worklist cursor is invalid')
   }
 }
 
@@ -37,20 +40,20 @@ export function encodeStableCursor(record: { createdAt: string; id: string }, sc
 
 export function boundedPageSize(value?: number | null) {
   if (value == null) return 50
-  if (!Number.isInteger(value) || value < 1) throw new Error('Worklist page size must be a positive integer')
+  if (!Number.isInteger(value) || value < 1) throw new DomainError('Worklist page size must be a positive integer')
   return Math.min(value, 100)
 }
 
 function requireAny(context: Context, allowed: Array<keyof typeof permissions>) {
-  if (!context.session?.itemId) throw new Error('Authentication required')
+  if (!context.session?.itemId) throw new DomainError('Authentication required')
   if (!allowed.some((permission) => permissions[permission]({ session: context.session as any }))) {
-    throw new Error('You do not have permission to read this pharmacy projection')
+    throw new DomainError('You do not have permission to read this pharmacy projection')
   }
 }
 
 function requirePatientPrivateData(context: Context) {
   if (!permissions.canViewPatientPrivateData({ session: context.session as any })) {
-    throw new Error('Patient private-data permission is required for this projection')
+    throw new DomainError('Patient private-data permission is required for this projection')
   }
 }
 
@@ -68,7 +71,7 @@ function prescriptionActions(status: string) {
 }
 
 async function tenantScope(context: Context) {
-  if (!context.session?.itemId) throw new Error('Authentication required')
+  if (!context.session?.itemId) throw new DomainError('Authentication required')
   const memberships = await context.sudo().query.OrganizationMembership.findMany({
     where: {
       user: { id: { equals: context.session.itemId } },
@@ -152,7 +155,7 @@ export async function pharmacyPrescriptionIntakeOptions(_root: unknown, _args: u
   requireAny(context, ['canManagePrescriptions'])
   requirePatientPrivateData(context)
   const scope = await validatedPharmacistScope(context)
-  if (!scope.organizationIds.length) throw new Error('Current organization-recorded pharmacist credential review evidence is required for intake')
+  if (!scope.organizationIds.length) throw new DomainError('Current organization-recorded pharmacist credential review evidence is required for intake')
   const sudo = context.sudo()
   const [organizations, locations, patients, prescribers, products] = await Promise.all([
     sudo.query.Organization.findMany({ where: { id: { in: scope.organizationIds } }, orderBy: { name: 'asc' }, query: 'id name' }),
@@ -184,7 +187,7 @@ export async function pharmacyCredentialReviewOptions(_root: unknown, _args: unk
   requireAny(context, ['canManageUsers', 'canReviewPrescriptions'])
   const scope = await tenantScope(context)
   const sudo = context.sudo()
-  const [memberships, prescribers, products, organizations] = await Promise.all([
+  const [memberships, prescribers, products, organizations, catalog, stockedPrescriptionLots] = await Promise.all([
     sudo.query.OrganizationMembership.findMany({
       where: { organization: { id: { in: scope.organizationIds } }, status: { equals: 'active' }, membershipRole: { in: ['owner', 'pharmacist'] } },
       orderBy: { createdAt: 'asc' },
@@ -194,6 +197,9 @@ export async function pharmacyCredentialReviewOptions(_root: unknown, _args: unk
     sudo.query.Prescriber.findMany({ where: { organization: { id: { in: scope.organizationIds } } }, orderBy: { name: 'asc' }, take: 200, query: 'id name npi credentialExpiresAt organization { id }' }),
     sudo.query.Product.findMany({ where: { organization: { id: { in: scope.organizationIds } } }, orderBy: { title: 'asc' }, take: 300, query: 'id title sku organization { id } drugReference { id ndc11 proprietaryName reviews { id status organization { id } reviewedAt } }' }),
     sudo.query.Organization.findMany({ where: { id: { in: scope.organizationIds } }, orderBy: { name: 'asc' }, take: 100, query: 'id name cashSalesEnabled cashTaxRateBps cashTaxPolicyReference' }),
+    // The drug reference catalog is shared; each pharmacy reviews an entry before stocking or dispensing it.
+    sudo.query.DrugReference.findMany({ orderBy: { proprietaryName: 'asc' }, take: 200, query: 'id ndc11 proprietaryName reviews { id status organization { id } reviewedAt }' }),
+    sudo.query.InventoryLot.count({ where: { status: { equals: 'available' }, quantityAvailable: { gt: 0 }, product: { organization: { id: { in: scope.organizationIds } }, prescriptionRequirement: { not: { equals: 'none' } } } } }),
   ])
   const drugReferences = new Map<string, any>()
   for (const product of products) {
@@ -201,8 +207,26 @@ export async function pharmacyCredentialReviewOptions(_root: unknown, _args: unk
     const currentReview = product.drugReference.reviews?.find((review: any) => review.organization?.id === product.organization?.id && review.status === 'active')
     drugReferences.set(`${product.organization?.id}:${product.drugReference.id}`, { id: product.drugReference.id, label: product.drugReference.proprietaryName || product.title, scopeId: product.organization?.id, detail: `${product.drugReference.ndc11 || 'NDC missing'} · ${currentReview ? `reviewed ${new Date(currentReview.reviewedAt).toISOString().slice(0, 10)}` : 'review required'}` })
   }
+  for (const organization of organizations) {
+    for (const reference of catalog) {
+      if (drugReferences.has(`${organization.id}:${reference.id}`)) continue
+      const currentReview = reference.reviews?.find((review: any) => review.organization?.id === organization.id && review.status === 'active')
+      drugReferences.set(`${organization.id}:${reference.id}`, { id: reference.id, label: reference.proprietaryName, scopeId: organization.id, detail: `${reference.ndc11 || 'NDC missing'} · ${currentReview ? `reviewed ${new Date(currentReview.reviewedAt).toISOString().slice(0, 10)}` : 'review required'}` })
+    }
+  }
+  const now = Date.now()
+  const current = (value?: string | null) => Boolean(value && new Date(value).getTime() > now)
+  const reviewedReferenceIds = new Set(catalog.filter((reference: any) => reference.reviews?.some((review: any) => review.status === 'active' && scope.organizationIds.includes(review.organization?.id))).map((reference: any) => reference.id))
   return {
     organizationWideOrganizationIds: scope.organizationWideIds,
+    setup: {
+      pharmacistReviewed: memberships.some((entry: any) => current(entry.credentialExpiresAt)),
+      prescriberHasNpi: prescribers.some((entry: any) => isValidNpi(entry.npi)),
+      prescriberReady: prescribers.some((entry: any) => isValidNpi(entry.npi) && current(entry.credentialExpiresAt)),
+      drugReferenceReviewed: reviewedReferenceIds.size > 0 || products.some((product: any) => product.drugReference?.reviews?.some((review: any) => review.status === 'active' && review.organization?.id === product.organization?.id)),
+      cashPolicyRecorded: organizations.some((entry: any) => entry.cashSalesEnabled),
+      prescriptionProductStocked: stockedPrescriptionLots > 0,
+    },
     organizations: organizations.map((entry: any) => ({ id: entry.id, label: entry.name, scopeId: entry.id, detail: entry.cashSalesEnabled ? `Cash enabled · ${(entry.cashTaxRateBps / 100).toFixed(2)}% · ${entry.cashTaxPolicyReference}` : 'Cash/tax policy review required' })),
     memberships: memberships.map((entry: any) => ({ id: entry.id, label: `${entry.user?.name || 'Staff member'} · ${entry.membershipRole}`, scopeId: entry.organization?.id, detail: entry.credentialExpiresAt ? `Review expires ${new Date(entry.credentialExpiresAt).toISOString().slice(0, 10)}` : entry.location?.name || entry.organization?.name })),
     prescribers: prescribers.map((entry: any) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id, detail: `${entry.npi ? `NPI ${entry.npi}` : 'NPI missing'}${entry.credentialExpiresAt ? ` · review expires ${new Date(entry.credentialExpiresAt).toISOString().slice(0, 10)}` : ''}` })),
@@ -234,11 +258,11 @@ export function inventoryReceiptProductQueueFilter(
   const authorizedLocationIds = [...new Set(scope.locationIds)].sort()
   const locationId = filters.locationId
   if (typeof locationId !== 'string' || !locationId.trim() || !authorizedLocationIds.includes(locationId)) {
-    throw new Error('You do not have access to this location')
+    throw new DomainError('You do not have access to this location')
   }
   const status = filters.status ?? null
   if (status !== null && (typeof status !== 'string' || !receiptProductStatuses.has(status))) {
-    throw new Error('Product selector status filter is invalid')
+    throw new DomainError('Product selector status filter is invalid')
   }
   const where: Record<string, any> = {
     organization: { id: { in: organizationIds } },
@@ -389,7 +413,7 @@ export async function pharmacyPrescriptionTask(_root: unknown, args: { prescript
     query: `
       id prescriptionNumber status source sourceVerificationStatus writtenAt expiresAt
       organization { id operatorDisplayName supportPhone cashSalesEnabled cashTaxRateBps cashTaxPolicyReference } location { id name }
-      patient { id displayName identityVerificationStatus identityReference identityVerifiedAt allergies(where: { status: { equals: "active" } }) { id allergen reaction severity updatedAt } medications(where: { status: { equals: "current" } }) { id medicationName directions updatedAt } } prescriber { id name verificationStatus }
+      patient { id displayName identityVerificationStatus identityReference identityVerifiedAt allergies(where: { status: { in: ["active", "none_known"] } }) { id allergen reaction severity updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id medicationName directions updatedAt } } prescriber { id name verificationStatus }
       approval { id approvedAt }
       items {
         id fillLineage activeFillNumber medicationNameSnapshot sig quantityPrescribed daysSupply refillsAuthorized refillsRemaining substitutionAllowed drugReference { id }
@@ -410,7 +434,7 @@ export async function pharmacyPrescriptionTask(_root: unknown, args: { prescript
     `,
   })
   if (!prescription || !scope.organizationIds.includes(prescription.organization?.id) || !scope.locationIds.includes(prescription.location?.id) || !pharmacistScope.locationIds.includes(prescription.location?.id)) {
-    throw new Error('Prescription not found')
+    throw new DomainError('Prescription not found')
   }
   const now = Date.now()
   const fillNumbers = prescription.items.map((item: any) => currentFillNumber(item))
@@ -507,13 +531,13 @@ export function inventoryLotQueueFilter(
   let scopedLocationIds = allowedLocationIds
   if (filters.locationId != null) {
     if (typeof filters.locationId !== 'string' || !filters.locationId.trim() || !allowedLocationIds.includes(filters.locationId)) {
-      throw new Error('You do not have access to this location')
+      throw new DomainError('You do not have access to this location')
     }
     scopedLocationIds = [filters.locationId]
   }
   const status = filters.status ?? null
   if (status !== null && (typeof status !== 'string' || !inventoryLotQueueStatuses.has(status))) {
-    throw new Error('Inventory status filter is invalid')
+    throw new DomainError('Inventory status filter is invalid')
   }
   const where: Record<string, any> = { location: { id: { in: scopedLocationIds } } }
   if (status) where.status = { equals: status }
@@ -582,7 +606,7 @@ export async function pharmacyInventoryLotTask(_root: unknown, args: { lotId: st
       movements(orderBy: { occurredAt: desc }, take: 50) { id movementType quantityDelta reason occurredAt actor { name } }
     `,
   })
-  if (!lot || !scope.locationIds.includes(lot.location?.id)) throw new Error('Inventory lot not found')
+  if (!lot || !scope.locationIds.includes(lot.location?.id)) throw new DomainError('Inventory lot not found')
   return {
     id: lot.id,
     lotNumber: lot.lotNumber,
@@ -751,7 +775,7 @@ export async function pharmacyRecallTask(_root: unknown, args: { recallId: strin
     },
     query: 'id recallNumber classification status reason source initiatedAt closedAt organization { id } location { id name } lots { id lotNumber status quantityAvailable quantityQuarantined product { title sku } location { name } } exposures(orderBy: { createdAt: asc }, take: 10000) { id status quantityDispensed contactMethod outcome notes lastActionAt resolvedAt patient { id displayName } prescription { id prescriptionNumber } order { id orderNumber } } approval { id approvedAt actor { name } }',
   }))[0]
-  if (!recall) throw new Error('Recall not found')
+  if (!recall) throw new DomainError('Recall not found')
   const candidateWhere = recallExposureMovementWhere((recall.lots || []).map((lot: any) => lot.id))
   const [candidateMovementCount, candidateMovements, exposureCount] = await Promise.all([
     context.sudo().query.InventoryMovement.count({ where: candidateWhere }),
@@ -806,10 +830,10 @@ export function pharmacyOrderQueueFilter(
   const status = filters.status ?? null
   const fulfillmentMethod = filters.fulfillmentMethod ?? null
   if (status !== null && (typeof status !== 'string' || !orderStatuses.has(status))) {
-    throw new Error('Order status filter is invalid')
+    throw new DomainError('Order status filter is invalid')
   }
   if (fulfillmentMethod !== null && (typeof fulfillmentMethod !== 'string' || !orderFulfillmentMethods.has(fulfillmentMethod))) {
-    throw new Error('Order fulfillment filter is invalid')
+    throw new DomainError('Order fulfillment filter is invalid')
   }
   const where: Record<string, any> = {
     organization: { id: { in: organizationIds } },
@@ -876,18 +900,23 @@ export async function pharmacyOrderTask(_root: unknown, args: { orderId: string 
     where: { id: args.orderId },
     query: `
       id orderNumber status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode createdAt pickupAt deliveryWindow
+      customerName email phone
       organization { id } location { id name }
       lineItems { id title sku ndc11Snapshot quantity unitPriceAmount lineTotalAmount prescriptionRequirementSnapshot }
       fulfillment { id method status readyAt handedOffAt assignedTo { name } }
       payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount processedAt provider { name code } }
     `,
   })
-  if (!order || !scope.organizationIds.includes(order.organization?.id) || !scope.locationIds.includes(order.location?.id)) throw new Error('Order not found')
+  if (!order || !scope.organizationIds.includes(order.organization?.id) || !scope.locationIds.includes(order.location?.id)) throw new DomainError('Order not found')
+  const contact = permissions.canViewPatientPrivateData({ session: context.session as any })
   return {
     id: order.id,
     orderNumber: order.orderNumber,
     status: order.status,
     fulfillmentMethod: order.fulfillmentMethod,
+    customerName: contact ? order.customerName || null : null,
+    customerEmail: contact ? order.email || null : null,
+    customerPhone: contact ? order.phone || null : null,
     subtotalAmount: order.subtotalAmount,
     taxAmount: order.taxAmount,
     deliveryAmount: order.deliveryAmount,
@@ -955,14 +984,14 @@ export async function pharmacyPatientAccountCandidates(_root: unknown, args: { p
   requireAny(context, ['canManagePatients'])
   requirePatientPrivateData(context)
   const scope = await tenantScope(context)
-  const patient = await context.sudo().query.PatientProfile.findOne({ where: { id: args.patientId }, query: 'id user { id email name } organizations { id }' })
-  if (!patient || !patient.organizations?.some((organization: any) => scope.organizationIds.includes(organization.id))) throw new Error('Patient not found')
+  const patient = await context.sudo().query.PatientProfile.findOne({ where: { id: args.patientId }, query: 'id email user { id email name } organizations { id }' })
+  if (!patient || !patient.organizations?.some((organization: any) => scope.organizationIds.includes(organization.id))) throw new DomainError('Patient not found')
   const patientOrganizationIds = patient.organizations.map((organization: any) => organization.id).filter((id: string) => scope.organizationIds.includes(id))
   const users = await context.sudo().query.User.findMany({
     where: {
       OR: [
         ...(patient.user?.id ? [{ id: { equals: patient.user.id } }] : []),
-        { memberships: { some: { status: { equals: 'active' }, organization: { id: { in: patientOrganizationIds } } } } },
+        await patientAccountWhere(context, patientOrganizationIds, patient.email),
       ],
     },
     orderBy: { name: 'asc' },
@@ -974,7 +1003,7 @@ export async function pharmacyPatientAccountCandidates(_root: unknown, args: { p
 }
 
 export async function pharmacyPatientPortal(_root: unknown, _args: unknown, context: Context) {
-  if (!context.session?.itemId) throw new Error('Authentication required')
+  if (!context.session?.itemId) throw new DomainError('Authentication required')
   const patient = (await context.sudo().query.PatientProfile.findMany({
     where: { user: { id: { equals: context.session.itemId } } },
     take: 1,
@@ -990,7 +1019,7 @@ export async function pharmacyPatientPortal(_root: unknown, _args: unknown, cont
       }
     `,
   }))[0]
-  if (!patient) throw new Error('No patient profile is linked to this account')
+  if (!patient) throw new DomainError('No patient profile is linked to this account')
   return {
     id: patient.id,
     patientNumber: patient.patientNumber,
@@ -1046,7 +1075,7 @@ export async function pharmacyPatientSafeView(_root: unknown, args: { patientId:
     where: { id: args.patientId },
     query: 'id patientNumber displayName status email phone address preferredContactMethod identityVerificationStatus identityReference identityVerifiedAt organizations { id name } consents(orderBy: { grantedAt: desc }) { accepted grantedAt revokedAt } allergies(orderBy: { recordedAt: desc }, take: 100) { id allergen reaction severity status source recordedAt } medications(orderBy: { recordedAt: desc }, take: 100) { id medicationName directions status source recordedAt } prescriptionsCount',
   })
-  if (!patient || !patient.organizations?.some((organization: any) => scope.organizationIds.includes(organization.id))) throw new Error('Patient not found')
+  if (!patient || !patient.organizations?.some((organization: any) => scope.organizationIds.includes(organization.id))) throw new DomainError('Patient not found')
   // Contact details are returned only on the single-patient view, for the contact update form.
   return { ...patientSafeProjection(patient), email: patient.email || null, phone: patient.phone || null, address: patient.address || null }
 }
@@ -1141,7 +1170,7 @@ export async function pharmacyOperatorLocations(_root: unknown, _args: unknown, 
 export async function pharmacyPosCatalog(_root: unknown, args: { locationId: string }, context: Context) {
   requireAny(context, ['canManageOrders'])
   const scope = await tenantScope(context)
-  if (!scope.locationIds.includes(args.locationId)) throw new Error('Location not found')
+  if (!scope.locationIds.includes(args.locationId)) throw new DomainError('Location not found')
   const records = await context.sudo().query.Product.findMany({
     where: {
       location: { id: { equals: args.locationId } },

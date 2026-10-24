@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '.keystone/types'
 import { assertAuthorizedHumanApproval } from '../../workflows/pharmacy-state'
+import { DomainError } from './errors'
 
 function canonicalize(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonicalize)
@@ -104,7 +105,7 @@ export async function recordAuditAndOutbox(context: Context, input: EvidenceInpu
       const existingEvent = await sudo.query.OutboxEvent.findOne({ where: { id: existing.id }, query: 'payload' })
       const existingComparable = { ...(existingEvent?.payload as any), occurredAt: undefined }
       if (evidencePayloadHash(comparable) !== evidencePayloadHash(existingComparable)) {
-        throw new Error('Evidence idempotency key was reused with a different snapshot')
+        throw new DomainError('Evidence idempotency key was reused with a different snapshot')
       }
     }
     return { created: false, auditEventId: null, outboxEventId: existing.id, status: existing.status }

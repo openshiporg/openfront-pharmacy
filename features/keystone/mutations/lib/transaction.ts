@@ -1,5 +1,6 @@
 import type { Context } from '.keystone/types'
 import { assertCurrentTransactionActor } from './current-authority'
+import { DomainError } from './errors'
 
 export function orderedLockKeys(keys: string[]) {
   return [...new Set(keys.filter(Boolean))].sort((left, right) => left.localeCompare(right))
@@ -12,9 +13,8 @@ export async function acquireTransactionLocks(context: Context, keys: string[]) 
   }
 }
 
-export class DomainConflictError extends Error {
-  code = 'PHARMACY_CONFLICT'
-  constructor() { super('The record changed while this request was running. Retry the same idempotent request.') }
+export class DomainConflictError extends DomainError {
+  constructor() { super('The record changed while this request was running. Retry the same idempotent request.', 'PHARMACY_CONFLICT') }
 }
 
 export function isRetryableTransactionError(error: unknown) {

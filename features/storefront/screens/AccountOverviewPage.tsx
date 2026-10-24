@@ -3,7 +3,7 @@ import { ChevronRight } from 'lucide-react'
 
 import { Band, Notice, TitleLine, buttonClass } from '../components/rx-ui'
 import { formatStoreDate } from '../lib/dates'
-import { orderTone } from '../lib/order-status'
+import { orderStatusLabel, orderTone } from '../lib/order-status'
 import { getCustomerAccount, getPatientPortal } from '../lib/data/account'
 import { getStorefront } from '../lib/data/store'
 import { formatMoney, formatStatus } from '../lib/money'
@@ -51,7 +51,7 @@ export async function AccountOverviewPage() {
       {account.orders.length
         ? <Band>{account.orders.map((order) => <Link key={order.id} href={`/account/orders/details/${order.id}`} className="group flex items-center justify-between gap-4 px-4 py-4 transition-colors hover:bg-muted/60 sm:px-5">
           <div className="min-w-0">
-            <TitleLine as="h3" title={<>Order <span className="rx-num">{order.orderNumber}</span></>} titleClassName="text-[15px]" tone={orderTone(order.status)} state={<span className="capitalize">{formatStatus(order.status)}</span>} />
+            <TitleLine as="h3" title={<>Order <span className="rx-num">{order.orderNumber}</span></>} titleClassName="text-[15px]" tone={orderTone(order.status)} state={orderStatusLabel(order.status)} />
             <p className="mt-1 text-sm text-muted-foreground">{formatStoreDate(order.createdAt, timezone)} · {order.lineItems.length} {order.lineItems.length === 1 ? 'item' : 'items'}</p>
           </div>
           <span className="flex shrink-0 items-center gap-2"><span className="rx-num text-sm font-medium">{formatMoney(order.totalAmount, order.currencyCode)}</span><ChevronRight aria-hidden="true" className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" /></span>

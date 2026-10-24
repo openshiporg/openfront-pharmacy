@@ -7,18 +7,19 @@ import { withDomainTransaction } from './lib/transaction'
 import { externalIntegrationRequestMatches } from '../workflows/external-integration-idempotency'
 import { normalizeConfiguration } from '../../integrations/erx/manual'
 import { getWorkflowStatus, handleWebhook, submitWorkflow, validatePrescriber, validateProviderConfiguration } from '../utils/integrationProviderAdapter'
+import { DomainError } from './lib/errors'
 
 export async function configurePharmacyIntegrationProvider(
   _root: unknown,
   args: { providerId: string; baseUrl: string; validationPath: string; submitPath: string; statusPath: string; prescriberValidationPath?: string | null; bearerToken: string; webhookSecret: string },
   context: Context,
 ) {
-  if (!permissions.canManageIntegrations({ session: context.session as any })) throw new Error('Permission required: canManageIntegrations')
-  if (args.bearerToken.length < 16 || args.webhookSecret.length < 32) throw new Error('Provider credentials do not meet minimum length requirements')
+  if (!permissions.canManageIntegrations({ session: context.session as any })) throw new DomainError('Permission required: canManageIntegrations')
+  if (args.bearerToken.length < 16 || args.webhookSecret.length < 32) throw new DomainError('Provider credentials do not meet minimum length requirements')
   const provider = await context.sudo().query.IntegrationProvider.findOne({ where: { id: args.providerId }, query: 'id providerType organization { id }' })
-  if (!provider || !['erx', 'insurance'].includes(provider.providerType)) throw new Error('Configurable integration provider not found')
+  if (!provider || !['erx', 'insurance'].includes(provider.providerType)) throw new DomainError('Configurable integration provider not found')
   const { userId } = await requireTenantMembership(context, { organizationId: provider.organization.id })
-  if (provider.providerType === 'erx' && (!args.prescriberValidationPath || !args.prescriberValidationPath.includes('{npi}'))) throw new Error('eRx configuration requires a prescriber validation path containing {npi}')
+  if (provider.providerType === 'erx' && (!args.prescriberValidationPath || !args.prescriberValidationPath.includes('{npi}'))) throw new DomainError('eRx configuration requires a prescriber validation path containing {npi}')
   const configuration = normalizeConfiguration(args)
   const credentials = { bearerToken: args.bearerToken, webhookSecret: args.webhookSecret }
   const adapterFunctions = { submitFunction: 'manual', statusFunction: 'manual', webhookFunction: 'manual' }
@@ -42,18 +43,18 @@ export async function configurePharmacyIntegrationProvider(
 }
 
 export async function validatePharmacyPrescriber(_root: unknown, args: { providerId: string; prescriberId: string }, context: Context) {
-  if (!permissions.canManagePrescriptions({ session: context.session as any })) throw new Error('Permission required: canManagePrescriptions')
+  if (!permissions.canManagePrescriptions({ session: context.session as any })) throw new DomainError('Permission required: canManagePrescriptions')
   const [provider, prescriber] = await Promise.all([
     context.sudo().query.IntegrationProvider.findOne({ where: { id: args.providerId }, query: 'id providerType status externalValidationComplete configuration credentials submitFunction organization { id }' }),
     context.sudo().query.Prescriber.findOne({ where: { id: args.prescriberId }, query: 'id npi organization { id }' }),
   ])
-  if (!provider || provider.providerType !== 'erx' || provider.status !== 'active' || !provider.externalValidationComplete || !provider.configuration?.prescriberValidationPath) throw new Error('Active eRx prescriber validation provider not found')
-  if (!prescriber || prescriber.organization.id !== provider.organization.id || !isValidNpi(prescriber.npi)) throw new Error('Prescriber has no valid NPI in this provider tenant')
+  if (!provider || provider.providerType !== 'erx' || provider.status !== 'active' || !provider.externalValidationComplete || !provider.configuration?.prescriberValidationPath) throw new DomainError('Active eRx prescriber validation provider not found')
+  if (!prescriber || prescriber.organization.id !== provider.organization.id || !isValidNpi(prescriber.npi)) throw new DomainError('Prescriber has no valid NPI in this provider tenant')
   const { userId } = await requireTenantMembership(context, { organizationId: prescriber.organization.id })
   const result = await validatePrescriber({ provider, npi: prescriber.npi })
   const credentialExpiresAt = result.credentialExpiresAt ? new Date(result.credentialExpiresAt) : null
   if (result.valid !== true || !result.validationReference || !result.credentialType || !result.credentialJurisdiction || !result.credentialIdentifier || !credentialExpiresAt || Number.isNaN(credentialExpiresAt.getTime()) || credentialExpiresAt.getTime() <= Date.now()) {
-    throw new Error('External provider response lacks current prescriber identity and credential evidence')
+    throw new DomainError('External provider response lacks current prescriber identity and credential evidence')
   }
   return withDomainTransaction(context, [`prescriber:${prescriber.id}`], async (transactionContext) => {
     await (transactionContext.prisma as any).prescriber.update({ where: { id: prescriber.id }, data: { verificationStatus: 'validated', externalValidationComplete: true, verificationMethod: 'external_provider', credentialType: String(result.credentialType).slice(0, 200), credentialJurisdiction: String(result.credentialJurisdiction).slice(0, 200), credentialIdentifier: String(result.credentialIdentifier).slice(0, 200), credentialExpiresAt, validationReference: String(result.validationReference).slice(0, 500), validatedAt: new Date(), verifiedById: userId } })
@@ -76,14 +77,14 @@ async function resourcePayload(context: Context, providerType: string, resourceI
       where: { id: resourceId },
       query: 'id prescriptionNumber source sourceVerificationStatus writtenAt expiresAt organization { id } location { id } patient { patientNumber displayName dateOfBirth } prescriber { name npi verificationStatus externalValidationComplete } items { medicationNameSnapshot sig quantityPrescribed refillsAuthorized product { sku drugReference { ndc11 } } }',
     })
-    if (!prescription) throw new Error('Prescription not found')
+    if (!prescription) throw new DomainError('Prescription not found')
     return { resourceType: 'Prescription', organizationId: prescription.organization.id, locationId: prescription.location.id, payload: prescription }
   }
   const order = await context.sudo().query.Order.findOne({
     where: { id: resourceId },
     query: 'id orderNumber totalAmount currencyCode organization { id } location { id } patient { patientNumber } lineItems { title ndc11Snapshot quantity unitPriceAmount }',
   })
-  if (!order) throw new Error('Order not found')
+  if (!order) throw new DomainError('Order not found')
   return { resourceType: 'Order', organizationId: order.organization.id, locationId: order.location.id, payload: order }
 }
 
@@ -92,16 +93,16 @@ export async function submitPharmacyExternalWorkflow(
   args: { providerId: string; resourceId: string; idempotencyKey: string },
   context: Context,
 ) {
-  if (!args.idempotencyKey.trim() || args.idempotencyKey.length > 200) throw new Error('A bounded idempotency key is required')
+  if (!args.idempotencyKey.trim() || args.idempotencyKey.length > 200) throw new DomainError('A bounded idempotency key is required')
   const provider = await context.sudo().query.IntegrationProvider.findOne({
     where: { id: args.providerId },
     query: 'id providerType status externalValidationComplete configuration credentials submitFunction organization { id }',
   })
-  if (!provider || !['erx', 'insurance'].includes(provider.providerType) || provider.status !== 'active' || !provider.externalValidationComplete) throw new Error('Active validated integration provider not found')
+  if (!provider || !['erx', 'insurance'].includes(provider.providerType) || provider.status !== 'active' || !provider.externalValidationComplete) throw new DomainError('Active validated integration provider not found')
   const required = provider.providerType === 'erx' ? 'canManagePrescriptions' : 'canManagePayments'
-  if (!permissions[required]({ session: context.session as any })) throw new Error(`Permission required: ${required}`)
+  if (!permissions[required]({ session: context.session as any })) throw new DomainError(`Permission required: ${required}`)
   const resource = await resourcePayload(context, provider.providerType, args.resourceId)
-  if (resource.organizationId !== provider.organization.id) throw new Error('Integration provider and resource tenant do not match')
+  if (resource.organizationId !== provider.organization.id) throw new DomainError('Integration provider and resource tenant do not match')
   const { userId } = await requireTenantMembership(context, { organizationId: resource.organizationId, locationId: resource.locationId })
   const requestSnapshot = {
     providerId: provider.id,
@@ -122,7 +123,7 @@ export async function submitPharmacyExternalWorkflow(
     })
     if (existing) {
       if (!externalIntegrationRequestMatches(existing, requestSnapshot)) {
-        throw new Error('Integration idempotency key was reused with a different provider, scope, resource, or payload')
+        throw new DomainError('Integration idempotency key was reused with a different provider, scope, resource, or payload')
       }
       return existing
     }
@@ -171,9 +172,9 @@ export async function refreshPharmacyExternalWorkflow(_root: unknown, args: { wo
     where: { id: args.workflowId },
     query: 'id status externalReference attempts resourceType organization { id } location { id } provider { id providerType status externalValidationComplete configuration credentials statusFunction }',
   })
-  if (!workflow?.provider || !workflow.externalReference) throw new Error('Submitted integration workflow not found')
+  if (!workflow?.provider || !workflow.externalReference) throw new DomainError('Submitted integration workflow not found')
   const required = workflow.provider.providerType === 'erx' ? 'canManagePrescriptions' : 'canManagePayments'
-  if (!permissions[required]({ session: context.session as any })) throw new Error(`Permission required: ${required}`)
+  if (!permissions[required]({ session: context.session as any })) throw new DomainError(`Permission required: ${required}`)
   await requireTenantMembership(context, { organizationId: workflow.organization.id, locationId: workflow.location.id })
   const result = await getWorkflowStatus({ provider: workflow.provider, externalReference: workflow.externalReference })
   const status = ['accepted', 'rejected', 'pending'].includes(result.status) ? result.status : 'pending'
@@ -183,11 +184,11 @@ export async function refreshPharmacyExternalWorkflow(_root: unknown, args: { wo
 
 export async function ingestPharmacyIntegrationWebhook(_root: unknown, args: { providerKey: string; event: any; headers: Record<string, unknown> }, context: Context) {
   const provider = await context.sudo().query.IntegrationProvider.findOne({ where: { providerKey: args.providerKey }, query: 'id providerType status credentials webhookFunction organization { id }' })
-  if (!provider || provider.status !== 'active') throw new Error('Webhook provider not found')
+  if (!provider || provider.status !== 'active') throw new DomainError('Webhook provider not found')
   const headers = Object.fromEntries(Object.entries(args.headers || {}).map(([key, value]) => [key === '__rawBody' ? key : key.toLowerCase(), String(value ?? '')]))
   await handleWebhook({ provider, event: args.event, headers })
   const payload = args.event || {}
-  if (!payload.eventId || !payload.externalReference || !['accepted', 'rejected', 'pending'].includes(payload.status)) throw new Error('Webhook envelope is invalid')
+  if (!payload.eventId || !payload.externalReference || !['accepted', 'rejected', 'pending'].includes(payload.status)) throw new DomainError('Webhook envelope is invalid')
   const eventKey = `${provider.id}:${payload.eventId}`
   return withDomainTransaction(context, [`integration-webhook:${eventKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()

@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Callout, RxButton as Button } from '@/features/platform/components/rx-ui'
 import { requestTransferOutAction } from '../actions'
+import { unwrapAction } from '@/features/platform/lib/action-result'
 
 /** Starts an outbound transfer to another pharmacy with the patient's recorded consent. */
 export function TransferOutForm({ prescriptionId, patientId }: { prescriptionId: string; patientId: string }) {
@@ -23,7 +24,7 @@ export function TransferOutForm({ prescriptionId, patientId }: { prescriptionId:
     key.current ||= `transfer-out:${prescriptionId}:${crypto.randomUUID()}`
     setError('')
     startTransition(async () => {
-      const result = await requestTransferOutAction({ prescriptionId, patientId, counterpartyName: String(data.get('counterpartyName') || '').trim(), counterpartyPhone: String(data.get('counterpartyPhone') || '').trim(), consentAccepted: data.get('consent') === 'on', idempotencyKey: key.current! })
+      const result = await unwrapAction(requestTransferOutAction({ prescriptionId, patientId, counterpartyName: String(data.get('counterpartyName') || '').trim(), counterpartyPhone: String(data.get('counterpartyPhone') || '').trim(), consentAccepted: data.get('consent') === 'on', idempotencyKey: key.current! }))
       if (!result.success) return setError(result.error)
       key.current = null
       form.reset()

@@ -1,4 +1,4 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PatientSafeProjection, PharmacyTaskOption } from '@/features/pharmacy/contracts'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { Dot, Field, ListBand, Mono, SectionTitle, TitleLine, humanize, statusTone } from '@/features/platform/components/rx-ui'
@@ -8,7 +8,7 @@ import { PatientHistoryForms } from '../components/PatientHistoryForms'
 
 export async function PatientTaskPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: patientId } = await params
-  const response = await keystoneClient<{ pharmacyPatientSafeView: PatientSafeProjection; pharmacyPatientAccountCandidates: PharmacyTaskOption[] }>(`query Patient($patientId: ID!) { pharmacyPatientSafeView(patientId: $patientId) { id patientNumber displayName status email phone address preferredContactMethod identityVerificationStatus hasIdentityEvidence organizationNames prescriptionCount activeConsentCount latestConsentAt allergies { id allergen reaction severity status source recordedAt } medications { id medicationName directions status source recordedAt } } pharmacyPatientAccountCandidates(patientId: $patientId) { id label scopeId detail } }`, { patientId })
+  const response = await platformRequest<{ pharmacyPatientSafeView: PatientSafeProjection; pharmacyPatientAccountCandidates: PharmacyTaskOption[] }>(`query Patient($patientId: ID!) { pharmacyPatientSafeView(patientId: $patientId) { id patientNumber displayName status email phone address preferredContactMethod identityVerificationStatus hasIdentityEvidence organizationNames prescriptionCount activeConsentCount latestConsentAt allergies { id allergen reaction severity status source recordedAt } medications { id medicationName directions status source recordedAt } } pharmacyPatientAccountCandidates(patientId: $patientId) { id label scopeId detail } }`, { patientId })
   if (!response.success) return <TaskPage parent={{ label: 'Patients', href: '/platform/patients' }} title="Patient unavailable" description={response.error} />
   const patient = response.data.pharmacyPatientSafeView
   return <TaskPage parent={{ label: 'Patients', href: '/platform/patients' }} meta={`Patient ${patient.patientNumber}`} title={patient.displayName} state={humanize(patient.status)} tone={statusTone(patient.status)} description={patient.organizationNames.join(', ')}>

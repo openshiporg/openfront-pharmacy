@@ -1,4 +1,4 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { OperationalPage, type OperationalItem } from '@/features/platform/components/OperationalPage'
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
 import { normalizeWeeklyHours, openState } from '@/features/pharmacy/hours'
@@ -20,7 +20,7 @@ export function locationStatusOptions(location: Pick<LocationRow, 'id' | 'status
 }
 
 export async function LocationListPage() {
-  const response = await keystoneClient<{ pharmacyLocations: LocationRow[] }>(`query Locations { pharmacyLocations(orderBy: [{ name: asc }], take: 100) { ${LOCATION_FIELDS} } }`)
+  const response = await platformRequest<{ pharmacyLocations: LocationRow[] }>(`query Locations { pharmacyLocations(orderBy: [{ name: asc }], take: 100) { ${LOCATION_FIELDS} } }`)
   const items: OperationalItem[] = response.success ? response.data.pharmacyLocations.map((location) => {
     const hours = normalizeWeeklyHours(location.hours)
     return {

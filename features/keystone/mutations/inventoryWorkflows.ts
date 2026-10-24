@@ -4,6 +4,7 @@ import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { isProductAtActiveTenantLocation } from '../workflows/product-location'
+import { DomainError } from './lib/errors'
 
 export async function receiveInventoryLot(
   _root: unknown,
@@ -26,11 +27,11 @@ export async function receiveInventoryLot(
   context: Context,
 ) {
   requirePermission(context, 'canManageInventory')
-  if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new Error('Received quantity must be a positive integer')
-  if (!args.idempotencyKey?.trim() || !args.lotNumber?.trim()) throw new Error('Lot number and idempotency key are required')
+  if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new DomainError('Received quantity must be a positive integer')
+  if (!args.idempotencyKey?.trim() || !args.lotNumber?.trim()) throw new DomainError('Lot number and idempotency key are required')
   const expirationDate = new Date(args.expirationDate)
-  if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new Error('Expiration date must be in the future')
-  if (args.coldChainRequired) throw new Error('Cold-chain receiving is not supported yet')
+  if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new DomainError('Expiration date must be in the future')
+  if (args.coldChainRequired) throw new DomainError('Cold-chain receiving is not supported yet')
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ productId: args.productId, locationId: args.locationId, supplierId: args.supplierId || null, lotNumber: args.lotNumber.trim(), serialNumber: args.serialNumber?.trim() || null, expirationDate: expirationDate.toISOString(), quantity: args.quantity, coldChainRequired: args.coldChainRequired, minimumTemperatureC: args.minimumTemperatureC ?? null, maximumTemperatureC: args.maximumTemperatureC ?? null, coldChainEvidenceComplete: args.coldChainEvidenceComplete, reason: args.reason?.trim(), attested: args.attested })).digest('hex')
 
   return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${args.lotNumber}`], async (transactionContext) => {
@@ -39,9 +40,9 @@ export async function receiveInventoryLot(
     if (existing) {
       const organizationId = existing.lot?.product?.organization?.id
       const locationId = existing.lot?.location?.id
-      if (!organizationId || !locationId) throw new Error('Receiving replay scope is incomplete; operator reconciliation is required')
+      if (!organizationId || !locationId) throw new DomainError('Receiving replay scope is incomplete; operator reconciliation is required')
       await requireTenantMembership(transactionContext, { organizationId, locationId })
-      if (existing.requestFingerprint !== requestFingerprint) throw new Error('Receiving idempotency key was reused with different input')
+      if (existing.requestFingerprint !== requestFingerprint) throw new DomainError('Receiving idempotency key was reused with different input')
       return { success: true, reused: true, movementId: existing.id, lotId: existing.lot.id, quantityAvailable: existing.lot.quantityAvailable }
     }
     const [product, location, supplier] = await Promise.all([
@@ -50,10 +51,10 @@ export async function receiveInventoryLot(
       args.supplierId ? sudo.query.Supplier.findOne({ where: { id: args.supplierId }, query: 'id organization { id } status' }) : null,
     ])
     if (!isProductAtActiveTenantLocation(product, location)) {
-      throw new Error('This product cannot be received at this location')
+      throw new DomainError('This product cannot be received at this location')
     }
     if (args.supplierId && (!supplier || supplier.organization?.id !== location.organization.id || supplier.status !== 'active')) {
-      throw new Error('Supplier must be active in the receiving organization')
+      throw new DomainError('Supplier must be active in the receiving organization')
     }
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: location.organization.id, locationId: location.id })
     const approval = await createHumanApproval(transactionContext, {
@@ -120,8 +121,8 @@ export async function adjustInventoryLot(
   context: Context,
 ) {
   requirePermission(context, 'canManageInventory')
-  if (!Number.isInteger(args.targetQuantity) || args.targetQuantity < 0) throw new Error('Target quantity must be a non-negative integer')
-  if (!args.idempotencyKey?.trim()) throw new Error('Idempotency key is required')
+  if (!Number.isInteger(args.targetQuantity) || args.targetQuantity < 0) throw new DomainError('Target quantity must be a non-negative integer')
+  if (!args.idempotencyKey?.trim()) throw new DomainError('Idempotency key is required')
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ lotId: args.lotId, targetQuantity: args.targetQuantity, reason: args.reason?.trim(), attested: args.attested })).digest('hex')
 
   return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `lot:${args.lotId}`], async (transactionContext) => {
@@ -133,9 +134,9 @@ export async function adjustInventoryLot(
     if (existing) {
       const organizationId = existing.lot?.product?.organization?.id
       const locationId = existing.lot?.location?.id
-      if (!organizationId || !locationId) throw new Error('Inventory replay scope is incomplete; operator reconciliation is required')
+      if (!organizationId || !locationId) throw new DomainError('Inventory replay scope is incomplete; operator reconciliation is required')
       await requireTenantMembership(transactionContext, { organizationId, locationId })
-      if (existing.lot?.id !== args.lotId || existing.requestFingerprint !== requestFingerprint) throw new Error('Inventory idempotency key was reused with different input')
+      if (existing.lot?.id !== args.lotId || existing.requestFingerprint !== requestFingerprint) throw new DomainError('Inventory idempotency key was reused with different input')
       return { success: true, reused: true, movementId: existing.id, quantityAvailable: existing.lot.quantityAvailable }
     }
 
@@ -143,12 +144,12 @@ export async function adjustInventoryLot(
       where: { id: args.lotId },
       query: 'id quantityAvailable quantityQuarantined status product { id organization { id } } location { id }',
     })
-    if (!lot) throw new Error('Inventory lot not found')
+    if (!lot) throw new DomainError('Inventory lot not found')
     const { userId } = await requireTenantMembership(transactionContext, {
       organizationId: lot.product.organization.id,
       locationId: lot.location.id,
     })
-    if (args.targetQuantity < lot.quantityQuarantined) throw new Error('Available quantity cannot be lower than quarantined quantity')
+    if (args.targetQuantity < lot.quantityQuarantined) throw new DomainError('Available quantity cannot be lower than quarantined quantity')
     const approval = await createHumanApproval(transactionContext, {
       organizationId: lot.product.organization.id,
       locationId: lot.location.id,
@@ -200,7 +201,7 @@ export async function quarantineRecallLots(
 ) {
   requirePermission(context, 'canManageRecalls')
   const candidate = await context.sudo().query.Recall.findOne({ where: { id: args.recallId }, query: 'id lots { id }' })
-  if (!candidate) throw new Error('Recall not found')
+  if (!candidate) throw new DomainError('Recall not found')
 
   return withDomainTransaction(
     context,
@@ -211,7 +212,7 @@ export async function quarantineRecallLots(
         where: { id: args.recallId },
         query: 'id status organization { id } location { id } approval { id } lots { id quantityAvailable product { id } location { id } }',
       })
-      if (!recall) throw new Error('Recall not found')
+      if (!recall) throw new DomainError('Recall not found')
       const { userId } = await requireTenantMembership(transactionContext, {
         organizationId: recall.organization.id,
         locationId: recall.location?.id,
@@ -220,8 +221,8 @@ export async function quarantineRecallLots(
       if (recall.status === 'quarantined') {
         return { success: true, reused: true, recallId: recall.id, status: recall.status, lotCount: recall.lots.length, approvalId: recall.approval?.id }
       }
-      if (recall.status !== 'active') throw new Error('Recall must be active before quarantine')
-      if (!recall.lots.length) throw new Error('Recall has no affected lots')
+      if (recall.status !== 'active') throw new DomainError('Recall must be active before quarantine')
+      if (!recall.lots.length) throw new DomainError('Recall has no affected lots')
 
       const approval = await createHumanApproval(transactionContext, {
         organizationId: recall.organization.id,

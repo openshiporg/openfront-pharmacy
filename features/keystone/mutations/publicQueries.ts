@@ -5,24 +5,25 @@ import { eligibleLotQuantity } from '../workflows/lot-eligibility'
 import { isSignedIn } from '../access'
 import { operatorBrandFromOrganization, normalizeStorefrontTenantKey } from '../../pharmacy/branding'
 import type { PublicPharmacyCatalogPageProjection, PublicPharmacyCatalogProductProjection, PublicPharmacyTenantProjection } from '../../pharmacy/contracts'
+import { DomainError } from './lib/errors'
 
 const PUBLIC_CATALOG_SEARCH_LIMIT = 100
 const PUBLIC_CATALOG_CURSOR_LIMIT = 2048
 
 function normalizePublicCatalogSearch(search?: string | null) {
   if (search == null) return null
-  if (typeof search !== 'string') throw new Error('Catalog search is invalid')
+  if (typeof search !== 'string') throw new DomainError('Catalog search is invalid')
   const normalized = search.trim()
   if (!normalized) return null
   if (normalized.length > PUBLIC_CATALOG_SEARCH_LIMIT || /[\u0000-\u001f\u007f]/u.test(normalized)) {
-    throw new Error('Catalog search is invalid')
+    throw new DomainError('Catalog search is invalid')
   }
   return normalized
 }
 
 function publicCatalogPageSize(first?: number | null) {
   if (first == null) return 50
-  if (!Number.isInteger(first) || first < 1) throw new Error('Catalog page size must be a positive integer')
+  if (!Number.isInteger(first) || first < 1) throw new DomainError('Catalog page size must be a positive integer')
   return Math.min(first, 100)
 }
 
@@ -30,13 +31,13 @@ type PublicCatalogCursor = { title: string; id: string }
 
 function decodePublicCatalogCursor(cursor: string | null | undefined, expectedScope: string): PublicCatalogCursor | null {
   if (cursor == null) return null
-  if (typeof cursor !== 'string' || cursor.length > PUBLIC_CATALOG_CURSOR_LIMIT) throw new Error('Catalog cursor is invalid')
+  if (typeof cursor !== 'string' || cursor.length > PUBLIC_CATALOG_CURSOR_LIMIT) throw new DomainError('Catalog cursor is invalid')
   try {
     const value = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'))
-    if (typeof value?.title !== 'string' || value.title.length > 1000 || typeof value?.id !== 'string' || !value.id || value.id.length > 256 || value.scope !== expectedScope) throw new Error()
+    if (typeof value?.title !== 'string' || value.title.length > 1000 || typeof value?.id !== 'string' || !value.id || value.id.length > 256 || value.scope !== expectedScope) throw new DomainError()
     return { title: value.title, id: value.id }
   } catch {
-    throw new Error('Catalog cursor is invalid')
+    throw new DomainError('Catalog cursor is invalid')
   }
 }
 
@@ -58,18 +59,18 @@ function publicCatalogCursorWhere(where: Record<string, any>, cursor: PublicCata
 
 function normalizePublicLocationSearch(search?: string | null) {
   if (search == null) return null
-  if (typeof search !== 'string') throw new Error('Location search is invalid')
+  if (typeof search !== 'string') throw new DomainError('Location search is invalid')
   const normalized = search.trim()
   if (!normalized) return null
   if (normalized.length > PUBLIC_CATALOG_SEARCH_LIMIT || /[\u0000-\u001f\u007f]/u.test(normalized)) {
-    throw new Error('Location search is invalid')
+    throw new DomainError('Location search is invalid')
   }
   return normalized
 }
 
 function publicLocationPageSize(first?: number | null) {
   if (first == null) return 50
-  if (!Number.isInteger(first) || first < 1) throw new Error('Location page size must be a positive integer')
+  if (!Number.isInteger(first) || first < 1) throw new DomainError('Location page size must be a positive integer')
   return Math.min(first, 100)
 }
 
@@ -77,13 +78,13 @@ type PublicLocationCursor = { name: string; id: string }
 
 function decodePublicLocationCursor(cursor: string | null | undefined, expectedScope: string): PublicLocationCursor | null {
   if (cursor == null) return null
-  if (typeof cursor !== 'string' || cursor.length > PUBLIC_CATALOG_CURSOR_LIMIT) throw new Error('Location cursor is invalid')
+  if (typeof cursor !== 'string' || cursor.length > PUBLIC_CATALOG_CURSOR_LIMIT) throw new DomainError('Location cursor is invalid')
   try {
     const value = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'))
-    if (typeof value?.name !== 'string' || value.name.length > 1000 || typeof value?.id !== 'string' || !value.id || value.id.length > 256 || value.scope !== expectedScope) throw new Error()
+    if (typeof value?.name !== 'string' || value.name.length > 1000 || typeof value?.id !== 'string' || !value.id || value.id.length > 256 || value.scope !== expectedScope) throw new DomainError()
     return { name: value.name, id: value.id }
   } catch {
-    throw new Error('Location cursor is invalid')
+    throw new DomainError('Location cursor is invalid')
   }
 }
 
@@ -141,7 +142,7 @@ export async function loadPublicTenant(context: Context, tenantKey?: string | nu
     query: PUBLIC_TENANT_QUERY,
   })
   if (active.length === 1) return active[0]
-  throw new Error(active.length ? 'Store not found' : 'Store is not set up yet')
+  throw new DomainError(active.length ? 'Store not found' : 'Store is not set up yet')
 }
 
 export async function publicPharmacyTenant(
@@ -217,7 +218,7 @@ const PUBLIC_CATALOG_CATEGORIES = ['otc_medication', 'first_aid', 'wellness', 'p
 
 function normalizePublicCatalogCategory(value?: string | null) {
   if (value == null || value === '') return null
-  if (!PUBLIC_CATALOG_CATEGORIES.includes(value)) throw new Error('Category is not available')
+  if (!PUBLIC_CATALOG_CATEGORIES.includes(value)) throw new DomainError('Category is not available')
   return value
 }
 
@@ -251,7 +252,7 @@ export async function publicPharmacyCatalog(
     query: 'id status pickupEnabled deliveryEnabled',
   }))[0]
   if (!location || location.status !== 'active' || (location.pickupEnabled !== true && location.deliveryEnabled !== true)) {
-    throw new Error('This location is not available')
+    throw new DomainError('This location is not available')
   }
 
   const search = normalizePublicCatalogSearch(args.search)
@@ -329,7 +330,7 @@ export async function pharmacyOperationalSummary(
   _args: unknown,
   context: Context,
 ) {
-  if (!isSignedIn({ session: context.session as any })) throw new Error('Authentication required')
+  if (!isSignedIn({ session: context.session as any })) throw new DomainError('Authentication required')
   const sudo = context.sudo()
   const memberships = await sudo.query.OrganizationMembership.findMany({
     where: { user: { id: { equals: context.session!.itemId } }, status: { equals: 'active' } },

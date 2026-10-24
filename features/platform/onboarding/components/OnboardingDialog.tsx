@@ -172,6 +172,12 @@ const OnboardingDialog: React.FC<OnboardingDialogProps> = ({
                         </div>
                       ))}
                     </div>
+                    {selectedTemplate === 'full' && <p className="mt-4 text-sm text-muted-foreground">
+                      Card payments: Stripe is added but off. Set the Stripe keys, then install it under <a href="/dashboard/platform/payments#providers" className="font-medium underline underline-offset-4">Payments</a>.
+                    </p>}
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Before the first prescription: <a href="/dashboard/platform/credentials" className="font-medium underline underline-offset-4">Credential review</a>.
+                    </p>
                   </>
                 ) : !isLoading ? (
                   <>

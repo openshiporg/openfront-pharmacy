@@ -8,7 +8,7 @@ import type { GuestPharmacyOrderProjection } from '@/features/pharmacy/contracts
 import { cn } from '@/lib/utils'
 import { formatStoreDate, formatStoreDateTime } from '../lib/dates'
 import { lookupOrderByNumber } from '../lib/data/orders'
-import { orderTone } from '../lib/order-status'
+import { orderStatusLabel, orderTone } from '../lib/order-status'
 import { formatMoney, formatStatus } from '../lib/money'
 import { Field, TitleLine, buttonClass } from './rx-ui'
 
@@ -20,7 +20,7 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
   const steps = ['Received', delivery ? 'On the way' : 'Ready for pickup', delivery ? 'Delivered' : 'Picked up']
   return <div>
     <p className="rx-eyebrow">{order.locationName}</p>
-    <TitleLine as="h2" className="mt-1.5" title={<>Order <span className="rx-num">{order.orderNumber}</span></>} titleClassName="text-2xl" tone={orderTone(state)} state={<span className="capitalize">{formatStatus(state)}</span>} />
+    <TitleLine as="h2" className="mt-1.5" title={<>Order <span className="rx-num">{order.orderNumber}</span></>} titleClassName="text-2xl" tone={orderTone(state)} state={orderStatusLabel(state)} />
 
     <ol aria-label="Progress" className="mt-6 grid grid-cols-3 gap-1.5">
       {steps.map((label, index) => <li key={label} aria-current={index + 1 === reached ? 'step' : undefined} className="min-w-0">

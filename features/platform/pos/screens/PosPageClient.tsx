@@ -14,13 +14,15 @@ import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs
 import type { PharmacyCatalogProductProjection, PharmacyOperatorLocationProjection } from '@/features/pharmacy/contracts'
 import { calculateTaxAmount, calculateTaxableSubtotal } from '@/features/keystone/workflows/commerce-policy'
 import { recoverPosOrder, submitPosOrder } from '../actions'
+import { unwrapAction } from '@/features/platform/lib/action-result'
+import { formatDateTime } from '@/features/platform/lib/dates'
 
 type CashReceipt = { orderNumber: string; paymentId: string; recordedAt: string; currencyCode: string; paymentStatus: string; lines: Array<{ title: string; sku: string; quantity: number; unitPriceAmount: number; lineTotalAmount: number }>; subtotalAmount: number; taxAmount: number; totalAmount: number; cashReceivedAmount: number; changeDueAmount: number }
 const WALK_IN = '__walk_in__'
 
 type PosPendingIntent = { idempotencyKey: string; locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; reason: string; attested: boolean }
 
-export function PosPageClient({ location, products, customers }: { location: PharmacyOperatorLocationProjection | null; products: PharmacyCatalogProductProjection[]; customers: Array<{ id: string; label: string }> }) {
+export function PosPageClient({ location, products, customers, timeZone }: { location: PharmacyOperatorLocationProjection | null; products: PharmacyCatalogProductProjection[]; customers: Array<{ id: string; label: string }>; timeZone?: string | null }) {
   const [isPending, startTransition] = useTransition()
   const [cart, setCart] = useState<Record<string, number>>({})
   const [cashReceived, setCashReceived] = useState('')
@@ -73,7 +75,7 @@ export function PosPageClient({ location, products, customers }: { location: Pha
       setAttested(intent.attested)
       setIntentUnresolved(true)
       setMessage('An unfinished sale was restored. Retry it to recover the receipt.')
-      recoverPosOrder(intent.idempotencyKey).then((order) => {
+      unwrapAction(recoverPosOrder(intent.idempotencyKey)).then((order) => {
         if (!order) return
         setReceipt({ orderNumber: order.orderNumber, paymentId: order.paymentId, recordedAt: order.recordedAt, currencyCode: order.currencyCode, paymentStatus: order.paymentStatus, lines: order.lines, subtotalAmount: order.subtotalAmount, taxAmount: order.taxAmount, totalAmount: order.totalAmount, cashReceivedAmount: order.cashReceivedAmount, changeDueAmount: order.changeDueAmount })
         setMessage(`Recovered cash sale ${order.orderNumber}.`)
@@ -106,7 +108,7 @@ export function PosPageClient({ location, products, customers }: { location: Pha
     idempotencyKey.current = intent.idempotencyKey
     sessionStorage.setItem(`pharmacy-pos-pending:${location.id}`, JSON.stringify(intent))
     setIntentUnresolved(true)
-    startTransition(() => submitPosOrder(intent).then((order) => {
+    startTransition(() => unwrapAction(submitPosOrder(intent)).then((order) => {
       setReceipt({ orderNumber: order.orderNumber, paymentId: order.paymentId, recordedAt: order.recordedAt, currencyCode: order.currencyCode, paymentStatus: order.paymentStatus, lines: order.lines, subtotalAmount: order.subtotalAmount, taxAmount: order.taxAmount, totalAmount: order.totalAmount, cashReceivedAmount: order.cashReceivedAmount, changeDueAmount: order.changeDueAmount })
       setMessage(`Cash sale ${order.orderNumber} recorded. Total ${new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currencyCode }).format(order.totalAmount / 100)}.`)
       sessionStorage.removeItem(`pharmacy-pos-pending:${location.id}`)
@@ -151,7 +153,7 @@ export function PosPageClient({ location, products, customers }: { location: Pha
           <div><p className="text-base font-semibold">{location.operatorDisplayName}</p><p className="text-xs text-muted-foreground">{location.name}{location.operatorPhone ? ` · ${location.operatorPhone}` : ''}</p></div>
           <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">Print</Button>
         </div>
-        <div className="grid gap-0.5 border-b border-dashed py-3 text-[11px] text-muted-foreground"><p>ORDER {receipt.orderNumber}</p><p>PAYMENT {receipt.paymentId} · {receipt.paymentStatus.replaceAll('_', ' ')}</p><p>{new Date(receipt.recordedAt).toLocaleString()}</p></div>
+        <div className="grid gap-0.5 border-b border-dashed py-3 text-[11px] text-muted-foreground"><p>ORDER {receipt.orderNumber}</p><p>PAYMENT {receipt.paymentId} · {receipt.paymentStatus.replaceAll('_', ' ')}</p><p>{formatDateTime(receipt.recordedAt, timeZone)}</p></div>
         <div className="grid gap-1.5 border-b border-dashed py-3">{receipt.lines.map((line, index) => <div key={`${line.sku}:${index}`} className="flex justify-between gap-4"><span className="min-w-0">{line.quantity}× {line.title}<span className="block text-[11px] text-muted-foreground">{line.sku}</span></span><span className="tabular-nums">{money(line.lineTotalAmount, receipt.currencyCode)}</span></div>)}</div>
         <dl className="grid gap-1 pt-3 tabular-nums"><div className="flex justify-between"><dt>Subtotal</dt><dd>{money(receipt.subtotalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Tax</dt><dd>{money(receipt.taxAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between font-semibold"><dt>Total</dt><dd>{money(receipt.totalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Cash</dt><dd>{money(receipt.cashReceivedAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Change</dt><dd>{money(receipt.changeDueAmount, receipt.currencyCode)}</dd></div></dl>
       </section>}

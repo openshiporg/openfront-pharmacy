@@ -5,15 +5,16 @@ import { currentFillPermission, loadFillPrescription } from './fillWorkflows'
 import { FILL_LINEAGE, prescriptionItemVersion } from '../workflows/fill-entitlement'
 import { prescriptionReadScope, sameScope, scopedFill, readScopeError, record, readCursor, writeCursor, cursorBoundary } from '../workflows/fill-read-scope'
 import { readStore, fillMetadataQuery, readFillProjection, readEventProjection, readEventPage, fillReadWhere } from './fillReadProjection'
+import { DomainError } from './lib/errors'
 
 export async function authorizedFillReadback(context: Context, prescriptionId: string) {
-  if (!context.session?.itemId || !permissions.canViewPatientPrivateData({ session: context.session })) throw new Error('Patient private-data permission required')
+  if (!context.session?.itemId || !permissions.canViewPatientPrivateData({ session: context.session })) throw new DomainError('Patient private-data permission required')
   const permission = permissions.canReviewPrescriptions({ session: context.session }) ? 'canReviewPrescriptions' : 'canDispenseMedications'
   await currentFillPermission(context, permission)
   const q = readStore(context)
   const actor = record(await q.User.findOne({ where: { id: context.session.itemId }, query: 'id role { canViewPatientPrivateData canManageOrganizations canApproveConsequentialActions }' }))
   const role = record(actor.role)
-  if (actor.id !== context.session.itemId || role.canViewPatientPrivateData !== true) throw new Error('Current patient private-data permission was revoked')
+  if (actor.id !== context.session.itemId || role.canViewPatientPrivateData !== true) throw new DomainError('Current patient private-data permission was revoked')
   // Authorize minimal parent metadata before fetching clinical/policy/item data.
   const metadata = await q.Prescription.findOne({ where: { id: prescriptionId }, query: 'id organization { id } location { id } patient { id } prescriber { id organization { id } } items { id prescription { id } }' })
   const scope = prescriptionReadScope(metadata, prescriptionId)
@@ -29,7 +30,7 @@ export async function pharmacyFillWorkbench(_root: unknown, args: { prescription
   if (args.after) {
     const cursor = readCursor(args.after, scope, 'operator_fill_workbench')
     const anchor = scopedFill(await q.PrescriptionFill.findOne({ where: { id: cursor.id }, query: fillMetadataQuery }), scope, cursor.id)
-    if (anchor.createdAt !== cursor.createdAt || anchor.version !== cursor.version) throw new Error('Invalid or stale fill cursor')
+    if (anchor.createdAt !== cursor.createdAt || anchor.version !== cursor.version) throw new DomainError('Invalid or stale fill cursor')
     boundary = cursorBoundary(cursor)
   }
   const base = fillReadWhere(scope)

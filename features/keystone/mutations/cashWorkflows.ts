@@ -5,6 +5,7 @@ import { eligibleLotQuantity, isLotEligible } from '../workflows/lot-eligibility
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
+import { DomainError } from './lib/errors'
 
 export async function recordPharmacyCashPolicy(
   _root: unknown,
@@ -13,8 +14,8 @@ export async function recordPharmacyCashPolicy(
 ) {
   requirePermission(context, 'canManagePayments')
   requirePermission(context, 'canApproveConsequentialActions')
-  if (!Number.isInteger(args.taxRateBps) || args.taxRateBps < 0 || args.taxRateBps > 10_000) throw new Error('Tax rate must be integer basis points between 0 and 10000')
-  if (!args.policyReference?.trim()) throw new Error('Cash/tax policy source reference is required')
+  if (!Number.isInteger(args.taxRateBps) || args.taxRateBps < 0 || args.taxRateBps > 10_000) throw new DomainError('Tax rate must be integer basis points between 0 and 10000')
+  if (!args.policyReference?.trim()) throw new DomainError('Cash/tax policy source reference is required')
   return withDomainTransaction(context, [`cash-policy:${args.organizationId}`], async (transactionContext) => {
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId })
     const approval = await createHumanApproval(transactionContext, { organizationId: args.organizationId, actorId: userId, actionType: 'cash_policy', reason: args.reason, attested: args.attested, evidence: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), scope: 'operator_attested_cash_direct_pay' } })
@@ -32,7 +33,7 @@ export async function readCommittedPosReceipt(sudo: any, orderId: string, reused
   const payment = order?.payments?.find((entry: any) => entry.tenderMethod === 'cash')
   const lineSubtotal = (order?.lineItems || []).reduce((sum: number, line: any) => sum + line.lineTotalAmount, 0)
   if (!order || !payment || !['captured', 'refunded'].includes(payment.status) || payment.amount !== order.totalAmount || payment.currencyCode !== order.currencyCode || payment.cashReceivedAmount == null || payment.changeDueAmount == null || payment.cashReceivedAmount < payment.amount || payment.changeDueAmount !== payment.cashReceivedAmount - payment.amount || lineSubtotal !== order.subtotalAmount || order.subtotalAmount + order.taxAmount !== order.totalAmount) {
-    throw new Error('Committed POS receipt evidence is incomplete or inconsistent; do not submit a new sale')
+    throw new DomainError('Committed POS receipt evidence is incomplete or inconsistent; do not submit a new sale')
   }
   return {
     success: true,
@@ -58,7 +59,7 @@ export async function readCommittedPosReceipt(sudo: any, orderId: string, reused
 export async function pharmacyPosCustomers(_root: unknown, args: { locationId: string }, context: Context) {
   requirePermission(context, 'canManageOrders')
   const location = await context.sudo().query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: 'id organization { id }' })
-  if (!location) throw new Error('Location not found')
+  if (!location) throw new DomainError('Location not found')
   await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id })
   const carts = await context.sudo().query.Cart.findMany({ where: { organization: { id: { equals: location.organization.id } }, location: { id: { equals: location.id } }, status: { equals: 'active' }, expiresAt: { gt: new Date().toISOString() }, customer: { role: null }, items: { some: { quantity: { gt: 0 } } } }, orderBy: { createdAt: 'desc' }, take: 100, query: 'id customer { id name }' })
   const seen = new Set<string>()
@@ -74,39 +75,39 @@ export async function submitPharmacyPosCashOrder(
   requirePermission(context, 'canManagePayments')
   requirePermission(context, 'canManageInventory')
   const method = args.fulfillmentMethod || 'pos'
-  if (!['pos', 'pickup'].includes(method)) throw new Error('Cash fulfillment method is invalid')
+  if (!['pos', 'pickup'].includes(method)) throw new DomainError('Cash fulfillment method is invalid')
   const items = (args.items || []).filter((entry) => entry?.productId && Number.isInteger(entry.quantity) && entry.quantity > 0 && entry.quantity <= 99)
-  if (!items.length || items.length > 50 || items.length !== args.items.length) throw new Error('POS order must contain 1-50 valid line items')
-  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new Error('A request key is required')
+  if (!items.length || items.length > 50 || items.length !== args.items.length) throw new DomainError('POS order must contain 1-50 valid line items')
+  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError('A request key is required')
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ locationId: args.locationId, ...(args.customerCartId ? { customerCartId: args.customerCartId } : {}), ...(method === 'pickup' ? { fulfillmentMethod: method } : {}), items: [...items].sort((left, right) => left.productId.localeCompare(right.productId)), cashReceivedAmount: args.cashReceivedAmount, reason: args.reason?.trim(), attested: args.attested })).digest('hex')
   return withDomainTransaction(context, [`pos-cash:${args.idempotencyKey}`, ...(args.customerCartId ? [`cart:${args.customerCartId}`] : []), ...items.map((entry) => `product:${entry.productId}`)], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const existing = await sudo.query.Order.findOne({ where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` }, query: 'id orderNumber status totalAmount currencyCode checkoutEvidence payments { id status } organization { id } location { id }' })
     if (existing) {
-      if (!existing.organization?.id || !existing.location?.id) throw new Error('POS replay scope is incomplete; operator reconciliation is required')
+      if (!existing.organization?.id || !existing.location?.id) throw new DomainError('POS replay scope is incomplete; operator reconciliation is required')
       await requireTenantMembership(transactionContext, { organizationId: existing.organization.id, locationId: existing.location.id })
-      if (existing.checkoutEvidence?.requestFingerprint !== requestFingerprint) throw new Error('POS idempotency key was reused with different input')
+      if (existing.checkoutEvidence?.requestFingerprint !== requestFingerprint) throw new DomainError('POS idempotency key was reused with different input')
       return readCommittedPosReceipt(sudo, existing.id, true)
     }
     const location = await sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: 'id name status pickupEnabled organization { id cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt }' })
-    if (!location || location.status !== 'active') throw new Error('POS location not found')
+    if (!location || location.status !== 'active') throw new DomainError('POS location not found')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: location.organization.id, locationId: location.id })
-    if (method === 'pickup' && location.pickupEnabled !== true) throw new Error('Pickup is unavailable at this location')
+    if (method === 'pickup' && location.pickupEnabled !== true) throw new DomainError('Pickup is unavailable at this location')
     let customerId: string | undefined
     if (args.customerCartId) {
       const cart = await sudo.query.Cart.findOne({ where: { id: args.customerCartId }, query: 'id status expiresAt organization { id } location { id } customer { id role { id } } items(take: 1) { id }' })
-      if (!cart || cart.organization?.id !== location.organization.id || cart.location?.id !== location.id || cart.status !== 'active' || !cart.expiresAt || new Date(cart.expiresAt).getTime() <= Date.now() || !cart.customer?.id || cart.customer.role || !cart.items.length) throw new Error('Customer cart is not available in this tenant location')
+      if (!cart || cart.organization?.id !== location.organization.id || cart.location?.id !== location.id || cart.status !== 'active' || !cart.expiresAt || new Date(cart.expiresAt).getTime() <= Date.now() || !cart.customer?.id || cart.customer.role || !cart.items.length) throw new DomainError('Customer cart is not available in this tenant location')
       customerId = cart.customer.id
     }
-    if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new Error('Operator-attested cash and tax policy must be configured before POS sales')
+    if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new DomainError('Operator-attested cash and tax policy must be configured before POS sales')
     const productIds = [...new Set(items.map((entry) => entry.productId))]
-    if (productIds.length !== items.length) throw new Error('Combine duplicate POS product lines before submission')
+    if (productIds.length !== items.length) throw new DomainError('Combine duplicate POS product lines before submission')
     let products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: 'id title sku imageUrl priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }' })
-    if (products.length !== items.length || products.some((product: any) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== 'published' || product.posAvailable !== true || product.prescriptionRequirement !== 'none')) throw new Error('Every POS item must be an available OTC product in this tenant location')
+    if (products.length !== items.length || products.some((product: any) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== 'published' || product.posAvailable !== true || product.prescriptionRequirement !== 'none')) throw new DomainError('Every POS item must be an available OTC product in this tenant location')
     await acquireTransactionLocks(transactionContext, products.flatMap((product: any) => product.inventoryLots.map((lot: any) => `lot:${lot.id}`)))
     products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: 'id title sku imageUrl priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }' })
     const currencies = [...new Set(products.map((product: any) => product.currencyCode))]
-    if (currencies.length !== 1) throw new Error('POS order currency mismatch')
+    if (currencies.length !== 1) throw new DomainError('POS order currency mismatch')
     const pricedItems = items.map((entry) => ({ ...entry, product: products.find((product: any) => product.id === entry.productId)! }))
     const subtotalAmount = pricedItems.reduce((sum, entry) => sum + entry.product.priceAmount * entry.quantity, 0)
     const taxableSubtotalAmount = calculateTaxableSubtotal(pricedItems.map((entry) => ({ unitPriceAmount: entry.product.priceAmount, quantity: entry.quantity, taxable: entry.product.taxable })))
@@ -127,7 +128,7 @@ export async function submitPharmacyPosCashOrder(
         allocations.push({ lotId: lot.id, lotNumber: lot.lotNumber, quantity, expirationDate: lot.expirationDate })
         remaining -= quantity
       }
-      if (remaining > 0) throw new Error(`Insufficient eligible inventory for ${product.title}`)
+      if (remaining > 0) throw new DomainError(`Insufficient eligible inventory for ${product.title}`)
       await sudo.query.OrderLineItem.createOne({ data: { title: product.title, sku: product.sku, ndc11Snapshot: product.drugReference?.ndc11 || undefined, quantity: entry.quantity, unitPriceAmount: product.priceAmount, lineTotalAmount: product.priceAmount * entry.quantity, imageUrl: product.imageUrl || undefined, prescriptionRequirementSnapshot: 'none', metadata: { taxable: product.taxable !== false, taxableAmount: product.taxable === false ? 0 : product.priceAmount * entry.quantity }, lotAllocationSnapshot: allocations, order: { connect: { id: order.id } }, product: { connect: { id: product.id } } } })
       for (const allocation of allocations) {
         const lot = product.inventoryLots.find((candidate: any) => candidate.id === allocation.lotId)!
@@ -150,14 +151,14 @@ export async function pharmacyPosCashReceipt(
 ) {
   requirePermission(context, 'canManageOrders')
   requirePermission(context, 'canManagePayments')
-  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new Error('A request key is required')
+  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError('A request key is required')
   const sudo = context.sudo()
   const order = await sudo.query.Order.findOne({
     where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` },
     query: 'id organization { id } location { id }',
   })
   if (!order) return null
-  if (!order.organization?.id || !order.location?.id) throw new Error('POS receipt scope is incomplete; operator reconciliation is required')
+  if (!order.organization?.id || !order.location?.id) throw new DomainError('POS receipt scope is incomplete; operator reconciliation is required')
   await requireTenantMembership(context, { organizationId: order.organization.id, locationId: order.location.id })
   return readCommittedPosReceipt(sudo, order.id, true)
 }
@@ -168,21 +169,21 @@ export async function refundPharmacyCashPayment(
   context: Context,
 ) {
   requirePermission(context, 'canManagePayments')
-  if (!args.idempotencyKey?.trim()) throw new Error('Idempotency key is required')
+  if (!args.idempotencyKey?.trim()) throw new DomainError('Idempotency key is required')
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ paymentId: args.paymentId, cashReturnedAmount: args.cashReturnedAmount, reason: args.reason?.trim(), attested: args.attested })).digest('hex')
   return withDomainTransaction(context, [`payment:${args.paymentId}`, `cash-refund:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const payment = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: 'id amount status tenderMethod data organization { id } location { id } order { id patient { id } } approval { id }' })
-    if (!payment || payment.tenderMethod !== 'cash') throw new Error('Cash payment not found')
+    if (!payment || payment.tenderMethod !== 'cash') throw new DomainError('Cash payment not found')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id })
     const eventKey = `payment.cash_refunded:${args.idempotencyKey}`
     const existing = await sudo.query.AuditEvent.findOne({ where: { eventKey }, query: 'id resourceId metadata' })
     if (existing) {
-      if (existing.resourceId !== payment.id || existing.metadata?.requestFingerprint !== requestFingerprint) throw new Error('Cash refund idempotency key was reused with different input')
+      if (existing.resourceId !== payment.id || existing.metadata?.requestFingerprint !== requestFingerprint) throw new DomainError('Cash refund idempotency key was reused with different input')
       return { success: true, reused: true, paymentId: payment.id, status: 'refunded', amount: payment.amount }
     }
-    if (payment.status === 'refunded') throw new Error('Cash payment was already refunded under a different request')
-    if (payment.status !== 'captured' || args.cashReturnedAmount !== payment.amount) throw new Error('Bounded cash refunds must return the exact captured amount')
+    if (payment.status === 'refunded') throw new DomainError('Cash payment was already refunded under a different request')
+    if (payment.status !== 'captured' || args.cashReturnedAmount !== payment.amount) throw new DomainError('Bounded cash refunds must return the exact captured amount')
     const approval = await createHumanApproval(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, actionType: 'cash_refund', reason: args.reason, attested: args.attested, evidence: { paymentId: payment.id, cashReturnedAmount: args.cashReturnedAmount, inventoryRestocked: false, custodyClaim: false } })
     await (transactionContext.prisma as any).payment.update({ where: { id: payment.id }, data: { status: 'refunded', data: { ...(payment.data || {}), cashRefund: { returnedAmount: args.cashReturnedAmount, returnedAt: new Date().toISOString(), actorId: userId, approvalId: approval.id, inventoryRestocked: false } }, approvalId: approval.id } })
     await recordAuditAndOutbox(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: 'payment.cash_refunded', resourceType: 'Payment', resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } })

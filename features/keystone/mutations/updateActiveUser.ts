@@ -1,4 +1,5 @@
 import type { Context } from '.keystone/types'
+import { DomainError } from './lib/errors'
 
 type UpdateActiveUserArgs = {
   data: { email?: string | null; name?: string | null; password?: string | null; onboardingStatus?: string | null }
@@ -10,7 +11,7 @@ async function updateActiveUser(_root: unknown, { data, oldPassword }: UpdateAct
 
   const session = context.session
   if (!session?.itemId) {
-    throw new Error('Not authenticated')
+    throw new DomainError('Not authenticated')
   }
 
   const existingUser = await sudoContext.query.User.findOne({
@@ -19,14 +20,15 @@ async function updateActiveUser(_root: unknown, { data, oldPassword }: UpdateAct
   })
 
   if (!existingUser) {
-    throw new Error('User not found')
+    throw new DomainError('User not found')
   }
 
-  if (data.password && !oldPassword) {
-    throw new Error('Old password is required to update password')
+  const emailChanged = data.email != null && data.email.trim().toLowerCase() !== String(existingUser.email).toLowerCase()
+  if ((data.password || emailChanged) && !oldPassword) {
+    throw new DomainError('Enter your current password')
   }
 
-  if (data.password) {
+  if (data.password || emailChanged) {
     const result = await sudoContext.graphql.raw({
       query: `
         mutation VerifyPassword($email: String!, $password: String!) {
@@ -39,7 +41,7 @@ async function updateActiveUser(_root: unknown, { data, oldPassword }: UpdateAct
     }) as { data?: { authenticateUserWithPassword?: { __typename?: string } } }
 
     if (result.data?.authenticateUserWithPassword?.__typename !== 'UserAuthenticationWithPasswordSuccess') {
-      throw new Error('Invalid old password')
+      throw new DomainError('Current password is incorrect')
     }
   }
 

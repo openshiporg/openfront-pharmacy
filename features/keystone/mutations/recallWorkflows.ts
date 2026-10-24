@@ -4,12 +4,13 @@ import { assessRecallExposureReconciliation, recallExposureMovementWhere } from 
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
+import { DomainError } from './lib/errors'
 
 async function reconcileRecallExposures(context: Context, recallId: string) {
   return withDomainTransaction(context, [`recall-exposures:${recallId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const recall = await sudo.query.Recall.findOne({ where: { id: recallId }, query: 'id status recallNumber classification sourceValidationReference organization { id } location { id } lots { id } approval { id }' })
-    if (!recall?.organization?.id) throw new Error('Recall exposure reconciliation scope is incomplete')
+    if (!recall?.organization?.id) throw new DomainError('Recall exposure reconciliation scope is incomplete')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: recall.organization.id, locationId: recall.location?.id, organizationWide: !recall.location?.id })
     const lotIds = (recall.lots || []).map((lot: any) => lot.id)
     const candidateWhere = recallExposureMovementWhere(lotIds)
@@ -87,16 +88,16 @@ export async function openPharmacyRecall(
   context: Context,
 ) {
   requirePermission(context, 'canManageRecalls')
-  if (!['class_i', 'class_ii', 'class_iii', 'market_withdrawal'].includes(args.classification)) throw new Error('Recall classification is invalid')
-  if (!args.recallNumber?.trim() || !args.reason?.trim() || !args.source?.trim() || !args.sourceReference?.trim() || !args.lotIds.length) throw new Error('Recall number, reason, source, source reference, and affected lots are required')
+  if (!['class_i', 'class_ii', 'class_iii', 'market_withdrawal'].includes(args.classification)) throw new DomainError('Recall classification is invalid')
+  if (!args.recallNumber?.trim() || !args.reason?.trim() || !args.source?.trim() || !args.sourceReference?.trim() || !args.lotIds.length) throw new DomainError('Recall number, reason, source, source reference, and affected lots are required')
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ organizationId: args.organizationId, locationId: args.locationId || null, recallNumber: args.recallNumber.trim(), classification: args.classification, reason: args.reason.trim(), source: args.source.trim(), sourceReference: args.sourceReference.trim(), lotIds: [...new Set(args.lotIds)].sort(), attested: args.attested })).digest('hex')
   const holdResult = await withDomainTransaction(context, [`recall-number:${args.recallNumber.trim()}`, ...args.lotIds.map((id) => `lot:${id}`)], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const existing = await sudo.query.Recall.findOne({ where: { recallNumber: args.recallNumber.trim() }, query: 'id status organization { id } location { id } lots { id } approval { id evidence }' })
     if (existing) {
-      if (!existing.organization?.id) throw new Error('Recall replay scope is incomplete; operator reconciliation is required')
+      if (!existing.organization?.id) throw new DomainError('Recall replay scope is incomplete; operator reconciliation is required')
       await requireTenantMembership(transactionContext, { organizationId: existing.organization.id, locationId: existing.location?.id, organizationWide: !existing.location?.id })
-      if (existing.approval?.evidence?.requestFingerprint !== requestFingerprint) throw new Error('Recall number was reused with different input')
+      if (existing.approval?.evidence?.requestFingerprint !== requestFingerprint) throw new DomainError('Recall number was reused with different input')
       return { success: true, reused: true, recallId: existing.id, status: existing.status, lotCount: existing.lots.length, approvalId: existing.approval?.id }
     }
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId, locationId: args.locationId, organizationWide: !args.locationId })
@@ -105,7 +106,7 @@ export async function openPharmacyRecall(
       query: 'id quantityAvailable product { id organization { id } } location { id }',
     })
     if (lots.length !== new Set(args.lotIds).size || lots.some((lot: any) => lot.product?.organization?.id !== args.organizationId || args.locationId && lot.location?.id !== args.locationId)) {
-      throw new Error('Every affected lot must belong to this pharmacy')
+      throw new DomainError('Every affected lot must belong to this pharmacy')
     }
     const approval = await createHumanApproval(transactionContext, {
       organizationId: args.organizationId,
@@ -158,7 +159,7 @@ export async function openPharmacyRecall(
     const reconciliation = await reconcileRecallExposures(context, holdResult.recallId)
     return { ...holdResult, unlinkedExposureCount: reconciliation.unlinkedExposureCount }
   } catch {
-    throw new Error(`Recall hold ${holdResult.recallId} is committed, but exposure reconciliation did not complete. Verify the recall task and retry the same recall input; do not assume the hold failed.`)
+    throw new DomainError(`Recall hold ${holdResult.recallId} is committed, but exposure reconciliation did not complete. Verify the recall task and retry the same recall input; do not assume the hold failed.`)
   }
 }
 
@@ -168,17 +169,17 @@ export async function recordRecallExposureAction(
   context: Context,
 ) {
   requirePermission(context, 'canManageRecalls')
-  if (!['contacted', 'returned', 'resolved', 'unable_to_reach'].includes(args.status)) throw new Error('Recall exposure status is invalid')
-  if (!args.contactMethod?.trim() || !args.outcome?.trim()) throw new Error('Contact method and outcome are required')
+  if (!['contacted', 'returned', 'resolved', 'unable_to_reach'].includes(args.status)) throw new DomainError('Recall exposure status is invalid')
+  if (!args.contactMethod?.trim() || !args.outcome?.trim()) throw new DomainError('Contact method and outcome are required')
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ exposureId: args.exposureId, status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), notes: args.notes?.trim() || null, reason: args.reason?.trim(), attested: args.attested })).digest('hex')
   return withDomainTransaction(context, [`recall-exposure:${args.exposureId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const exposure = await sudo.query.RecallExposure.findOne({ where: { id: args.exposureId }, query: 'id status organization { id } location { id } recall { id status } patient { id } approval { id evidence }' })
-    if (!exposure || !['quarantined', 'resolved'].includes(exposure.recall?.status)) throw new Error('Recall exposure is not actionable')
+    if (!exposure || !['quarantined', 'resolved'].includes(exposure.recall?.status)) throw new DomainError('Recall exposure is not actionable')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: exposure.organization.id, locationId: exposure.location.id })
-    if (exposure.status === args.status && exposure.approval?.id && exposure.approval.evidence?.requestFingerprint !== requestFingerprint) throw new Error('Recall exposure replay input does not match the recorded action')
+    if (exposure.status === args.status && exposure.approval?.id && exposure.approval.evidence?.requestFingerprint !== requestFingerprint) throw new DomainError('Recall exposure replay input does not match the recorded action')
     if (exposure.status === args.status && exposure.approval?.id) return { success: true, reused: true, exposureId: exposure.id, status: exposure.status, approvalId: exposure.approval.id }
-    if (['returned', 'resolved', 'unable_to_reach'].includes(exposure.status)) throw new Error('Recall exposure is already resolved')
+    if (['returned', 'resolved', 'unable_to_reach'].includes(exposure.status)) throw new DomainError('Recall exposure is already resolved')
     const approval = await createHumanApproval(transactionContext, { organizationId: exposure.organization.id, locationId: exposure.location.id, actorId: userId, actionType: 'recall_disposition', reason: args.reason, attested: args.attested, evidence: { exposureId: exposure.id, status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), requestFingerprint, custodyClaimed: false } })
     const resolved = ['returned', 'resolved', 'unable_to_reach'].includes(args.status)
     await (transactionContext.prisma as any).recallExposure.update({ where: { id: exposure.id }, data: { status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), notes: args.notes?.trim() || null, lastActionAt: new Date(), resolvedAt: resolved ? new Date() : null, lastActorId: userId, approvalId: approval.id } })
@@ -193,21 +194,21 @@ export async function disposeRecallLot(
   context: Context,
 ) {
   requirePermission(context, 'canManageRecalls')
-  if (!Number.isInteger(args.quantity) || args.quantity < 1 || !args.dispositionReference?.trim() || !args.idempotencyKey?.trim()) throw new Error('Quantity, disposition reference, and idempotency key are required')
+  if (!Number.isInteger(args.quantity) || args.quantity < 1 || !args.dispositionReference?.trim() || !args.idempotencyKey?.trim()) throw new DomainError('Quantity, disposition reference, and idempotency key are required')
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ recallId: args.recallId, lotId: args.lotId, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), reason: args.reason?.trim(), attested: args.attested })).digest('hex')
   return withDomainTransaction(context, [`recall:${args.recallId}`, `lot:${args.lotId}`, `recall-disposition:${args.idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const recall = await sudo.query.Recall.findOne({ where: { id: args.recallId }, query: 'id status organization { id } location { id } lots { id quantityAvailable quantityQuarantined product { id } location { id } }' })
     const lot = recall?.lots?.find((entry: any) => entry.id === args.lotId)
-    if (!recall || !recall.organization?.id || !lot?.location?.id) throw new Error('Recall disposition scope is incomplete; operator reconciliation is required')
+    if (!recall || !recall.organization?.id || !lot?.location?.id) throw new DomainError('Recall disposition scope is incomplete; operator reconciliation is required')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: recall.organization.id, locationId: lot.location.id })
     const existing = await sudo.query.InventoryMovement.findOne({ where: { idempotencyKey: `recall-disposition:${args.idempotencyKey}` }, query: 'id requestFingerprint lot { id }' })
     if (existing) {
-      if (existing.lot?.id !== args.lotId || existing.requestFingerprint !== requestFingerprint) throw new Error('Disposition idempotency key was reused with different input')
+      if (existing.lot?.id !== args.lotId || existing.requestFingerprint !== requestFingerprint) throw new DomainError('Disposition idempotency key was reused with different input')
       return { success: true, reused: true, recallId: args.recallId, lotId: args.lotId, movementId: existing.id, status: 'disposed' }
     }
-    if (recall.status !== 'quarantined') throw new Error('Quarantined recall lot not found')
-    if (args.quantity !== lot.quantityQuarantined || args.quantity > lot.quantityAvailable) throw new Error('Bounded recall disposition must dispose the complete quarantined quantity')
+    if (recall.status !== 'quarantined') throw new DomainError('Quarantined recall lot not found')
+    if (args.quantity !== lot.quantityQuarantined || args.quantity > lot.quantityAvailable) throw new DomainError('Bounded recall disposition must dispose the complete quarantined quantity')
     const approval = await createHumanApproval(transactionContext, { organizationId: recall.organization.id, locationId: lot.location.id, actorId: userId, actionType: 'recall_disposition', reason: args.reason, attested: args.attested, evidence: { recallId: recall.id, lotId: lot.id, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), physicalDispositionRecorded: true } })
     await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable - args.quantity, quantityQuarantined: 0, status: lot.quantityAvailable - args.quantity === 0 ? 'depleted' : 'recalled' } })
     const movement = await sudo.query.InventoryMovement.createOne({ data: { movementType: 'destroy', quantityDelta: -args.quantity, reason: args.reason, idempotencyKey: `recall-disposition:${args.idempotencyKey}`, requestFingerprint, organization: { connect: { id: recall.organization.id } }, location: { connect: { id: lot.location.id } }, product: { connect: { id: lot.product.id } }, lot: { connect: { id: lot.id } }, actor: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: 'id' })
@@ -225,7 +226,7 @@ export async function closePharmacyRecall(
   return withDomainTransaction(context, [`recall:${args.recallId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const recall = await sudo.query.Recall.findOne({ where: { id: args.recallId }, query: 'id status organization { id } location { id } closedAt approval { id reason actionType } lots { id quantityQuarantined } exposures(take: 10000) { id status }' })
-    if (!recall) throw new Error('Recall not found')
+    if (!recall) throw new DomainError('Recall not found')
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: recall.organization.id, locationId: recall.location?.id, organizationWide: !recall.location?.id })
     const candidateWhere = recallExposureMovementWhere((recall.lots || []).map((lot: any) => lot.id))
     const [candidateMovementCount, candidateMovements, exposureCount] = await Promise.all([
@@ -238,13 +239,13 @@ export async function closePharmacyRecall(
     const linkedMovementIds = (linkedRows as any[]).map((entry) => entry.movement?.id).filter(Boolean)
     const reconciliation = assessRecallExposureReconciliation({ candidateMovementCount, linkedMovementIds, exposureCount, linkedExposureCount: linkedRows.length })
     const exposureReconciliationComplete = reconciliation.exposureReconciliationComplete && exposureCount === (recall.exposures || []).length
-    if (recall.status === 'closed' && !exposureReconciliationComplete) throw new Error('Recall exposure reconciliation is incomplete; closure evidence requires operator review')
-    if (recall.status === 'closed' && (recall.approval?.actionType !== 'recall_disposition' || recall.approval?.reason !== args.reason)) throw new Error('Recall closure replay does not match the recorded reason')
+    if (recall.status === 'closed' && !exposureReconciliationComplete) throw new DomainError('Recall exposure reconciliation is incomplete; closure evidence requires operator review')
+    if (recall.status === 'closed' && (recall.approval?.actionType !== 'recall_disposition' || recall.approval?.reason !== args.reason)) throw new DomainError('Recall closure replay does not match the recorded reason')
     if (recall.status === 'closed') return { success: true, reused: true, recallId: recall.id, status: recall.status, approvalId: recall.approval?.id }
-    if (!['quarantined', 'resolved'].includes(recall.status)) throw new Error('Recall is not ready for closure')
-    if (!exposureReconciliationComplete) throw new Error('Every sale/dispense movement must have a recorded exposure before recall closure')
-    if (recall.lots.some((lot: any) => lot.quantityQuarantined > 0)) throw new Error('All quarantined lot quantities require recorded disposition before closure')
-    if (recall.exposures.some((exposure: any) => !['returned', 'resolved', 'unable_to_reach'].includes(exposure.status))) throw new Error('Every dispensed exposure requires a resolved outreach record before closure')
+    if (!['quarantined', 'resolved'].includes(recall.status)) throw new DomainError('Recall is not ready for closure')
+    if (!exposureReconciliationComplete) throw new DomainError('Every sale/dispense movement must have a recorded exposure before recall closure')
+    if (recall.lots.some((lot: any) => lot.quantityQuarantined > 0)) throw new DomainError('All quarantined lot quantities require recorded disposition before closure')
+    if (recall.exposures.some((exposure: any) => !['returned', 'resolved', 'unable_to_reach'].includes(exposure.status))) throw new DomainError('Every dispensed exposure requires a resolved outreach record before closure')
     const approval = await createHumanApproval(transactionContext, { organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, actionType: 'recall_disposition', reason: args.reason, attested: args.attested, evidence: { recallId: recall.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length, allDispositionRecorded: true } })
     await sudo.query.Recall.updateOne({ where: { id: recall.id }, data: { status: 'closed', closedAt: new Date().toISOString(), approval: { connect: { id: approval.id } } } })
     await recordAuditAndOutbox(transactionContext, { eventKey: `recall.closed:${recall.id}:${approval.id}`, organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, eventType: 'recall.closed', resourceType: 'Recall', resourceId: recall.id, metadata: { approvalId: approval.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length } })

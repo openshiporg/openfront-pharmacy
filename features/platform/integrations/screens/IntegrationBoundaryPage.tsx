@@ -1,10 +1,10 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyIntegrationStatusProjection } from '@/features/pharmacy/contracts'
 import { OperationalPage } from '@/features/platform/components/OperationalPage'
 import { ConfigureProviderButton } from '../components/ConfigureProviderButton'
 
 export async function IntegrationBoundaryPage() {
-  const response = await keystoneClient<{ pharmacyIntegrationStatus: PharmacyIntegrationStatusProjection[] }>(`query { pharmacyIntegrationStatus { id name code providerType status externalValidationComplete hasValidationReference organizationName } }`)
+  const response = await platformRequest<{ pharmacyIntegrationStatus: PharmacyIntegrationStatusProjection[] }>(`query { pharmacyIntegrationStatus { id name code providerType status externalValidationComplete hasValidationReference organizationName } }`)
   const items = response.success ? response.data.pharmacyIntegrationStatus.map((provider) => ({
     id: provider.id,
     title: provider.name,

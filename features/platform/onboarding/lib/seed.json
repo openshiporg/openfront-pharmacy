@@ -1,6 +1,6 @@
 {
   "organization": {
-    "name": "Cedar & Elm Community Pharmacy",
+    "name": "Cedar & Elm Pharmacy",
     "slug": "cedar-elm-community-pharmacy",
     "storefrontKey": "cedar-elm",
     "operatorDisplayName": "Cedar & Elm Pharmacy",
@@ -91,7 +91,17 @@
       "status": "active"
     }
   ],
-  "drugReferences": [],
+  "drugReferences": [
+    {
+      "ndc11": "99999050001",
+      "proprietaryName": "Amoxicillin (sample)",
+      "genericName": "amoxicillin",
+      "labelerName": "Sample labeler",
+      "dosageForm": "capsule",
+      "route": "oral",
+      "strength": "500 mg"
+    }
+  ],
   "products": [
     {
       "profile": "minimal",
@@ -102,7 +112,7 @@
       "category": "otc_medication",
       "prescriptionRequirement": "none",
       "priceAmount": 899,
-      "imageUrl": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=80"
+      "imageUrl": "https://images.unsplash.com/photo-1519161720427-f7711f9efce3?auto=format&fit=crop&w=900&q=80"
     },
     {
       "profile": "minimal",
@@ -124,7 +134,7 @@
       "category": "digestive_health",
       "prescriptionRequirement": "none",
       "priceAmount": 1099,
-      "imageUrl": "https://images.unsplash.com/photo-1550572017-edd951b55104?auto=format&fit=crop&w=900&q=80"
+      "imageUrl": "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=900&q=80"
     },
     {
       "profile": "full",
@@ -146,7 +156,7 @@
       "category": "health_devices",
       "prescriptionRequirement": "none",
       "priceAmount": 1499,
-      "imageUrl": "https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?auto=format&fit=crop&w=900&q=80"
+      "imageUrl": "https://images.unsplash.com/photo-1609725236589-d987ffc8133a?auto=format&fit=crop&w=900&q=80"
     },
     {
       "profile": "full",
@@ -168,7 +178,7 @@
       "category": "first_aid",
       "prescriptionRequirement": "none",
       "priceAmount": 749,
-      "imageUrl": "https://images.unsplash.com/photo-1609840114035-3c981b782dfe?auto=format&fit=crop&w=900&q=80"
+      "imageUrl": "https://images.unsplash.com/photo-1609840534195-e6385ca0d10a?auto=format&fit=crop&w=900&q=80"
     },
     {
       "profile": "full",
@@ -179,7 +189,18 @@
       "category": "vitamins",
       "prescriptionRequirement": "none",
       "priceAmount": 1599,
-      "imageUrl": "https://images.unsplash.com/photo-1550572017-4fcdbb59cc32?auto=format&fit=crop&w=900&q=80"
+      "imageUrl": "https://images.unsplash.com/photo-1763667926453-6a992d38ac43?auto=format&fit=crop&w=900&q=80"
+    },
+    {
+      "profile": "full",
+      "title": "Amoxicillin 500 mg Capsules",
+      "handle": "amoxicillin-500-mg-capsules",
+      "sku": "RX-AMOX-500",
+      "description": "Sample prescription item for trying the dispensing workflow.",
+      "category": "prescription",
+      "prescriptionRequirement": "prescription_required",
+      "priceAmount": 1299,
+      "ndc11": "99999050001"
     }
   ],
   "lots": [
@@ -238,6 +259,13 @@
       "quantity": 40,
       "expirationOffsetDays": 450,
       "coldChainRequired": false
+    },
+    {
+      "lotNumber": "LOT-RX-AMOX-500-001",
+      "sku": "RX-AMOX-500",
+      "quantity": 200,
+      "expirationOffsetDays": 540,
+      "coldChainRequired": false
     }
   ],
   "patients": [
@@ -270,7 +298,8 @@
     {
       "name": "Dr. Elena Ruiz, MD",
       "phone": "(212) 555-0110",
-      "fax": "(212) 555-0111"
+      "fax": "(212) 555-0111",
+      "npi": "1234567893"
     },
     {
       "name": "Dr. Samuel Okafor, DO",

@@ -1,4 +1,4 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { OperationalPage, type OperationalItem } from '@/features/platform/components/OperationalPage'
 import { shortDate } from '../../lib/mutate'
 
@@ -13,7 +13,7 @@ type Refill = {
 const OPEN = ['requested', 'under_review', 'prescriber_contacted']
 
 export async function RefillQueuePage() {
-  const response = await keystoneClient<{ refillRequests: Refill[] }>('query Refills { refillRequests(orderBy: [{ requestedAt: desc }], take: 200) { id status requestNote resolutionNote requestedAt resolvedAt patient { id displayName } prescription { id prescriptionNumber status } prescriptionItem { medicationNameSnapshot refillsRemaining } location { name } } }')
+  const response = await platformRequest<{ refillRequests: Refill[] }>('query Refills { refillRequests(orderBy: [{ requestedAt: desc }], take: 200) { id status requestNote resolutionNote requestedAt resolvedAt patient { id displayName } prescription { id prescriptionNumber status } prescriptionItem { medicationNameSnapshot refillsRemaining } location { name } } }')
   const refills = response.success ? response.data.refillRequests : []
   // Open requests first, oldest first, so the longest-waiting patient is at the top.
   const ordered = [...refills.filter((refill) => OPEN.includes(refill.status)).reverse(), ...refills.filter((refill) => !OPEN.includes(refill.status))]

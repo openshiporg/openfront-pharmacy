@@ -1,7 +1,8 @@
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyInventoryLotProjection, PharmacyInventoryWorklistProjection } from '@/features/pharmacy/contracts'
 import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/components/WorkflowQueuePage'
 import { expiryContext, strongestPriority } from '@/features/platform/components/workflowQueue'
+import { formatCalendarDate } from '@/features/platform/lib/dates'
 
 const inventoryStatuses = [
   ['available', 'Available'],
@@ -22,7 +23,7 @@ export async function InventoryControlPage({ searchParams }: { searchParams?: Pr
   const params = await searchParams
   const after = typeof params?.after === 'string' && params.after ? params.after : null
   const status = typeof params?.status === 'string' && params.status ? params.status : null
-  const response = await keystoneClient<{ pharmacyInventoryQueue: PharmacyInventoryWorklistProjection }>(
+  const response = await platformRequest<{ pharmacyInventoryQueue: PharmacyInventoryWorklistProjection }>(
     `query InventoryWorklist($first: Int, $after: String, $status: String) { pharmacyInventoryQueue(first: $first, after: $after, status: $status) { items { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete storageBin productTitle productSku locationName activeRecallCount openExcursionCount } totalCount hasMore nextCursor } }`,
     { first: 50, after, status },
   )
@@ -54,7 +55,7 @@ export async function InventoryControlPage({ searchParams }: { searchParams?: Pr
       context: [
         { label: 'Available', value: String(lot.quantityAvailable) },
         { label: 'Quarantined', value: String(lot.quantityQuarantined) },
-        { label: 'Expiration', value: lot.expirationDate ? new Date(lot.expirationDate).toLocaleDateString() : 'Not reported' },
+        { label: 'Expiration', value: lot.expirationDate ? formatCalendarDate(lot.expirationDate) : 'Not reported' },
         { label: 'Recall / excursion', value: `${lot.activeRecallCount} / ${lot.openExcursionCount}` },
       ],
       nextDecision: decision.label,

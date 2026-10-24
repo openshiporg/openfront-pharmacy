@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const storefront = await getStorefront()
   if (!storefront) return { title: 'Pharmacy' }
   const { displayName, tagline } = storefront.brand
-  return { title: tagline ? `${displayName} - ${tagline}` : displayName, description: tagline || undefined }
+  return { title: { absolute: tagline ? `${displayName} - ${tagline}` : displayName }, description: tagline || undefined }
 }
 
 export function NoLocations({ storefront }: { storefront: Storefront }) {
@@ -58,7 +58,6 @@ function LocationLabel({ location, phone }: { location: PublicPharmacyLocationPr
   return <aside aria-label="Pharmacy location" className="relative overflow-hidden rounded-[1.25rem] border border-border bg-card shadow-[0_1px_0_var(--border),0_18px_40px_-28px_oklch(0.2_0.03_var(--store-brand-hue)/0.35)]">
     <div className="flex items-center justify-between gap-3 border-b border-dashed border-[var(--rx-rule)] px-5 py-3">
       <span className="rx-eyebrow">Pharmacy</span>
-      <span aria-hidden="true" className="rx-num text-xs text-muted-foreground">{location.code}</span>
     </div>
     <div className="px-5 pb-5 pt-4">
       <TitleLine title={location.name} titleClassName="text-xl" tone={location.onlineOrderingEnabled ? 'ok' : 'warn'} state={location.onlineOrderingEnabled ? 'Ordering online' : 'Call to order'} />

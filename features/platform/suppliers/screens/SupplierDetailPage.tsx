@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { RecordDrawerButton } from '@/features/platform/components/RecordDrawerButton'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
@@ -16,7 +16,7 @@ type Supplier = {
 
 export async function SupplierDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const response = await keystoneClient<{ supplier: Supplier | null }>(
+  const response = await platformRequest<{ supplier: Supplier | null }>(
     `query Supplier($id: ID!) { supplier(where: { id: $id }) { id name accountReference status organization { name } integrationProvider { name status } inventoryLotsCount inventoryLots(orderBy: [{ receivedAt: desc }], take: 50) { id lotNumber status receivedAt expirationDate quantityReceived quantityAvailable product { title } location { name } } } }`,
     { id },
   )

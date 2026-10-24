@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { keystoneClient } from '@/features/dashboard/lib/keystoneClient'
+import { platformRequest } from '@/features/platform/lib/request'
 import { sanitizeStoreLogoSvg } from '@/features/lib/sanitize-store-logo'
 import { normalizeStoreLogoColor } from '@/features/lib/store-logo'
 import { normalizeWeeklyHours, weeklyHoursError, type WeeklyHours } from '@/features/pharmacy/hours'
@@ -22,7 +22,7 @@ export type StoreLocationHours = { id: string; name: string; timezone: string; h
 const storeFields = 'id operatorDisplayName operatorTagline logoIcon logoColor supportEmail supportPhone privacyNotice'
 
 export async function getStoreSettings() {
-  const response = await keystoneClient<{ organizations: StoreSettings[] }>(
+  const response = await platformRequest<{ organizations: StoreSettings[] }>(
     `query GetStores { organizations(take: 20, orderBy: { name: asc }) { ${storeFields} } }`,
   )
 
@@ -40,7 +40,7 @@ export async function updateStoreSettings(storeId: string, data: Omit<StoreSetti
     return { success: false as const, error: 'Invalid SVG format' }
   }
 
-  const response = await keystoneClient<{ updateOrganization: StoreSettings }>(
+  const response = await platformRequest<{ updateOrganization: StoreSettings }>(
     `mutation UpdateStore($id: ID!, $data: OrganizationUpdateInput!) { updateOrganization(where: { id: $id }, data: $data) { ${storeFields} } }`,
     {
       id: storeId,
@@ -66,7 +66,7 @@ export async function updateStoreSettings(storeId: string, data: Omit<StoreSetti
 }
 
 export async function getStoreLocationHours(storeId: string) {
-  const response = await keystoneClient<{ pharmacyLocations: Array<{ id: string; name: string; timezone: string; hours: unknown }> }>(
+  const response = await platformRequest<{ pharmacyLocations: Array<{ id: string; name: string; timezone: string; hours: unknown }> }>(
     'query StoreLocations($storeId: ID!) { pharmacyLocations(where: { organization: { id: { equals: $storeId } } }, orderBy: { name: asc }, take: 50) { id name timezone hours } }',
     { storeId },
   )
@@ -77,7 +77,7 @@ export async function getStoreLocationHours(storeId: string) {
 export async function updateLocationHours(locationId: string, data: { timezone: string; hours: WeeklyHours | null }) {
   const error = weeklyHoursError(data.hours)
   if (error) return { success: false as const, error }
-  const response = await keystoneClient<{ updatePharmacyLocation: { id: string } }>(
+  const response = await platformRequest<{ updatePharmacyLocation: { id: string } }>(
     'mutation UpdateLocationHours($id: ID!, $data: PharmacyLocationUpdateInput!) { updatePharmacyLocation(where: { id: $id }, data: $data) { id } }',
     { id: locationId, data: { timezone: data.timezone.trim(), hours: data.hours } },
   )

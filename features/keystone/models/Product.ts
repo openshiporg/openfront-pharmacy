@@ -23,6 +23,16 @@ export const Product = list({
     },
   },
   hooks: {
+    resolveInput: {
+      // An empty handle is generated from the title, made unique with a numeric suffix.
+      create: async ({ resolvedData, context }) => {
+        if (String(resolvedData.handle || '').trim() || !resolvedData.title) return resolvedData
+        const base = String(resolvedData.title).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'product'
+        let handle = base
+        for (let suffix = 2; await context.sudo().query.Product.count({ where: { handle: { equals: handle } } }); suffix += 1) handle = `${base}-${suffix}`
+        return { ...resolvedData, handle }
+      },
+    },
     validate: {
       create: async ({ resolvedData, context, addValidationError }) => {
         const organizationId = resolvedData.organization?.connect?.id
@@ -80,7 +90,7 @@ export const Product = list({
   ui: { listView: { initialColumns: ['title', 'sku', 'prescriptionRequirement', 'status', 'onlineAvailable'] } },
   fields: {
     title: text({ validation: { isRequired: true } }),
-    handle: text({ validation: { isRequired: true }, isIndexed: 'unique' }),
+    handle: text({ isIndexed: 'unique', label: 'Handle (optional)' }),
     sku: text({ validation: { isRequired: true }, isIndexed: 'unique' }),
     description: text({ ui: { displayMode: 'textarea' } }),
     status: select({
@@ -118,13 +128,13 @@ export const Product = list({
       ],
       defaultValue: 'none',
     }),
-    priceAmount: integer({ validation: { isRequired: true, min: 0 }, defaultValue: 0, label: 'Price (minor units)' }),
+    priceAmount: integer({ validation: { isRequired: true, min: 0 }, defaultValue: 0, label: 'Price (cents)' }),
     currencyCode: text({ defaultValue: 'USD', validation: { isRequired: true } }),
     taxable: checkbox({ defaultValue: true }),
     onlineAvailable: checkbox({ defaultValue: false }),
     posAvailable: checkbox({ defaultValue: true }),
     coldChainRequired: checkbox({ defaultValue: false }),
-    imageUrl: text(),
+    imageUrl: text({ label: 'Image URL' }),
     organization: relationship({ ref: 'Organization.products', db: requiredRelationshipDb }),
     location: relationship({ ref: 'PharmacyLocation.products', db: requiredRelationshipDb }),
     drugReference: relationship({ ref: 'DrugReference.products' }),
