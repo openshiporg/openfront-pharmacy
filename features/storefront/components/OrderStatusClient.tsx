@@ -19,8 +19,8 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
   const reached = fulfillmentStatus === 'handed_off' ? 3 : ['ready', 'ready_for_pickup', 'out_for_delivery'].includes(fulfillmentStatus) ? 2 : 1
   const steps = ['Received', delivery ? 'On the way' : 'Ready for pickup', delivery ? 'Delivered' : 'Picked up']
   return <div>
-    <p className="rx-eyebrow">{order.locationName}</p>
-    <TitleLine as="h2" className="mt-1.5" title={<>Order <span className="rx-num">{order.orderNumber}</span></>} titleClassName="text-2xl" tone={orderTone(state)} state={orderStatusLabel(state)} />
+    <TitleLine as="h2" title={<>Order <span className="rx-num">{order.orderNumber}</span></>} titleClassName="text-2xl" tone={orderTone(state)} state={orderStatusLabel(state)} />
+    <p className="mt-1 text-sm text-muted-foreground">{order.locationName}</p>
 
     <ol aria-label="Progress" className="mt-6 grid grid-cols-3 gap-1.5">
       {steps.map((label, index) => <li key={label} aria-current={index + 1 === reached ? 'step' : undefined} className="min-w-0">

@@ -15,7 +15,7 @@ export async function CustomerOrderPage({ params }: { params: Promise<{ id: stri
 
   return <div>
     <Link href="/account" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft aria-hidden="true" className="size-4" />Overview</Link>
-    <section className="mt-3 rounded-[22px] bg-card p-5 sm:p-7">
+    <section className="mt-3 rx-card p-5 sm:p-7">
       <OrderDetails order={order} />
     </section>
   </div>

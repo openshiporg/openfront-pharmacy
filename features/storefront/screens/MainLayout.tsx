@@ -17,8 +17,7 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
 
 export function StoreUnavailable() {
   return <section className="mx-auto max-w-xl px-4 py-24 text-center">
-    <p className="rx-eyebrow">Unavailable</p>
-    <h1 className="mt-3 text-3xl font-semibold tracking-tight">This store is unavailable right now</h1>
+    <h1 className="text-3xl font-semibold tracking-tight">This store is unavailable right now</h1>
     <p className="mt-3 text-muted-foreground">Try again later.</p>
   </section>
 }

@@ -14,7 +14,7 @@ export function ResetPasswordPage({ token, email }: { token?: string; email?: st
   const [requestState, requestAction, requestPending] = useActionState(requestPasswordReset, { sent: false, error: null })
   const [resetState, resetAction, resetPending] = useActionState(resetPassword, { done: false, error: null })
 
-  return <div className="w-full max-w-md rounded-[22px] bg-card p-6 sm:p-8">
+  return <div className="w-full max-w-md rx-card p-6 sm:p-8">
     <h1 className="text-2xl font-semibold tracking-tight">Reset password</h1>
     {token
       ? resetState.done

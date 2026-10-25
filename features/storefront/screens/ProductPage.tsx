@@ -39,9 +39,9 @@ export async function ProductPage({ params }: Props) {
         <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes="(max-width: 1024px) 100vw, 55vw" />
       </div>
       <div className="min-w-0 lg:pt-4">
-        {product.category && <p className="rx-eyebrow">{categoryLabel(product.category)}</p>}
-        <TitleLine as="h1" className="mt-2" title={product.title} titleClassName="text-[2rem] leading-[1.1] tracking-[-0.025em] sm:text-[2.5rem]" tone={availability.canOrder ? 'ok' : 'muted'} state={availability.canOrder ? 'In stock' : 'Unavailable'} />
-        <p className="rx-num mt-4 text-2xl">{price}</p>
+        <TitleLine as="h1" title={product.title} titleClassName="text-[2rem] leading-[1.1] tracking-[-0.025em] sm:text-[2.5rem]" tone={availability.canOrder ? 'ok' : 'muted'} state={availability.canOrder ? 'In stock' : 'Unavailable'} />
+        {product.category && <p className="mt-2 text-sm text-muted-foreground">{categoryLabel(product.category)}</p>}
+        <p className="mt-4 text-[2rem] font-extrabold tracking-[-0.02em]">{price}</p>
         {product.description && <p className="mt-5 max-w-prose text-[15px] leading-7 text-muted-foreground">{product.description}</p>}
 
         <div className="mt-7 hidden sm:block">
@@ -75,9 +75,9 @@ export async function ProductPage({ params }: Props) {
       </ul>
     </section>}
 
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-border bg-background/95 px-4 py-3 sm:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-dotted border-[var(--rx-perf)] bg-background px-4 py-3 sm:hidden">
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0"><p className="truncate text-sm font-semibold">{product.title}</p><p className="rx-num text-sm text-muted-foreground">{price}</p></div>
+        <div className="min-w-0"><p className="truncate text-sm font-semibold">{product.title}</p><p className="text-sm text-muted-foreground">{price}</p></div>
         {canBuy ? <AddProductButton locationId={location.id} productId={product.id} label="Add" /> : <span className="text-sm text-muted-foreground">Unavailable</span>}
       </div>
     </div>

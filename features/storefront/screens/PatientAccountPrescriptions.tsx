@@ -37,14 +37,14 @@ export function PatientAccountPrescriptions({ patientId, prescriptions }: { pati
     })
   }
 
-  if (!prescriptions.length) return <p className="rounded-[22px] bg-card p-5 font-medium">No prescriptions yet</p>
+  if (!prescriptions.length) return <p className="rx-card p-5 font-medium">No prescriptions yet</p>
   return <Band>{prescriptions.map((prescription) => {
     const canRefill = prescription.refillsRemaining > 0 && ['dispensed', 'fill_closed'].includes(prescription.status) && prescription.fillLineage === 'per_fill_v1' && prescription.refillEligible
     const message = messages[prescription.id]
     return <article key={prescription.id} className="px-4 py-5 sm:px-5">
-      <p className="rx-eyebrow">Rx <span className="rx-num">{prescription.prescriptionNumber}</span></p>
-      <TitleLine as="h3" className="mt-1" title={prescription.medicationName} titleClassName="text-lg" tone={completed[prescription.id] ? 'info' : prescriptionTone(prescription.status)} state={<span className="capitalize">{completed[prescription.id] ? 'Refill requested' : formatStatus(prescription.status)}</span>} />
+      <TitleLine as="h3" title={prescription.medicationName} titleClassName="text-lg" tone={completed[prescription.id] ? 'info' : prescriptionTone(prescription.status)} state={<span className="capitalize">{completed[prescription.id] ? 'Refill requested' : formatStatus(prescription.status)}</span>} />
       <dl className="mt-4 grid grid-cols-2 gap-x-5 gap-y-3 sm:grid-cols-4">
+        <Field label="Rx number"><span className="rx-num">{prescription.prescriptionNumber}</span></Field>
         <Field label="Refills left"><span className="rx-num">{prescription.refillsRemaining}</span></Field>
         <Field label="Prescriber">{prescription.prescriberName}</Field>
         <Field label="Pharmacy">{prescription.locationName}</Field>

@@ -24,7 +24,7 @@ export function LoginPage({ from }: { from?: string }) {
       <Pill active={view === 'signin'} onClick={() => setView('signin')} className="min-w-32">Sign in</Pill>
       <Pill active={view === 'signup'} onClick={() => setView('signup')} className="min-w-32">Create account</Pill>
     </Track>
-    <div className="rounded-[22px] bg-card p-6 sm:p-8">
+    <div className="rx-card p-6 sm:p-8">
       <h1 className="text-2xl font-semibold tracking-tight">{view === 'signin' ? 'Sign in' : 'Create account'}</h1>
 
       {view === 'signin'

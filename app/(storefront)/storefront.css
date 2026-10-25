@@ -80,6 +80,14 @@
   .storefront-brand .group:hover .rx-dome { background: var(--rx-dome-hi); }
 }
 
+/* A panel on the card stock, ringed by the same perforation as the domes. */
+.storefront-brand .rx-card {
+  border-radius: 22px;
+  background: var(--rx-field);
+  outline: 2px dotted var(--rx-perf); /* taste-skill-ignore: the blister card's perforation */
+  outline-offset: 6px;
+}
+
 /* Domes press in once on load, one after another. */
 @media (prefers-reduced-motion: no-preference) {
   .storefront-brand .rx-press > * { animation: rx-press 520ms var(--rx-ease) both; }

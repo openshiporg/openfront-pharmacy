@@ -23,8 +23,7 @@ export function NoLocations({ storefront }: { storefront: Storefront }) {
   const phone = storefront.brand.supportPhone
   const email = storefront.brand.supportEmail
   return <section className="mx-auto max-w-xl px-4 py-24 text-center">
-    <p className="rx-eyebrow">{storefront.brand.displayName}</p>
-    <h1 className="mt-3 text-3xl font-semibold tracking-tight">No pharmacy locations are open online</h1>
+    <h1 className="text-3xl font-semibold tracking-tight">No pharmacy locations are open online</h1>
     {(phone || email) && <p className="mt-4 text-muted-foreground">{phone && <a href={`tel:${phone}`} className="rx-num font-medium text-foreground">{phone}</a>}{phone && email && ' · '}{email && <a href={`mailto:${email}`} className="font-medium text-foreground">{email}</a>}</p>}
   </section>
 }

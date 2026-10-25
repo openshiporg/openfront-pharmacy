@@ -56,7 +56,7 @@ export function SecondaryAction({ className, children, ...props }: ComponentProp
 
 /** A label-style band: one card with hairline-divided rows. */
 export function Band({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn('divide-y-2 divide-dotted divide-[var(--rx-perf)] overflow-hidden rounded-[22px] bg-card', className)}>{children}</div>
+  return <div className={cn('rx-card divide-y-2 divide-dotted divide-[var(--rx-perf)] overflow-hidden', className)}>{children}</div>
 }
 
 /** Mono field label over a value, as on a dispensing label. */
@@ -82,7 +82,7 @@ export function Notice({ tone = 'muted', children, className }: { tone?: 'muted'
 }
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
-  return <div className="rounded-[22px] bg-card px-6 py-14 text-center">
+  return <div className="rx-card px-6 py-14 text-center">
     <p className="font-semibold">{title}</p>
     {children && <div className="mt-4 flex justify-center">{children}</div>}
   </div>

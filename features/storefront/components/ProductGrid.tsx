@@ -39,7 +39,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
     })
   }
 
-  return <section id="products" aria-labelledby="products-title" className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+  return <section id="products" aria-labelledby="products-title" className="bg-[var(--rx-field)]"><div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
     <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
       <div>
         <h2 id="products-title" className="flex items-baseline gap-3 text-[2.5rem] font-extrabold leading-none tracking-[-0.04em] sm:text-[3.25rem]">{title}<span className="rx-num text-sm font-normal text-muted-foreground">{totalCount}</span></h2>
@@ -69,17 +69,17 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
         const href = `/products/${encodeURIComponent(product.handle)}`
         return <li key={product.id} className="flex min-w-0 flex-col">
           <Link href={href} aria-label={`View ${product.title}`} className="rx-dome group relative block aspect-square overflow-hidden">
-            <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes="(max-width: 1024px) 50vw, 25vw" className="object-contain p-[12%] transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:-translate-y-1" />
-            {requirement && <span className="absolute left-2.5 top-2.5 rounded-[14px] bg-card/95 px-2.5 py-1 text-[13px] font-semibold">{requirement}</span>}
+            <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes="(max-width: 1024px) 50vw, 25vw" className="object-cover transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-[1.03]" />
+            {requirement && <span className="absolute left-2.5 top-2.5 z-10 rounded-[14px] bg-background px-2.5 py-1 text-[13px] font-semibold">{requirement}</span>}
           </Link>
-          <h3 className="mt-4 flex items-baseline gap-2 text-[16px] font-bold leading-snug">
-            <Dot tone={availability.canOrder ? 'ok' : 'muted'} />
-            <Link href={href} className="min-w-0 hover:underline hover:underline-offset-4">{product.title}<span className="sr-only"> · {availability.canOrder ? 'In stock' : 'Unavailable'}</span></Link>
+          <h3 className="mt-4 flex items-start gap-2 text-[16px] font-bold leading-snug">
+            <Dot tone={availability.canOrder ? 'ok' : 'muted'} className="mt-[0.45em] translate-y-0" />
+            <Link href={href} className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] hover:underline hover:underline-offset-4">{product.title}<span className="sr-only"> · {availability.canOrder ? 'In stock' : 'Unavailable'}</span></Link>
           </h3>
           {product.category && <p className="mt-1 text-[13px] text-muted-foreground">{categoryLabel(product.category)}</p>}
           <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-2 pt-3">
             <div>
-              <p className="rx-num text-base font-medium">{formatMoney(product.priceAmount, product.currencyCode)}</p>
+              <p className="text-base font-bold">{formatMoney(product.priceAmount, product.currencyCode)}</p>
               {!availability.canOrder && <p className="mt-0.5 text-[13px] text-muted-foreground">Unavailable</p>}
             </div>
             {orderingEnabled && availability.canOrder && <AddProductButton locationId={locationId} productId={product.id} label="Add" compact />}
@@ -87,7 +87,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
         </li>
       })}
     </ul>
-    {visible.length === 0 && <p className="mt-6 rounded-[22px] bg-card px-6 py-12 text-center text-sm text-muted-foreground">{appliedSearch ? 'No products match this search.' : 'No products are available at this location.'}</p>}
+    {visible.length === 0 && <p className="rx-card mt-6 px-6 py-12 text-center text-sm text-muted-foreground">{appliedSearch ? 'No products match this search.' : 'No products are available at this location.'}</p>}
     {hasMore && <div className="mt-10 flex justify-center"><span className={trackClass}><button type="button" data-active="true" onClick={() => load(appliedSearch, nextCursor)} disabled={pending || !nextCursor} className={`${pillClass} px-5 font-semibold`}>{pending ? 'Loading…' : 'Load more'}</button></span></div>}
-  </section>
+  </div></section>
 }

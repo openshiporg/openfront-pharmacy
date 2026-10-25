@@ -27,7 +27,7 @@ export async function CartPage() {
     {cart?.items.length
       ? <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
         <section aria-label="Items" className="min-w-0"><CartItems items={cart.items} /></section>
-        <aside aria-label="Order summary" className="h-fit rounded-[22px] bg-card p-6 lg:sticky lg:top-28">
+        <aside aria-label="Order summary" className="h-fit rx-card p-6 lg:sticky lg:top-28">
           <CartSummary {...cart} currencyCode={currencyCode} />
           <Link href="/checkout" className={`${buttonClass} mt-6 w-full min-h-12`}>Checkout</Link>
         </aside>

@@ -23,12 +23,12 @@ export async function PrescriptionServicesPage() {
   return <div className="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
     <PageHead eyebrow={brand.displayName} title="Prescriptions" />
 
-    <div className="mt-8 grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-      <section id="refills" aria-labelledby="refills-title" className="flex flex-col rounded-[22px] bg-card p-6">
+    <div className="mt-8 grid gap-[14px] p-2 md:grid-cols-2">
+      <section id="refills" aria-labelledby="refills-title" className="flex flex-col rx-card p-6">
         <h2 id="refills-title" className="text-xl font-semibold tracking-tight">Refills</h2>
         <div className="mt-auto pt-6"><Link href="/account" className={buttonClass}>Request a refill</Link></div>
       </section>
-      <section id="transfer" aria-labelledby="transfer-title" className="rounded-[22px] bg-card p-6">
+      <section id="transfer" aria-labelledby="transfer-title" className="rx-card p-6">
         <h2 id="transfer-title" className="text-xl font-semibold tracking-tight">Transfer or new prescription</h2>
         <div className="mt-5">
           {!location
@@ -43,7 +43,7 @@ export async function PrescriptionServicesPage() {
       </section>
     </div>
 
-    <section id="location" aria-label="Pharmacy location" className="mt-4 rounded-[22px] bg-muted p-6">
+    <section id="location" aria-label="Pharmacy location" className="mt-8 rx-card p-6">
       {location
         ? <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <div>
