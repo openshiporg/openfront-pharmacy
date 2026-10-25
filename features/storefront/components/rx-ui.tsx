@@ -1,4 +1,4 @@
-// Storefront kit: the raised pill in a recessed track, title-line status dots, hairline label
+// Storefront kit: pills with a solid ink chosen state, title-line status dots, perforated
 // bands and buttons. Server-safe; client pieces import from here too.
 
 import type { ComponentProps, ReactNode } from 'react'
@@ -49,17 +49,17 @@ export function PillLink({ active, className, ...props }: ComponentProps<typeof 
 /** Primary action: a solid brand pill. */
 export const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] bg-primary px-6 text-[15px] font-bold text-primary-foreground transition-[filter,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-110 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
 
-/** Secondary action: a raised white pill sitting in its own recessed track. */
+/** Secondary action: the chosen-pill style, as a link. */
 export function SecondaryAction({ className, children, ...props }: ComponentProps<typeof Link>) {
   return <span className={cn(trackClass, 'w-fit')}><Link data-active="true" className={cn(pillClass, 'min-h-10 px-4 font-semibold', className)} {...props}>{children}</Link></span>
 }
 
-/** A label-style band: one card with hairline-divided rows. */
+/** A band: one card-stock panel with perforated rows. */
 export function Band({ className, children }: { className?: string; children: ReactNode }) {
   return <div className={cn('rx-card divide-y-2 divide-dotted divide-[var(--rx-perf)] overflow-hidden', className)}>{children}</div>
 }
 
-/** Mono field label over a value, as on a dispensing label. */
+/** Small field label over a value, as on a dispensing label. */
 export function Field({ label, children, className }: { label: string; children: ReactNode; className?: string }) {
   return <div className={cn('min-w-0', className)}>
     <dt className="rx-eyebrow">{label}</dt>

@@ -1,0 +1,450 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-25T22:28:16.395236+00:00",
+  "title": "Design System: Openfront Pharmacy Storefront",
+  "extensions": {
+    "colorMeta": {
+      "ground": {
+        "role": "neutral",
+        "displayName": "Night Ground",
+        "canonical": "oklch(0.155 0.014 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.014 160)",
+          "oklch(0.26 0.014 160)",
+          "oklch(0.37 0.014 160)",
+          "oklch(0.48 0.014 160)",
+          "oklch(0.6 0.014 160)",
+          "oklch(0.71 0.014 160)",
+          "oklch(0.83 0.014 160)",
+          "oklch(0.95 0.014 160)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "oklch(0.965 0.008 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.008 160)",
+          "oklch(0.26 0.008 160)",
+          "oklch(0.37 0.008 160)",
+          "oklch(0.48 0.008 160)",
+          "oklch(0.6 0.008 160)",
+          "oklch(0.71 0.008 160)",
+          "oklch(0.83 0.008 160)",
+          "oklch(0.95 0.008 160)"
+        ]
+      },
+      "card-stock": {
+        "role": "neutral",
+        "displayName": "Card Stock",
+        "canonical": "oklch(0.235 0.05 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.05 160)",
+          "oklch(0.26 0.05 160)",
+          "oklch(0.37 0.05 160)",
+          "oklch(0.48 0.05 160)",
+          "oklch(0.6 0.05 160)",
+          "oklch(0.71 0.05 160)",
+          "oklch(0.83 0.05 160)",
+          "oklch(0.95 0.05 160)"
+        ]
+      },
+      "dome": {
+        "role": "neutral",
+        "displayName": "Dome",
+        "canonical": "oklch(0.29 0.045 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.045 160)",
+          "oklch(0.26 0.045 160)",
+          "oklch(0.37 0.045 160)",
+          "oklch(0.48 0.045 160)",
+          "oklch(0.6 0.045 160)",
+          "oklch(0.71 0.045 160)",
+          "oklch(0.83 0.045 160)",
+          "oklch(0.95 0.045 160)"
+        ]
+      },
+      "dome-lit": {
+        "role": "neutral",
+        "displayName": "Lit Dome",
+        "canonical": "oklch(0.33 0.05 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.05 160)",
+          "oklch(0.26 0.05 160)",
+          "oklch(0.37 0.05 160)",
+          "oklch(0.48 0.05 160)",
+          "oklch(0.6 0.05 160)",
+          "oklch(0.71 0.05 160)",
+          "oklch(0.83 0.05 160)",
+          "oklch(0.95 0.05 160)"
+        ]
+      },
+      "perforation": {
+        "role": "neutral",
+        "displayName": "Perforation",
+        "canonical": "oklch(0.4 0.04 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.04 160)",
+          "oklch(0.26 0.04 160)",
+          "oklch(0.37 0.04 160)",
+          "oklch(0.48 0.04 160)",
+          "oklch(0.6 0.04 160)",
+          "oklch(0.71 0.04 160)",
+          "oklch(0.83 0.04 160)",
+          "oklch(0.95 0.04 160)"
+        ]
+      },
+      "foil-accent": {
+        "role": "primary",
+        "displayName": "Foil Accent",
+        "canonical": "oklch(0.82 0.13 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.13 160)",
+          "oklch(0.26 0.13 160)",
+          "oklch(0.37 0.13 160)",
+          "oklch(0.48 0.13 160)",
+          "oklch(0.6 0.13 160)",
+          "oklch(0.71 0.13 160)",
+          "oklch(0.83 0.13 160)",
+          "oklch(0.95 0.13 160)"
+        ]
+      },
+      "foil-accent-ink": {
+        "role": "primary",
+        "displayName": "Foil Ink",
+        "canonical": "oklch(0.17 0.03 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.03 160)",
+          "oklch(0.26 0.03 160)",
+          "oklch(0.37 0.03 160)",
+          "oklch(0.48 0.03 160)",
+          "oklch(0.6 0.03 160)",
+          "oklch(0.71 0.03 160)",
+          "oklch(0.83 0.03 160)",
+          "oklch(0.95 0.03 160)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "canonical": "oklch(0.205 0.02 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.02 160)",
+          "oklch(0.26 0.02 160)",
+          "oklch(0.37 0.02 160)",
+          "oklch(0.48 0.02 160)",
+          "oklch(0.6 0.02 160)",
+          "oklch(0.71 0.02 160)",
+          "oklch(0.83 0.02 160)",
+          "oklch(0.95 0.02 160)"
+        ]
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Well",
+        "canonical": "oklch(0.235 0.02 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.02 160)",
+          "oklch(0.26 0.02 160)",
+          "oklch(0.37 0.02 160)",
+          "oklch(0.48 0.02 160)",
+          "oklch(0.6 0.02 160)",
+          "oklch(0.71 0.02 160)",
+          "oklch(0.83 0.02 160)",
+          "oklch(0.95 0.02 160)"
+        ]
+      },
+      "quiet-ink": {
+        "role": "neutral",
+        "displayName": "Quiet Ink",
+        "canonical": "oklch(0.76 0.014 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.014 160)",
+          "oklch(0.26 0.014 160)",
+          "oklch(0.37 0.014 160)",
+          "oklch(0.48 0.014 160)",
+          "oklch(0.6 0.014 160)",
+          "oklch(0.71 0.014 160)",
+          "oklch(0.83 0.014 160)",
+          "oklch(0.95 0.014 160)"
+        ]
+      },
+      "tint": {
+        "role": "neutral",
+        "displayName": "Tint",
+        "canonical": "oklch(0.3 0.05 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.05 160)",
+          "oklch(0.26 0.05 160)",
+          "oklch(0.37 0.05 160)",
+          "oklch(0.48 0.05 160)",
+          "oklch(0.6 0.05 160)",
+          "oklch(0.71 0.05 160)",
+          "oklch(0.83 0.05 160)",
+          "oklch(0.95 0.05 160)"
+        ]
+      },
+      "tint-ink": {
+        "role": "neutral",
+        "displayName": "Tint Ink",
+        "canonical": "oklch(0.93 0.05 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.05 160)",
+          "oklch(0.26 0.05 160)",
+          "oklch(0.37 0.05 160)",
+          "oklch(0.48 0.05 160)",
+          "oklch(0.6 0.05 160)",
+          "oklch(0.71 0.05 160)",
+          "oklch(0.83 0.05 160)",
+          "oklch(0.95 0.05 160)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "canonical": "oklch(0.3 0.02 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.02 160)",
+          "oklch(0.26 0.02 160)",
+          "oklch(0.37 0.02 160)",
+          "oklch(0.48 0.02 160)",
+          "oklch(0.6 0.02 160)",
+          "oklch(0.71 0.02 160)",
+          "oklch(0.83 0.02 160)",
+          "oklch(0.95 0.02 160)"
+        ]
+      },
+      "input-stroke": {
+        "role": "neutral",
+        "displayName": "Input Stroke",
+        "canonical": "oklch(0.34 0.022 var(--store-brand-hue))",
+        "tonalRamp": [
+          "oklch(0.15 0.022 160)",
+          "oklch(0.26 0.022 160)",
+          "oklch(0.37 0.022 160)",
+          "oklch(0.48 0.022 160)",
+          "oklch(0.6 0.022 160)",
+          "oklch(0.71 0.022 160)",
+          "oklch(0.83 0.022 160)",
+          "oklch(0.95 0.022 160)"
+        ]
+      },
+      "alarm": {
+        "role": "error",
+        "displayName": "Alarm",
+        "canonical": "oklch(0.72 0.17 27)",
+        "tonalRamp": [
+          "oklch(0.15 0.17 27)",
+          "oklch(0.26 0.17 27)",
+          "oklch(0.37 0.17 27)",
+          "oklch(0.48 0.17 27)",
+          "oklch(0.6 0.17 27)",
+          "oklch(0.71 0.17 27)",
+          "oklch(0.83 0.17 27)",
+          "oklch(0.95 0.17 27)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Operator name in the home hero only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page and catalog titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Dome labels, location names; product names at 16px."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Field values, notices, meta."
+      },
+      "label": {
+        "displayName": "Field Label",
+        "purpose": "Sentence-case 13px label naming the value beneath it."
+      },
+      "figures": {
+        "displayName": "Figures",
+        "purpose": "Tabular numerals for prices, phones, counts."
+      }
+    },
+    "shadows": [
+      {
+        "name": "dome-moulding",
+        "value": "inset 0 1px 0 oklch(1 0 0 / 0.09), inset 0 -1px 0 oklch(0 0 0 / 0.25)",
+        "purpose": "Soft highlight and shade that make a dome read as clear plastic. Domes only."
+      }
+    ],
+    "perforation": {
+      "value": "outline: 2px dotted oklch(0.4 0.04 var(--store-brand-hue)); outline-offset: 6px",
+      "divider": "2px dotted, same colour",
+      "purpose": "Rings every dome and panel; with a 14px gap neighbours share one perforation."
+    },
+    "motion": [
+      {
+        "name": "rx-ease",
+        "value": "cubic-bezier(0.23, 1, 0.32, 1)",
+        "purpose": "All storefront transitions."
+      },
+      {
+        "name": "press",
+        "value": "transform: scale(0.97), 140-150ms",
+        "purpose": "Domes, pills and buttons push through on press."
+      },
+      {
+        "name": "dome-hover",
+        "value": "background-color 180ms",
+        "purpose": "Dome to lit dome, fine pointers only."
+      },
+      {
+        "name": "rx-press-in",
+        "value": "from opacity 0, scale 0.94; 520ms; stagger 70ms, capped at 260ms",
+        "purpose": "Dome groups press in once on load; off under reduced motion."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ],
+    "runtimeHue": {
+      "variable": "--store-brand-hue",
+      "default": 160,
+      "source": "--store-page-brand-hue, from the operator's saved logo colour (features/storefront/lib/rx-brand.ts)",
+      "note": "Frontmatter values are resolved at the default hue; every non-status colour takes the runtime hue."
+    }
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one foil action: Add, Place order.",
+      "html": "<button class=\"ds-btn-primary\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M5 12h14M12 5v14\"/></svg>Add to cart</button>",
+      "css": ".ds-btn-primary { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; display:inline-flex; align-items:center; gap:8px; min-height:48px; padding:0 24px; border:0; border-radius:14px; background:oklch(0.82 0.13 160); color:oklch(0.17 0.03 160); font-size:15px; font-weight:700; transition: filter 150ms cubic-bezier(0.23, 1, 0.32, 1), transform 150ms cubic-bezier(0.23, 1, 0.32, 1); cursor:pointer; } .ds-btn-primary:hover { filter:brightness(1.1); } .ds-btn-primary:focus-visible { outline:2px solid oklch(0.82 0.13 160); outline-offset:2px; } .ds-btn-primary:active { transform:scale(0.97); }"
+    },
+    {
+      "name": "Pill Track",
+      "kind": "chip",
+      "refersTo": "pill",
+      "description": "Section and category pills; the chosen one is solid ink.",
+      "html": "<div class=\"ds-track\" role=\"group\" aria-label=\"Category\"><button class=\"ds-pill\" data-active=\"true\" aria-pressed=\"true\">All</button><button class=\"ds-pill\" aria-pressed=\"false\">First aid <span class=\"ds-count\">2</span></button><button class=\"ds-pill\" aria-pressed=\"false\">Allergy <span class=\"ds-count\">1</span></button></div>",
+      "css": ".ds-track { display:inline-flex; gap:4px; padding:8px; background:oklch(0.235 0.05 160); } .ds-pill { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; display:inline-flex; align-items:center; gap:6px; min-height:40px; padding:0 16px; border:0; border-radius:14px; background:oklch(0.235 0.02 160); color:oklch(0.76 0.014 160); font-size:14px; font-weight:600; transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1), background-color 150ms cubic-bezier(0.23, 1, 0.32, 1), transform 150ms cubic-bezier(0.23, 1, 0.32, 1); cursor:pointer; } .ds-pill:hover { color:oklch(0.965 0.008 160); } .ds-pill:focus-visible { outline:2px solid oklch(0.82 0.13 160); outline-offset:2px; } .ds-pill:active { transform:scale(0.97); } .ds-pill[data-active=true] { background:oklch(0.965 0.008 160); color:oklch(0.155 0.014 160); } .ds-count { font-size:13px; font-variant-numeric:tabular-nums; opacity:.8; }"
+    },
+    {
+      "name": "Service Dome",
+      "kind": "custom",
+      "refersTo": "dome",
+      "description": "Signature cell: one service per square dome, perforated, pushes through on press.",
+      "html": "<div class=\"ds-sheet\"><a href=\"#\" class=\"ds-dome\"><svg class=\"ds-arrow\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M7 17 17 7M7 7h10v10\"/></svg><span>Refill a prescription</span></a><a href=\"#\" class=\"ds-dome\"><svg class=\"ds-arrow\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M7 17 17 7M7 7h10v10\"/></svg><span>Track an order</span></a></div>",
+      "css": ".ds-sheet { display:grid; grid-template-columns:repeat(2, 200px); gap:14px; padding:24px; background:oklch(0.235 0.05 160); } .ds-dome { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; position:relative; display:flex; flex-direction:column; justify-content:flex-end; aspect-ratio:1; padding:20px; border-radius:22px; background:oklch(0.29 0.045 160); color:oklch(0.965 0.008 160); text-decoration:none; outline:2px dotted oklch(0.4 0.04 160); outline-offset:6px; box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.09), inset 0 -1px 0 oklch(0 0 0 / 0.25); font-size:20px; font-weight:700; line-height:1.1; letter-spacing:-0.02em; transition: background-color 180ms cubic-bezier(0.23, 1, 0.32, 1), transform 140ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-dome:hover { background:oklch(0.33 0.05 160); } .ds-dome:focus-visible { outline:2px solid oklch(0.82 0.13 160); } .ds-dome:active { transform:scale(0.97); background:oklch(0.235 0.05 160); } .ds-arrow { position:absolute; top:20px; right:20px; color:oklch(0.82 0.13 160); }"
+    },
+    {
+      "name": "Field Band",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Card-stock panel with dotted row dividers and label-over-value fields.",
+      "html": "<div class=\"ds-band\"><div class=\"ds-row\"><dt class=\"ds-label\">Address</dt><dd class=\"ds-value\">100 Main Street, New York, NY</dd></div><div class=\"ds-row\"><dt class=\"ds-label\">Phone</dt><dd class=\"ds-value ds-num\">(212) 555-0142</dd></div></div>",
+      "css": ".ds-band { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; margin:12px; border-radius:22px; overflow:hidden; background:oklch(0.235 0.05 160); outline:2px dotted oklch(0.4 0.04 160); outline-offset:6px; color:oklch(0.965 0.008 160); } .ds-row { padding:16px 24px; } .ds-row + .ds-row { border-top:2px dotted oklch(0.4 0.04 160); } .ds-label { font-size:13px; line-height:18px; font-weight:600; color:oklch(0.76 0.014 160); } .ds-value { margin:4px 0 0; font-size:14px; font-weight:500; } .ds-num { font-variant-numeric:tabular-nums; letter-spacing:-0.01em; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Form field on card stock.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-label\">Email</span><input class=\"ds-input\" type=\"email\" placeholder=\"you@example.com\"></label>",
+      "css": ".ds-field { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; display:grid; gap:8px; padding:16px; background:oklch(0.235 0.05 160); } .ds-label { font-size:13px; font-weight:600; color:oklch(0.76 0.014 160); } .ds-input { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; height:44px; padding:0 16px; border:1px solid oklch(0.34 0.022 160); border-radius:14px; background:oklch(0.155 0.014 160); color:oklch(0.965 0.008 160); font-size:14px; outline:none; transition: box-shadow 150ms, border-color 150ms; } .ds-input::placeholder { color:oklch(0.76 0.014 160 / 0.7); } .ds-input:focus-visible { border-color:oklch(0.82 0.13 160); box-shadow:0 0 0 3px oklch(0.82 0.13 160 / 0.5); }"
+    },
+    {
+      "name": "Store Header",
+      "kind": "nav",
+      "refersTo": "pill-active",
+      "description": "Utility strip on card stock, then the ground bar with section pills and the ink cart button.",
+      "html": "<header class=\"ds-head\"><div class=\"ds-strip\"><span>Main Street</span><span class=\"ds-num\">(212) 555-0142</span></div><div class=\"ds-bar\"><strong>Cedar &amp; Elm Pharmacy</strong><nav class=\"ds-nav\"><a class=\"ds-navpill\" data-active=\"true\" href=\"#\">Shop</a><a class=\"ds-navpill\" href=\"#\">Prescriptions</a><a class=\"ds-navpill\" href=\"#\">Track order</a></nav><a class=\"ds-cart\" href=\"#\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0\"/></svg><span class=\"ds-num\">2</span></a></div></header>",
+      "css": ".ds-head { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; color:oklch(0.965 0.008 160); } .ds-strip { display:flex; justify-content:space-between; min-height:36px; align-items:center; padding:0 16px; font-size:13px; font-weight:500; background:oklch(0.235 0.05 160); } .ds-bar { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 16px; background:oklch(0.155 0.014 160); } .ds-nav { display:flex; gap:4px; } .ds-navpill { display:inline-flex; align-items:center; min-height:40px; padding:0 16px; border-radius:14px; background:oklch(0.235 0.02 160); color:oklch(0.76 0.014 160); font-size:14px; font-weight:600; text-decoration:none; transition: color 150ms cubic-bezier(0.23, 1, 0.32, 1), transform 150ms cubic-bezier(0.23, 1, 0.32, 1); } .ds-navpill:hover { color:oklch(0.965 0.008 160); } .ds-navpill:active, .ds-cart:active { transform:scale(0.97); } .ds-navpill:focus-visible, .ds-cart:focus-visible { outline:2px solid oklch(0.82 0.13 160); outline-offset:2px; } .ds-navpill[data-active=true] { background:oklch(0.965 0.008 160); color:oklch(0.155 0.014 160); } .ds-cart { display:inline-flex; align-items:center; gap:8px; min-height:44px; padding:0 16px; border-radius:14px; background:oklch(0.965 0.008 160); color:oklch(0.155 0.014 160); font-size:14px; font-weight:600; text-decoration:none; } .ds-num { font-variant-numeric:tabular-nums; }"
+    },
+    {
+      "name": "Title Line with Status Dot",
+      "kind": "custom",
+      "refersTo": "",
+      "description": "Heading with an 8px status dot and state on one baseline.",
+      "html": "<div class=\"ds-tl\"><h3>Cedar &amp; Elm, Main Street</h3><span class=\"ds-state\"><span class=\"ds-dot\"></span>Ordering online</span></div>",
+      "css": ".ds-tl { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px; padding:16px; background:oklch(0.155 0.014 160); color:oklch(0.965 0.008 160); } .ds-tl h3 { margin:0; font-size:20px; font-weight:700; letter-spacing:-0.02em; } .ds-state { display:inline-flex; align-items:baseline; gap:6px; font-size:14px; color:oklch(0.76 0.014 160); } .ds-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:#34d399; transform:translateY(-0.1em); }"
+    },
+    {
+      "name": "Notice",
+      "kind": "custom",
+      "refersTo": "notice",
+      "description": "Status line: muted, brand tint, or alarm.",
+      "html": "<p class=\"ds-notice\">Online ordering is off at this location.</p><p class=\"ds-notice ds-notice-danger\" role=\"alert\">Products could not be loaded. Try again.</p>",
+      "css": ".ds-notice { font-family: 'Schibsted Grotesk', ui-sans-serif, system-ui, sans-serif; margin:8px; padding:12px 16px; border-radius:14px; font-size:14px; background:oklch(0.235 0.02 160); color:oklch(0.76 0.014 160); } .ds-notice-danger { background:oklch(0.72 0.17 27 / 0.1); color:oklch(0.72 0.17 27); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Blister Card at Night",
+    "overview": "The storefront is a blister card printed in the dark. The page is a near-black ground; each working region is a sheet of card stock tinted in the operator's own hue; every service and every product sits in its own clear dome, one step lighter than the card, ringed by a dotted perforation. Neighbouring domes share one perforation, so a grid reads as a single pressed sheet rather than a set of floating cards. One bright foil accent from the same hue marks the primary action and the icons; solid ink marks the chosen pill.\n\nThe whole palette is generated from a single runtime hue (`--store-brand-hue`, default 160, set from the operator's saved logo colour). Every value below is recorded at the default hue; the lightness and chroma are the system, the hue is the operator's. Density is calm: big extrabold display type, square domes, generous 14px gaps. Motion is physical and brief: domes press in once on load and push through on press.\n\nIt refuses the warm label-paper page that came before it and the clinical white-and-teal pharmacy template.",
+    "keyCharacteristics": [
+      "Dark ground, hue-tinted card stock, lighter domes; no grey, washed-out grounds.",
+      "Dotted 2px perforation around every dome and panel, offset so neighbours meet.",
+      "Two radii only for surfaces and controls: 14px controls, 22px domes and panels.",
+      "One typeface, Schibsted Grotesk, from 400 to 800; tabular figures for numbers.",
+      "One foil accent per action; ink (solid foreground) marks selection.",
+      "Each dome holds exactly one thing."
+    ],
+    "rules": [
+      {
+        "name": "The One Hue Rule",
+        "body": "Every store colour except the status signals is `oklch(L C var(--store-brand-hue))`. Never hard-code a hue into a storefront surface; change lightness and chroma, never the hue.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Foil Rule",
+        "body": "Foil Accent is for the action and the icon, not for fills of regions. A selected state is ink, not foil.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Face Rule",
+        "body": "Schibsted Grotesk only. No second display face, no monospace; numbers get tabular figures instead.",
+        "section": "typography"
+      },
+      {
+        "name": "The Label Is a Field Rule",
+        "body": "The 13px label names the value directly beneath it. It is not a kicker above a heading.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tone Not Shadow Rule",
+        "body": "Lift a surface by stepping its lightness, never by casting a shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do derive every storefront colour from `--store-brand-hue` through the tokens above.",
+      "Do put each service or product in its own dome, 14px from its neighbours, so perforations meet.",
+      "Do use 14px for controls and 22px for domes and panels.",
+      "Do mark selection with solid Ink and action with Foil Accent.",
+      "Do set numbers in tabular figures (`rx-num`).",
+      "Do keep presses at scale 0.97 with `cubic-bezier(0.23, 1, 0.32, 1)`, and the load press-in behind `prefers-reduced-motion: no-preference`."
+    ],
+    "donts": [
+      "Don't use grey, washed-out or light grounds; the sheet is always dark and hue-tinted.",
+      "Don't cast drop shadows; depth is tone plus the dome moulding.",
+      "Don't introduce a second typeface or a monospace face.",
+      "Don't place a small label above a heading as a kicker; 13px labels name fields only.",
+      "Don't put more than one thing in a dome.",
+      "Don't use foil as a region fill or for the selected pill."
+    ]
+  }
+}
