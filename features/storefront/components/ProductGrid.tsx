@@ -62,7 +62,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
     {appliedSearch && <p className="mt-4 text-sm text-muted-foreground" aria-live="polite"><span className="rx-num">{totalCount}</span> {totalCount === 1 ? 'result' : 'results'} for “{appliedSearch}”</p>}
     {error && <p role="alert" className="mt-4 rounded-[14px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
-    <ul className="rx-press mt-10 grid grid-cols-2 gap-x-[18px] gap-y-10 lg:grid-cols-4">
+    <ul className="rx-press mt-10 grid grid-cols-2 gap-x-[14px] gap-y-10 lg:grid-cols-4">
       {visible.map((product) => {
         const availability = publicCatalogAvailability(product)
         const requirement = prescriptionRequirementLabel(product.prescriptionRequirement)

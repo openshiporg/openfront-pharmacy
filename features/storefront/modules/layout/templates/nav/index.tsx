@@ -11,7 +11,7 @@ export { NAV_LINKS } from './links'
 export default function Nav({ brand, location, cartCount }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'logoIcon' | 'logoColor' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'phone'> | null; cartCount: number }) {
   const phone = location?.phone || brand.supportPhone
   return <header className="sticky top-0 z-30">
-    {(location || phone) && <div className="bg-primary text-primary-foreground">
+    {(location || phone) && <div className="bg-[var(--rx-field)] text-foreground">
       <div className="mx-auto flex min-h-9 max-w-7xl items-center justify-between gap-4 px-4 text-[13px] sm:px-6 lg:px-8">
         <span className="min-w-0 truncate font-medium">{location?.name}</span>
         {phone && <a href={`tel:${phone}`} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 font-medium underline-offset-4 hover:underline"><Phone aria-hidden="true" className="size-3.5" /><span className="rx-num">{phone}</span></a>}

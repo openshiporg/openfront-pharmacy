@@ -67,18 +67,11 @@
   position: relative;
   border-radius: 22px;
   background: var(--rx-dome);
+  /* Offset is half the 14px gap less the width, so neighbours share one perforation. */
   outline: 2px dotted var(--rx-perf); /* taste-skill-ignore: the blister card's perforation */
-  outline-offset: 7px;
+  outline-offset: 6px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.09), inset 0 -1px 0 oklch(0 0 0 / 0.25);
   transition: background-color 180ms var(--rx-ease), transform 140ms var(--rx-ease);
-}
-.storefront-brand .rx-dome::before {
-  content: "";
-  position: absolute;
-  inset: 8px 18% auto 18%;
-  height: 22%;
-  border-radius: 999px;
-  background: oklch(1 0 0 / 0.045);
-  pointer-events: none;
 }
 .storefront-brand a.rx-dome:active,
 .storefront-brand .group:active .rx-dome { transform: scale(0.97); background: var(--rx-field); }
