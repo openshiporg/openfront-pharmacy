@@ -72,9 +72,8 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
             <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes="(max-width: 1024px) 50vw, 25vw" className="object-cover transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-[1.03]" />
             {requirement && <span className="absolute left-2.5 top-2.5 z-10 rounded-[14px] bg-background px-2.5 py-1 text-[13px] font-semibold">{requirement}</span>}
           </Link>
-          <h3 className="mt-4 flex items-start gap-2 text-[16px] font-bold leading-snug">
-            <Dot tone={availability.canOrder ? 'ok' : 'muted'} className="mt-[0.45em] translate-y-0" />
-            <Link href={href} className="min-w-0 flex-1 break-words [overflow-wrap:anywhere] hover:underline hover:underline-offset-4">{product.title}<span className="sr-only"> · {availability.canOrder ? 'In stock' : 'Unavailable'}</span></Link>
+          <h3 className="mt-4 text-[16px] font-bold leading-snug">
+            <Link href={href} className="break-words [overflow-wrap:anywhere] hover:underline hover:underline-offset-4"><Dot tone={availability.canOrder ? 'ok' : 'muted'} className="mr-2" />{product.title}<span className="sr-only"> · {availability.canOrder ? 'In stock' : 'Unavailable'}</span></Link>
           </h3>
           {product.category && <p className="mt-1 text-[13px] text-muted-foreground">{categoryLabel(product.category)}</p>}
           <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-2 pt-3">

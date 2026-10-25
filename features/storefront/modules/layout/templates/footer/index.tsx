@@ -9,7 +9,7 @@ import { NAV_LINKS } from '../nav/links'
 export default function Footer({ brand, location }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'tagline' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'address' | 'phone' | 'hours' | 'timezone'> | null }) {
   const address = formatAddress(location?.address)
   const phone = location?.phone || brand.supportPhone
-  return <footer className="mt-auto bg-[var(--rx-field)]">
+  return <footer className="mt-auto border-t-2 border-dotted border-[var(--rx-perf)] bg-[var(--rx-field)]">
     <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
       <div className="min-w-0">
         <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} />
