@@ -31,7 +31,7 @@ export function AddProductButton({ locationId, productId, label = 'Add to cart',
       {added ? <Check aria-hidden="true" className="size-4" /> : <Plus aria-hidden="true" className="size-4" />}
       {pending ? 'Adding…' : added ? 'Added' : label}
     </button>
-    {added && <Link href="/cart" className="text-xs font-semibold text-primary underline-offset-4 hover:underline">View cart</Link>}
-    {error && <p role="alert" className="max-w-60 text-xs text-destructive">{error}</p>}
+    {added && <Link href="/cart" className="text-[13px] font-semibold text-primary underline-offset-4 hover:underline">View cart</Link>}
+    {error && <p role="alert" className="max-w-60 text-[13px] text-destructive">{error}</p>}
   </div>
 }

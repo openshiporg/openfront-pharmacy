@@ -16,7 +16,7 @@ export function LocationHours({ hours, timezone, className }: { hours: WeeklyHou
     <caption className="sr-only">Opening hours</caption>
     <thead><tr className="rx-eyebrow text-left"><th scope="col" className="pb-1.5 font-normal">Day</th><th scope="col" className="pb-1.5 font-normal">Store</th><th scope="col" className="pb-1.5 font-normal">Pharmacy</th></tr></thead>
     <tbody>
-      {WEEKDAYS.map((day, index) => <tr key={day} aria-current={index === today ? 'date' : undefined} className={cn('border-t border-dashed border-[var(--rx-rule)]', index === today && 'font-semibold')}>
+      {WEEKDAYS.map((day, index) => <tr key={day} aria-current={index === today ? 'date' : undefined} className={cn('border-t-2 border-dotted border-[var(--rx-perf)]', index === today && 'font-semibold')}>
         <th scope="row" className="py-1.5 pr-3 text-left font-[inherit]">{day.slice(0, 3)}</th>
         <td className="rx-num py-1.5 pr-3">{formatDay(hours.store[index])}</td>
         <td className="rx-num py-1.5">{formatDay(hours.pharmacy[index])}</td>

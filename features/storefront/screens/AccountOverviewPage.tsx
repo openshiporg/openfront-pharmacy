@@ -30,7 +30,7 @@ export async function AccountOverviewPage() {
       <div id="account-prescriptions"><SectionHead title="Prescriptions" count={patient?.prescriptions.length} /></div>
       {patient
         ? <PatientAccountPrescriptions patientId={patient.id} prescriptions={patient.prescriptions} />
-        : <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+        : <div className="rounded-[22px] bg-card p-5 sm:p-6">
           <TitleLine as="h3" title="Register as a patient" titleClassName="text-lg" tone={pendingRegistration ? 'info' : 'muted'} state={pendingRegistration ? 'Request sent' : 'Not linked'} />
           {storefront?.location && !pendingRegistration && <div className="mt-5"><PrescriptionRequestForm kinds={['registration', 'transfer', 'new_prescription']} locationId={storefront.location.id} needsIdentity /></div>}
           {phone && <p className="mt-4 text-sm text-muted-foreground">Pharmacy <a href={`tel:${phone}`} className="rx-num font-medium text-foreground">{phone}</a></p>}
@@ -56,7 +56,7 @@ export async function AccountOverviewPage() {
           </div>
           <span className="flex shrink-0 items-center gap-2"><span className="rx-num text-sm font-medium">{formatMoney(order.totalAmount, order.currencyCode)}</span><ChevronRight aria-hidden="true" className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" /></span>
         </Link>)}</Band>
-        : <div className="rounded-2xl border border-dashed border-[var(--rx-rule)] p-5"><p className="font-medium">No orders yet</p><Link href="/products" className={`${buttonClass} mt-4`}>Shop</Link></div>}
+        : <div className="rounded-[22px] bg-card p-5"><p className="font-medium">No orders yet</p><Link href="/products" className={`${buttonClass} mt-4`}>Shop</Link></div>}
     </section>
   </div>
 }

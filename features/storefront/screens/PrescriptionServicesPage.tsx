@@ -24,14 +24,12 @@ export async function PrescriptionServicesPage() {
     <PageHead eyebrow={brand.displayName} title="Prescriptions" />
 
     <div className="mt-8 grid gap-4 md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-      <section id="refills" aria-labelledby="refills-title" className="flex flex-col rounded-2xl border border-border bg-card p-6">
-        <p className="rx-eyebrow">01</p>
-        <h2 id="refills-title" className="mt-2 text-xl font-semibold tracking-tight">Refills</h2>
+      <section id="refills" aria-labelledby="refills-title" className="flex flex-col rounded-[22px] bg-card p-6">
+        <h2 id="refills-title" className="text-xl font-semibold tracking-tight">Refills</h2>
         <div className="mt-auto pt-6"><Link href="/account" className={buttonClass}>Request a refill</Link></div>
       </section>
-      <section id="transfer" aria-labelledby="transfer-title" className="rounded-2xl border border-border bg-card p-6">
-        <p className="rx-eyebrow">02</p>
-        <h2 id="transfer-title" className="mt-2 text-xl font-semibold tracking-tight">Transfer or new prescription</h2>
+      <section id="transfer" aria-labelledby="transfer-title" className="rounded-[22px] bg-card p-6">
+        <h2 id="transfer-title" className="text-xl font-semibold tracking-tight">Transfer or new prescription</h2>
         <div className="mt-5">
           {!location
             ? <p className="text-sm text-muted-foreground">No pharmacy locations are open online.</p>
@@ -45,7 +43,7 @@ export async function PrescriptionServicesPage() {
       </section>
     </div>
 
-    <section id="location" aria-label="Pharmacy location" className="mt-4 rounded-2xl bg-muted p-6 shadow-[var(--rx-recess)]">
+    <section id="location" aria-label="Pharmacy location" className="mt-4 rounded-[22px] bg-muted p-6">
       {location
         ? <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
           <div>

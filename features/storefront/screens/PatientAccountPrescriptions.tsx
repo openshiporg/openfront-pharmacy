@@ -37,7 +37,7 @@ export function PatientAccountPrescriptions({ patientId, prescriptions }: { pati
     })
   }
 
-  if (!prescriptions.length) return <p className="rounded-2xl border border-dashed border-[var(--rx-rule)] p-5 font-medium">No prescriptions yet</p>
+  if (!prescriptions.length) return <p className="rounded-[22px] bg-card p-5 font-medium">No prescriptions yet</p>
   return <Band>{prescriptions.map((prescription) => {
     const canRefill = prescription.refillsRemaining > 0 && ['dispensed', 'fill_closed'].includes(prescription.status) && prescription.fillLineage === 'per_fill_v1' && prescription.refillEligible
     const message = messages[prescription.id]
@@ -51,10 +51,10 @@ export function PatientAccountPrescriptions({ patientId, prescriptions }: { pati
         {prescription.lastRefillStatus && <Field label="Last request"><span className="capitalize">{formatStatus(prescription.lastRefillStatus)}</span></Field>}
       </dl>
       {canRefill && !completed[prescription.id] && <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-        <Input aria-label={`Note for ${prescription.medicationName} refill (optional)`} value={note[prescription.id] || ''} onChange={(event) => setNote((value) => ({ ...value, [prescription.id]: event.target.value }))} placeholder="Note for the pharmacist (optional)" maxLength={500} className="h-11 rounded-xl bg-background" />
+        <Input aria-label={`Note for ${prescription.medicationName} refill (optional)`} value={note[prescription.id] || ''} onChange={(event) => setNote((value) => ({ ...value, [prescription.id]: event.target.value }))} placeholder="Note for the pharmacist (optional)" maxLength={500} className="h-11 rounded-[14px] bg-background" />
         <button type="button" disabled={pending} onClick={() => submitRequest(prescription)} className={`${buttonClass} shrink-0`}>{requests.current[prescription.id] ? 'Try again' : 'Request refill'}</button>
       </div>}
-      {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className={`mt-3 rounded-xl px-4 py-3 text-sm ${message.tone === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-accent text-accent-foreground'}`}>{message.text}</p>}
+      {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className={`mt-3 rounded-[14px] px-4 py-3 text-sm ${message.tone === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-accent text-accent-foreground'}`}>{message.text}</p>}
     </article>
   })}</Band>
 }

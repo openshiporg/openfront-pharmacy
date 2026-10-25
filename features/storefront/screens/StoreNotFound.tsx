@@ -8,7 +8,7 @@ export function StoreNotFound() {
     <h1 className="mt-3 text-3xl font-semibold tracking-tight">Page not found</h1>
     <div className="mt-8 flex flex-wrap justify-center gap-3">
       <Link href="/" className={buttonClass}>Home</Link>
-      <Link href="/products" className="inline-flex min-h-11 items-center rounded-full px-5 text-sm font-semibold text-primary hover:bg-muted">Shop</Link>
+      <Link href="/products" className="inline-flex min-h-11 items-center rounded-[14px] px-5 text-sm font-semibold text-primary hover:bg-muted">Shop</Link>
     </div>
   </section>
 }

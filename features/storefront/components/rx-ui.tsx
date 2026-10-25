@@ -7,10 +7,10 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 export const DOT_TONES = {
-  ok: 'bg-emerald-600',
-  warn: 'bg-amber-500',
-  danger: 'bg-red-600',
-  info: 'bg-sky-600',
+  ok: 'bg-emerald-400',
+  warn: 'bg-amber-400',
+  danger: 'bg-red-400',
+  info: 'bg-sky-400',
   brand: 'bg-primary',
   muted: 'bg-muted-foreground/45',
 } as const
@@ -30,9 +30,9 @@ export function TitleLine({ as: Tag = 'h2', title, tone, state, className, title
   </div>
 }
 
-export const trackClass = 'inline-flex max-w-full items-center gap-0.5 overflow-x-auto rounded-full bg-muted p-[3px] shadow-[var(--rx-recess)] no-scrollbar'
+export const trackClass = 'inline-flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar'
 
-export const pillClass = 'inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-[13px] font-medium text-muted-foreground transition-[color,background-color,box-shadow] duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-card data-[active=true]:text-foreground data-[active=true]:shadow-[var(--rx-raise)] max-sm:min-h-10'
+export const pillClass = 'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[14px] bg-muted px-4 text-[14px] font-semibold text-muted-foreground transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-foreground data-[active=true]:text-background max-sm:min-h-11'
 
 export function Track({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
   return <div role="group" aria-label={label} className={cn(trackClass, className)}>{children}</div>
@@ -47,7 +47,7 @@ export function PillLink({ active, className, ...props }: ComponentProps<typeof 
 }
 
 /** Primary action: a solid brand pill. */
-export const buttonClass = 'inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-primary-foreground transition-[filter,transform] duration-150 hover:brightness-110 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
+export const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] bg-primary px-6 text-[15px] font-bold text-primary-foreground transition-[filter,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-110 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
 
 /** Secondary action: a raised white pill sitting in its own recessed track. */
 export function SecondaryAction({ className, children, ...props }: ComponentProps<typeof Link>) {
@@ -56,7 +56,7 @@ export function SecondaryAction({ className, children, ...props }: ComponentProp
 
 /** A label-style band: one card with hairline-divided rows. */
 export function Band({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn('divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card', className)}>{children}</div>
+  return <div className={cn('divide-y-2 divide-dotted divide-[var(--rx-perf)] overflow-hidden rounded-[22px] bg-card', className)}>{children}</div>
 }
 
 /** Mono field label over a value, as on a dispensing label. */
@@ -70,8 +70,7 @@ export function Field({ label, children, className }: { label: string; children:
 export function PageHead({ eyebrow, title, meta, className, children }: { eyebrow?: ReactNode; title: ReactNode; meta?: ReactNode; className?: string; children?: ReactNode }) {
   return <header className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between', className)}>
     <div className="min-w-0">
-      {eyebrow && <p className="rx-eyebrow mb-2">{eyebrow}</p>}
-      <h1 className="text-[2rem] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[2.5rem]">{title}</h1>
+      <h1 className="text-[2.5rem] font-extrabold leading-[0.95] tracking-[-0.04em] text-balance sm:text-[3.5rem]">{title}</h1>
       {meta && <p className="mt-2 text-sm text-muted-foreground">{meta}</p>}
     </div>
     {children}
@@ -79,11 +78,11 @@ export function PageHead({ eyebrow, title, meta, className, children }: { eyebro
 }
 
 export function Notice({ tone = 'muted', children, className }: { tone?: 'muted' | 'danger' | 'brand'; children: ReactNode; className?: string }) {
-  return <p role={tone === 'danger' ? 'alert' : 'status'} className={cn('rounded-xl px-4 py-3 text-sm', tone === 'danger' ? 'bg-destructive/10 text-destructive' : tone === 'brand' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground', className)}>{children}</p>
+  return <p role={tone === 'danger' ? 'alert' : 'status'} className={cn('rounded-[14px] px-4 py-3 text-sm', tone === 'danger' ? 'bg-destructive/10 text-destructive' : tone === 'brand' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground', className)}>{children}</p>
 }
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
-  return <div className="rounded-2xl border border-dashed border-[var(--rx-rule)] px-6 py-14 text-center">
+  return <div className="rounded-[22px] bg-card px-6 py-14 text-center">
     <p className="font-semibold">{title}</p>
     {children && <div className="mt-4 flex justify-center">{children}</div>}
   </div>

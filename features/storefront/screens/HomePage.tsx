@@ -55,21 +55,16 @@ const COUNTER = [
 function LocationLabel({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
   const address = formatAddress(location.address)
   const services = [location.pickupEnabled && 'Pickup', location.deliveryEnabled && 'Delivery'].filter(Boolean).join(' · ')
-  return <aside aria-label="Pharmacy location" className="relative overflow-hidden rounded-[1.25rem] border border-border bg-card shadow-[0_1px_0_var(--border),0_18px_40px_-28px_oklch(0.2_0.03_var(--store-brand-hue)/0.35)]">
-    <div className="flex items-center justify-between gap-3 border-b border-dashed border-[var(--rx-rule)] px-5 py-3">
-      <span className="rx-eyebrow">Pharmacy</span>
-    </div>
-    <div className="px-5 pb-5 pt-4">
-      <TitleLine title={location.name} titleClassName="text-xl" tone={location.onlineOrderingEnabled ? 'ok' : 'warn'} state={location.onlineOrderingEnabled ? 'Ordering online' : 'Call to order'} />
-      <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4">
-        {address && <Field label="Address" className="col-span-2">{address}</Field>}
-        {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary">{phone}</a></Field>}
-        {services && <Field label="Service">{services}</Field>}
-        {location.hours && <Field label="Store"><OpenNow week={location.hours.store} timezone={location.timezone} /></Field>}
-        {location.hours && <Field label="Pharmacy counter"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} /></Field>}
-      </dl>
-      {location.hours && <Link href="/prescriptions#location" className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary">All hours</Link>}
-    </div>
+  return <aside aria-label="Pharmacy location" className="rounded-[22px] bg-background/45 px-5 pb-5 pt-4 sm:px-6">
+    <TitleLine title={location.name} titleClassName="text-xl font-bold" tone={location.onlineOrderingEnabled ? 'ok' : 'warn'} state={location.onlineOrderingEnabled ? 'Ordering online' : 'Call to order'} />
+    <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4">
+      {address && <Field label="Address" className="col-span-2">{address}</Field>}
+      {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary">{phone}</a></Field>}
+      {services && <Field label="Service">{services}</Field>}
+      {location.hours && <Field label="Store"><OpenNow week={location.hours.store} timezone={location.timezone} /></Field>}
+      {location.hours && <Field label="Pharmacy counter"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} /></Field>}
+    </dl>
+    {location.hours && <Link href="/prescriptions#location" className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary underline decoration-2 underline-offset-4">All hours</Link>}
   </aside>
 }
 
@@ -80,24 +75,23 @@ export async function HomePage() {
   const { brand, location } = storefront
 
   return <>
-    <section className="mx-auto grid max-w-7xl gap-10 px-4 pb-12 pt-10 sm:px-6 sm:pt-14 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-16 lg:px-8 lg:pb-16 lg:pt-20">
-      <div className="min-w-0">
-        {brand.tagline && <p className="rx-eyebrow">{brand.tagline}</p>}
-        <h1 className="mt-3 max-w-[14ch] text-balance text-[2.75rem] font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-[4.5rem]">{brand.displayName}</h1>
-        <nav aria-label="Pharmacy services" className="mt-10">
-          <ol className="divide-y divide-border border-y border-border">
-            {COUNTER.map((entry, index) => <li key={entry.href}>
-              <Link href={entry.href} className="group grid min-h-16 grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 py-3 transition-colors hover:text-primary">
-                <span className="rx-num text-xs text-muted-foreground">{String(index + 1).padStart(2, '0')}</span>
-                <span className="min-w-0 text-[17px] font-semibold tracking-[-0.01em]">{entry.label}</span>
-                <ArrowUpRight aria-hidden="true" className="size-4 text-muted-foreground transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary" />
+    <section aria-labelledby="rx-home-title" className="bg-[var(--rx-field)]">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-14 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14 lg:px-8 lg:pb-20 lg:pt-20">
+        <div className="flex min-w-0 flex-col">
+          <h1 id="rx-home-title" className="max-w-[12ch] text-balance text-[3rem] font-extrabold leading-[0.9] tracking-[-0.05em] sm:text-[4.5rem] lg:text-[6rem]">{brand.displayName}</h1>
+          {brand.tagline && <p className="mt-5 max-w-[34ch] text-[1.25rem] leading-[1.4] text-foreground/85 sm:text-[1.375rem]">{brand.tagline}</p>}
+          <div className="mt-10 lg:mt-auto"><LocationLabel location={location} phone={location.phone || brand.supportPhone} /></div>
+        </div>
+        <nav aria-label="Pharmacy services" className="min-w-0">
+          <ol className="rx-press grid grid-cols-2 gap-[14px] p-2">
+            {COUNTER.map((entry) => <li key={entry.href}>
+              <Link href={entry.href} className="rx-dome group flex aspect-square flex-col justify-end p-5 sm:p-7">
+                <ArrowUpRight aria-hidden="true" className="absolute right-5 top-5 size-6 text-primary transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 sm:right-7 sm:top-7" />
+                <span className="text-balance text-[1.25rem] font-bold leading-[1.1] tracking-[-0.02em] sm:text-[1.75rem]">{entry.label}</span>
               </Link>
             </li>)}
           </ol>
         </nav>
-      </div>
-      <div className="min-w-0 lg:pt-10">
-        <LocationLabel location={location} phone={location.phone || brand.supportPhone} />
       </div>
     </section>
 

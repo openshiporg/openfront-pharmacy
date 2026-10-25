@@ -12,15 +12,15 @@ import { completeCardCheckout, startCheckout, type PlaceOrderInput } from '../li
 import { Notice, Pill, Track, buttonClass } from './rx-ui'
 import { StripeCardStep } from './StripeCardStep'
 
-const inputClass = 'h-11 rounded-xl bg-card'
+const inputClass = 'h-11 rounded-[14px] bg-card'
 // Holds the order details while Stripe confirms a card, so a bank redirect can finish the order on return.
 const PENDING_CARD_KEY = 'pharmacy-checkout-card'
 
 type CardStep = { paymentSessionId: string; clientSecret: string }
 
 function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
-  return <fieldset className="grid gap-4 border-t border-border pt-6 first:border-t-0 first:pt-0">
-    <legend className="flex items-baseline gap-3 text-lg font-semibold tracking-tight"><span className="rx-num text-xs font-normal text-muted-foreground">{String(number).padStart(2, '0')}</span>{title}</legend>
+  return <fieldset className="grid gap-4 border-t-2 border-dotted border-[var(--rx-perf)] pt-6 first:border-t-0 first:pt-0">
+    <legend className="flex items-baseline gap-3 text-lg font-semibold tracking-tight"><span className="rx-num text-[13px] font-normal text-muted-foreground">{number}</span>{title}</legend>
     {children}
   </fieldset>
 }
@@ -130,7 +130,7 @@ export function CheckoutForm({ providers, pickupEnabled, deliveryEnabled, defaul
           : <Notice>Delivery orders are paid online, and card payment is not set up at this pharmacy. Choose pickup.</Notice>}
       </Step>
 
-      <label className="flex items-start gap-3 rounded-xl bg-muted px-4 py-3.5 text-sm"><input type="checkbox" name="consent" required className="mt-0.5 size-4 accent-[var(--primary)]" /><span>{CHECKOUT_PRIVACY_STATEMENT} <Link href="/privacy" target="_blank" className="font-medium text-primary underline underline-offset-4">Privacy notice</Link></span></label>
+      <label className="flex items-start gap-3 rounded-[14px] bg-muted px-4 py-3.5 text-sm"><input type="checkbox" name="consent" required className="mt-0.5 size-4 accent-[var(--primary)]" /><span>{CHECKOUT_PRIVACY_STATEMENT} <Link href="/privacy" target="_blank" className="font-medium text-primary underline underline-offset-4">Privacy notice</Link></span></label>
     </fieldset>
 
     {card && stripeKey
@@ -139,7 +139,7 @@ export function CheckoutForm({ providers, pickupEnabled, deliveryEnabled, defaul
       </Step>
       : null}
 
-    {error && <p role="alert" className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+    {error && <p role="alert" className="rounded-[14px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
     {!card && <button type="submit" disabled={pending || !available.length} className={`${buttonClass} min-h-12 w-full`}>{pending ? 'Placing order…' : available.find((provider) => provider.code === selectedCode)?.payAtPickup ? 'Place order' : 'Continue to payment'}</button>}
     {card && pending && <p role="status" className="text-sm text-muted-foreground">Placing order…</p>}
   </form>

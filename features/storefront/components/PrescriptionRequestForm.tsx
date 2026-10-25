@@ -8,8 +8,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { submitPrescriptionRequest, type RequestKind } from '../lib/data/requests'
 import { Notice, Pill, Track, buttonClass } from './rx-ui'
 
-const inputClass = 'h-11 rounded-xl bg-background'
-const areaClass = 'min-h-20 rounded-xl bg-background'
+const inputClass = 'h-11 rounded-[14px] bg-background'
+const areaClass = 'min-h-20 rounded-[14px] bg-background'
 
 const KIND_LABELS: Record<RequestKind, string> = { registration: 'New patient', transfer: 'Transfer', new_prescription: 'New prescription' }
 

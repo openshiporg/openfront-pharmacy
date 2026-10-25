@@ -45,16 +45,16 @@ export function LocationPicker({ location, locations: initialLocations, hasMore:
   if (options.length < 2 && !canSearch) return null
 
   return <section aria-labelledby="pickup-location" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-    <div className="grid gap-4 rounded-2xl border border-border bg-card p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:items-end">
+    <div className="grid gap-4 rounded-[22px] bg-card p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:items-end">
       <div className="flex min-w-0 items-start gap-3">
         <span className="mt-6 grid size-9 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground"><MapPin aria-hidden="true" className="size-4" /></span>
         <div className="min-w-0 flex-1">
           <label id="pickup-location" htmlFor="store-location" className="rx-eyebrow">Your pharmacy</label>
-          <select id="store-location" value={location.id} onChange={(event) => choose(event.target.value)} disabled={pending || Boolean(lockedReason)} className="mt-1.5 h-11 w-full rounded-xl border border-input bg-background px-3 text-[15px] font-medium disabled:opacity-70">
+          <select id="store-location" value={location.id} onChange={(event) => choose(event.target.value)} disabled={pending || Boolean(lockedReason)} className="mt-1.5 h-11 w-full rounded-[14px] border border-input bg-background px-3 text-[15px] font-medium disabled:opacity-70">
             {options.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
           </select>
           {formatAddress(location.address) && <p className="mt-2 text-sm text-muted-foreground">{formatAddress(location.address)}</p>}
-          {lockedReason && <p className="mt-1 text-xs text-muted-foreground">{lockedReason}</p>}
+          {lockedReason && <p className="mt-1 text-[13px] text-muted-foreground">{lockedReason}</p>}
           {appliedSearch && locations.length === 0 && <p className="mt-1 text-sm text-muted-foreground">No locations match this search.</p>}
         </div>
       </div>
@@ -63,7 +63,7 @@ export function LocationPicker({ location, locations: initialLocations, hasMore:
           <label className="relative min-w-0 flex-1">
             <span className="sr-only">Search pharmacy locations</span>
             <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} maxLength={100} placeholder="City, ZIP or name" className="h-9 rounded-full border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0 max-sm:h-10" />
+            <Input type="search" value={search} onChange={(event) => setSearch(event.target.value)} maxLength={100} placeholder="City, ZIP or name" className="h-9 rounded-[14px] border-0 bg-transparent pl-9 shadow-none focus-visible:ring-0 max-sm:h-10" />
           </label>
           <button type="submit" disabled={pending} data-active="true" className={`${pillClass} px-4 font-semibold`}>{pending ? 'Finding…' : 'Find'}</button>
         </form>
