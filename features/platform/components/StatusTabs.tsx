@@ -140,7 +140,7 @@ export function StatusTabs({ statusCounts, entityName = "Items" }: StatusTabsPro
         }}
       />
 
-      <div ref={scrollContainerRef} onScroll={handleScroll} className="w-full overflow-x-auto no-scrollbar px-4 md:px-6">
+      <div ref={scrollContainerRef} onScroll={handleScroll} className="relative w-full overflow-x-auto no-scrollbar px-4 md:px-6">
         <div className="relative flex space-x-[6px] items-center pb-1">
           <div
             ref={el => { tabRefs.current[0] = el }}

@@ -142,7 +142,7 @@ export function OperationalPage(props: {
 
           {filteredItems.length === 0
             ? <EmptyBand>No results match these filters</EmptyBand>
-            : <div className="min-w-0 overflow-x-auto rounded-[6px] border border-border bg-card">
+            : <div className="relative min-w-0 overflow-x-auto rounded-[6px] border border-border bg-card">
               <table aria-label={props.title} className="w-full min-w-[640px] border-collapse text-[13px]">
                 <thead className="bg-muted/50"><tr className="border-b border-border">
                   <th scope="col" className="h-8 px-3 text-left text-xs font-medium text-muted-foreground">{props.title.replace(/s$/, '')}</th>

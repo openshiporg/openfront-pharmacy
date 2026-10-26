@@ -125,7 +125,7 @@ export async function PharmacyOverviewPage() {
         <section aria-labelledby="overview-attention">
           <h2 id="overview-attention" className="mb-2 flex items-baseline gap-2 text-[13px] font-semibold text-foreground">Needs attention {attention.length > 0 && <Count>{attention.length}</Count>}</h2>
           {attention.length
-            ? <div className="overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full min-w-[420px] border-collapse text-[13px]">
+            ? <div className="relative overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full min-w-[420px] border-collapse text-[13px]">
               <thead className="bg-muted/50"><tr className="border-b border-border"><th scope="col" className={th}>Item</th><th scope="col" className={`${th} text-right`}>Count</th><th scope="col" className={th}><span className="sr-only">Action</span></th></tr></thead>
               <tbody>{attention.map((entry) => <tr key={entry.label} className="border-b border-border/70 last:border-b-0 hover:bg-muted/30">
                 <td className="px-3 py-2"><StatusText tone={entry.tone}>{entry.label}</StatusText></td>
@@ -138,7 +138,7 @@ export async function PharmacyOverviewPage() {
 
         <section aria-labelledby="overview-queues">
           <h2 id="overview-queues" className="mb-2 text-[13px] font-semibold text-foreground">Queues</h2>
-          <div className="overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full min-w-[760px] border-collapse text-[13px]">
+          <div className="relative overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full min-w-[760px] border-collapse text-[13px]">
             <thead className="bg-muted/50"><tr className="border-b border-border"><th scope="col" className={th}>Queue</th><th scope="col" className={`${th} text-right`}>Records</th><th scope="col" className={th}>Lead</th><th scope="col" className={th}>Also</th><th scope="col" className={th}>State</th><th scope="col" className={th}><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>{queues.map((queue) => <tr key={queue.href} className="border-b border-border/70 align-baseline last:border-b-0 hover:bg-muted/30">
               <td className="px-3 py-2.5 font-medium"><Link href={queue.href} className="underline-offset-4 hover:underline">{queue.title}</Link></td>

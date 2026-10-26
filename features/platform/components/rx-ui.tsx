@@ -42,7 +42,7 @@ export function Dot({ tone = 'muted', className }: { tone?: DotTone; className?:
 }
 
 /** The underline tab bar. */
-export const trackClass = 'inline-flex max-w-full items-end gap-5 overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+export const trackClass = 'relative inline-flex max-w-full items-end gap-5 overflow-x-auto border-b border-border [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
 
 /** An underline tab; the current one is underlined in the foreground colour. */
 export const pillClass = 'relative -mb-px inline-flex min-h-9 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 border-transparent pb-2 pt-1.5 text-[13px] font-medium text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:border-foreground data-[active=true]:text-foreground max-sm:min-h-10'
