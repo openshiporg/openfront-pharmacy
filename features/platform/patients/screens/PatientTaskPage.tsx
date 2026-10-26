@@ -12,7 +12,7 @@ export async function PatientTaskPage({ params }: { params: Promise<{ id: string
   if (!response.success) return <TaskPage parent={{ label: 'Patients', href: '/platform/patients' }} title="Patient unavailable" description={response.error} />
   const patient = response.data.pharmacyPatientSafeView
   return <TaskPage parent={{ label: 'Patients', href: '/platform/patients' }} meta={`Patient ${patient.patientNumber}`} title={patient.displayName} state={humanize(patient.status)} tone={statusTone(patient.status)} description={patient.organizationNames.join(', ')}>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Identity"><span className="inline-flex items-baseline gap-1.5 capitalize"><Dot tone={patient.hasIdentityEvidence && patient.identityVerificationStatus === 'confirmed' ? 'ok' : 'warn'} />{patient.hasIdentityEvidence ? humanize(patient.identityVerificationStatus) : 'Not recorded'}</span></Field>
       <Field label="Contact"><span className="capitalize">{humanize(patient.preferredContactMethod)}</span></Field>
       <Field label="Prescriptions"><Mono>{patient.prescriptionCount}</Mono></Field>

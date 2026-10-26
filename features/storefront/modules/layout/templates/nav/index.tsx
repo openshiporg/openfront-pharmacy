@@ -17,13 +17,13 @@ export default function Nav({ brand, location, cartCount }: { brand: Pick<Public
         {phone && <a href={`tel:${phone}`} className="inline-flex min-h-9 shrink-0 items-center gap-1.5 font-medium underline-offset-4 hover:underline"><Phone aria-hidden="true" className="size-3.5" /><span className="rx-num">{phone}</span></a>}
       </div>
     </div>}
-    <div className="bg-background">
+    <div className="border-b border-[var(--rx-rule)] bg-background">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
         <div className="min-w-0 flex-1"><StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} /></div>
         <DesktopNav />
         <div className="flex shrink-0 items-center justify-end gap-2 lg:flex-1">
-          <Link href="/account" className="hidden min-h-11 items-center gap-2 rounded-[14px] px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"><UserRound aria-hidden="true" className="size-4" />Account</Link>
-          <Link href="/cart" aria-label={`Cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[14px] bg-foreground px-4 text-sm font-semibold text-background transition-transform active:scale-[0.97]"><ShoppingBag aria-hidden="true" className="size-4" /><span className="rx-num">{cartCount}</span></Link>
+          <Link href="/account" className="hidden min-h-11 items-center gap-2 rounded-[4px] px-3 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground md:inline-flex"><UserRound aria-hidden="true" className="size-4" />Account</Link>
+          <Link href="/cart" aria-label={`Cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`} className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-[4px] bg-primary px-4 text-sm font-bold text-primary-foreground shadow-[inset_0_1px_0_oklch(1_0_0/0.25)] transition-transform active:translate-y-px"><ShoppingBag aria-hidden="true" className="size-4" /><span className="rx-num">{cartCount}</span></Link>
           <MobileMenu brand={brand} />
         </div>
       </div>

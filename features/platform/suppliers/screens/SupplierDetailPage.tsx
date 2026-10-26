@@ -26,7 +26,7 @@ export async function SupplierDetailPage({ params }: { params: Promise<{ id: str
   const received = supplier.inventoryLots.reduce((sum, lot) => sum + lot.quantityReceived, 0)
 
   return <TaskPage parent={parent} meta="Supplier" title={supplier.name} state={humanize(supplier.status)} tone={statusTone(supplier.status === 'pending_validation' ? 'pending_review' : supplier.status)} description={supplier.organization?.name} actions={<RecordDrawerButton listPath="suppliers" itemId={supplier.id} label="Edit" />}>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Account">{supplier.accountReference ? <Mono>{supplier.accountReference}</Mono> : 'Not recorded'}</Field>
       <Field label="Lots received"><Mono>{supplier.inventoryLotsCount}</Mono></Field>
       <Field label="Units (last 50 lots)"><Mono>{received}</Mono></Field>

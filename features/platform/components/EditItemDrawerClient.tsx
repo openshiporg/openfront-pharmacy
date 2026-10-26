@@ -255,7 +255,7 @@ export function EditItemDrawerClient({
       <DrawerHeader className="flex-shrink-0">
         <DrawerTitle>Edit {list.singular}</DrawerTitle>
         <div className="mt-2">
-          <div className="relative border rounded-md bg-muted/40 transition-all">
+          <div className="relative border rounded-[6px] bg-muted/40 transition-all">
             <div className="p-1 flex items-center gap-3">
               <div className="flex gap-3 flex-1 min-w-0">
                 <div className="flex-shrink-0">

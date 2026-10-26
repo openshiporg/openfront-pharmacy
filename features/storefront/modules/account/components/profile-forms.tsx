@@ -7,7 +7,7 @@ import { buttonClass } from '../../../components/rx-ui'
 import { updateCustomerEmail, updateCustomerName, updateCustomerPassword } from '../../../lib/data/user'
 
 const initial = { success: false, error: null as string | null }
-const inputClass = 'h-11 rounded-[14px] bg-background'
+const inputClass = 'h-11 rounded-[4px] bg-background'
 
 function Status({ state, message }: { state: typeof initial; message: string }) {
   if (state.error) return <p role="alert" className="text-sm text-destructive">{state.error}</p>

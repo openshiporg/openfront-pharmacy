@@ -18,7 +18,7 @@ export async function LocationDetailPage({ params }: { params: Promise<{ id: str
   const location = response.data.pharmacyLocation
 
   return <TaskPage parent={parent} meta={`Location ${location.code}`} title={location.name} state={humanize(location.status)} tone={statusTone(location.status === 'temporarily_closed' ? 'on_hold' : location.status)} description={formatLocationAddress(location.address) || location.organization?.name}>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Phone">{location.phone ? <Mono>{location.phone}</Mono> : 'Not recorded'}</Field>
       <Field label="Staff"><Mono>{location.membershipsCount}</Mono></Field>
       <Field label="Products"><Mono>{location.productsCount}</Mono></Field>

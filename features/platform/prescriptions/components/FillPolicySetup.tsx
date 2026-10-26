@@ -18,7 +18,7 @@ export function FillPolicySetup({ organizations }: { organizations: PharmacyTask
   }, [organizationId])
   if (!organizations.length) return <p>Organization-wide membership required.</p>
   return <section className="space-y-4">
-        <label className="block text-sm">Organization<select className="mt-2 block w-full rounded-lg border bg-background px-3 py-2" value={organizationId} onChange={e => setOrganizationId(e.target.value)}>{organizations.map(org => <option key={org.id} value={org.id}>{org.label}</option>)}</select></label>
+        <label className="block text-sm">Organization<select className="mt-2 block w-full rounded-[5px] border bg-background px-3 py-2" value={organizationId} onChange={e => setOrganizationId(e.target.value)}>{organizations.map(org => <option key={org.id} value={org.id}>{org.label}</option>)}</select></label>
     {readback && <><p className="flex items-baseline gap-2 text-sm font-medium"><Dot tone={readback.configured ? 'ok' : 'warn'} />{readback.configured ? `Configured · ${readback.version}` : 'Not configured'}</p><PrescriptionFillWorkbench key={organizationId} prescriptionId="" setupOnly onPolicyRecorded={() => unwrapAction(loadFillPolicyAction(organizationId)).then(setReadback).catch(cause => setError(cause instanceof Error ? cause.message : "Policy readback unavailable"))} workbench={{ organizationId, policyConfigured: readback.configured, canConfigure: true, items: [], fills: [], totalCount: 0, hasMore: false }} /></>}
     {!readback && !error && organizationId && <p role="status">Checking current policy authority…</p>}
     {error && <p role="alert" className="text-sm text-red-700 dark:text-red-300">{error}</p>}

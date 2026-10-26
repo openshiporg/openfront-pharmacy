@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Pill, Track, buttonClass } from '../components/rx-ui'
 import { login, signUp } from '../lib/data/user'
 
-const inputClass = 'h-11 rounded-[14px] bg-background'
+const inputClass = 'h-11 rounded-[4px] bg-background'
 
 export function LoginPage({ from }: { from?: string }) {
   const [view, setView] = useState<'signin' | 'signup'>('signin')
@@ -24,7 +24,7 @@ export function LoginPage({ from }: { from?: string }) {
       <Pill active={view === 'signin'} onClick={() => setView('signin')} className="min-w-32">Sign in</Pill>
       <Pill active={view === 'signup'} onClick={() => setView('signup')} className="min-w-32">Create account</Pill>
     </Track>
-    <div className="rx-card p-6 sm:p-8">
+    <div className="rx-panel p-6 sm:p-8">
       <h1 className="text-2xl font-semibold tracking-tight">{view === 'signin' ? 'Sign in' : 'Create account'}</h1>
 
       {view === 'signin'

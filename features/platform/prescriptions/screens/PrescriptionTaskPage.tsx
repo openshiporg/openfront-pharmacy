@@ -20,7 +20,7 @@ export async function PrescriptionTaskPage({ params }: { params: Promise<{ id: s
   const workbench = fillResponse.success ? fillResponse.data.pharmacyFillWorkbench : undefined
   const identityConfirmed = prescription.patientIdentityEvidenceRecorded && prescription.patientIdentityVerificationStatus === 'confirmed'
   return <TaskPage parent={{ label: 'Prescriptions', href: '/platform/prescriptions' }} meta="Prescription" title={prescription.prescriptionNumber} state={humanize(prescription.status)} tone={statusTone(prescription.status)} description={`${prescription.patientDisplayName} · ${prescription.prescriberName} · ${prescription.locationName}`}>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Source">{humanize(prescription.source)} · {humanize(prescription.sourceVerificationStatus)}</Field>
       <Field label="Prescriber">{humanize(prescription.prescriberVerificationStatus)}</Field>
       <Field label="Written">{prescription.writtenAt ? formatCalendarDate(prescription.writtenAt) : 'Not reported'}</Field>

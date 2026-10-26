@@ -71,7 +71,7 @@ export function StripeCardStep({ publishableKey, clientSecret, returnUrl, totalL
 
   return <div className="grid gap-4">
     <div ref={mountRef} className="min-h-24" aria-busy={!ready} />
-    {error && <p role="alert" className="rounded-[14px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+    {error && <p role="alert" className="rounded-[4px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
     <button type="button" onClick={pay} disabled={!ready || pending} className={`${buttonClass} min-h-12 w-full`}>{pending ? 'Paying…' : `Pay ${totalLabel}`}</button>
   </div>
 }

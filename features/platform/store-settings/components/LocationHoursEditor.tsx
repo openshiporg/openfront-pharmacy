@@ -19,9 +19,9 @@ function DayRow({ day, value, onChange }: { day: string; value: DayHours; onChan
     </Track>
     {value
       ? <div className="col-span-2 flex min-w-0 items-center gap-1.5 sm:col-span-1">
-        <Input type="time" aria-label={`${day} opens`} value={value.open} onChange={(event) => onChange({ ...value, open: event.target.value })} className="h-9 min-w-0 rounded-full font-mono tabular-nums" />
+        <Input type="time" aria-label={`${day} opens`} value={value.open} onChange={(event) => onChange({ ...value, open: event.target.value })} className="h-9 min-w-0 rounded-[5px] tabular-nums" />
         <span aria-hidden="true" className="text-muted-foreground">–</span>
-        <Input type="time" aria-label={`${day} closes`} value={value.close} onChange={(event) => onChange({ ...value, close: event.target.value })} className="h-9 min-w-0 rounded-full font-mono tabular-nums" />
+        <Input type="time" aria-label={`${day} closes`} value={value.close} onChange={(event) => onChange({ ...value, close: event.target.value })} className="h-9 min-w-0 rounded-[5px] tabular-nums" />
       </div>
       : <span className="col-span-2 text-sm text-muted-foreground sm:col-span-1">Closed</span>}
   </div>
@@ -50,7 +50,7 @@ export function LocationHoursEditor({ location }: { location: StoreLocationHours
     })
   }
 
-  return <section className="space-y-4 rounded-xl bg-background p-4 ring-1 ring-border sm:p-5">
+  return <section className="space-y-4 rounded-[6px] bg-background p-4 border border-border sm:p-5">
     <div className="flex flex-wrap items-baseline justify-between gap-3">
       <TitleLine as="h2" title={location.name} titleClassName="text-sm" tone={location.hours ? 'ok' : 'warn'} state={location.hours ? 'Hours set' : 'No hours yet'} />
       <Track label="Hours for">
@@ -60,7 +60,7 @@ export function LocationHoursEditor({ location }: { location: StoreLocationHours
     </div>
     <div className="divide-y divide-dashed">{WEEKDAYS.map((day, index) => <DayRow key={day} day={day} value={hours[counter][index]} onChange={(next) => setDay(index, next)} />)}</div>
     <div className="flex flex-wrap items-end gap-3">
-      <label className="grid gap-1.5 text-sm font-medium">Time zone<Input value={timezone} onChange={(event) => setTimezone(event.target.value)} maxLength={64} className="h-9 w-56 rounded-full font-mono" /></label>
+      <label className="grid gap-1.5 text-sm font-medium">Time zone<Input value={timezone} onChange={(event) => setTimezone(event.target.value)} maxLength={64} className="h-9 w-56 rounded-[5px]" /></label>
       <Button onClick={save} disabled={pending}>{pending ? 'Saving…' : 'Save hours'}</Button>
       {savedAt && <p role="status" className="pb-2 text-sm text-muted-foreground">Saved {savedAt}</p>}
     </div>

@@ -27,7 +27,7 @@ export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id
   const name = `${drug.proprietaryName}${drug.strength ? ` ${drug.strength}` : ''}`
 
   return <TaskPage parent={parent} meta={`NDC ${drug.ndc11}`} title={name} state={activeReview ? humanize(activeReview.marketingStatusSnapshot) : 'Not reviewed'} tone={activeReview ? statusTone(activeReview.marketingStatusSnapshot === 'active' ? 'active' : 'inactive') : 'warn'} description={drug.genericName || undefined} actions={<RecordDrawerButton listPath="drug-references" itemId={drug.id} label="Edit" />}>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Dosage form">{drug.dosageForm || 'Not recorded'}</Field>
       <Field label="Route">{drug.route || 'Not recorded'}</Field>
       <Field label="Schedule">{humanize(drug.controlledSchedule)}</Field>
@@ -47,7 +47,7 @@ export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id
     </TaskSection>
 
     <TaskSection title="Products" count={drug.products.length}>
-      {drug.products.length ? <ListBand>{drug.products.map((product) => <Link key={product.id} href={`/dashboard/platform/products/${product.id}`} className="block bg-background px-3.5 py-2.5 hover:bg-muted/40"><TitleLine as="h3" titleClassName="text-sm" title={product.title} tone={statusTone(product.status === 'published' ? 'active' : product.status === 'archived' ? 'inactive' : 'draft')} state={humanize(product.status)} /><span className="font-mono text-[11px] text-muted-foreground">{product.sku}</span></Link>)}</ListBand> : <p className="text-sm text-muted-foreground">No products use this reference.</p>}
+      {drug.products.length ? <ListBand>{drug.products.map((product) => <Link key={product.id} href={`/dashboard/platform/products/${product.id}`} className="block bg-background px-3.5 py-2.5 hover:bg-muted/40"><TitleLine as="h3" titleClassName="text-sm" title={product.title} tone={statusTone(product.status === 'published' ? 'active' : product.status === 'archived' ? 'inactive' : 'draft')} state={humanize(product.status)} /><span className="text-xs text-muted-foreground">{product.sku}</span></Link>)}</ListBand> : <p className="text-sm text-muted-foreground">No products use this reference.</p>}
     </TaskSection>
   </TaskPage>
 }

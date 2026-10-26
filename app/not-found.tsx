@@ -5,7 +5,7 @@ import { rxFontClass } from '@/features/storefront/lib/fonts'
 import { storeBrandStyle } from '@/features/storefront/lib/rx-brand'
 import { MainLayout } from '@/features/storefront/screens/MainLayout'
 import { StoreNotFound } from '@/features/storefront/screens/StoreNotFound'
-import './(storefront)/storefront.css'
+import './(storefront)/apothecary.css'
 
 // Unmatched URLs get the storefront's own 404 with its header and footer, not the bare Next.js page.
 export default async function NotFound() {

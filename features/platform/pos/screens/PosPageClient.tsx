@@ -5,7 +5,7 @@ import { decimalToMinorUnits } from '@/features/lib/minor-units'
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 import { CheckCircle2, Minus, Plus, Search, ShoppingBasket } from 'lucide-react'
 
-import { Callout, Count, Dot, EmptyBand, ListBand, Mono, Pill, RxButton as Button, TitleLine, Track, pillClass, trackClass } from '@/features/platform/components/rx-ui'
+import { Callout, Count, Dot, EmptyBand, ListBand, Mono, Pill, RxButton as Button, TitleLine, Track, buttonClass } from '@/features/platform/components/rx-ui'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -140,7 +140,7 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
     <PageBreadcrumbs items={breadcrumbs} actions={<span className="flex items-center gap-2 text-sm text-muted-foreground"><ShoppingBasket className="size-4" /><Mono>{itemCount}</Mono></span>} />
     <div className="space-y-4 p-4 pb-28 md:p-6 lg:pb-6">
       <header>
-        <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{location.name}</p>
+        <p className="text-xs text-muted-foreground">{location.name}</p>
         <TitleLine className="mt-1" title="Point of Sale" tone={location.cashSalesEnabled ? 'ok' : 'warn'} state={location.cashSalesEnabled ? 'Cash sales on' : 'Cash sales off'} />
       </header>
 
@@ -148,7 +148,7 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
       {error && <Callout tone="danger">{error}</Callout>}
       {isPending && <p role="status" className="sr-only">Recording cash sale</p>}
 
-      {receipt && <section className="mx-auto w-full max-w-md rounded-xl bg-background p-5 font-mono text-[13px] ring-1 ring-border print:max-w-none print:ring-0" aria-label="Cash receipt">
+      {receipt && <section className="mx-auto w-full max-w-md rounded-[6px] bg-background p-5 font-mono text-[13px] border border-border print:max-w-none print:ring-0" aria-label="Cash receipt">
         <div className="flex items-start justify-between gap-4 border-b border-dashed pb-3 font-sans">
           <div><p className="text-base font-semibold">{location.operatorDisplayName}</p><p className="text-xs text-muted-foreground">{location.name}{location.operatorPhone ? ` · ${location.operatorPhone}` : ''}</p></div>
           <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">Print</Button>
@@ -160,18 +160,18 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start">
         <div className="min-w-0 space-y-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <label className={`${trackClass} relative min-w-0 flex-1 basis-56 overflow-visible`}>
+          <div className="flex flex-wrap items-end gap-x-5 gap-y-2 border-b border-border">
+            <label className="relative mb-2 min-w-0 flex-1 basis-56">
               <span className="sr-only">Search products</span>
-              <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, SKU or category" className="h-8 rounded-full border-0 bg-transparent pl-8 shadow-none focus-visible:ring-0 max-sm:h-10 dark:bg-transparent" />
+              <Search aria-hidden="true" className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name, SKU or category" className="h-8 rounded-[5px] pl-8 max-sm:h-10" />
             </label>
-            <Track label="Stock">
+            <Track label="Stock" className="border-b-0">
               <Pill active={stockFilter === 'available'} onClick={() => setStockFilter('available')}>In stock <Count>{stockCounts.available}</Count></Pill>
               <Pill active={stockFilter === 'unavailable'} onClick={() => setStockFilter('unavailable')}>Out <Count>{stockCounts.unavailable}</Count></Pill>
               <Pill active={stockFilter === 'all'} onClick={() => setStockFilter('all')}>All <Count>{stockCounts.all}</Count></Pill>
             </Track>
-            <Track label="Sort">
+            <Track label="Sort" className="border-b-0">
               <Pill active={sort === 'title'} onClick={() => setSort('title')}>Name</Pill>
               <Pill active={sort === 'price-low'} onClick={() => setSort('price-low')}>Lowest price</Pill>
               <Pill active={sort === 'price-high'} onClick={() => setSort('price-high')}>Highest price</Pill>
@@ -180,42 +180,42 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
           </div>
           {visibleProducts.length === 0
             ? <EmptyBand>{products.length === 0 ? 'No products available' : 'No products match your search'}</EmptyBand>
-            : <ListBand className="bg-border/60">{visibleProducts.map((product) => {
+            : <ListBand>{visibleProducts.map((product) => {
               const quantity = cart[product.id] || 0
               const available = (product.availableQuantity || 0) > 0
-              return <div key={product.id} className={`flex items-center gap-3 px-3.5 py-2.5 sm:px-4 ${quantity > 0 ? 'bg-teal-50/70 dark:bg-teal-950/20' : 'bg-background'}`}>
+              return <div key={product.id} className={`flex items-center gap-3 px-3.5 py-2.5 sm:px-4 ${quantity > 0 ? 'bg-teal-50/70 dark:bg-teal-950/20' : 'bg-card'}`}>
                 <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 items-baseline gap-2"><Dot tone={available ? 'ok' : 'muted'} /><h2 className="truncate text-sm font-semibold text-foreground">{product.title}</h2></div>
-                  <p className="mt-0.5 truncate pl-4 font-mono text-[11px] text-muted-foreground">{product.sku} · {product.availableQuantity || 0} on hand</p>
+                  <div className="flex min-w-0 items-baseline gap-2"><Dot tone={available ? 'ok' : 'muted'} /><h2 className="truncate text-[13px] font-medium text-foreground">{product.title}</h2></div>
+                  <p className="mt-0.5 truncate pl-3 text-xs text-muted-foreground">{product.sku} · {product.availableQuantity || 0} on hand</p>
                 </div>
                 <Mono className="shrink-0 text-sm">{money(product.priceAmount, product.currencyCode)}</Mono>
-                <div role="group" aria-label={`Quantity of ${product.title}`} className={`${trackClass} shrink-0 gap-0.5`}>
-                  <button type="button" className={`${pillClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity - 1)} disabled={intentUnresolved || quantity === 0} aria-label={`Remove one ${product.title} from cart`}><Minus className="size-3.5" /></button>
+                <div role="group" aria-label={`Quantity of ${product.title}`} className="flex shrink-0 items-center gap-1">
+                  <button type="button" className={`${buttonClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity - 1)} disabled={intentUnresolved || quantity === 0} aria-label={`Remove one ${product.title} from cart`}><Minus className="size-3.5" /></button>
                   <Mono className="w-6 text-center text-sm" aria-label={`${quantity} ${product.title} in cart`}>{quantity}</Mono>
-                  <button type="button" data-active={available} className={`${pillClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity + 1)} disabled={intentUnresolved || !available || quantity >= (product.availableQuantity || 0)} aria-label={`Add one ${product.title} to cart`}><Plus className="size-3.5" /></button>
+                  <button type="button" className={`${buttonClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity + 1)} disabled={intentUnresolved || !available || quantity >= (product.availableQuantity || 0)} aria-label={`Add one ${product.title} to cart`}><Plus className="size-3.5" /></button>
                 </div>
               </div>
             })}</ListBand>}
         </div>
 
-        <aside id="sale" aria-label="Sale" className="space-y-4 rounded-xl bg-background p-4 ring-1 ring-border sm:p-5 lg:sticky lg:top-4">
+        <aside id="sale" aria-label="Sale" className="space-y-4 rounded-[6px] border border-border bg-card p-4 lg:sticky lg:top-4">
           <div className="flex items-baseline justify-between gap-3"><h2 className="text-sm font-semibold text-foreground">Sale</h2><Count>{itemCount} items</Count></div>
           {lines.length > 0 && <ul className="grid gap-1 text-sm">{lines.map((line) => <li key={line.product.id} className="flex justify-between gap-3"><span className="min-w-0 truncate"><Mono className="text-muted-foreground">{line.quantity}×</Mono> {line.product.title}</span><Mono>{money(line.product.priceAmount * line.quantity)}</Mono></li>)}</ul>}
-          <div className="grid gap-2"><Label>Customer</Label><Select value={customerCartId || WALK_IN} disabled={intentUnresolved} onValueChange={(value) => setCustomerCartId(value === WALK_IN ? '' : value)}><SelectTrigger aria-label="Customer" className="rounded-full"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={WALK_IN}>Walk-in</SelectItem>{customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-2"><Label>Customer</Label><Select value={customerCartId || WALK_IN} disabled={intentUnresolved} onValueChange={(value) => setCustomerCartId(value === WALK_IN ? '' : value)}><SelectTrigger aria-label="Customer" className="rounded-[5px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={WALK_IN}>Walk-in</SelectItem>{customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.label}</SelectItem>)}</SelectContent></Select></div>
           <div className="grid gap-2"><span className="text-sm font-medium">Handoff</span><Track label="Handoff" className="w-fit"><Pill active={fulfillmentMethod === 'pos'} disabled={intentUnresolved} onClick={() => setFulfillmentMethod('pos')}>Collected now</Pill><Pill active={fulfillmentMethod === 'pickup'} disabled={intentUnresolved} onClick={() => setFulfillmentMethod('pickup')}>Pickup later</Pill></Track></div>
-          <dl className="grid gap-1.5 border-y border-dashed py-3 text-sm"><div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd><Mono>{money(subtotal)}</Mono></dd></div><div className="flex justify-between"><dt className="text-muted-foreground">Tax</dt><dd><Mono>{money(tax)}</Mono></dd></div><div className="flex items-baseline justify-between pt-1"><dt className="font-semibold">Total</dt><dd><Mono className="text-2xl">{money(total)}</Mono></dd></div></dl>
+          <dl className="grid gap-1.5 border-y border-border py-3 text-sm"><div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd><Mono>{money(subtotal)}</Mono></dd></div><div className="flex justify-between"><dt className="text-muted-foreground">Tax</dt><dd><Mono>{money(tax)}</Mono></dd></div><div className="flex items-baseline justify-between pt-1"><dt className="font-semibold">Total</dt><dd><Mono className="text-2xl">{money(total)}</Mono></dd></div></dl>
           {!location.cashSalesEnabled && <Callout tone="warn">Cash sales are not enabled for this pharmacy.</Callout>}
-          <div className="grid gap-2"><Label htmlFor="pos-cash">Cash received (USD)</Label><Input id="pos-cash" inputMode="decimal" value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} disabled={intentUnresolved} className="h-10 rounded-full font-mono tabular-nums" />
-            {tenders.length > 0 && !intentUnresolved && <Track label="Quick cash amounts" className="w-fit">{tenders.map((amount, index) => <Pill key={amount} active={cashReceivedAmount === amount} onClick={() => setCashReceived((amount / 100).toFixed(2))}>{index === 0 && amount === total ? 'Exact' : money(amount)}</Pill>)}</Track>}
+          <div className="grid gap-2"><Label htmlFor="pos-cash">Cash received (USD)</Label><Input id="pos-cash" inputMode="decimal" value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} disabled={intentUnresolved} className="h-9 rounded-[5px] tabular-nums" />
+            {tenders.length > 0 && !intentUnresolved && <div role="group" aria-label="Quick cash amounts" className="flex flex-wrap gap-1.5">{tenders.map((amount, index) => <button type="button" key={amount} aria-pressed={cashReceivedAmount === amount} onClick={() => setCashReceived((amount / 100).toFixed(2))} className={`${buttonClass} tabular-nums aria-pressed:border-foreground aria-pressed:bg-muted`}>{index === 0 && amount === total ? 'Exact' : money(amount)}</button>)}</div>}
           </div>
-          {cashReceivedAmount >= total && total > 0 && <div className="flex items-baseline justify-between rounded-xl bg-emerald-50 px-4 py-3 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100"><span className="text-sm font-medium">Change due</span><Mono className="text-xl">{money(cashReceivedAmount - total)}</Mono></div>}
-          <div className="grid gap-2"><Label htmlFor="pos-reason">Note</Label><Input id="pos-reason" value={reason} onChange={(event) => setReason(event.target.value)} disabled={intentUnresolved} className="h-10 rounded-full" /></div>
+          {cashReceivedAmount >= total && total > 0 && <div className="flex items-baseline justify-between rounded-[6px] bg-emerald-50 px-4 py-3 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100"><span className="text-sm font-medium">Change due</span><Mono className="text-xl">{money(cashReceivedAmount - total)}</Mono></div>}
+          <div className="grid gap-2"><Label htmlFor="pos-reason">Note</Label><Input id="pos-reason" value={reason} onChange={(event) => setReason(event.target.value)} disabled={intentUnresolved} className="h-9 rounded-[5px]" /></div>
           <label className="flex items-start gap-3 text-sm"><Checkbox checked={attested} onCheckedChange={(checked) => setAttested(checked === true)} disabled={intentUnresolved} className="mt-0.5" />I received the cash and will return the change shown.</label>
           <Button onClick={sell} disabled={isPending || (!intentUnresolved && !location.cashSalesEnabled) || (intentUnresolved ? !pendingIntent.current : (!lines.length || cashReceivedAmount < total || reason.trim().length < 8 || !attested))} className="min-h-11 w-full">{isPending ? 'Recording…' : intentUnresolved ? 'Retry sale' : 'Record cash sale'}</Button>
         </aside>
       </div>
     </div>
 
-    {itemCount > 0 && <a href="#sale" className="fixed inset-x-3 bottom-3 z-20 flex min-h-12 items-center justify-between rounded-full bg-foreground px-5 text-sm font-semibold text-background shadow-lg lg:hidden"><span><Mono>{itemCount}</Mono> items</span><Mono>{money(total)}</Mono></a>}
+    {itemCount > 0 && <a href="#sale" className="fixed inset-x-3 bottom-3 z-20 flex min-h-12 items-center justify-between rounded-[6px] bg-foreground px-5 text-sm font-semibold text-background shadow-lg lg:hidden"><span><Mono>{itemCount}</Mono> items</span><Mono>{money(total)}</Mono></a>}
   </section>
 }

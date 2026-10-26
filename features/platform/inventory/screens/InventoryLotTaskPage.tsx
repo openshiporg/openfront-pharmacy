@@ -15,10 +15,10 @@ export async function InventoryLotTaskPage({ params }: { params: Promise<{ id: s
   const lot = response.data.pharmacyInventoryLotTask
   const expires = new Date(lot.expirationDate)
   return <TaskPage parent={{ label: 'Inventory', href: '/platform/inventory' }} meta={`Lot ${lot.lotNumber}`} title={lot.productTitle} state={humanize(lot.status)} tone={statusTone(lot.status)} description={`${lot.productSku} · ${lot.locationName}${lot.storageBin ? ` · Bin ${lot.storageBin}` : ''}`}>
-    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border sm:grid-cols-4">
-      {[['Received', lot.quantityReceived], ['Available', lot.quantityAvailable], ['Quarantined', lot.quantityQuarantined], ['Eligible', lot.eligibleQuantity]].map(([label, value]) => <div key={label} className="bg-background px-4 py-3"><dt className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-muted-foreground">{label}</dt><dd className="mt-1 font-mono text-xl tabular-nums">{value}</dd></div>)}
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-[6px] bg-border border border-border sm:grid-cols-4">
+      {[['Received', lot.quantityReceived], ['Available', lot.quantityAvailable], ['Quarantined', lot.quantityQuarantined], ['Eligible', lot.eligibleQuantity]].map(([label, value]) => <div key={label} className="bg-background px-4 py-3"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 font-mono text-xl tabular-nums">{value}</dd></div>)}
     </dl>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Expires">{expires.toLocaleDateString()}</Field>
       <Field label="Received">{lot.receivedAt ? formatDay(lot.receivedAt, timeZone) : 'Not reported'}</Field>
       <Field label="Serial">{lot.serialNumber ? <Mono>{lot.serialNumber}</Mono> : 'None'}</Field>

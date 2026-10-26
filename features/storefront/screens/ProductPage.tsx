@@ -35,13 +35,13 @@ export async function ProductPage({ params }: Props) {
   return <div className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-16">
     <Link href="/products" className="inline-flex min-h-11 items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground"><ArrowLeft aria-hidden="true" className="size-4" />Shop</Link>
     <section className="mt-4 grid gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:gap-14">
-      <div className="rx-dome relative m-2 aspect-square overflow-hidden">
+      <div className="rx-drawer relative m-2 aspect-square overflow-hidden">
         <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes="(max-width: 1024px) 100vw, 55vw" />
       </div>
       <div className="min-w-0 lg:pt-4">
         <TitleLine as="h1" title={product.title} titleClassName="text-[2rem] leading-[1.1] tracking-[-0.025em] sm:text-[2.5rem]" tone={availability.canOrder ? 'ok' : 'muted'} state={availability.canOrder ? 'In stock' : 'Unavailable'} />
         {product.category && <p className="mt-2 text-sm text-muted-foreground">{categoryLabel(product.category)}</p>}
-        <p className="mt-4 text-[2rem] font-extrabold tracking-[-0.02em]">{price}</p>
+        <p className="rx-display rx-gold rx-num mt-4 text-[2.5rem]">{price}</p>
         {product.description && <p className="mt-5 max-w-prose text-[15px] leading-7 text-muted-foreground">{product.description}</p>}
 
         <div className="mt-7 hidden sm:block">
@@ -50,7 +50,7 @@ export async function ProductPage({ params }: Props) {
             : <Notice>{location.onlineOrderingEnabled ? 'Unavailable at this pharmacy.' : 'Online ordering is off at this pharmacy. Call to order.'}</Notice>}
         </div>
 
-        <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 border-t-2 border-dotted border-[var(--rx-perf)] pt-6">
+        <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-5 border-t border-[var(--rx-rule)] pt-6">
           <Field label="Pharmacy">{location.name}</Field>
           <Field label="SKU"><span className="rx-num">{product.sku}</span></Field>
           <Field label="Prescription">{requirement || 'Not required'}</Field>
@@ -67,7 +67,7 @@ export async function ProductPage({ params }: Props) {
       <ul className="mt-6 grid grid-cols-2 gap-x-4 gap-y-8 sm:gap-x-6 lg:grid-cols-4">
         {related.map((entry) => <li key={entry.id} className="min-w-0">
           <Link href={`/products/${encodeURIComponent(entry.handle)}`} className="group block">
-            <span className="rx-dome relative block aspect-square overflow-hidden"><ProductImage src={entry.imageUrl} alt={entry.title} fallbackLabel={entry.title} sizes="(max-width: 1024px) 50vw, 25vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /></span>
+            <span className="rx-drawer relative block aspect-square overflow-hidden"><ProductImage src={entry.imageUrl} alt={entry.title} fallbackLabel={entry.title} sizes="(max-width: 1024px) 50vw, 25vw" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /></span>
             <span className="mt-3 block text-[15px] font-semibold leading-snug group-hover:underline group-hover:underline-offset-4">{entry.title}</span>
             <span className="rx-num mt-1 block text-sm text-muted-foreground">{formatMoney(entry.priceAmount, entry.currencyCode)}</span>
           </Link>
@@ -75,7 +75,7 @@ export async function ProductPage({ params }: Props) {
       </ul>
     </section>}
 
-    <div className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-dotted border-[var(--rx-perf)] bg-background px-4 py-3 sm:hidden">
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--rx-rule)] bg-background px-4 py-3 sm:hidden">
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0"><p className="truncate text-sm font-semibold">{product.title}</p><p className="text-sm text-muted-foreground">{price}</p></div>
         {canBuy ? <AddProductButton locationId={location.id} productId={product.id} label="Add" /> : <span className="text-sm text-muted-foreground">Unavailable</span>}

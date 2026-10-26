@@ -9,7 +9,7 @@ import { NAV_LINKS } from '../nav/links'
 export default function Footer({ brand, location }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'tagline' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'address' | 'phone' | 'hours' | 'timezone'> | null }) {
   const address = formatAddress(location?.address)
   const phone = location?.phone || brand.supportPhone
-  return <footer className="mt-auto border-t-2 border-dotted border-[var(--rx-perf)] bg-[var(--rx-field)]">
+  return <footer className="mt-auto border-t border-[var(--rx-rule)] bg-[var(--rx-field)]">
     <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
       <div className="min-w-0">
         <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} />
@@ -32,7 +32,7 @@ export default function Footer({ brand, location }: { brand: Pick<PublicPharmacy
         </ul>
       </nav>
     </div>
-    <div className="border-t-2 border-dotted border-[var(--rx-perf)]">
+    <div className="border-t border-[var(--rx-rule)]">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[13px] text-muted-foreground sm:px-6 lg:px-8">
         <span>© {new Date().getFullYear()} {brand.displayName}</span>
         <span>In an emergency, call 911.</span>

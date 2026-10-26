@@ -29,7 +29,7 @@ export async function PrescriberDetailPage({ params }: { params: Promise<{ id: s
   const expired = prescriber.credentialExpiresAt ? new Date(prescriber.credentialExpiresAt).getTime() < Date.now() : false
 
   return <TaskPage parent={parent} meta={prescriber.npi ? `NPI ${prescriber.npi}` : 'Prescriber'} title={prescriber.name} state={expired ? 'Credential expired' : humanize(prescriber.verificationStatus)} tone={expired ? 'danger' : statusTone(prescriber.verificationStatus === 'unverified' ? 'not_reviewed' : prescriber.verificationStatus)} description={prescriber.organization?.name} actions={<RecordDrawerButton listPath="prescribers" itemId={prescriber.id} label="Edit" />}>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Phone">{prescriber.phone ? <Mono>{prescriber.phone}</Mono> : 'Not recorded'}</Field>
       <Field label="Fax">{prescriber.fax ? <Mono>{prescriber.fax}</Mono> : 'Not recorded'}</Field>
       <Field label="Prescriptions"><Mono>{prescriber.prescriptionsCount}</Mono></Field>
@@ -49,7 +49,7 @@ export async function PrescriberDetailPage({ params }: { params: Promise<{ id: s
     </TaskSection>
 
     <TaskSection title="Prescriptions" count={prescriber.prescriptionsCount}>
-      {prescriber.prescriptions.length ? <ListBand>{prescriber.prescriptions.map((prescription) => <Link key={prescription.id} href={`/dashboard/platform/prescriptions/${prescription.id}`} className="block bg-background px-3.5 py-2.5 hover:bg-muted/40"><TitleLine as="h3" titleClassName="text-sm font-mono" title={prescription.prescriptionNumber} tone={statusTone(prescription.status)} state={humanize(prescription.status)} /><span className="font-mono text-[11px] text-muted-foreground">{shortDate(prescription.createdAt)}{prescription.location ? ` · ${prescription.location.name}` : ''}</span></Link>)}</ListBand> : <p className="text-sm text-muted-foreground">No prescriptions from this prescriber.</p>}
+      {prescriber.prescriptions.length ? <ListBand>{prescriber.prescriptions.map((prescription) => <Link key={prescription.id} href={`/dashboard/platform/prescriptions/${prescription.id}`} className="block bg-background px-3.5 py-2.5 hover:bg-muted/40"><TitleLine as="h3" titleClassName="text-sm font-mono" title={prescription.prescriptionNumber} tone={statusTone(prescription.status)} state={humanize(prescription.status)} /><span className="text-xs text-muted-foreground">{shortDate(prescription.createdAt)}{prescription.location ? ` · ${prescription.location.name}` : ''}</span></Link>)}</ListBand> : <p className="text-sm text-muted-foreground">No prescriptions from this prescriber.</p>}
     </TaskSection>
   </TaskPage>
 }

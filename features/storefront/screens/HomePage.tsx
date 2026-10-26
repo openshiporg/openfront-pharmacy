@@ -1,6 +1,5 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowUpRight } from 'lucide-react'
 
 import type { PublicPharmacyLocationProjection } from '@/features/pharmacy/contracts'
 import { OpenNow } from '../components/LocationHours'
@@ -46,24 +45,24 @@ export async function StoreCatalog({ storefront, title, eyebrow, category = null
 
 const COUNTER = [
   { href: '/account', label: 'Refill a prescription' },
-  { href: '/prescriptions#transfer', label: 'New or transferred prescription' },
+  { href: '/prescriptions#transfer', label: 'New or transfer' },
   { href: '/order-status', label: 'Track an order' },
-  { href: '/products', label: 'Shop over the counter' },
+  { href: '/products', label: 'Shop the shelves' },
 ]
 
-function LocationLabel({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
+function LocationPlate({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
   const address = formatAddress(location.address)
   const services = [location.pickupEnabled && 'Pickup', location.deliveryEnabled && 'Delivery'].filter(Boolean).join(' · ')
-  return <aside aria-label="Pharmacy location" className="rounded-[22px] bg-background/45 px-5 pb-5 pt-4 sm:px-6">
-    <TitleLine title={location.name} titleClassName="text-xl font-bold" tone={location.onlineOrderingEnabled ? 'ok' : 'warn'} state={location.onlineOrderingEnabled ? 'Ordering online' : 'Call to order'} />
-    <dl className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4">
+  return <aside aria-label="Pharmacy location" className="border-y border-[var(--rx-rule)]">
+    <TitleLine title={location.name} titleClassName="rx-display text-[1.6rem]" tone={location.onlineOrderingEnabled ? 'ok' : 'warn'} state={location.onlineOrderingEnabled ? 'Ordering online' : 'Call to order'} className="pt-4" />
+    <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 pb-4">
       {address && <Field label="Address" className="col-span-2">{address}</Field>}
+      {location.hours && <Field label="Pharmacy counter"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} /></Field>}
+      {location.hours && <Field label="Store"><OpenNow week={location.hours.store} timezone={location.timezone} /></Field>}
       {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary">{phone}</a></Field>}
       {services && <Field label="Service">{services}</Field>}
-      {location.hours && <Field label="Store"><OpenNow week={location.hours.store} timezone={location.timezone} /></Field>}
-      {location.hours && <Field label="Pharmacy counter"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} /></Field>}
     </dl>
-    {location.hours && <Link href="/prescriptions#location" className="mt-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary underline decoration-2 underline-offset-4">All hours</Link>}
+    {location.hours && <Link href="/prescriptions#location" className="mb-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary underline decoration-1 underline-offset-4">All hours</Link>}
   </aside>
 }
 
@@ -74,19 +73,19 @@ export async function HomePage() {
   const { brand, location } = storefront
 
   return <>
-    <section aria-labelledby="rx-home-title" className="bg-[var(--rx-field)]">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-14 pt-12 sm:px-6 sm:pt-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:gap-14 lg:px-8 lg:pb-20 lg:pt-20">
+    <section aria-labelledby="rx-home-title" className="border-b border-[var(--rx-rule)]">
+      <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-14 pt-10 sm:px-6 sm:pt-14 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:pb-20 lg:pt-16">
         <div className="flex min-w-0 flex-col">
-          <h1 id="rx-home-title" className="max-w-[12ch] text-balance text-[3rem] font-extrabold leading-[0.9] tracking-[-0.05em] sm:text-[4.5rem] lg:text-[6rem]">{brand.displayName}</h1>
-          {brand.tagline && <p className="mt-5 max-w-[34ch] text-[1.25rem] leading-[1.4] text-foreground/85 sm:text-[1.375rem]">{brand.tagline}</p>}
-          <div className="mt-10 lg:mt-auto"><LocationLabel location={location} phone={location.phone || brand.supportPhone} /></div>
+          <h1 id="rx-home-title" className="rx-display rx-gold max-w-[11ch] text-balance text-[3.25rem] sm:text-[5rem] lg:text-[6.5rem]">{brand.displayName}</h1>
+          {brand.tagline && <p className="mt-5 max-w-[34ch] text-[1.25rem] leading-[1.4] text-foreground/85">{brand.tagline}</p>}
+          <div className="mt-8 lg:mt-auto lg:pt-10"><LocationPlate location={location} phone={location.phone || brand.supportPhone} /></div>
         </div>
-        <nav aria-label="Pharmacy services" className="min-w-0">
-          <ol className="rx-press grid grid-cols-2 gap-[14px] p-2">
+        <nav aria-label="Pharmacy counter" className="min-w-0 lg:order-none">
+          <ol className="rx-settle grid grid-cols-2 gap-2 rounded-[6px] bg-[var(--rx-field)] p-2 shadow-[0_0_0_1px_var(--rx-rule)] sm:gap-3 sm:p-3">
             {COUNTER.map((entry) => <li key={entry.href}>
-              <Link href={entry.href} className="rx-dome group flex aspect-square flex-col justify-end p-5 sm:p-7">
-                <ArrowUpRight aria-hidden="true" className="absolute right-5 top-5 size-6 text-primary transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 sm:right-7 sm:top-7" />
-                <span className="text-balance text-[1.25rem] font-bold leading-[1.1] tracking-[-0.02em] sm:text-[1.75rem]">{entry.label}</span>
+              <Link href={entry.href} className="rx-drawer group flex aspect-[5/4] flex-col items-center justify-center gap-5 px-3 text-center sm:aspect-[4/3]">
+                <span className="rx-plate min-h-10 max-w-full justify-center px-3 py-1.5 text-[15px] font-bold leading-tight sm:text-[17px]">{entry.label}</span>
+                <span aria-hidden="true" className="rx-pull" />
               </Link>
             </li>)}
           </ol>

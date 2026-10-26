@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { rxFontClass } from '@/features/storefront/lib/fonts';
 import Link from 'next/link';
 import { Check, Code } from 'lucide-react';
 import { toast } from 'sonner';
@@ -30,21 +31,24 @@ function Mark({ svg, hue, className }: { svg: string; hue: string; className?: s
 
 function StorefrontPreview({ name, tagline, logoIcon, logoColor, phone }: { name: string; tagline: string; logoIcon: string; logoColor: string; phone: string }) {
   const hue = storeBrandHue(logoColor);
-  return <figure aria-label="Storefront preview" className="overflow-hidden rounded-xl bg-[oklch(0.982_0.005_95)] text-[oklch(0.23_0.02_var(--h))] ring-1 ring-border" style={{ ['--h' as string]: String(hue) }}>
-    <div className="flex items-center justify-between gap-3 px-4 py-1.5 text-[11px] font-medium text-white" style={{ background: `oklch(0.43 0.085 ${hue})` }}>
+  // The storefront's apothecary cabinet in miniature: ebonized ground, gold name, enamel-plated drawers.
+  return <figure aria-label="Storefront preview" className={cn(rxFontClass, 'overflow-hidden rounded-[6px] border border-border text-[oklch(0.95_0.012_85)]')} style={{ background: `oklch(0.165 0.012 ${hue})` }}>
+    <div className="flex items-center justify-between gap-3 border-b px-4 py-1.5 text-[11px] font-medium" style={{ background: `oklch(0.2 0.014 ${hue})`, borderColor: `oklch(0.33 0.014 ${hue})` }}>
       <span className="truncate">{name || 'Store name'}</span>
-      {phone && <span className="font-mono tabular-nums">{phone}</span>}
+      {phone && <span className="tabular-nums">{phone}</span>}
     </div>
-    <div className="flex items-center gap-2.5 border-b border-black/5 px-4 py-3">
+    <div className="flex items-center gap-2.5 px-4 py-3">
       <Mark svg={logoIcon} hue={logoColor} className="size-7" />
-      <span className="truncate text-[15px] font-semibold">{name || 'Store name'}</span>
+      <span className="truncate font-[family-name:var(--rx-font-display),Georgia,serif] text-[16px]">{name || 'Store name'}</span>
     </div>
-    <div className="px-4 pb-5 pt-4">
-      {tagline && <p className="font-mono text-[10px] uppercase tracking-[0.08em] opacity-60">{tagline}</p>}
-      <p className="mt-1.5 text-2xl font-semibold leading-tight tracking-[-0.03em]">{name || 'Store name'}</p>
-      <div className="mt-4 flex gap-2">
-        <span className="rounded-full px-3 py-1.5 text-xs font-semibold text-white" style={{ background: `oklch(0.43 0.085 ${hue})` }}>Request a refill</span>
-        <span className="rounded-full px-3 py-1.5 text-xs font-semibold" style={{ background: `oklch(0.935 0.04 ${hue})`, color: `oklch(0.33 0.07 ${hue})` }}>Track order</span>
+    <div className="px-4 pb-4">
+      <p className="font-[family-name:var(--rx-font-display),Georgia,serif] text-[28px] leading-none text-[oklch(0.77_0.095_82)]">{name || 'Store name'}</p>
+      {tagline && <p className="mt-2 text-xs opacity-75">{tagline}</p>}
+      <div className="mt-4 grid grid-cols-2 gap-1.5 rounded-[6px] p-1.5" style={{ background: `oklch(0.2 0.014 ${hue})` }}>
+        {['Refill a prescription', 'Track an order'].map((label) => <span key={label} className="flex flex-col items-center gap-2 rounded-[4px] px-2 py-3" style={{ background: `oklch(0.235 0.016 ${hue})` }}>
+          <span className="rounded-[3px] bg-[oklch(0.93_0.022_88)] px-2 py-0.5 text-[11px] font-bold text-[oklch(0.2_0.015_160)]">{label}</span>
+          <span className="block h-1 w-7 rounded-[2px] bg-[oklch(0.7_0.085_80)]" />
+        </span>)}
       </div>
     </div>
   </figure>;
@@ -88,7 +92,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
       <div className="space-y-5">
-        <section className="space-y-4 rounded-xl bg-background p-4 ring-1 ring-border sm:p-5">
+        <section className="space-y-4 rounded-[6px] bg-background p-4 border border-border sm:p-5">
           <h2 className="text-sm font-semibold">Store</h2>
           <div className="grid gap-2">
             <Label htmlFor="store-name">Store name</Label>
@@ -110,7 +114,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
           </div>
         </section>
 
-        <section className="space-y-4 rounded-xl bg-background p-4 ring-1 ring-border sm:p-5">
+        <section className="space-y-4 rounded-[6px] bg-background p-4 border border-border sm:p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <TitleLine as="h2" title="Logo" titleClassName="text-sm" state={selectedIcon?.name || 'Custom SVG'} />
             <Popover>
@@ -126,10 +130,10 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
               </PopoverContent>
             </Popover>
           </div>
-          <div role="radiogroup" aria-label="Logo mark" className="grid grid-cols-6 gap-1.5 rounded-xl bg-muted p-1.5 shadow-[inset_0_1px_2px_rgb(0_0_0/0.06)] sm:grid-cols-8 dark:bg-muted/60">
+          <div role="radiogroup" aria-label="Logo mark" className="grid grid-cols-6 gap-1.5 rounded-[6px] bg-muted p-1.5 shadow-[inset_0_1px_2px_rgb(0_0_0/0.06)] sm:grid-cols-8 dark:bg-muted/60">
             {LOGO_ICONS.map((icon) => {
               const active = icon.lightSvg === logoIcon;
-              return <button key={icon.id} type="button" role="radio" aria-checked={active} aria-label={icon.name} title={icon.name} onClick={() => setLogoIcon(icon.lightSvg)} className={cn('relative grid aspect-square place-items-center rounded-lg transition-[background-color,box-shadow] duration-150 hover:bg-background/70 focus-visible:outline-2 focus-visible:outline-ring', active && 'bg-background shadow-[0_1px_2px_rgb(0_0_0/0.12),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-zinc-800')}>
+              return <button key={icon.id} type="button" role="radio" aria-checked={active} aria-label={icon.name} title={icon.name} onClick={() => setLogoIcon(icon.lightSvg)} className={cn('relative grid aspect-square place-items-center rounded-[5px] transition-[background-color,box-shadow] duration-150 hover:bg-background/70 focus-visible:outline-2 focus-visible:outline-ring', active && 'bg-background shadow-[0_1px_2px_rgb(0_0_0/0.12),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-zinc-800')}>
                 <Mark svg={icon.lightSvg} hue={logoColor} className="size-6" />
                 {active && <Check aria-hidden="true" className="absolute right-1 top-1 size-3 text-foreground" />}
               </button>;
@@ -139,13 +143,13 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
             <span className="text-sm font-medium">Colour</span>
             <Track label="Logo colour">
               {COLOR_PRESETS.map((preset) => <Pill key={preset.value} active={logoColor === String(preset.value)} onClick={() => setLogoColor(String(preset.value))} aria-label={preset.name} title={preset.name} className="px-2">
-                <span aria-hidden="true" className="size-4 rounded-full ring-1 ring-inset ring-black/10" style={{ background: `oklch(0.55 0.13 ${storeBrandHue(preset.value)})` }} />
+                <span aria-hidden="true" className="size-4 rounded-[3px] ring-1 ring-inset ring-black/10" style={{ background: `oklch(0.55 0.13 ${storeBrandHue(preset.value)})` }} />
               </Pill>)}
             </Track>
           </div>
         </section>
 
-        <section className="space-y-3 rounded-xl bg-background p-4 ring-1 ring-border sm:p-5">
+        <section className="space-y-3 rounded-[6px] bg-background p-4 border border-border sm:p-5">
           <TitleLine as="h2" title="Notice of Privacy Practices" titleClassName="text-sm" tone={privacyNotice.trim() ? 'ok' : 'warn'} state={privacyNotice.trim() ? 'Posted at /privacy' : 'Not posted'} />
           <Label htmlFor="privacy-notice" className="sr-only">Notice of Privacy Practices</Label>
           <Textarea id="privacy-notice" value={privacyNotice} onChange={(e) => setPrivacyNotice(e.target.value)} maxLength={50000} className="min-h-48 text-sm" />

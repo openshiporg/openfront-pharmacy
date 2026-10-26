@@ -51,7 +51,7 @@ export async function ProductDetailPage({ params }: { params: Promise<{ id: stri
   ]
 
   return <TaskPage parent={parent} meta={`${product.sku} · ${humanize(product.category)}`} title={product.title} state={humanize(product.status)} tone={statusTone(product.status === 'published' ? 'active' : product.status === 'archived' ? 'inactive' : 'draft')} description={product.location?.name} actions={<RecordDrawerButton listPath="products" itemId={product.id} label="Edit" />}>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-xl bg-muted/40 px-4 py-4 ring-1 ring-inset ring-border/60 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Price"><Mono>{money(product.priceAmount, product.currencyCode)}</Mono>{product.taxable ? '' : ' · tax exempt'}</Field>
       <Field label="On hand"><Mono>{onHand}</Mono></Field>
       <Field label="Prescription">{rx ? humanize(product.prescriptionRequirement) : 'Not required'}</Field>

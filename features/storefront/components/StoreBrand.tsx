@@ -9,8 +9,8 @@ export function StoreMark({ logoIcon, logoColor, className = 'size-8' }: { logoI
 }
 
 export function StoreBrand({ name, logoIcon, logoColor }: { name: string; logoIcon?: string | null; logoColor?: string | null }) {
-  return <Link href="/" className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2.5 rounded-lg py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+  return <Link href="/" className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2.5 rounded-[4px] py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
     <StoreMark logoIcon={logoIcon} logoColor={logoColor} />
-    <span className="line-clamp-2 min-w-0 text-[15px] font-semibold leading-tight tracking-[-0.01em] sm:line-clamp-none sm:truncate sm:whitespace-nowrap sm:text-[17px]">{name}</span>
+    <span className="rx-display line-clamp-2 min-w-0 text-[19px] leading-tight sm:line-clamp-none sm:truncate sm:whitespace-nowrap sm:text-[22px]">{name}</span>
   </Link>
 }

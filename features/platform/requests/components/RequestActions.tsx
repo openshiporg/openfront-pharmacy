@@ -32,7 +32,7 @@ export function RequestActions({ requestId, status }: { requestId: string; statu
       {OUTCOMES.filter(([value]) => value !== 'in_review' || status === 'requested').map(([value, label]) => <Pill key={value} active={outcome === value} onClick={() => setOutcome(value)}>{label}</Pill>)}
     </Track>
     <div className="flex flex-wrap gap-2">
-      <Input aria-label="Note for the customer" value={note} onChange={(event) => setNote(event.target.value)} placeholder={outcome === 'declined' ? 'Reason (shown to the customer)' : 'Note for the customer (optional)'} maxLength={1000} className="h-9 min-w-0 flex-1 basis-56 rounded-full" />
+      <Input aria-label="Note for the customer" value={note} onChange={(event) => setNote(event.target.value)} placeholder={outcome === 'declined' ? 'Reason (shown to the customer)' : 'Note for the customer (optional)'} maxLength={1000} className="h-9 min-w-0 flex-1 basis-56 rounded-[5px]" />
       <Button disabled={pending || (outcome === 'declined' && note.trim().length < 3)} onClick={save}>{pending ? 'Saving…' : 'Save'}</Button>
     </div>
     {error && <Callout tone="danger">{error}</Callout>}

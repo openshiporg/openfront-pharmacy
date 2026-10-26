@@ -68,7 +68,7 @@ export async function RequestQueuePage({ searchParams }: { searchParams?: Promis
         const name = [request.firstName, request.lastName].filter(Boolean).join(' ') || request.customerName
         return <article key={request.id} className="grid gap-4 bg-background px-4 py-4 sm:px-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-8">
           <div className="min-w-0">
-            <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{KIND_LABELS[request.kind]} · {formatDay(request.createdAt, timeZone)} · {request.locationName}</p>
+            <p className="text-xs text-muted-foreground">{KIND_LABELS[request.kind]} · {formatDay(request.createdAt, timeZone)} · {request.locationName}</p>
             <TitleLine as="h2" className="mt-1" title={name} tone={STATUS_TONES[request.status] || 'muted'} state={humanize(request.status)} />
             <p className="mt-0.5 truncate text-sm text-muted-foreground">{request.customerEmail}{request.patientId ? ' · Linked patient' : ' · Not linked to a patient'}</p>
             <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">

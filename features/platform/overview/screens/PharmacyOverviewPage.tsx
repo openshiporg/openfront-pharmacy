@@ -1,12 +1,12 @@
 import Link from 'next/link'
-import { ChevronRight, Plus } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 
 import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 import { basePath } from '@/features/dashboard/lib/config'
 import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyInventoryWorklistProjection, PharmacyOrderWorklistProjection, PharmacyPrescriptionQueueProjection, PharmacyRecallQueueProjection } from '@/features/pharmacy/contracts'
 import { expiryContext } from '@/features/platform/components/workflowQueue'
-import { Callout, Count, Dot, ListBand, RaisedLink, primaryPillClass, type DotTone } from '@/features/platform/components/rx-ui'
+import { Callout, Count, RaisedLink, StatusText, buttonClass, primaryPillClass, type DotTone } from '@/features/platform/components/rx-ui'
 import { platformNavItems } from '@/features/platform/lib/navigation'
 
 type Page<T> = { items: T[]; totalCount: number; hasMore: boolean }
@@ -31,36 +31,6 @@ const count = <T,>(items: T[], test: (item: T) => boolean) => items.reduce((sum,
 async function loadQueue<K extends string, T>(key: K, query: string) {
   const response = await platformRequest<Record<K, Page<T>>>(query)
   return response.success ? { page: response.data[key], error: undefined } : { page: null, error: response.error }
-}
-
-function QueueCard({ queue }: { queue: Queue }) {
-  return <section aria-labelledby={`queue-${queue.href}`} className="flex flex-col bg-background">
-    <div className="flex items-baseline justify-between gap-3 px-4 pt-4 sm:px-5">
-      <div className="flex min-w-0 flex-wrap items-baseline gap-x-2.5 gap-y-0.5">
-        <h2 id={`queue-${queue.href}`} className="text-[15px] font-semibold tracking-tight text-foreground">{queue.title}</h2>
-        <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap text-xs text-muted-foreground"><Dot tone={queue.tone} />{queue.state}</span>
-      </div>
-      <Count>{queue.total}{queue.partial ? '+' : ''}</Count>
-    </div>
-    {queue.error
-      ? <div className="px-4 py-4 sm:px-5"><Callout tone="muted">{queue.error}</Callout></div>
-      : <>
-        <div className="px-4 pt-3 sm:px-5">
-          <p className="font-mono text-[2.25rem] leading-none tabular-nums text-foreground">{queue.lead.value}</p>
-          <p className="mt-1.5 text-[13px] text-muted-foreground">{queue.lead.label}</p>
-        </div>
-        <dl className="mt-4 grid grid-cols-3 gap-px border-y bg-border">
-          {queue.metrics.map((metric) => <div key={metric.label} className="bg-background px-3 py-2.5 sm:px-4">
-            <dt className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-muted-foreground">{metric.label}</dt>
-            <dd className="mt-0.5 font-mono text-[15px] tabular-nums text-foreground">{metric.value}</dd>
-          </div>)}
-        </dl>
-      </>}
-    <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3 sm:px-5">
-      {queue.action ? <Link href={queue.action.href} className="inline-flex min-h-9 items-center gap-1 rounded-full px-2.5 text-[13px] font-medium text-muted-foreground hover:bg-muted hover:text-foreground max-sm:min-h-10"><Plus aria-hidden="true" className="size-3.5" />{queue.action.label}</Link> : <span />}
-      <RaisedLink href={queue.href}>Open<ChevronRight aria-hidden="true" className="size-3.5" /></RaisedLink>
-    </div>
-  </section>
 }
 
 export async function PharmacyOverviewPage() {
@@ -112,10 +82,23 @@ export async function PharmacyOverviewPage() {
     { title: 'Inventory', href: `${basePath}/platform/inventory`, total: inventory.page?.totalCount ?? 0, partial: Boolean(inventory.page?.hasMore), error: inventory.error, lead: { label: 'Expired or expiring in 60 days', value: lotsExpiring }, tone: lotsRecall || lotsColdChain ? 'danger' : lotsExpiring || lotsHeld ? 'warn' : 'ok', state: lotsRecall || lotsColdChain ? 'Hold' : lotsExpiring || lotsHeld ? 'Review' : 'Clear', metrics: [{ label: 'Quarantined', value: lotsHeld }, { label: 'Recall', value: lotsRecall }, { label: 'Cold chain', value: lotsColdChain }], action: { href: `${basePath}/platform/inventory/receive`, label: 'Receive' } },
     { title: 'Recalls', href: `${basePath}/platform/recalls`, total: recalls.page?.totalCount ?? 0, partial: Boolean(recalls.page?.hasMore), error: recalls.error, lead: { label: 'Open recalls', value: recOpen }, tone: recClassOne ? 'danger' : recOpen ? 'warn' : 'ok', state: recClassOne ? 'Class I open' : recOpen ? 'Open' : 'Clear', metrics: [{ label: 'Class I', value: recClassOne }, { label: 'Outreach', value: recOutreach }, { label: 'Lot gaps', value: recGap }], action: { href: `${basePath}/platform/recalls/open`, label: 'Open recall' } },
   ]
-  const urgent = queues.filter((queue) => queue.tone === 'danger').length
-  // Any queue that isn't clear, plus anything waiting outside the four queues.
-  const open = queues.filter((queue) => queue.tone !== 'ok').length + waiting.filter((entry) => entry.value).length
+  // Everything that needs a pharmacist or technician now, most urgent first.
+  const attention: Array<{ label: string; count: number; tone: DotTone; href: string; action: string }> = [
+    { label: 'Class I recalls open', count: recClassOne, tone: 'danger' as const, href: `${basePath}/platform/recalls`, action: 'Review' },
+    { label: 'Lots on recall', count: lotsRecall, tone: 'danger' as const, href: `${basePath}/platform/inventory`, action: 'Review' },
+    { label: 'Cold-chain evidence missing', count: lotsColdChain, tone: 'danger' as const, href: `${basePath}/platform/inventory`, action: 'Review' },
+    { label: 'Orders with a payment issue', count: ordPayment, tone: 'danger' as const, href: `${basePath}/platform/orders`, action: 'Resolve' },
+    { label: 'Prescriptions awaiting pharmacist review', count: rxReview, tone: 'warn' as const, href: `${basePath}/platform/prescriptions`, action: 'Review' },
+    { label: 'Online prescription requests', count: onlineRequests, tone: 'warn' as const, href: `${basePath}/platform/requests`, action: 'Review' },
+    ...waiting.filter((entry) => entry.label !== 'Online requests').map((entry) => ({ label: entry.label, count: entry.value || 0, tone: 'warn' as const, href: entry.href, action: 'Open' })),
+    { label: 'Orders to prepare', count: ordToPrepare, tone: 'info' as const, href: `${basePath}/platform/orders`, action: 'Prepare' },
+    { label: 'Lots expired or expiring in 60 days', count: lotsExpiring, tone: 'warn' as const, href: `${basePath}/platform/inventory`, action: 'Review' },
+    { label: 'Lots quarantined or on hold', count: lotsHeld, tone: 'warn' as const, href: `${basePath}/platform/inventory`, action: 'Review' },
+    { label: 'Recall patient outreach outstanding', count: recOutreach, tone: 'warn' as const, href: `${basePath}/platform/recalls`, action: 'Contact' },
+  ].filter((entry) => entry.count > 0)
+  const urgent = attention.filter((entry) => entry.tone === 'danger').length
   const destinations = platformNavItems.filter((item) => !['/platform/overview', '/platform/prescriptions', '/platform/orders', '/platform/inventory', '/platform/recalls'].includes(item.href))
+  const th = 'h-8 whitespace-nowrap px-3 text-left text-xs font-medium text-muted-foreground'
 
   return (
     <section className="flex flex-col overflow-hidden">
@@ -127,37 +110,58 @@ export async function PharmacyOverviewPage() {
         ]}
       />
       <div className="w-full max-w-6xl space-y-6 p-4 md:p-6">
-        <header className="flex flex-wrap items-end justify-between gap-3">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Overview</h1>
-            <span className="inline-flex items-baseline gap-1.5 text-sm text-muted-foreground"><Dot tone={urgent ? 'danger' : open ? 'warn' : 'ok'} />{urgent ? `${urgent} ${urgent === 1 ? 'queue needs' : 'queues need'} action` : open ? `${open} ${open === 1 ? 'queue has' : 'queues have'} work waiting` : 'All queues clear'}</span>
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">Overview</h1>
+            <StatusText tone={urgent ? 'danger' : attention.length ? 'warn' : 'ok'}>{urgent ? `${urgent} urgent` : attention.length ? `${attention.length} waiting` : 'All queues clear'}</StatusText>
           </div>
-          <Link href={`${basePath}/platform/pos`} className={primaryPillClass}>Point of sale</Link>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`${basePath}/platform/prescriptions/intake`} className={buttonClass}>New prescription</Link>
+            <Link href={`${basePath}/platform/inventory/receive`} className={buttonClass}>Receive stock</Link>
+            <Link href={`${basePath}/platform/pos`} className={primaryPillClass}>Point of sale</Link>
+          </div>
         </header>
 
-        <div className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border sm:grid-cols-2 xl:grid-cols-4">
-          {queues.map((queue) => <QueueCard key={queue.href} queue={queue} />)}
-        </div>
+        <section aria-labelledby="overview-attention">
+          <h2 id="overview-attention" className="mb-2 flex items-baseline gap-2 text-[13px] font-semibold text-foreground">Needs attention {attention.length > 0 && <Count>{attention.length}</Count>}</h2>
+          {attention.length
+            ? <div className="overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full min-w-[420px] border-collapse text-[13px]">
+              <thead className="bg-muted/50"><tr className="border-b border-border"><th scope="col" className={th}>Item</th><th scope="col" className={`${th} text-right`}>Count</th><th scope="col" className={th}><span className="sr-only">Action</span></th></tr></thead>
+              <tbody>{attention.map((entry) => <tr key={entry.label} className="border-b border-border/70 last:border-b-0 hover:bg-muted/30">
+                <td className="px-3 py-2"><StatusText tone={entry.tone}>{entry.label}</StatusText></td>
+                <td className="px-3 py-2 text-right font-semibold tabular-nums">{entry.count}</td>
+                <td className="w-px px-3 py-1.5 text-right"><Link href={entry.href} className={buttonClass}>{entry.action}</Link></td>
+              </tr>)}</tbody>
+            </table></div>
+            : <Callout tone="muted" title="Nothing needs attention">Every queue below is clear.</Callout>}
+        </section>
 
-        {waiting.length > 0 && <nav aria-label="Also waiting" className="grid gap-px overflow-hidden rounded-xl bg-border ring-1 ring-border sm:grid-cols-3">
-          {waiting.map((entry) => <Link key={entry.href} href={entry.href} className="group flex items-center justify-between gap-3 bg-background px-4 py-3 hover:bg-muted/50">
-            <span className="inline-flex items-baseline gap-2 text-sm font-medium text-foreground"><Dot tone={entry.value ? 'warn' : 'ok'} />{entry.label}</span>
-            <span className="flex items-center gap-1.5 font-mono text-lg tabular-nums">{entry.value}<ChevronRight aria-hidden="true" className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" /></span>
-          </Link>)}
-        </nav>}
+        <section aria-labelledby="overview-queues">
+          <h2 id="overview-queues" className="mb-2 text-[13px] font-semibold text-foreground">Queues</h2>
+          <div className="overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full min-w-[760px] border-collapse text-[13px]">
+            <thead className="bg-muted/50"><tr className="border-b border-border"><th scope="col" className={th}>Queue</th><th scope="col" className={`${th} text-right`}>Records</th><th scope="col" className={th}>Lead</th><th scope="col" className={th}>Also</th><th scope="col" className={th}>State</th><th scope="col" className={th}><span className="sr-only">Actions</span></th></tr></thead>
+            <tbody>{queues.map((queue) => <tr key={queue.href} className="border-b border-border/70 align-baseline last:border-b-0 hover:bg-muted/30">
+              <td className="px-3 py-2.5 font-medium"><Link href={queue.href} className="underline-offset-4 hover:underline">{queue.title}</Link></td>
+              <td className="px-3 py-2.5 text-right tabular-nums">{queue.total}{queue.partial ? '+' : ''}</td>
+              <td className="px-3 py-2.5">{queue.error ? <span className="text-muted-foreground">{queue.error}</span> : <><span className="font-semibold tabular-nums">{queue.lead.value}</span> <span className="text-muted-foreground">{queue.lead.label.toLowerCase()}</span></>}</td>
+              <td className="px-3 py-2.5 text-muted-foreground">{!queue.error && queue.metrics.map((metric) => `${metric.label} ${metric.value}`).join(' · ')}</td>
+              <td className="whitespace-nowrap px-3 py-2.5"><StatusText tone={queue.tone}>{queue.state}</StatusText></td>
+              <td className="px-3 py-1.5 text-right"><div className="inline-flex gap-1.5">{queue.action && <Link href={queue.action.href} className={buttonClass}>{queue.action.label}</Link>}<RaisedLink href={queue.href}>Open<ChevronRight aria-hidden="true" className="size-3.5" /></RaisedLink></div></td>
+            </tr>)}</tbody>
+          </table></div>
+        </section>
 
         <section aria-labelledby="overview-more">
-          <h2 id="overview-more" className="mb-3 text-sm font-semibold text-foreground">Records and settings</h2>
-          <ListBand className="grid bg-border/60 sm:grid-cols-2 sm:divide-y-0 sm:gap-px">
+          <h2 id="overview-more" className="mb-2 text-[13px] font-semibold text-foreground">Records and settings</h2>
+          <nav aria-label="Records and settings" className="grid gap-x-6 rounded-[6px] border border-border bg-card px-2 py-2 sm:grid-cols-2 lg:grid-cols-3">
             {destinations.map((item) => {
               const Icon = item.icon
-              return <Link key={item.href} href={`${basePath}${item.href}`} className="group flex min-h-14 items-center gap-3 bg-background px-4 py-3 transition-colors hover:bg-muted/50">
+              return <Link key={item.href} href={`${basePath}${item.href}`} className="flex min-h-9 items-center gap-2.5 rounded-[5px] px-2 text-[13px] font-medium text-foreground transition-colors hover:bg-muted">
                 {Icon && <Icon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />}
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{item.title}</span>
-                <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+                <span className="min-w-0 flex-1 truncate">{item.title}</span>
               </Link>
             })}
-          </ListBand>
+          </nav>
         </section>
       </div>
     </section>

@@ -27,12 +27,11 @@ export function TaskPage({ parent, meta, title, description, warning, state, ton
   ]
   return <section className="flex flex-col overflow-hidden">
     <PageBreadcrumbs items={items} />
-    <div className="w-full max-w-5xl space-y-5 p-4 md:p-6">
+    <div className="w-full max-w-6xl space-y-4 p-4 md:p-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0">
-          {meta && <p className="font-mono text-[11px] uppercase tracking-[0.06em] text-muted-foreground">{meta}</p>}
-          <TitleLine className="mt-1" title={title} tone={state ? tone : undefined} state={state} />
-          {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
+          <TitleLine title={meta ? <><span className="font-normal text-muted-foreground">{meta}</span> {title}</> : title} tone={state ? tone : undefined} state={state} />
+          {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
         </div>
         {actions}
       </header>
@@ -43,11 +42,11 @@ export function TaskPage({ parent, meta, title, description, warning, state, ton
 }
 
 export function TaskSection({ title, count, action, children }: { title: string; count?: number; action?: ReactNode; children: ReactNode }) {
-  return <section className="overflow-hidden rounded-xl bg-background ring-1 ring-border">
-    <div className="flex flex-wrap items-baseline justify-between gap-3 border-b bg-muted/40 px-4 py-2.5 sm:px-5">
-      <h2 className="flex items-baseline gap-2 text-sm font-semibold text-foreground">{title}{count !== undefined && <Count>{count}</Count>}</h2>
+  return <section className="min-w-0 overflow-hidden rounded-[6px] border border-border bg-card">
+    <div className="flex min-h-10 flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-2">
+      <h2 className="flex items-baseline gap-2 text-[13px] font-semibold text-foreground">{title}{count !== undefined && <Count>{count}</Count>}</h2>
       {action}
     </div>
-    <div className="px-4 py-4 sm:px-5">{children}</div>
+    <div className="px-4 py-3.5">{children}</div>
   </section>
 }

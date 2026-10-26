@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { getStorefront } from '@/features/storefront/lib/data/store'
 import { rxFontClass } from '@/features/storefront/lib/fonts'
 import { storeBrandStyle } from '@/features/storefront/lib/rx-brand'
-import './storefront.css'
+import './apothecary.css'
 
 // Every storefront tab reads "Page | Store name".
 export async function generateMetadata(): Promise<Metadata> {

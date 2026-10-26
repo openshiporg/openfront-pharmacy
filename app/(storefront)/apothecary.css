@@ -1,0 +1,127 @@
+/* Store brand tokens: "the apothecary cabinet". The store is an old Main Street apothecary
+   wall: ebonized drawers tinted by the store hue (features/storefront/lib/rx-brand.ts), cream
+   enamel label plates for labels and chosen states, and gold leaf for the store name, prices
+   and the one primary action. Gloock letters the signs; Hanken Grotesk sets the rest.
+   See .impeccable/surfaces/features-storefront.md. */
+.storefront-brand {
+  --store-logo-hue: var(--store-page-logo-hue, 295);
+  --store-brand-hue: var(--store-page-brand-hue, 160);
+  --font-geist-sans: var(--rx-font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: var(--rx-font-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --background: oklch(0.165 0.012 var(--store-brand-hue));
+  --foreground: oklch(0.95 0.012 85);
+  --card: oklch(0.205 0.014 var(--store-brand-hue));
+  --card-foreground: oklch(0.95 0.012 85);
+  --popover: oklch(0.215 0.014 var(--store-brand-hue));
+  --popover-foreground: oklch(0.95 0.012 85);
+  --primary: oklch(0.77 0.095 82);
+  --primary-foreground: oklch(0.18 0.02 70);
+  --secondary: oklch(0.245 0.014 var(--store-brand-hue));
+  --secondary-foreground: oklch(0.95 0.012 85);
+  --muted: oklch(0.235 0.013 var(--store-brand-hue));
+  --muted-foreground: oklch(0.77 0.015 85);
+  --accent: oklch(0.28 0.02 var(--store-brand-hue));
+  --accent-foreground: oklch(0.95 0.012 85);
+  --destructive: oklch(0.72 0.17 27);
+  --border: oklch(0.32 0.014 var(--store-brand-hue));
+  --input: oklch(0.38 0.016 var(--store-brand-hue));
+  --ring: oklch(0.77 0.095 82);
+
+  /* Cabinet roles: the carcass, a drawer front, its bevel, the rule between drawers,
+     the enamel label plate and its ink, and the gold leaf. */
+  --rx-field: oklch(0.2 0.014 var(--store-brand-hue));
+  --rx-drawer: oklch(0.235 0.016 var(--store-brand-hue));
+  --rx-drawer-hi: oklch(0.265 0.018 var(--store-brand-hue));
+  --rx-bevel: oklch(1 0 0 / 0.07);
+  --rx-rule: oklch(0.33 0.014 var(--store-brand-hue));
+  --rx-enamel: oklch(0.93 0.022 88);
+  --rx-enamel-ink: oklch(0.2 0.015 var(--store-brand-hue));
+  --rx-gold: oklch(0.77 0.095 82);
+  --rx-ease: cubic-bezier(0.23, 1, 0.32, 1);
+
+  background-color: var(--background);
+  color: var(--foreground);
+  color-scheme: dark;
+  font-family: var(--font-geist-sans);
+}
+.storefront-brand ::selection { background: var(--rx-enamel); color: var(--rx-enamel-ink); }
+
+.storefront-brand .rx-num { font-variant-numeric: tabular-nums; }
+
+/* The sign-writer's voice: store name, headings and prices. */
+.storefront-brand .rx-display {
+  font-family: var(--rx-font-display), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  line-height: 1;
+}
+.storefront-brand .rx-gold { color: var(--rx-gold); }
+
+/* Small field label in sentence case. */
+.storefront-brand .rx-eyebrow {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+}
+
+/* A drawer front: one step lighter than the carcass, a bevel along its top edge, a rule round it.
+   Pulled out a few pixels with a shadow under it on hover; pushed back on press. */
+.storefront-brand .rx-drawer {
+  position: relative;
+  border-radius: 4px;
+  background: var(--rx-drawer);
+  box-shadow: inset 0 1px 0 var(--rx-bevel), 0 0 0 1px var(--rx-rule);
+  transition: background-color 180ms var(--rx-ease), transform 180ms var(--rx-ease), box-shadow 180ms var(--rx-ease);
+}
+.storefront-brand a.rx-drawer:active,
+.storefront-brand .group:active .rx-drawer { transform: translateY(0); }
+@media (hover: hover) and (pointer: fine) {
+  .storefront-brand a.rx-drawer:hover,
+  .storefront-brand .group:hover .rx-drawer {
+    background: var(--rx-drawer-hi);
+    transform: translateY(-3px);
+    box-shadow: inset 0 1px 0 var(--rx-bevel), 0 0 0 1px var(--rx-rule), 0 10px 18px -10px oklch(0 0 0 / 0.75);
+  }
+}
+
+/* The brass pull on a drawer front. */
+.storefront-brand .rx-pull {
+  display: block;
+  width: 44px;
+  height: 7px;
+  border-radius: 4px;
+  background: oklch(0.7 0.085 80);
+  box-shadow: inset 0 1px 0 oklch(0.88 0.06 85), 0 2px 3px -1px oklch(0 0 0 / 0.6);
+}
+
+/* An enamel label plate: cream with near-black ink, fixed to a drawer. */
+.storefront-brand .rx-plate {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px;
+  background: var(--rx-enamel);
+  color: var(--rx-enamel-ink);
+  box-shadow: inset 0 0 0 1px oklch(0 0 0 / 0.18), 0 1px 0 oklch(0 0 0 / 0.4);
+}
+
+/* A panel of the cabinet: the carcass colour with a rule round it. */
+.storefront-brand .rx-panel {
+  border-radius: 6px;
+  background: var(--rx-field);
+  box-shadow: 0 0 0 1px var(--rx-rule);
+}
+
+/* Drawers settle in once on load, one after another. */
+@media (prefers-reduced-motion: no-preference) {
+  .storefront-brand .rx-settle > * { animation: rx-settle 480ms var(--rx-ease) both; }
+  .storefront-brand .rx-settle > :nth-child(2) { animation-delay: 60ms; }
+  .storefront-brand .rx-settle > :nth-child(3) { animation-delay: 120ms; }
+  .storefront-brand .rx-settle > :nth-child(4) { animation-delay: 180ms; }
+  .storefront-brand .rx-settle > :nth-child(n + 5) { animation-delay: 220ms; }
+}
+@keyframes rx-settle { from { opacity: 0; transform: translateY(8px); } }
+
+.storefront-brand .no-scrollbar { scrollbar-width: none; }
+.storefront-brand .no-scrollbar::-webkit-scrollbar { display: none; }

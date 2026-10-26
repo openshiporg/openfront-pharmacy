@@ -1,5 +1,5 @@
-// Storefront kit: pills with a solid ink chosen state, title-line status dots, perforated
-// bands and buttons. Server-safe; client pieces import from here too.
+// Storefront kit: enamel label plates as tabs (the chosen one is gold), title-line status dots,
+// ruled bands, and a gold-leaf primary button. Server-safe; client pieces import from here too.
 
 import type { ComponentProps, ReactNode } from 'react'
 import Link from 'next/link'
@@ -30,9 +30,9 @@ export function TitleLine({ as: Tag = 'h2', title, tone, state, className, title
   </div>
 }
 
-export const trackClass = 'inline-flex max-w-full items-center gap-1 overflow-x-auto no-scrollbar'
+export const trackClass = 'inline-flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar'
 
-export const pillClass = 'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[14px] bg-muted px-4 text-[14px] font-semibold text-muted-foreground transition-[color,background-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-foreground data-[active=true]:text-background max-sm:min-h-11'
+export const pillClass = 'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[3px] px-3.5 text-[14px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_var(--rx-rule)] transition-[color,background-color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground hover:shadow-[inset_0_0_0_1px_var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-[var(--rx-enamel)] data-[active=true]:text-[var(--rx-enamel-ink)] data-[active=true]:shadow-[inset_0_0_0_1px_oklch(0_0_0/0.2)] max-sm:min-h-11'
 
 export function Track({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
   return <div role="group" aria-label={label} className={cn(trackClass, className)}>{children}</div>
@@ -46,8 +46,8 @@ export function PillLink({ active, className, ...props }: ComponentProps<typeof 
   return <Link aria-current={active ? 'page' : undefined} data-active={Boolean(active)} className={cn(pillClass, className)} {...props} />
 }
 
-/** Primary action: a solid brand pill. */
-export const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[14px] bg-primary px-6 text-[15px] font-bold text-primary-foreground transition-[filter,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-110 active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
+/** Primary action: a gold-leaf block. */
+export const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[4px] bg-primary px-6 text-[15px] font-bold text-primary-foreground shadow-[inset_0_1px_0_oklch(1_0_0/0.25)] transition-[filter,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-110 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
 
 /** Secondary action: the chosen-pill style, as a link. */
 export function SecondaryAction({ className, children, ...props }: ComponentProps<typeof Link>) {
@@ -56,7 +56,7 @@ export function SecondaryAction({ className, children, ...props }: ComponentProp
 
 /** A band: one card-stock panel with perforated rows. */
 export function Band({ className, children }: { className?: string; children: ReactNode }) {
-  return <div className={cn('rx-card divide-y-2 divide-dotted divide-[var(--rx-perf)] overflow-hidden', className)}>{children}</div>
+  return <div className={cn('rx-panel divide-y divide-[var(--rx-rule)] overflow-hidden', className)}>{children}</div>
 }
 
 /** Small field label over a value, as on a dispensing label. */
@@ -70,7 +70,7 @@ export function Field({ label, children, className }: { label: string; children:
 export function PageHead({ eyebrow, title, meta, className, children }: { eyebrow?: ReactNode; title: ReactNode; meta?: ReactNode; className?: string; children?: ReactNode }) {
   return <header className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between', className)}>
     <div className="min-w-0">
-      <h1 className="text-[2.5rem] font-extrabold leading-[0.95] tracking-[-0.04em] text-balance sm:text-[3.5rem]">{title}</h1>
+      <h1 className="rx-display text-balance text-[2.75rem] sm:text-[4rem]">{title}</h1>
       {meta && <p className="mt-2 text-sm text-muted-foreground">{meta}</p>}
     </div>
     {children}
@@ -78,11 +78,11 @@ export function PageHead({ eyebrow, title, meta, className, children }: { eyebro
 }
 
 export function Notice({ tone = 'muted', children, className }: { tone?: 'muted' | 'danger' | 'brand'; children: ReactNode; className?: string }) {
-  return <p role={tone === 'danger' ? 'alert' : 'status'} className={cn('rounded-[14px] px-4 py-3 text-sm', tone === 'danger' ? 'bg-destructive/10 text-destructive' : tone === 'brand' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground', className)}>{children}</p>
+  return <p role={tone === 'danger' ? 'alert' : 'status'} className={cn('rounded-[4px] px-4 py-3 text-sm', tone === 'danger' ? 'bg-destructive/10 text-destructive' : tone === 'brand' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground', className)}>{children}</p>
 }
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {
-  return <div className="rx-card px-6 py-14 text-center">
+  return <div className="rx-panel px-6 py-14 text-center">
     <p className="font-semibold">{title}</p>
     {children && <div className="mt-4 flex justify-center">{children}</div>}
   </div>
