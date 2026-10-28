@@ -41,6 +41,7 @@ export async function createPaymentFunction({ cart, amount, currency }: CreatePa
   }, cart?.id ? { idempotencyKey: `cart:${cart.id}:${amount}:${currency.toLowerCase()}` } : undefined);
 
   return {
+    status: paymentIntent.status,
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id,
   };
