@@ -15,8 +15,9 @@ export const metadata: Metadata = { title: 'Checkout' }
 
 export async function CheckoutPage() {
   const [cart, customer, storefront] = await Promise.all([retrieveCart(), getCustomer(), getStorefront()])
-  if (!cart?.items.length) return <div className="mx-auto max-w-2xl px-4 py-16">
-    <EmptyState title="Your cart is empty"><Link href="/products" className={buttonClass}>Shop</Link></EmptyState>
+  if (!cart?.items.length) return <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12 lg:px-8">
+    <PageHead title="Checkout" />
+    <div className="mt-8"><EmptyState title="Your cart is empty"><Link href="/products" className={buttonClass}>Shop</Link></EmptyState></div>
   </div>
   const providers = await getPaymentProviders(cart.location.id)
   const currencyCode = cart.items[0]?.product.currencyCode ?? 'USD'

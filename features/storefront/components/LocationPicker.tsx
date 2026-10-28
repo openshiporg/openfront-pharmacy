@@ -44,7 +44,7 @@ export function LocationPicker({ location, locations: initialLocations, hasMore:
 
   if (options.length < 2 && !canSearch) return null
 
-  return <section aria-labelledby="pickup-location" className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+  return <section aria-labelledby="pickup-location" className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 sm:pt-10 lg:px-8">
     <div className="grid gap-4 rx-panel p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,24rem)] lg:items-end">
       <div className="flex min-w-0 items-start gap-3">
         <span className="mt-6 grid size-9 shrink-0 place-items-center rounded-[4px] bg-accent text-accent-foreground"><MapPin aria-hidden="true" className="size-4" /></span>

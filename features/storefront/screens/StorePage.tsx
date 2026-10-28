@@ -19,7 +19,7 @@ export async function StorePage({ searchParams }: Props) {
   const storefront = await getStorefront()
   if (!storefront) return <StoreUnavailable />
   if (!storefront.location) return <NoLocations storefront={storefront} />
-  return <div className="pt-8 sm:pt-10">
+  return <div>
     <StoreCatalog storefront={storefront} title={category ? categoryLabel(category) : 'Shop'} eyebrow={storefront.location.name} category={category} />
   </div>
 }

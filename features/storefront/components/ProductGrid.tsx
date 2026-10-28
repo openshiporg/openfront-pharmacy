@@ -54,7 +54,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
       </form>
     </div>
 
-    {categories.length > 1 && <Track label="Category" className="mt-6 border-b border-[var(--rx-rule)] pb-4">
+    {categories.length > 1 && <Track label="Category" className="mt-6 flex border-b border-[var(--rx-rule)] pb-4">
       <PillLink href="/products#products" active={!activeCategory} scroll={false}>All</PillLink>
       {categories.map((entry) => <PillLink key={entry.value} href={`/products?category=${entry.value}#products`} active={activeCategory === entry.value} scroll={false}>{categoryLabel(entry.value)} <span className="rx-num text-[13px] text-muted-foreground">{entry.count}</span></PillLink>)}
     </Track>}
@@ -73,7 +73,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, title = 
             {requirement && <span className="rx-plate absolute left-2.5 top-2.5 z-10 px-2 py-0.5 text-[13px] font-bold">{requirement}</span>}
           </Link>
           <h3 className="mt-3.5 text-[16px] font-semibold leading-snug">
-            <Link href={href} className="break-words [overflow-wrap:anywhere] hover:underline hover:underline-offset-4"><Dot tone={availability.canOrder ? 'ok' : 'muted'} className="mr-2" />{product.title}<span className="sr-only"> · {availability.canOrder ? 'In stock' : 'Unavailable'}</span></Link>
+            <Link href={href} className="items-baseline! break-words [overflow-wrap:anywhere] hover:underline hover:underline-offset-4"><Dot tone={availability.canOrder ? 'ok' : 'muted'} className="mr-2" />{product.title}<span className="sr-only"> · {availability.canOrder ? 'In stock' : 'Unavailable'}</span></Link>
           </h3>
           {product.category && <p className="mt-1 text-[13px] text-muted-foreground">{categoryLabel(product.category)}</p>}
           <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-2 pt-3">

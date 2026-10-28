@@ -59,7 +59,7 @@ function LocationPlate({ location, phone }: { location: PublicPharmacyLocationPr
       {address && <Field label="Address" className="col-span-2">{address}</Field>}
       {location.hours && <Field label="Pharmacy counter"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} /></Field>}
       {location.hours && <Field label="Store"><OpenNow week={location.hours.store} timezone={location.timezone} /></Field>}
-      {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary">{phone}</a></Field>}
+      {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary max-md:-my-3.5">{phone}</a></Field>}
       {services && <Field label="Service">{services}</Field>}
     </dl>
     {location.hours && <Link href="/prescriptions#location" className="mb-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary underline decoration-1 underline-offset-4">All hours</Link>}
@@ -83,7 +83,7 @@ export async function HomePage() {
         <nav aria-label="Pharmacy counter" className="min-w-0 lg:order-none">
           <ol className="rx-settle grid grid-cols-2 gap-2 rounded-[6px] bg-[var(--rx-field)] p-2 shadow-[0_0_0_1px_var(--rx-rule)] sm:gap-3 sm:p-3">
             {COUNTER.map((entry) => <li key={entry.href}>
-              <Link href={entry.href} className="rx-drawer group flex aspect-[5/4] flex-col items-center justify-center gap-5 px-3 text-center sm:aspect-[4/3]">
+              <Link href={entry.href} className="rx-drawer group flex aspect-[5/4] w-full flex-col items-center justify-center gap-5 px-3 text-center sm:aspect-[4/3]">
                 <span className="rx-plate min-h-10 max-w-full justify-center px-3 py-1.5 text-[15px] font-bold leading-tight sm:text-[17px]">{entry.label}</span>
                 <span aria-hidden="true" className="rx-pull" />
               </Link>

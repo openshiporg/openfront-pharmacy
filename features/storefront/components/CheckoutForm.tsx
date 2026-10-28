@@ -19,7 +19,7 @@ const PENDING_CARD_KEY = 'pharmacy-checkout-card'
 type CardStep = { paymentSessionId: string; clientSecret: string }
 
 function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
-  return <fieldset className="grid gap-4 border-t border-[var(--rx-rule)] pt-6 first:border-t-0 first:pt-0">
+  return <fieldset className="grid min-w-0 w-full gap-4 border-t border-[var(--rx-rule)] pt-6 first:border-t-0 first:pt-0">
     <legend className="flex items-baseline gap-3 text-lg font-semibold tracking-tight"><span className="rx-num text-[13px] font-normal text-muted-foreground">{number}</span>{title}</legend>
     {children}
   </fieldset>

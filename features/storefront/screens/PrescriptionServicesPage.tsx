@@ -23,7 +23,7 @@ export async function PrescriptionServicesPage() {
   return <div className="mx-auto max-w-5xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
     <PageHead eyebrow={brand.displayName} title="Prescriptions" />
 
-    <div className="mt-8 grid gap-[14px] p-2 md:grid-cols-2">
+    <div className="mt-8 grid gap-[14px] md:grid-cols-2">
       <section id="refills" aria-labelledby="refills-title" className="flex flex-col rx-panel p-6">
         <h2 id="refills-title" className="text-xl font-semibold tracking-tight">Refills</h2>
         <div className="mt-auto pt-6"><Link href="/account" className={buttonClass}>Request a refill</Link></div>
@@ -37,7 +37,7 @@ export async function PrescriptionServicesPage() {
               ? <PrescriptionRequestForm kinds={['transfer', 'new_prescription']} locationId={location.id} needsIdentity={!account?.hasPatientProfile} />
               : <div className="flex flex-wrap items-center gap-3">
                 <Link href="/account?from=/prescriptions%23transfer" className={buttonClass}>Sign in to send a request</Link>
-                {phone && <SecondaryAction href={`tel:${phone}`}>Call <span className="rx-num">{phone}</span></SecondaryAction>}
+                {phone && <SecondaryAction href={`tel:${phone}`} className="min-h-12">Call <span className="rx-num">{phone}</span></SecondaryAction>}
               </div>}
         </div>
       </section>
@@ -50,13 +50,13 @@ export async function PrescriptionServicesPage() {
             <TitleLine title={location.name} titleClassName="text-xl" tone={location.onlineOrderingEnabled ? 'ok' : 'warn'} state={location.onlineOrderingEnabled ? 'Ordering online' : 'Call to order'} />
             <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4">
               {address && <Field label="Address" className="col-span-2">{address}</Field>}
-              {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary">{phone}</a></Field>}
+              {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary max-md:-my-3.5">{phone}</a></Field>}
               <Field label="Service">{[location.pickupEnabled && 'Pickup', location.deliveryEnabled && 'Delivery'].filter(Boolean).join(' · ') || 'In store'}</Field>
               {location.hours && <Field label="Pharmacy counter" className="col-span-2"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} /></Field>}
-              {brand.supportEmail && <Field label="Email" className="col-span-2"><a href={`mailto:${brand.supportEmail}`} className="break-all hover:text-primary">{brand.supportEmail}</a></Field>}
+              {brand.supportEmail && <Field label="Email" className="col-span-2"><a href={`mailto:${brand.supportEmail}`} className="break-all hover:text-primary max-md:-my-3.5">{brand.supportEmail}</a></Field>}
             </dl>
           </div>
-          {location.hours ? <LocationHours hours={location.hours} timezone={location.timezone} /> : <Field label="Hours">Call the pharmacy</Field>}
+          {location.hours ? <LocationHours hours={location.hours} timezone={location.timezone} /> : <dl><Field label="Hours">Call the pharmacy</Field></dl>}
         </div>
         : <p className="font-medium">No pharmacy locations are open online</p>}
     </section>
