@@ -1,6 +1,10 @@
+<!-- logo -->
+
 # Openfront Pharmacy
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fopenshiporg%2Fopenfront-pharmacy&env=DATABASE_URL%2CSESSION_SECRET)
+
+[![Deploy on Railway](https://railway.com/button.svg)](https://railway.com/deploy/openfront-pharmacy)
 
 Openfront Pharmacy is a self-hostable pharmacy operations and customer-commerce application. It separates eligible public shopping from prescription intake, pharmacist review, and dispensing. Pharmacy teams manage patients, prescriptions, fills, inventory lots, recalls, cold-chain records, orders, payments, and fulfillment.
 
@@ -8,12 +12,10 @@ Openfront Pharmacy is a self-hostable pharmacy operations and customer-commerce 
 
 ## Demo
 
-Explore the application locally using the setup instructions below.
-
 | | |
 |---|---|
-| **Public application** | `/` on your development URL |
-| **Dashboard** | `/dashboard` on your development URL |
+| **Storefront** | [pharmacy.openship.org](https://pharmacy.openship.org) |
+| **Dashboard** | [pharmacy.openship.org/dashboard](https://pharmacy.openship.org/dashboard) |
 
 [Learn more →](https://openship.org/products/openfront-pharmacy)
 
