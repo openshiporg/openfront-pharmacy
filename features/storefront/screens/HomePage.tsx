@@ -131,7 +131,7 @@ export async function HomePage() {
             <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[78%_30%] lg:object-[70%_30%]" />
             <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/25 via-35% to-transparent to-60% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
           </div>
-          <div className="relative flex min-h-[176px] max-w-[56%] flex-col justify-center py-3 pl-3 pr-0 sm:max-w-none sm:px-4 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
+          <div className="relative flex min-h-[168px] max-w-[56%] flex-col justify-center py-3 pl-3 pr-0 sm:max-w-none sm:px-4 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
             <h1 id="home-title" className="rx-display text-[1.15rem] leading-[1.08] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
             <p className="mt-1 text-[12px] leading-snug text-white/90 sm:max-w-[34ch] sm:text-[14px] lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85"><span className="lg:hidden">Prescriptions, refills and everyday health.</span><span className="max-lg:hidden">Prescriptions, refills and everyday health products from {location.name}.</span></p>
             <div className="mt-2 flex flex-col items-start gap-0 lg:mt-6 lg:gap-3 lg:flex-row lg:items-center">
@@ -149,7 +149,7 @@ export async function HomePage() {
             <h2 id="featured-title" className="rx-display text-[1.3rem] sm:text-[2rem]">Featured products</h2>
             <Link href="/products" className="rx-serif inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-[15px] text-primary hover:underline lg:text-[17px]">View all<span className="hidden lg:inline"> products</span><ArrowRight aria-hidden="true" className="hidden size-4 lg:block" /></Link>
           </div>
-          <ul className="mt-3 grid grid-cols-2 gap-3 lg:mt-4 lg:grid-cols-4 lg:gap-6">
+          <ul className="mt-1 grid grid-cols-2 gap-2.5 lg:mt-4 lg:grid-cols-4 lg:gap-6">
             {featured.map((product) => <li key={product.id} className="flex min-w-0"><ProductCard product={product} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} size="sm" className="w-full lg:hidden" /><ProductCard product={product} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} className="hidden w-full lg:flex" /></li>)}
           </ul>
         </section>}
