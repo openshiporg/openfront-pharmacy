@@ -20,14 +20,14 @@ export function ProductCard({ product, locationId, orderingEnabled, size = 'md',
       {requirement && <span className="rx-plate absolute left-2 top-2 z-10 px-2 py-0.5 text-[12px] font-semibold">{requirement}</span>}
     </Link>
     <div className={cn('flex flex-1 flex-col', size === 'sm' ? 'px-2.5 pb-2.5 pt-2' : 'px-3 pb-3 pt-3 sm:px-4 sm:pb-4')}>
-      {product.category && <p className="truncate text-[11.5px] text-muted-foreground sm:text-[13px]">{categoryLabel(product.category)}</p>}
-      <h3 className={cn('mt-0.5 leading-snug', size === 'sm' ? 'text-[13px] font-medium' : 'rx-serif text-[16.5px] sm:text-[19px]')}>
+      {product.category && <p className="truncate text-[10.5px] text-muted-foreground sm:text-[13px]">{categoryLabel(product.category)}</p>}
+      <h3 className={cn('mt-0.5 leading-snug', size === 'sm' ? 'text-[12px] font-medium' : 'rx-serif text-[16.5px] sm:text-[19px]')}>
         <Link href={href} className="line-clamp-2 break-words hover:text-primary">{product.title}</Link>
       </h3>
       {product.description && size === 'md' && <p className="mt-0.5 line-clamp-1 text-[13px] text-muted-foreground max-sm:hidden sm:text-[14px]">{product.description}</p>}
       <div className="mt-auto flex items-center justify-between gap-1 pt-1.5">
         <div className="min-w-0">
-          <p className={cn('rx-num text-primary', size === 'sm' ? 'text-[14px] font-semibold' : 'rx-serif text-[19px] sm:text-[21px]')}>{formatMoney(product.priceAmount, product.currencyCode)}</p>
+          <p className={cn('rx-num text-primary', size === 'sm' ? 'text-[13px] font-semibold' : 'rx-serif text-[19px] sm:text-[21px]')}>{formatMoney(product.priceAmount, product.currencyCode)}</p>
           {!availability.canOrder && <p className="text-[12.5px] text-muted-foreground">Unavailable</p>}
         </div>
         {canAdd && <AddProductButton locationId={locationId} productId={product.id} label={`Add ${product.title} to cart`} variant="round" discSize={size} />}
