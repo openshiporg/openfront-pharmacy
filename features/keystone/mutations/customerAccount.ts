@@ -44,8 +44,11 @@ export async function pharmacyCustomerAccount(_root: unknown, _args: unknown, co
   const userId = context.session?.itemId
   if (!userId || context.session?.listKey !== 'User') throw new DomainError('Authentication required')
   // Normal scoped reads, no sudo and no email-based historical claiming.
-  const user = await context.query.User.findOne({ where: { id: userId }, query: 'id name patientProfile { id }' })
+  const user = await context.query.User.findOne({ where: { id: userId }, query: 'id name' })
   if (!user) throw new DomainError('Account not found')
+  // PatientProfile denies all list queries, so a scoped read of the relation is always null.
+  // Check only the session user's own link, exactly as pharmacyPatientPortal does.
+  const linkedPatients = await context.sudo().query.PatientProfile.count({ where: { user: { id: { equals: userId } } } })
   const orders = await context.query.Order.findMany({ where: { customer: { id: { equals: userId } } }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 50, query: 'id orderNumber status totalAmount currencyCode createdAt lineItems { title quantity unitPriceAmount }' })
-  return { id: user.id, name: user.name, hasPatientProfile: Boolean(user.patientProfile?.id), orders }
+  return { id: user.id, name: user.name, hasPatientProfile: linkedPatients > 0, orders }
 }
