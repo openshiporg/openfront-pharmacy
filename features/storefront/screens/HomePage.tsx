@@ -90,7 +90,7 @@ function InfoCards({ location, phone }: { location: PublicPharmacyLocationProjec
 
 /** Phone only: the department column beside the hero and featured products. */
 function PhoneDepartments({ categories }: { categories: Array<{ value: string }> }) {
-  const row = 'flex min-h-[50px] items-center gap-2 pl-2.5 pr-1 text-[12px] leading-[1.2] [overflow-wrap:normal] [word-break:normal] hyphens-none'
+  const row = 'flex min-h-[48px] items-center gap-1.5 pl-2 pr-0.5 text-[11.5px] leading-[1.2] [overflow-wrap:normal] [word-break:normal] hyphens-none'
   return <nav aria-label="Departments" className="self-start rounded-r-[18px] bg-[oklch(0.955_0.003_50)] pb-2 lg:hidden">
     <ul>
       <li><Link href="/" aria-current="page" className={`${row} rounded-r-[18px] bg-accent text-primary`}><House aria-hidden="true" strokeWidth={1.6} className="size-[17px] shrink-0" /><span className="min-w-0 flex-1">Home</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" /></Link></li>
@@ -121,7 +121,7 @@ export async function HomePage() {
   return <>
     <InfoCards location={location} phone={phone} />
 
-    <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2.5 pt-4 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
+    <div className="grid grid-cols-[128px_minmax(0,1fr)] gap-x-2 pt-4 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
       <PhoneDepartments categories={categories} />
 
       <div className="min-w-0 pr-4 lg:pr-0">

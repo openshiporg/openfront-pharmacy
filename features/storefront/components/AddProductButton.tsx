@@ -34,8 +34,8 @@ export function AddProductButton({ locationId, productId, label = 'Add to cart',
   if (variant === 'round') return <div className="relative shrink-0">
     {/* The button is the full tap area; the painted disc inside is the design's small round cart. */}
     <button type="button" disabled={pending} onClick={add} aria-label={added ? `${label}: added` : label} title={error || undefined} className={cn('group/cart grid place-items-center rounded-[999px] transition-transform active:scale-95 disabled:opacity-70', discSize === 'sm' ? '-m-2 size-12' : '-m-1 size-12', className)}>
-      <span className={cn('grid place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_3px_8px_-3px_oklch(0.5_0.19_25/0.7)] group-hover/cart:brightness-110', discSize === 'sm' ? 'size-8' : 'size-10')}>
-        {pending ? <Loader2 aria-hidden="true" className={cn('animate-spin', discSize === 'sm' ? 'size-4' : 'size-[18px]')} /> : added ? <Check aria-hidden="true" className={discSize === 'sm' ? 'size-4' : 'size-[18px]'} /> : <ShoppingCart aria-hidden="true" strokeWidth={1.8} className={discSize === 'sm' ? 'size-4' : 'size-[18px]'} />}
+      <span className={cn('grid place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_3px_8px_-3px_oklch(0.5_0.19_25/0.7)] group-hover/cart:brightness-110', discSize === 'sm' ? 'size-7' : 'size-10')}>
+        {pending ? <Loader2 aria-hidden="true" className={cn('animate-spin', discSize === 'sm' ? 'size-3.5' : 'size-[18px]')} /> : added ? <Check aria-hidden="true" className={discSize === 'sm' ? 'size-3.5' : 'size-[18px]'} /> : <ShoppingCart aria-hidden="true" strokeWidth={1.8} className={discSize === 'sm' ? 'size-3.5' : 'size-[18px]'} />}
       </span>
     </button>
     <span aria-live="polite" className="sr-only">{added ? 'Added to cart' : error}</span>
