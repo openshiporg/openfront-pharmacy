@@ -1,35 +1,29 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Menu } from 'lucide-react'
+import { Ellipsis, Menu } from 'lucide-react'
 
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import type { PublicPharmacyOperatorBrandProjection } from '@/features/pharmacy/contracts'
 import { StoreMark } from '../../../../components/StoreBrand'
+import type { StoreCategory } from '../../../../lib/data/store'
 import { rxFontClass } from '../../../../lib/fonts'
 import { storeBrandStyle } from '../../../../lib/rx-brand'
-import { NAV_LINKS, isActivePath } from './links'
+import { SideMenu } from './side-menu'
 
-export function MobileMenu({ brand }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'logoIcon' | 'logoColor'> }) {
+export function MobileMenu({ brand, categories, phone, signedIn, trigger = 'icon' }: { trigger?: 'icon' | 'tab'; brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'logoIcon' | 'logoColor'>; categories: StoreCategory[]; phone?: string | null; signedIn: boolean }) {
   const [open, setOpen] = useState(false)
-  const pathname = usePathname() ?? '/'
-  const links = [...NAV_LINKS, { href: '/account', label: 'Account' }, { href: '/cart', label: 'Cart' }]
   // The sheet renders in a portal outside the store wrapper, so it carries the brand tokens itself.
   return <Sheet open={open} onOpenChange={setOpen}>
-    <SheetTrigger className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-[4px] bg-muted md:hidden" aria-label="Open menu"><Menu className="size-5" /></SheetTrigger>
-    <SheetContent side="right" className={`storefront-brand ${rxFontClass} w-80 max-w-[88vw] gap-0 p-0`} style={storeBrandStyle(brand.logoColor)}>
+    {trigger === 'tab'
+      ? <SheetTrigger className="flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-[13px] text-foreground/80"><Ellipsis aria-hidden="true" className="size-6" strokeWidth={1.6} />More</SheetTrigger>
+      : <SheetTrigger className="inline-flex size-11 items-center justify-center rounded-[4px] text-foreground" aria-label="Open menu"><Menu className="size-6" strokeWidth={1.6} /></SheetTrigger>}
+    <SheetContent side="left" className={`storefront-brand ${rxFontClass} w-80 max-w-[88vw] gap-0 overflow-y-auto p-0`} style={storeBrandStyle(brand.logoColor)}>
       <div className="flex items-center gap-2.5 border-b border-[var(--rx-rule)] px-5 py-4 pr-12">
         <StoreMark logoIcon={brand.logoIcon} logoColor={brand.logoColor} className="size-7" />
-        <SheetTitle className="truncate text-base">{brand.displayName}</SheetTitle>
+        <SheetTitle className="rx-serif truncate text-[19px] font-medium text-primary">{brand.displayName}</SheetTitle>
       </div>
-      <nav aria-label="Menu" className="grid p-3">
-        {links.map((link) => {
-          const active = isActivePath(pathname, link.href)
-          return <Link key={link.href} href={link.href} onClick={() => setOpen(false)} aria-current={active ? 'page' : undefined} className={`flex min-h-12 items-center rounded-[4px] px-3 text-[15px] font-medium ${active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{link.label}</Link>
-        })}
-      </nav>
+      <nav aria-label="Menu" className="p-5"><SideMenu categories={categories} phone={phone} signedIn={signedIn} onNavigate={() => setOpen(false)} /></nav>
     </SheetContent>
   </Sheet>
 }

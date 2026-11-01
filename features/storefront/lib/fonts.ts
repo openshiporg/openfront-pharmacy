@@ -1,9 +1,9 @@
-import { Gloock, Hanken_Grotesk } from 'next/font/google'
+import { Crimson_Pro, Source_Sans_3 } from 'next/font/google'
 
-// Gloock, a sign-writer's high-contrast serif, letters the store name, headings and prices like
-// gold leaf on a cabinet; Hanken Grotesk sets everything read. Figures use tabular numerals.
-export const rxDisplay = Gloock({ subsets: ['latin'], weight: '400', display: 'swap', variable: '--rx-font-display' })
-export const rxSans = Hanken_Grotesk({ subsets: ['latin'], display: 'swap', variable: '--rx-font-sans' })
+// Antares: a bookish transitional serif (Crimson Pro) sets the store name, headings, navigation,
+// product titles and prices; Source Sans 3 sets small print, forms and meta. Figures are tabular.
+export const rxDisplay = Crimson_Pro({ subsets: ['latin'], weight: ['400', '500', '600'], display: 'swap', variable: '--rx-font-display' })
+export const rxSans = Source_Sans_3({ subsets: ['latin'], display: 'swap', variable: '--rx-font-sans' })
 
 /** Font variables for the store wrapper and for portals rendered outside it. */
 export const rxFontClass = `${rxDisplay.variable} ${rxSans.variable}`

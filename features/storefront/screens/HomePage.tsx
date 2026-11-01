@@ -1,14 +1,20 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
+import { ArrowRight, ChevronRight, ClipboardList, Clock, House, MessageCircleMore, PackageSearch, ShieldCheck, Store, Truck } from 'lucide-react'
 
 import type { PublicPharmacyLocationProjection } from '@/features/pharmacy/contracts'
-import { OpenNow } from '../components/LocationHours'
+import { formatDay, openState } from '@/features/pharmacy/hours'
+import { CategoryIcon } from '../components/CategoryIcon'
 import { LocationPicker } from '../components/LocationPicker'
+import { ProductCard } from '../components/ProductCard'
 import { ProductGrid } from '../components/ProductGrid'
-import { Dot, Field, TitleLine } from '../components/rx-ui'
+import { Dot, buttonClass, outlineButtonClass } from '../components/rx-ui'
+import { categoryLabel } from '../lib/categories'
 import { retrieveCart } from '../lib/data/cart'
-import { getStorefront, getStorefrontCatalog, getStorefrontCategories, type Storefront } from '../lib/data/store'
-import { formatAddress } from '../lib/money'
+import { fetchCatalogPage, getStorefront, getStorefrontCatalog, getStorefrontCategories, type Storefront } from '../lib/data/store'
+import { HeaderSearch } from '../modules/layout/templates/nav'
+import { categoryHref } from '../modules/layout/templates/nav/links'
 import { StoreUnavailable } from './MainLayout'
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,48 +28,76 @@ export function NoLocations({ storefront }: { storefront: Storefront }) {
   const phone = storefront.brand.supportPhone
   const email = storefront.brand.supportEmail
   return <section className="mx-auto max-w-xl px-4 py-24 text-center">
-    <h1 className="text-3xl font-semibold tracking-tight">No pharmacy locations are open online</h1>
+    <h1 className="rx-display text-[2.25rem]">No pharmacy locations are open online</h1>
     {(phone || email) && <p className="mt-4 text-muted-foreground">{phone && <a href={`tel:${phone}`} className="rx-num font-medium text-foreground">{phone}</a>}{phone && email && ' · '}{email && <a href={`mailto:${email}`} className="font-medium text-foreground">{email}</a>}</p>}
   </section>
 }
 
-/** Location picker and product grid for the selected location, shared by the home and shop pages. */
-export async function StoreCatalog({ storefront, title, eyebrow, category = null }: { storefront: Storefront; title?: string; eyebrow?: string; category?: string | null }) {
+/** Location picker and product grid for the selected location (the shop page). */
+export async function StoreCatalog({ storefront, title, eyebrow, category = null, search = '' }: { storefront: Storefront; title?: string; eyebrow?: string; category?: string | null; search?: string }) {
   const location = storefront.location!
   const categories = await getStorefrontCategories(location.id)
   const activeCategory = categories.some((entry) => entry.value === category) ? category : null
-  const [catalog, cart] = await Promise.all([getStorefrontCatalog(location.id, activeCategory), retrieveCart()])
+  const [catalog, cart] = await Promise.all([
+    search ? fetchCatalogPage({ locationId: location.id, category: activeCategory, search, first: 50 }).then((page) => page.success ? page.data : null) : getStorefrontCatalog(location.id, activeCategory),
+    retrieveCart(),
+  ])
   const lockedReason = cart?.items.length ? 'Empty your cart to change pharmacy.' : null
   return <>
     <LocationPicker key={`picker-${location.id}`} location={location} locations={storefront.locations} hasMore={storefront.hasMoreLocations} nextCursor={storefront.nextLocationCursor} lockedReason={lockedReason} />
-    {!location.onlineOrderingEnabled && <p role="status" className="mx-auto mt-6 max-w-7xl px-4 text-sm text-muted-foreground sm:px-6 lg:px-8"><span className="inline-flex items-baseline gap-2"><Dot tone="warn" />Online ordering is off at {location.name}. Call the pharmacy to order.</span></p>}
+    {!location.onlineOrderingEnabled && <p role="status" className="mt-6 px-4 text-sm text-muted-foreground sm:px-8 xl:px-16"><span className="inline-flex items-baseline gap-2"><Dot tone="warn" />Online ordering is off at {location.name}. Call the pharmacy to order.</span></p>}
     {catalog
-      ? <ProductGrid key={`${location.id}:${activeCategory || ''}`} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} initialPage={catalog} title={title} eyebrow={eyebrow} categories={categories} activeCategory={activeCategory} />
-      : <p role="alert" className="mx-auto max-w-7xl px-4 py-14 text-sm text-destructive sm:px-6 lg:px-8">Products could not be loaded. Try again.</p>}
+      ? <ProductGrid key={`${location.id}:${activeCategory || ''}:${search}`} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} initialPage={catalog} initialSearch={search} title={title} eyebrow={eyebrow} categories={categories} activeCategory={activeCategory} />
+      : <p role="alert" className="px-4 py-14 text-sm text-destructive sm:px-8 xl:px-16">Products could not be loaded. Try again.</p>}
   </>
 }
 
-const COUNTER = [
-  { href: '/account', label: 'Refill a prescription' },
-  { href: '/prescriptions#transfer', label: 'New or transfer' },
-  { href: '/order-status', label: 'Track an order' },
-  { href: '/products', label: 'Shop the shelves' },
-]
+function serviceLine(location: PublicPharmacyLocationProjection) {
+  if (location.pickupEnabled && location.deliveryEnabled) return { icon: Truck, title: 'Pickup or delivery', detail: `Order online from ${location.name}` }
+  if (location.deliveryEnabled) return { icon: Truck, title: 'Delivery available', detail: `Order online from ${location.name}` }
+  return { icon: Store, title: 'Order online, pick up in store', detail: `Ready at ${location.name}` }
+}
 
-function LocationPlate({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
-  const address = formatAddress(location.address)
-  const services = [location.pickupEnabled && 'Pickup', location.deliveryEnabled && 'Delivery'].filter(Boolean).join(' · ')
-  return <aside aria-label="Pharmacy location" className="border-y border-[var(--rx-rule)]">
-    <TitleLine title={location.name} titleClassName="rx-display text-[1.6rem]" tone={location.onlineOrderingEnabled ? 'ok' : 'warn'} state={location.onlineOrderingEnabled ? 'Ordering online' : 'Call to order'} className="pt-4" />
-    <dl className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 pb-4">
-      {address && <Field label="Address" className="col-span-2">{address}</Field>}
-      {location.hours && <Field label="Pharmacy counter"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} /></Field>}
-      {location.hours && <Field label="Store"><OpenNow week={location.hours.store} timezone={location.timezone} /></Field>}
-      {phone && <Field label="Phone"><a href={`tel:${phone}`} className="rx-num hover:text-primary max-md:-my-3.5">{phone}</a></Field>}
-      {services && <Field label="Service">{services}</Field>}
-    </dl>
-    {location.hours && <Link href="/prescriptions#location" className="mb-4 inline-flex min-h-10 items-center text-sm font-semibold text-primary underline decoration-1 underline-offset-4">All hours</Link>}
-  </aside>
+function hoursSummary(location: PublicPharmacyLocationProjection) {
+  if (!location.hours) return null
+  const state = openState(location.hours.pharmacy, location.timezone)
+  if (state.today < 0) return null
+  return `${state.open ? 'Open today' : 'Today'} ${formatDay(state.todayHours)}`
+}
+
+/** Phone only: three small info cards under the header. */
+function InfoCards({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
+  const service = serviceLine(location)
+  const hours = hoursSummary(location)
+  const card = 'rx-panel flex min-w-0 flex-col gap-0.5 px-2 py-2.5 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.3_0.02_30/0.4)]'
+  return <div className="grid grid-cols-3 gap-2 px-4 pt-3 lg:hidden">
+    <Link href="/prescriptions#location" className={card}>
+      <span className="flex items-center gap-1.5"><Clock aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">Store hours</span></span>
+      <span className="text-[11.5px] leading-snug text-muted-foreground">{hours || location.name}</span>
+    </Link>
+    {phone
+      ? <a href={`tel:${phone}`} className={card}>
+        <span className="flex items-center gap-1.5"><MessageCircleMore aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">Pharmacist</span></span>
+        <span className="text-[11.5px] leading-snug text-muted-foreground">Call to ask a question</span>
+      </a>
+      : <Link href="/prescriptions" className={card}><span className="text-[14px] font-semibold">Prescriptions</span></Link>}
+    <Link href="/products" className={card}>
+      <span className="flex items-center gap-1.5"><service.icon aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">{location.deliveryEnabled ? 'Delivery' : 'Pickup'}</span></span>
+      <span className="text-[11.5px] leading-snug text-muted-foreground">{location.deliveryEnabled ? 'Order online' : 'Order online, collect in store'}</span>
+    </Link>
+  </div>
+}
+
+/** Phone only: the department column beside the hero and featured products. */
+function PhoneDepartments({ categories }: { categories: Array<{ value: string }> }) {
+  const row = 'flex min-h-[54px] items-center gap-2 pl-2.5 pr-1 text-[13px] leading-[1.2] [overflow-wrap:normal] [word-break:normal] hyphens-none'
+  return <nav aria-label="Departments" className="self-start rounded-r-[18px] bg-[oklch(0.955_0.003_50)] pb-2 lg:hidden">
+    <ul>
+      <li><Link href="/" aria-current="page" className={`${row} rounded-r-[18px] bg-accent text-primary`}><House aria-hidden="true" strokeWidth={1.6} className="size-5 shrink-0" /><span className="min-w-0 flex-1">Home</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>
+      <li><Link href="/prescriptions" className={row}><ClipboardList aria-hidden="true" strokeWidth={1.6} className="size-5 shrink-0" /><span className="min-w-0 flex-1">Prescription services</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>
+      {categories.map((entry) => <li key={entry.value}><Link href={categoryHref(entry.value)} className={row}><CategoryIcon category={entry.value} className="size-5 text-foreground" /><span className="min-w-0 flex-1">{categoryLabel(entry.value)}</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>)}
+    </ul>
+  </nav>
 }
 
 export async function HomePage() {
@@ -71,29 +105,67 @@ export async function HomePage() {
   if (!storefront) return <StoreUnavailable />
   if (!storefront.location) return <NoLocations storefront={storefront} />
   const { brand, location } = storefront
+  const phone = location.phone || brand.supportPhone
+  const [categories, catalog] = await Promise.all([getStorefrontCategories(location.id), getStorefrontCatalog(location.id)])
+  const featured = (catalog?.items ?? []).filter((product) => product.imageUrl).slice(0, 4)
+  const service = serviceLine(location)
+  const headline = brand.tagline || brand.displayName
+
+  const trust = [
+    { icon: ShieldCheck, title: 'Licensed pharmacists', detail: phone ? `Questions? Call ${phone}.` : 'Ask us at the counter.' },
+    { icon: service.icon, title: service.title, detail: service.detail },
+    { icon: PackageSearch, title: 'Track every order', detail: 'Order status online, any time.' },
+    { icon: ClipboardList, title: 'Easy prescription management', detail: 'Refill, transfer, and track prescriptions online.' },
+  ]
 
   return <>
-    <section aria-labelledby="rx-home-title" className="border-b border-[var(--rx-rule)]">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-14 pt-10 sm:px-6 sm:pt-14 lg:grid-cols-2 lg:gap-16 lg:px-8 lg:pb-20 lg:pt-16">
-        <div className="flex min-w-0 flex-col">
-          <h1 id="rx-home-title" className="rx-display rx-gold max-w-[11ch] text-balance text-[3.25rem] sm:text-[5rem] lg:text-[6.5rem]">{brand.displayName}</h1>
-          {brand.tagline && <p className="mt-5 max-w-[34ch] text-[1.25rem] leading-[1.4] text-foreground/85">{brand.tagline}</p>}
-          <div className="mt-8 lg:mt-auto lg:pt-10"><LocationPlate location={location} phone={location.phone || brand.supportPhone} /></div>
-        </div>
-        <nav aria-label="Pharmacy counter" className="min-w-0 lg:order-none">
-          <ol className="rx-settle grid grid-cols-2 gap-2 rounded-[6px] bg-[var(--rx-field)] p-2 shadow-[0_0_0_1px_var(--rx-rule)] sm:gap-3 sm:p-3">
-            {COUNTER.map((entry) => <li key={entry.href}>
-              <Link href={entry.href} className="rx-drawer group flex aspect-[5/4] w-full flex-col items-center justify-center gap-5 px-3 text-center sm:aspect-[4/3]">
-                <span className="rx-plate min-h-10 max-w-full justify-center px-3 py-1.5 text-[15px] font-bold leading-tight sm:text-[17px]">{entry.label}</span>
-                <span aria-hidden="true" className="rx-pull" />
-              </Link>
-            </li>)}
-          </ol>
-        </nav>
+    <InfoCards location={location} phone={phone} />
+
+    <div className="grid grid-cols-[128px_minmax(0,1fr)] gap-x-3 pt-4 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
+      <PhoneDepartments categories={categories} />
+
+      <div className="min-w-0 pr-4 lg:pr-0">
+        {/* Hero */}
+        <section aria-labelledby="home-title" className="relative overflow-hidden rounded-[18px] lg:rounded-none lg:bg-[oklch(0.955_0.003_50)]">
+          <div className="absolute inset-0 lg:left-auto lg:w-[60%]">
+            <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[70%_30%]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/35 to-transparent lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
+          </div>
+          <div className="relative flex min-h-[250px] flex-col justify-center px-4 py-6 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
+            <h1 id="home-title" className="rx-display max-w-[14ch] text-[1.65rem] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
+            <p className="mt-1.5 max-w-[34ch] text-[13.5px] leading-snug text-white/90 lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85">Prescriptions, refills and everyday health products from {location.name}.</p>
+            <div className="mt-4 flex flex-col items-start gap-2.5 lg:mt-6 lg:flex-row lg:items-center">
+              <Link href="/account#account-prescriptions" className={`${buttonClass} min-h-9 max-lg:rounded-full max-lg:bg-white max-lg:px-3.5 max-lg:text-[14px] max-lg:text-foreground lg:min-h-11`}>Refill prescription<ChevronRight aria-hidden="true" className="size-4 lg:hidden" /></Link>
+              <Link href="/products" className={`${outlineButtonClass} min-h-9 max-lg:rounded-full max-lg:px-3.5 max-lg:text-[14px] max-lg:text-foreground max-lg:shadow-none lg:min-h-11`}>Shop OTC products<ChevronRight aria-hidden="true" className="size-4 lg:hidden" /></Link>
+            </div>
+            <HeaderSearch placeholder="Search for products by name, brand, or keyword…" className="mt-5 hidden w-full max-w-[33rem] lg:block" />
+            <p className="mt-4 hidden items-start gap-2 lg:flex"><service.icon aria-hidden="true" strokeWidth={1.6} className="mt-0.5 size-5 text-primary" /><span><span className="rx-serif block text-[18px] leading-tight">{service.title}</span><span className="text-[14px] text-muted-foreground">{service.detail}</span></span></p>
+          </div>
+        </section>
+
+        {/* Featured products */}
+        {featured.length > 0 && <section aria-labelledby="featured-title" className="pt-6 lg:px-8 lg:pt-8 xl:px-16">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="featured-title" className="rx-display text-[1.3rem] sm:text-[2rem]">Featured products</h2>
+            <Link href="/products" className="rx-serif inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-[15px] text-primary hover:underline lg:text-[17px]">View all<span className="hidden lg:inline"> products</span><ArrowRight aria-hidden="true" className="hidden size-4 lg:block" /></Link>
+          </div>
+          <ul className="mt-3 grid grid-cols-2 gap-3 lg:mt-4 lg:grid-cols-4 lg:gap-6">
+            {featured.map((product) => <li key={product.id} className="flex min-w-0"><ProductCard product={product} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} size="sm" className="w-full lg:hidden" /><ProductCard product={product} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} className="hidden w-full lg:flex" /></li>)}
+          </ul>
+        </section>}
       </div>
+    </div>
+
+    {/* Trust strip */}
+    <section aria-label="Why shop with us" className="mt-8 border-y border-[var(--rx-rule)] bg-[oklch(0.955_0.003_50)] lg:mt-10">
+      <ul className="grid gap-x-6 gap-y-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8 xl:px-16">
+        {trust.map(({ icon: Icon, title, detail }) => <li key={title} className="flex items-start gap-3">
+          <Icon aria-hidden="true" strokeWidth={1.4} className="size-9 shrink-0 text-primary" />
+          <span className="min-w-0"><span className="rx-serif block text-[18px] leading-tight">{title}</span><span className="block text-[14px] text-muted-foreground">{detail}</span></span>
+        </li>)}
+      </ul>
     </section>
 
-    <StoreCatalog storefront={storefront} title="Over the counter" eyebrow="Shop" />
   </>
 }
 

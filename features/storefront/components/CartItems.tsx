@@ -12,7 +12,7 @@ import { formatMoney } from '../lib/money'
 import { ProductImage } from './ProductImage'
 import { trackClass } from './rx-ui'
 
-const stepClass = 'grid size-8 place-items-center rounded-[4px] text-muted-foreground transition-colors hover:bg-card hover:text-foreground disabled:opacity-50 max-sm:size-9'
+const stepClass = 'grid size-8 place-items-center rounded-[4px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 max-sm:size-9'
 
 export function CartItems({ items }: { items: PharmacyCartProjection['items'] }) {
   const router = useRouter()

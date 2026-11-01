@@ -1,0 +1,114 @@
+/* Store theme: "Antares". A dense, trustworthy retail catalogue in the manner of a pharmacy chain:
+   warm paper-white ground, white cards with hairline rules, one deep pharmacy red for the store
+   name, prices and the primary action, and a bookish serif (Crimson Pro) for headings, navigation
+   and product titles with Source Sans 3 for small print. The store's own logo mark keeps its own
+   colour (features/storefront/lib/rx-brand.ts); the red is the theme's. */
+.storefront-brand {
+  --store-logo-hue: var(--store-page-logo-hue, 295);
+  --store-brand-hue: var(--store-page-brand-hue, 160);
+  --font-geist-sans: var(--rx-font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-geist-mono: var(--rx-font-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --background: oklch(0.975 0.002 60);
+  --foreground: oklch(0.22 0.008 30);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.008 30);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.22 0.008 30);
+  --primary: oklch(0.5 0.19 25);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.955 0.004 40);
+  --secondary-foreground: oklch(0.22 0.008 30);
+  --muted: oklch(0.955 0.004 40);
+  --muted-foreground: oklch(0.47 0.01 30);
+  --accent: oklch(0.95 0.025 20);
+  --accent-foreground: oklch(0.45 0.17 25);
+  --destructive: oklch(0.52 0.2 27);
+  --border: oklch(0.9 0.004 50);
+  --input: oklch(0.86 0.005 50);
+  --ring: oklch(0.5 0.19 25);
+
+  --rx-field: oklch(0.955 0.003 50);
+  --rx-rule: oklch(0.9 0.004 50);
+  --rx-red: oklch(0.5 0.19 25);
+  --rx-red-soft: oklch(0.95 0.025 20);
+  --rx-enamel: oklch(0.5 0.19 25);
+  --rx-enamel-ink: oklch(0.99 0 0);
+  --rx-gold: oklch(0.47 0.18 25);
+  --rx-ease: cubic-bezier(0.23, 1, 0.32, 1);
+
+  background-color: var(--background);
+  color: var(--foreground);
+  color-scheme: light;
+  font-family: var(--font-geist-sans);
+}
+.storefront-brand ::selection { background: var(--rx-red-soft); color: var(--foreground); }
+
+.storefront-brand .rx-num { font-variant-numeric: tabular-nums; }
+
+/* The serif voice: store name, headings, navigation, product titles and prices. */
+.storefront-brand .rx-display,
+.storefront-brand .rx-serif {
+  font-family: var(--rx-font-display), ui-serif, Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.storefront-brand .rx-display { line-height: 1.05; }
+.storefront-brand .rx-gold { color: var(--rx-gold); }
+
+/* Small section label in uppercase, as in the sidebar. */
+.storefront-brand .rx-eyebrow {
+  font-size: 12.5px;
+  line-height: 18px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* A product tile: white card, hairline rule, soft lift on hover. */
+.storefront-brand .rx-drawer {
+  position: relative;
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--rx-rule);
+  transition: box-shadow 180ms var(--rx-ease), transform 180ms var(--rx-ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .storefront-brand a.rx-drawer:hover,
+  .storefront-brand .group:hover > .rx-drawer,
+  .storefront-brand .group:hover .rx-drawer {
+    box-shadow: 0 0 0 1px var(--rx-rule), 0 10px 24px -14px oklch(0.3 0.02 30 / 0.35);
+  }
+}
+
+/* A small red tag on a product photo. */
+.storefront-brand .rx-plate {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 3px;
+  background: var(--rx-red);
+  color: var(--primary-foreground);
+}
+
+/* A white panel with a hairline rule. */
+.storefront-brand .rx-panel {
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--rx-rule);
+}
+
+/* Product photo well: a very light grey studio ground. */
+.storefront-brand .rx-photo { background: oklch(0.955 0.002 60); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .storefront-brand .rx-settle > * { animation: rx-settle 420ms var(--rx-ease) both; }
+  .storefront-brand .rx-settle > :nth-child(2) { animation-delay: 40ms; }
+  .storefront-brand .rx-settle > :nth-child(3) { animation-delay: 80ms; }
+  .storefront-brand .rx-settle > :nth-child(4) { animation-delay: 120ms; }
+  .storefront-brand .rx-settle > :nth-child(n + 5) { animation-delay: 150ms; }
+}
+@keyframes rx-settle { from { opacity: 0; transform: translateY(6px); } }
+
+.storefront-brand .no-scrollbar { scrollbar-width: none; }
+.storefront-brand .no-scrollbar::-webkit-scrollbar { display: none; }

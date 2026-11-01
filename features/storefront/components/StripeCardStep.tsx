@@ -48,17 +48,17 @@ function tokenColor(host: HTMLElement, token: string, fallback: string) {
   return `rgb(${r}, ${g}, ${b})`
 }
 
-/** The storefront's dark cabinet palette, Hanken Grotesk and 4px corners for the Payment Element. */
+/** The storefront's light Antares palette, Source Sans 3 and 4px corners for the Payment Element. */
 function storeAppearance(host: HTMLElement) {
   const color = (token: string, fallback: string) => tokenColor(host, token, fallback)
-  const text = color('--foreground', '#f3efe6')
-  const muted = color('--muted-foreground', '#bdb7aa')
-  const primary = color('--primary', '#d3b06b')
-  const field = color('--card', '#151b18')
-  const stroke = color('--input', '#3b4540')
-  const rule = color('--rx-rule', '#333c37')
+  const text = color('--foreground', '#2b2523')
+  const muted = color('--muted-foreground', '#6b625e')
+  const primary = color('--primary', '#b0262c')
+  const field = color('--card', '#ffffff')
+  const stroke = color('--input', '#d6d1cd')
+  const rule = color('--rx-rule', '#e3dfdc')
   return {
-    theme: 'night',
+    theme: 'stripe',
     variables: {
       colorPrimary: primary,
       colorBackground: field,
@@ -66,8 +66,8 @@ function storeAppearance(host: HTMLElement) {
       colorTextSecondary: muted,
       colorTextPlaceholder: muted,
       colorIcon: muted,
-      colorDanger: color('--destructive', '#f0705c'),
-      fontFamily: '"Hanken Grotesk", ui-sans-serif, system-ui, sans-serif',
+      colorDanger: color('--destructive', '#b3261e'),
+      fontFamily: '"Source Sans 3", ui-sans-serif, system-ui, sans-serif',
       fontSizeBase: '15px',
       borderRadius: '4px',
       spacingUnit: '4px',
@@ -100,7 +100,7 @@ export function StripeCardStep({ publishableKey, clientSecret, returnUrl, totalL
     loadStripeJs().then(() => {
       if (cancelled || !mountRef.current || !window.Stripe) return
       const stripe = window.Stripe(publishableKey)
-      const elements = stripe.elements({ clientSecret, appearance: storeAppearance(mountRef.current), fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap' }] })
+      const elements = stripe.elements({ clientSecret, appearance: storeAppearance(mountRef.current), fonts: [{ cssSrc: 'https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&display=swap' }] })
       element = elements.create('payment', { layout: 'tabs' })
       element.mount(mountRef.current)
       stripeRef.current = { stripe, elements }

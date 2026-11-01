@@ -1,41 +1,56 @@
 import Link from 'next/link'
+import { Mail, MapPin, Phone } from 'lucide-react'
 
 import type { PublicPharmacyLocationProjection, PublicPharmacyOperatorBrandProjection } from '@/features/pharmacy/contracts'
 import { OpenNow } from '../../../../components/LocationHours'
 import { StoreBrand } from '../../../../components/StoreBrand'
+import { categoryLabel } from '../../../../lib/categories'
+import type { StoreCategory } from '../../../../lib/data/store'
 import { formatAddress } from '../../../../lib/money'
-import { NAV_LINKS } from '../nav/links'
+import { categoryHref } from '../nav/links'
 
-export default function Footer({ brand, location }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'tagline' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'address' | 'phone' | 'hours' | 'timezone'> | null }) {
+const QUICK_LINKS = [
+  { href: '/prescriptions', label: 'Prescriptions' },
+  { href: '/prescriptions#location', label: 'Store' },
+  { href: '/order-status', label: 'Track order' },
+  { href: '/account', label: 'Account' },
+  { href: '/privacy', label: 'Privacy notice' },
+]
+
+function Column({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+  return <div className={className ?? 'min-w-0'}>
+    <p className="rx-serif text-[18px]">{title}</p>
+    <ul className="mt-1.5 grid">{children}</ul>
+  </div>
+}
+
+const linkClass = 'rx-serif inline-flex min-h-8 items-center text-[16px] text-foreground/80 hover:text-primary max-sm:min-h-10'
+
+export default function Footer({ brand, location, categories = [] }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'tagline' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'address' | 'phone' | 'hours' | 'timezone'> | null; categories?: StoreCategory[] }) {
   const address = formatAddress(location?.address)
   const phone = location?.phone || brand.supportPhone
-  return <footer className="mt-auto border-t border-[var(--rx-rule)] bg-[var(--rx-field)]">
-    <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:px-6 md:grid-cols-[1.4fr_1fr_1fr] lg:px-8">
-      <div className="min-w-0">
+  return <footer className="mt-auto border-t border-[var(--rx-rule)] bg-background">
+    <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-8 px-5 py-10 sm:px-8 lg:grid-cols-[1.5fr_1fr_1fr_1.3fr] lg:py-12">
+      <div className="col-span-2 min-w-0 sm:col-span-1">
         <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} />
-        {brand.tagline && <p className="mt-2 max-w-xs text-sm text-muted-foreground">{brand.tagline}</p>}
+        {brand.tagline && <p className="rx-serif mt-3 max-w-xs text-[16px] leading-snug text-foreground/75">{brand.tagline}</p>}
+        {location?.hours && <p className="mt-3"><OpenNow week={location.hours.pharmacy} timezone={location.timezone} label="Pharmacy" /></p>}
       </div>
-      <div className="min-w-0">
-        <p className="rx-eyebrow">Pharmacy</p>
-        <div className="mt-3 grid gap-1.5 text-sm">
-          {location?.name && <p className="font-medium">{location.name}</p>}
-          {address && <p className="text-muted-foreground">{address}</p>}
-          {phone && <a href={`tel:${phone}`} className="rx-num w-fit hover:text-primary">{phone}</a>}
-          {brand.supportEmail && <a href={`mailto:${brand.supportEmail}`} className="w-fit break-all text-muted-foreground hover:text-primary">{brand.supportEmail}</a>}
-          {location?.hours && <OpenNow week={location.hours.pharmacy} timezone={location.timezone} label="Pharmacy" />}
-        </div>
-      </div>
-      <nav aria-label="Footer" className="min-w-0">
-        <p className="rx-eyebrow">Store</p>
-        <ul className="mt-1.5 grid">
-          {[...NAV_LINKS, { href: '/account', label: 'Account' }, { href: '/privacy', label: 'Privacy notice' }].map((link) => <li key={link.href}><Link href={link.href} className="inline-flex min-h-10 items-center text-sm hover:text-primary">{link.label}</Link></li>)}
-        </ul>
-      </nav>
+      <Column title="Quick links">{QUICK_LINKS.map((link) => <li key={link.href}><Link href={link.href} className={linkClass}>{link.label}</Link></li>)}</Column>
+      <Column title="Shop OTC">
+        {categories.slice(0, 5).map((entry) => <li key={entry.value}><Link href={categoryHref(entry.value)} className={linkClass}>{categoryLabel(entry.value)}</Link></li>)}
+        <li><Link href="/products" className={linkClass}>All products</Link></li>
+      </Column>
+      <Column title="Contact us" className="col-span-2 min-w-0 sm:col-span-1">
+        {phone && <li><a href={`tel:${phone}`} className={`${linkClass} gap-2`}><Phone aria-hidden="true" strokeWidth={1.7} className="size-4 text-primary" /><span className="rx-num">{phone}</span></a></li>}
+        {brand.supportEmail && <li><a href={`mailto:${brand.supportEmail}`} className={`${linkClass} gap-2 break-all`}><Mail aria-hidden="true" strokeWidth={1.7} className="size-4 shrink-0 text-primary" />{brand.supportEmail}</a></li>}
+        {address && <li className="rx-serif flex gap-2 py-1 text-[16px] text-foreground/80"><MapPin aria-hidden="true" strokeWidth={1.7} className="mt-1 size-4 shrink-0 text-primary" />{address}</li>}
+      </Column>
     </div>
     <div className="border-t border-[var(--rx-rule)]">
-      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 px-4 py-4 text-[13px] text-muted-foreground sm:px-6 lg:px-8">
-        <span>© {new Date().getFullYear()} {brand.displayName}</span>
-        <span>In an emergency, call 911.</span>
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-6 gap-y-1 px-5 py-5 text-center sm:px-8">
+        <span className="rx-serif text-[15px] text-foreground/80">© {new Date().getFullYear()} {brand.displayName}. All rights reserved.</span>
+        <span className="text-[13px] text-muted-foreground">In an emergency, call 911.</span>
       </div>
     </div>
   </footer>

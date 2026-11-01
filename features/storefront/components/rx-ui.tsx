@@ -1,5 +1,5 @@
-// Storefront kit: enamel label plates as tabs (the chosen one is gold), title-line status dots,
-// ruled bands, and a gold-leaf primary button. Server-safe; client pieces import from here too.
+// Storefront kit (Antares): outlined tabs (the chosen one is filled red), title-line status dots,
+// ruled white bands, and a solid red primary button. Server-safe; client pieces import from here too.
 
 import type { ComponentProps, ReactNode } from 'react'
 import Link from 'next/link'
@@ -7,10 +7,10 @@ import Link from 'next/link'
 import { cn } from '@/lib/utils'
 
 export const DOT_TONES = {
-  ok: 'bg-emerald-400',
-  warn: 'bg-amber-400',
-  danger: 'bg-red-400',
-  info: 'bg-sky-400',
+  ok: 'bg-emerald-600',
+  warn: 'bg-amber-500',
+  danger: 'bg-red-600',
+  info: 'bg-sky-600',
   brand: 'bg-primary',
   muted: 'bg-muted-foreground/45',
 } as const
@@ -32,7 +32,7 @@ export function TitleLine({ as: Tag = 'h2', title, tone, state, className, title
 
 export const trackClass = 'inline-flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar'
 
-export const pillClass = 'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[3px] px-3.5 text-[14px] font-semibold text-muted-foreground shadow-[inset_0_0_0_1px_var(--rx-rule)] transition-[color,background-color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground hover:shadow-[inset_0_0_0_1px_var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-[var(--rx-enamel)] data-[active=true]:text-[var(--rx-enamel-ink)] data-[active=true]:shadow-[inset_0_0_0_1px_oklch(0_0_0/0.2)] max-sm:min-h-11'
+export const pillClass = 'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[4px] bg-card px-3.5 text-[14px] font-medium text-foreground/80 shadow-[inset_0_0_0_1px_var(--rx-rule)] transition-[color,background-color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground hover:shadow-[inset_0_0_0_1px_var(--input)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-none max-sm:min-h-11'
 
 export function Track({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
   return <div role="group" aria-label={label} className={cn(trackClass, className)}>{children}</div>
@@ -46,12 +46,15 @@ export function PillLink({ active, className, ...props }: ComponentProps<typeof 
   return <Link aria-current={active ? 'page' : undefined} data-active={Boolean(active)} className={cn(pillClass, className)} {...props} />
 }
 
-/** Primary action: a gold-leaf block. */
-export const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[4px] bg-primary px-6 text-[15px] font-bold text-primary-foreground shadow-[inset_0_1px_0_oklch(1_0_0/0.25)] transition-[filter,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-110 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
+/** Primary action: a solid red block. */
+export const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[4px] bg-primary px-6 rx-serif text-[17px] text-primary-foreground transition-[filter,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-110 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
+
+/** Secondary action: a red outline. */
+export const outlineButtonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[4px] bg-card px-6 rx-serif text-[17px] text-primary shadow-[inset_0_0_0_1px_var(--primary)] transition-colors duration-150 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
 
 /** Secondary action: the chosen-pill style, as a link. */
 export function SecondaryAction({ className, children, ...props }: ComponentProps<typeof Link>) {
-  return <span className={cn(trackClass, 'w-fit')}><Link data-active="true" className={cn(pillClass, 'min-h-10 px-4 font-semibold', className)} {...props}>{children}</Link></span>
+  return <Link className={cn(outlineButtonClass, 'min-h-10 px-4', className)} {...props}>{children}</Link>
 }
 
 /** A band: one card-stock panel with perforated rows. */
@@ -70,7 +73,7 @@ export function Field({ label, children, className }: { label: string; children:
 export function PageHead({ eyebrow, title, meta, className, children }: { eyebrow?: ReactNode; title: ReactNode; meta?: ReactNode; className?: string; children?: ReactNode }) {
   return <header className={cn('flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between', className)}>
     <div className="min-w-0">
-      <h1 className="rx-display text-balance text-[2.75rem] sm:text-[4rem]">{title}</h1>
+      <h1 className="rx-display text-balance text-[2.25rem] sm:text-[2.75rem]">{title}</h1>
       {meta && <p className="mt-2 text-sm text-muted-foreground">{meta}</p>}
     </div>
     {children}

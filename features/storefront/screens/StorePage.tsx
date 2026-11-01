@@ -5,7 +5,7 @@ import { NoLocations, StoreCatalog } from './HomePage'
 import { StoreUnavailable } from './MainLayout'
 import { categoryLabel } from '../lib/categories'
 
-type Props = { searchParams?: Promise<{ category?: string }> }
+type Props = { searchParams?: Promise<{ category?: string; q?: string }> }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const params = await searchParams
@@ -16,11 +16,12 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 export async function StorePage({ searchParams }: Props) {
   const params = await searchParams
   const category = typeof params?.category === 'string' && /^[a-z_]{1,40}$/.test(params.category) ? params.category : null
+  const search = typeof params?.q === 'string' ? params.q.trim().slice(0, 100) : ''
   const storefront = await getStorefront()
   if (!storefront) return <StoreUnavailable />
   if (!storefront.location) return <NoLocations storefront={storefront} />
   return <div>
-    <StoreCatalog storefront={storefront} title={category ? categoryLabel(category) : 'Shop'} eyebrow={storefront.location.name} category={category} />
+    <StoreCatalog storefront={storefront} title={category ? categoryLabel(category) : 'Shop'} eyebrow={storefront.location.name} category={category} search={search} />
   </div>
 }
 
