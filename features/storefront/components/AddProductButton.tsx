@@ -13,7 +13,7 @@ import { buttonClass } from './rx-ui'
  * Adds a product to the cart. `round` is the card's red cart disc (label is its accessible name);
  * `block` is the full-width button with an optional quantity stepper on the product page.
  */
-export function AddProductButton({ locationId, productId, label = 'Add to cart', className, align = 'end', variant = 'block', withQuantity = false }: { locationId: string; productId: string; label?: string; className?: string; align?: 'start' | 'end'; variant?: 'block' | 'round'; withQuantity?: boolean }) {
+export function AddProductButton({ locationId, productId, label = 'Add to cart', className, align = 'end', variant = 'block', withQuantity = false, discSize = 'md' }: { locationId: string; productId: string; label?: string; className?: string; align?: 'start' | 'end'; variant?: 'block' | 'round'; withQuantity?: boolean; discSize?: 'sm' | 'md' }) {
   const router = useRouter()
   const [error, setError] = useState('')
   const [added, setAdded] = useState(false)
@@ -32,8 +32,11 @@ export function AddProductButton({ locationId, productId, label = 'Add to cart',
   }
 
   if (variant === 'round') return <div className="relative shrink-0">
-    <button type="button" disabled={pending} onClick={add} aria-label={added ? `${label}: added` : label} title={error || undefined} className={cn('grid size-10 place-items-center rounded-[999px] bg-primary text-primary-foreground shadow-[0_4px_10px_-4px_oklch(0.5_0.19_25/0.7)] transition-[filter,transform] hover:brightness-110 active:scale-95 disabled:opacity-70 max-md:size-12', className)}>
-      {pending ? <Loader2 aria-hidden="true" className="size-[18px] animate-spin" /> : added ? <Check aria-hidden="true" className="size-[18px]" /> : <ShoppingCart aria-hidden="true" strokeWidth={1.8} className="size-[18px]" />}
+    {/* The button is the full tap area; the painted disc inside is the design's small round cart. */}
+    <button type="button" disabled={pending} onClick={add} aria-label={added ? `${label}: added` : label} title={error || undefined} className={cn('group/cart grid place-items-center rounded-[999px] transition-transform active:scale-95 disabled:opacity-70', discSize === 'sm' ? '-m-2 size-12' : '-m-1 size-12', className)}>
+      <span className={cn('grid place-items-center rounded-full bg-primary text-primary-foreground shadow-[0_3px_8px_-3px_oklch(0.5_0.19_25/0.7)] group-hover/cart:brightness-110', discSize === 'sm' ? 'size-8' : 'size-10')}>
+        {pending ? <Loader2 aria-hidden="true" className={cn('animate-spin', discSize === 'sm' ? 'size-4' : 'size-[18px]')} /> : added ? <Check aria-hidden="true" className={discSize === 'sm' ? 'size-4' : 'size-[18px]'} /> : <ShoppingCart aria-hidden="true" strokeWidth={1.8} className={discSize === 'sm' ? 'size-4' : 'size-[18px]'} />}
+      </span>
     </button>
     <span aria-live="polite" className="sr-only">{added ? 'Added to cart' : error}</span>
     {error && <p role="alert" className="absolute bottom-full right-0 mb-1 w-44 rounded-[4px] bg-card p-2 text-[12px] text-destructive shadow-[0_0_0_1px_var(--rx-rule)]">{error}</p>}

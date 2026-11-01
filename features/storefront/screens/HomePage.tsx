@@ -69,33 +69,33 @@ function hoursSummary(location: PublicPharmacyLocationProjection) {
 function InfoCards({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
   const service = serviceLine(location)
   const hours = hoursSummary(location)
-  const card = 'rx-panel flex min-w-0 flex-col gap-0.5 px-2 py-2.5 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.3_0.02_30/0.4)]'
+  const card = 'rx-panel flex min-w-0 flex-col gap-1 px-2 py-2.5 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.3_0.02_30/0.4)]'
   return <div className="grid grid-cols-3 gap-2 px-4 pt-3 lg:hidden">
     <Link href="/prescriptions#location" className={card}>
-      <span className="flex items-center gap-1.5"><Clock aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">Store hours</span></span>
-      <span className="text-[11.5px] leading-snug text-muted-foreground">{hours || location.name}</span>
+      <span className="flex items-center gap-1.5"><Clock aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12px] font-semibold leading-tight">Store hours</span></span>
+      <span className="text-[10.5px] leading-snug text-muted-foreground">{hours || location.name}</span>
     </Link>
     {phone
       ? <a href={`tel:${phone}`} className={card}>
-        <span className="flex items-center gap-1.5"><MessageCircleMore aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">Pharmacist</span></span>
-        <span className="text-[11.5px] leading-snug text-muted-foreground">Call to ask a question</span>
+        <span className="flex items-center gap-1.5"><MessageCircleMore aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12px] font-semibold leading-tight">Pharmacist</span></span>
+        <span className="text-[10.5px] leading-snug text-muted-foreground">Call to ask a question</span>
       </a>
       : <Link href="/prescriptions" className={card}><span className="text-[14px] font-semibold">Prescriptions</span></Link>}
     <Link href="/products" className={card}>
-      <span className="flex items-center gap-1.5"><service.icon aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">{location.deliveryEnabled ? 'Delivery' : 'Pickup'}</span></span>
-      <span className="text-[11.5px] leading-snug text-muted-foreground">{location.deliveryEnabled ? 'Order online' : 'Order online, collect in store'}</span>
+      <span className="flex items-center gap-1.5"><service.icon aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12px] font-semibold leading-tight">{location.deliveryEnabled ? 'Delivery' : 'Pickup'}</span></span>
+      <span className="text-[10.5px] leading-snug text-muted-foreground">{location.deliveryEnabled ? 'Order online' : 'Order online, collect in store'}</span>
     </Link>
   </div>
 }
 
 /** Phone only: the department column beside the hero and featured products. */
 function PhoneDepartments({ categories }: { categories: Array<{ value: string }> }) {
-  const row = 'flex min-h-[54px] items-center gap-1.5 pl-2 pr-0.5 text-[13px] leading-[1.2] [overflow-wrap:normal] [word-break:normal] hyphens-none'
+  const row = 'flex min-h-[50px] items-center gap-2 pl-2.5 pr-1 text-[12px] leading-[1.2] [overflow-wrap:normal] [word-break:normal] hyphens-none'
   return <nav aria-label="Departments" className="self-start rounded-r-[18px] bg-[oklch(0.955_0.003_50)] pb-2 lg:hidden">
     <ul>
-      <li><Link href="/" aria-current="page" className={`${row} rounded-r-[18px] bg-accent text-primary`}><House aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0" /><span className="min-w-0 flex-1">Home</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>
-      <li><Link href="/prescriptions" className={row}><ClipboardList aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0" /><span className="min-w-0 flex-1">Prescription services</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>
-      {categories.map((entry) => <li key={entry.value}><Link href={categoryHref(entry.value)} className={row}><CategoryIcon category={entry.value} className="size-[18px] text-foreground" /><span className="min-w-0 flex-1">{categoryLabel(entry.value)}</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>)}
+      <li><Link href="/" aria-current="page" className={`${row} rounded-r-[18px] bg-accent text-primary`}><House aria-hidden="true" strokeWidth={1.6} className="size-[17px] shrink-0" /><span className="min-w-0 flex-1">Home</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" /></Link></li>
+      <li><Link href="/prescriptions" className={row}><ClipboardList aria-hidden="true" strokeWidth={1.5} className="size-[17px] shrink-0" /><span className="min-w-0 flex-1">Prescription services</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" /></Link></li>
+      {categories.map((entry) => <li key={entry.value}><Link href={categoryHref(entry.value)} className={row}><CategoryIcon category={entry.value} className="size-[17px] text-foreground" /><span className="min-w-0 flex-1">{categoryLabel(entry.value)}</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" /></Link></li>)}
     </ul>
   </nav>
 }
@@ -121,7 +121,7 @@ export async function HomePage() {
   return <>
     <InfoCards location={location} phone={phone} />
 
-    <div className="grid grid-cols-[136px_minmax(0,1fr)] gap-x-2.5 pt-4 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
+    <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-x-2.5 pt-4 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
       <PhoneDepartments categories={categories} />
 
       <div className="min-w-0 pr-4 lg:pr-0">
@@ -129,14 +129,14 @@ export async function HomePage() {
         <section aria-labelledby="home-title" className="relative overflow-hidden rounded-[18px] lg:rounded-none lg:bg-[oklch(0.955_0.003_50)]">
           <div className="absolute inset-0 lg:left-auto lg:w-[60%]">
             <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[70%_30%]" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/65 via-black/35 to-transparent lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/20 via-45% to-transparent to-75% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
           </div>
-          <div className="relative flex min-h-[250px] flex-col justify-center px-4 py-6 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
-            <h1 id="home-title" className="rx-display max-w-[14ch] text-[1.65rem] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
-            <p className="mt-1.5 max-w-[34ch] text-[13.5px] leading-snug text-white/90 lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85">Prescriptions, refills and everyday health products from {location.name}.</p>
-            <div className="mt-4 flex flex-col items-start gap-2.5 lg:mt-6 lg:flex-row lg:items-center">
-              <Link href="/account#account-prescriptions" className={`${buttonClass} min-h-9 max-lg:rounded-full max-lg:bg-white max-lg:px-3.5 max-lg:text-[14px] max-lg:text-foreground lg:min-h-11`}>Refill prescription<ChevronRight aria-hidden="true" className="size-4 lg:hidden" /></Link>
-              <Link href="/products" className={`${outlineButtonClass} min-h-9 max-lg:rounded-full max-lg:px-3.5 max-lg:text-[14px] max-lg:text-foreground max-lg:shadow-none lg:min-h-11`}>Shop OTC products<ChevronRight aria-hidden="true" className="size-4 lg:hidden" /></Link>
+          <div className="relative flex min-h-[232px] flex-col justify-center px-4 py-5 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
+            <h1 id="home-title" className="rx-display max-w-[9ch] text-[1.4rem] leading-[1.05] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
+            <p className="mt-1.5 max-w-[17ch] text-[12px] leading-snug text-white/90 sm:max-w-[34ch] sm:text-[14px] lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85">Prescriptions, refills and everyday health products from {location.name}.</p>
+            <div className="mt-2 flex flex-col items-start gap-0 lg:mt-6 lg:gap-3 lg:flex-row lg:items-center">
+              <Link href="/account#account-prescriptions" className={`${buttonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:h-8 max-lg:items-center max-lg:gap-1 max-lg:rounded-full max-lg:bg-white max-lg:pl-3 max-lg:pr-2 max-lg:font-sans max-lg:text-[12.5px] max-lg:font-medium max-lg:text-foreground">Refill prescription<ChevronRight aria-hidden="true" className="size-3.5 lg:hidden" /></span></Link>
+              <Link href="/products" className={`${outlineButtonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:h-8 max-lg:items-center max-lg:gap-1 max-lg:rounded-full max-lg:bg-white max-lg:pl-3 max-lg:pr-2 max-lg:font-sans max-lg:text-[12.5px] max-lg:font-medium max-lg:text-foreground">Shop OTC products<ChevronRight aria-hidden="true" className="size-3.5 lg:hidden" /></span></Link>
             </div>
             <HeaderSearch placeholder="Search for products by name, brand, or keyword…" className="mt-5 hidden w-full max-w-[33rem] lg:block" />
             <p className="mt-4 hidden items-start gap-2 lg:flex"><service.icon aria-hidden="true" strokeWidth={1.6} className="mt-0.5 size-5 text-primary" /><span><span className="rx-serif block text-[18px] leading-tight">{service.title}</span><span className="text-[14px] text-muted-foreground">{service.detail}</span></span></p>

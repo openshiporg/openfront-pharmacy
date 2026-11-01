@@ -19,18 +19,18 @@ export function ProductCard({ product, locationId, orderingEnabled, size = 'md',
       <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes={size === 'sm' ? '(max-width: 1024px) 40vw, 12vw' : '(max-width: 1024px) 50vw, 22vw'} className="object-cover transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-[1.03]" />
       {requirement && <span className="rx-plate absolute left-2 top-2 z-10 px-2 py-0.5 text-[12px] font-semibold">{requirement}</span>}
     </Link>
-    <div className={cn('flex flex-1 flex-col', size === 'sm' ? 'px-2 pb-2 pt-2' : 'px-3 pb-3 pt-3 sm:px-4 sm:pb-4')}>
-      {product.category && <p className="truncate text-[12px] text-muted-foreground sm:text-[13px]">{categoryLabel(product.category)}</p>}
-      <h3 className={cn('rx-serif mt-0.5 leading-snug', size === 'sm' ? 'text-[14.5px]' : 'text-[16.5px] sm:text-[19px]')}>
+    <div className={cn('flex flex-1 flex-col', size === 'sm' ? 'px-2.5 pb-2.5 pt-2' : 'px-3 pb-3 pt-3 sm:px-4 sm:pb-4')}>
+      {product.category && <p className="truncate text-[11.5px] text-muted-foreground sm:text-[13px]">{categoryLabel(product.category)}</p>}
+      <h3 className={cn('mt-0.5 leading-snug', size === 'sm' ? 'text-[13.5px] font-medium' : 'rx-serif text-[16.5px] sm:text-[19px]')}>
         <Link href={href} className="line-clamp-2 break-words hover:text-primary">{product.title}</Link>
       </h3>
       {product.description && size === 'md' && <p className="mt-0.5 line-clamp-1 text-[13px] text-muted-foreground max-sm:hidden sm:text-[14px]">{product.description}</p>}
-      <div className="mt-auto flex items-end justify-between gap-1 pt-2">
+      <div className="mt-auto flex items-center justify-between gap-1 pt-1.5">
         <div className="min-w-0">
-          <p className={cn('rx-serif rx-num text-primary', size === 'sm' ? 'text-[15px]' : 'text-[19px] sm:text-[21px]')}>{formatMoney(product.priceAmount, product.currencyCode)}</p>
+          <p className={cn('rx-num text-primary', size === 'sm' ? 'text-[15px] font-semibold' : 'rx-serif text-[19px] sm:text-[21px]')}>{formatMoney(product.priceAmount, product.currencyCode)}</p>
           {!availability.canOrder && <p className="text-[12.5px] text-muted-foreground">Unavailable</p>}
         </div>
-        {canAdd && <AddProductButton locationId={locationId} productId={product.id} label={`Add ${product.title} to cart`} variant="round" />}
+        {canAdd && <AddProductButton locationId={locationId} productId={product.id} label={`Add ${product.title} to cart`} variant="round" discSize={size} />}
       </div>
     </div>
   </article>
