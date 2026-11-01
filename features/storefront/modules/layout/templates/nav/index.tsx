@@ -83,7 +83,7 @@ export default function Nav({ brand, location, cartCount, categories, signedIn, 
         <CartLink cartCount={cartCount} />
       </div>
       <div className="flex items-center gap-2.5 px-4 pb-1 pt-3">
-        <HeaderSearch pill placeholder="Search products and services…" className="flex-1" />
+        <HeaderSearch pill placeholder="Search products…" className="min-w-0 flex-1" />
         <Link href="/account" className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-primary px-4 text-[15px] font-medium text-primary-foreground shadow-[0_4px_10px_-4px_oklch(0.5_0.19_25/0.6)]"><UserRound aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />{signedIn ? 'Account' : 'Sign in'}</Link>
       </div>
     </div>

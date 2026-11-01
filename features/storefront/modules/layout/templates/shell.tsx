@@ -44,7 +44,7 @@ export function StoreShell({ railHeader, plainHeader, sidebar, footer, more, chi
     </aside>}
     <div className={cn('flex min-w-0 flex-1 flex-col lg:pb-0', tabs && 'pb-24')}>
       {rail ? railHeader : plainHeader}
-      <main className="flex-1">{children}</main>
+      <div className="flex-1">{children}</div>
       {footer}
     </div>
     {tabs && <TabBar more={more} />}

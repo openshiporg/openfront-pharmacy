@@ -90,12 +90,12 @@ function InfoCards({ location, phone }: { location: PublicPharmacyLocationProjec
 
 /** Phone only: the department column beside the hero and featured products. */
 function PhoneDepartments({ categories }: { categories: Array<{ value: string }> }) {
-  const row = 'flex min-h-[54px] items-center gap-2 pl-2.5 pr-1 text-[13px] leading-[1.2] [overflow-wrap:normal] [word-break:normal] hyphens-none'
+  const row = 'flex min-h-[54px] items-center gap-1.5 pl-2 pr-0.5 text-[13px] leading-[1.2] [overflow-wrap:normal] [word-break:normal] hyphens-none'
   return <nav aria-label="Departments" className="self-start rounded-r-[18px] bg-[oklch(0.955_0.003_50)] pb-2 lg:hidden">
     <ul>
-      <li><Link href="/" aria-current="page" className={`${row} rounded-r-[18px] bg-accent text-primary`}><House aria-hidden="true" strokeWidth={1.6} className="size-5 shrink-0" /><span className="min-w-0 flex-1">Home</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>
-      <li><Link href="/prescriptions" className={row}><ClipboardList aria-hidden="true" strokeWidth={1.6} className="size-5 shrink-0" /><span className="min-w-0 flex-1">Prescription services</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>
-      {categories.map((entry) => <li key={entry.value}><Link href={categoryHref(entry.value)} className={row}><CategoryIcon category={entry.value} className="size-5 text-foreground" /><span className="min-w-0 flex-1">{categoryLabel(entry.value)}</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>)}
+      <li><Link href="/" aria-current="page" className={`${row} rounded-r-[18px] bg-accent text-primary`}><House aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0" /><span className="min-w-0 flex-1">Home</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>
+      <li><Link href="/prescriptions" className={row}><ClipboardList aria-hidden="true" strokeWidth={1.6} className="size-[18px] shrink-0" /><span className="min-w-0 flex-1">Prescription services</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>
+      {categories.map((entry) => <li key={entry.value}><Link href={categoryHref(entry.value)} className={row}><CategoryIcon category={entry.value} className="size-[18px] text-foreground" /><span className="min-w-0 flex-1">{categoryLabel(entry.value)}</span><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /></Link></li>)}
     </ul>
   </nav>
 }
@@ -121,7 +121,7 @@ export async function HomePage() {
   return <>
     <InfoCards location={location} phone={phone} />
 
-    <div className="grid grid-cols-[128px_minmax(0,1fr)] gap-x-3 pt-4 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
+    <div className="grid grid-cols-[136px_minmax(0,1fr)] gap-x-2.5 pt-4 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
       <PhoneDepartments categories={categories} />
 
       <div className="min-w-0 pr-4 lg:pr-0">
