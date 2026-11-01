@@ -69,28 +69,28 @@ function hoursSummary(location: PublicPharmacyLocationProjection) {
 function InfoCards({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
   const service = serviceLine(location)
   const hours = hoursSummary(location)
-  const card = 'rx-panel flex min-w-0 flex-col gap-1 px-2 py-2.5 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.3_0.02_30/0.4)]'
+  const card = 'rx-panel flex min-w-0 flex-col gap-0.5 px-2 py-2 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.3_0.02_30/0.4)]'
   return <div className="grid grid-cols-3 gap-2 px-4 pt-3 lg:hidden">
     <Link href="/prescriptions#location" className={card}>
-      <span className="flex items-center gap-1.5"><Clock aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[11px] font-semibold leading-tight">Store hours</span></span>
-      <span className="text-[9.5px] leading-snug text-muted-foreground">{hours || location.name}</span>
+      <span className="flex items-center gap-1.5"><Clock aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12.5px] font-semibold leading-tight">Store hours</span></span>
+      <span className="text-[12px] leading-snug text-muted-foreground">{hours || location.name}</span>
     </Link>
     {phone
       ? <a href={`tel:${phone}`} className={card}>
-        <span className="flex items-center gap-1.5"><MessageCircleMore aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[11px] font-semibold leading-tight">Pharmacist</span></span>
-        <span className="text-[9.5px] leading-snug text-muted-foreground">Call to ask a question</span>
+        <span className="flex items-center gap-1.5"><MessageCircleMore aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12.5px] font-semibold leading-tight">Pharmacist</span></span>
+        <span className="text-[12px] leading-snug text-muted-foreground">Call to ask a question</span>
       </a>
       : <Link href="/prescriptions" className={card}><span className="text-[14px] font-semibold">Prescriptions</span></Link>}
     <Link href="/products" className={card}>
-      <span className="flex items-center gap-1.5"><service.icon aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[11px] font-semibold leading-tight">{location.deliveryEnabled ? 'Delivery' : 'Pickup'}</span></span>
-      <span className="text-[9.5px] leading-snug text-muted-foreground">{location.deliveryEnabled ? 'Order online' : 'Order online, collect in store'}</span>
+      <span className="flex items-center gap-1.5"><service.icon aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12.5px] font-semibold leading-tight">{location.deliveryEnabled ? 'Delivery' : 'Pickup'}</span></span>
+      <span className="text-[12px] leading-snug text-muted-foreground">{location.deliveryEnabled ? 'Order online' : 'Order online, collect in store'}</span>
     </Link>
   </div>
 }
 
 /** Phone only: the department column beside the hero and featured products. */
 function PhoneDepartments({ categories }: { categories: Array<{ value: string }> }) {
-  const row = 'flex min-h-[48px] items-center gap-1.5 pl-2 pr-0.5 text-[11px] leading-[1.2] [overflow-wrap:normal] [word-break:normal] hyphens-none'
+  const row = 'flex min-h-[44px] items-center gap-1.5 pl-2 pr-0.5 text-[13px] leading-[1.15] [overflow-wrap:normal] [word-break:normal] hyphens-none'
   return <nav aria-label="Departments" className="self-start rounded-r-[18px] bg-[oklch(0.955_0.003_50)] pb-2 lg:hidden">
     <ul>
       <li><Link href="/" aria-current="page" className={`${row} rounded-r-[18px] bg-accent text-primary`}><House aria-hidden="true" strokeWidth={1.6} className="size-[17px] shrink-0" /><span className="min-w-0 flex-1">Home</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" /></Link></li>
@@ -121,22 +121,22 @@ export async function HomePage() {
   return <>
     <InfoCards location={location} phone={phone} />
 
-    <div className="grid grid-cols-[128px_minmax(0,1fr)] gap-x-2 pt-4 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
+    <div className="grid grid-cols-[138px_minmax(0,1fr)] gap-x-2 pt-3 sm:grid-cols-[170px_minmax(0,1fr)] lg:block lg:pt-0">
       <PhoneDepartments categories={categories} />
 
       <div className="min-w-0 pr-4 lg:pr-0">
         {/* Hero */}
         <section aria-labelledby="home-title" className="relative overflow-hidden rounded-[18px] lg:rounded-none lg:bg-[oklch(0.955_0.003_50)]">
           <div className="absolute inset-0 lg:left-auto lg:w-[60%]">
-            <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[70%_30%]" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/40 via-black/10 via-40% to-transparent to-65% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
+            <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[78%_30%] lg:object-[70%_30%]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/25 via-35% to-transparent to-60% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
           </div>
-          <div className="relative flex min-h-[160px] flex-col justify-center px-3.5 py-3.5 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
-            <h1 id="home-title" className="rx-display max-w-[60%] text-[1.2rem] leading-[1.05] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
-            <p className="mt-1 max-w-[55%] text-[10.5px] leading-snug text-white/90 sm:max-w-[34ch] sm:text-[14px] lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85"><span className="lg:hidden">Prescriptions, refills and everyday health.</span><span className="max-lg:hidden">Prescriptions, refills and everyday health products from {location.name}.</span></p>
+          <div className="relative flex min-h-[176px] max-w-[56%] flex-col justify-center py-3 pl-3 pr-0 sm:max-w-none sm:px-4 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
+            <h1 id="home-title" className="rx-display text-[1.15rem] leading-[1.08] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
+            <p className="mt-1 text-[12px] leading-snug text-white/90 sm:max-w-[34ch] sm:text-[14px] lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85"><span className="lg:hidden">Prescriptions, refills and everyday health.</span><span className="max-lg:hidden">Prescriptions, refills and everyday health products from {location.name}.</span></p>
             <div className="mt-2 flex flex-col items-start gap-0 lg:mt-6 lg:gap-3 lg:flex-row lg:items-center">
-              <Link href="/account#account-prescriptions" className={`${buttonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[10.5px] max-lg:font-medium max-lg:text-foreground">Refill prescription<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
-              <Link href="/products" className={`${outlineButtonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[10.5px] max-lg:font-medium max-lg:text-foreground">Shop OTC products<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
+              <Link href="/account#account-prescriptions" className={`${buttonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[12px] max-lg:font-medium max-lg:text-foreground">Refill prescription<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
+              <Link href="/products" className={`${outlineButtonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[12px] max-lg:font-medium max-lg:text-foreground">Shop OTC products<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
             </div>
             <HeaderSearch placeholder="Search for products by name, brand, or keyword…" className="mt-5 hidden w-full max-w-[33rem] lg:block" />
             <p className="mt-4 hidden items-start gap-2 lg:flex"><service.icon aria-hidden="true" strokeWidth={1.6} className="mt-0.5 size-5 text-primary" /><span><span className="rx-serif block text-[18px] leading-tight">{service.title}</span><span className="text-[14px] text-muted-foreground">{service.detail}</span></span></p>
@@ -144,7 +144,7 @@ export async function HomePage() {
         </section>
 
         {/* Featured products */}
-        {featured.length > 0 && <section aria-labelledby="featured-title" className="pt-6 lg:px-8 lg:pt-8 xl:px-16">
+        {featured.length > 0 && <section aria-labelledby="featured-title" className="pt-4 lg:px-8 lg:pt-8 xl:px-16">
           <div className="flex items-baseline justify-between gap-3">
             <h2 id="featured-title" className="rx-display text-[1.3rem] sm:text-[2rem]">Featured products</h2>
             <Link href="/products" className="rx-serif inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-[15px] text-primary hover:underline lg:text-[17px]">View all<span className="hidden lg:inline"> products</span><ArrowRight aria-hidden="true" className="hidden size-4 lg:block" /></Link>

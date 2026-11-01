@@ -22,11 +22,11 @@ const TABS = [
 /** Phone tab bar, floating above the page bottom. */
 function TabBar({ more }: { more: ReactNode }) {
   const pathname = usePathname() ?? '/'
-  return <nav aria-label="Quick links" className="fixed inset-x-3 bottom-3 z-30 lg:hidden">
-    <ul className="grid grid-cols-5 rounded-[22px] bg-card px-1 py-1 shadow-[0_0_0_1px_var(--rx-rule),0_10px_30px_-10px_oklch(0.3_0.02_30/0.35)]">
+  return <nav aria-label="Quick links" className="fixed inset-x-3 bottom-2.5 z-30 lg:hidden">
+    <ul className="grid grid-cols-5 rounded-[20px] bg-card px-1 py-0.5 shadow-[0_0_0_1px_var(--rx-rule),0_10px_30px_-10px_oklch(0.3_0.02_30/0.35)]">
       {TABS.map(({ href, label, icon: Icon, match }) => {
         const active = match(pathname)
-        return <li key={href}><Link href={href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-14 flex-col items-center justify-center gap-0.5 text-[13px]', active ? 'text-primary' : 'text-foreground/80')}><Icon aria-hidden="true" strokeWidth={1.6} className="size-6" />{label}</Link></li>
+        return <li key={href}><Link href={href} aria-current={active ? 'page' : undefined} className={cn('flex min-h-12 flex-col items-center justify-center gap-0.5 text-[11px] leading-none', active ? 'text-primary' : 'text-foreground/80')}><Icon aria-hidden="true" strokeWidth={1.6} className="size-[22px]" />{label}</Link></li>
       })}
       <li className="flex">{more}</li>
     </ul>
