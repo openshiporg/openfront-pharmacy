@@ -2,6 +2,7 @@ import type { Context } from '.keystone/types'
 import { handleWebhook } from '../utils/paymentProviderAdapter'
 import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
+import { ingestPharmacyIntegrationWebhook } from './integrationWorkflows'
 
 const NO_DIVISION_CURRENCIES = new Set([
   'JPY', 'KRW', 'VND', 'CLP', 'PYG', 'XAF', 'XOF', 'BIF', 'DJF',
@@ -55,6 +56,9 @@ async function handlePaymentProviderWebhook(
     where: { id: providerId },
     query: 'id code isInstalled handleWebhookFunction organization { id }',
   })
+  // eRx / insurance providers share the reference webhook endpoint: their
+  // IntegrationProvider key (orgId:code) takes the place of the payment provider id.
+  if (!provider && providerId.includes(':')) return ingestPharmacyIntegrationWebhook(null, { providerKey: providerId, event, headers }, context)
   if (!provider?.isInstalled) throw new DomainError('Payment provider not found')
 
   // Provider verification is the authorization boundary for this external
