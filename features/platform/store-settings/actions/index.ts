@@ -15,11 +15,12 @@ export type StoreSettings = {
   supportEmail: string
   supportPhone: string
   privacyNotice: string
+  willCallReturnDays: number
 }
 
 export type StoreLocationHours = { id: string; name: string; timezone: string; hours: WeeklyHours | null }
 
-const storeFields = 'id operatorDisplayName operatorTagline logoIcon logoColor supportEmail supportPhone privacyNotice'
+const storeFields = 'id operatorDisplayName operatorTagline logoIcon logoColor supportEmail supportPhone privacyNotice willCallReturnDays'
 
 export async function getStoreSettings() {
   const response = await platformRequest<{ organizations: StoreSettings[] }>(
@@ -52,6 +53,7 @@ export async function updateStoreSettings(storeId: string, data: Omit<StoreSetti
         supportEmail: data.supportEmail.trim(),
         supportPhone: data.supportPhone.trim(),
         privacyNotice: data.privacyNotice.trim(),
+        willCallReturnDays: Math.min(60, Math.max(1, Math.round(Number(data.willCallReturnDays) || 10))),
       },
     },
   )

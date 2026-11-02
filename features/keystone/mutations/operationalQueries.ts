@@ -353,20 +353,31 @@ export async function pharmacyPrescriptionQueue(_root: unknown, _args: unknown, 
   }))
 }
 
-export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first?: number | null; after?: string | null }, context: Context) {
+export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first?: number | null; after?: string | null; willCall?: string | null }, context: Context) {
   requireAny(context, ['canManagePrescriptions', 'canReviewPrescriptions', 'canDispenseMedications'])
   requirePatientPrivateData(context)
   const pharmacistScope = await validatedPharmacistScope(context)
   const pageSize = boundedPageSize(args.first)
   const cursor = decodeStableCursor(args.after)
+  // Will-call aging: still waiting for pickup with a live (unvoided, unsold) label older than the cutoff.
+  // "7" is a fixed week; "due" uses each store's own return-to-stock review setting.
+  const agedBefore = (days: number) => ({ status: { equals: 'ready_for_pickup' }, dispensingLabels: { some: { voidedAt: null, order: null, dispensedAt: { lte: new Date(Date.now() - days * 86_400_000).toISOString() } } } })
+  let willCallWhere: Record<string, unknown> | null = null
+  if (args.willCall === '7') willCallWhere = agedBefore(7)
+  else if (args.willCall === 'due') {
+    const stores = await context.sudo().query.Organization.findMany({ where: { id: { in: pharmacistScope.organizationIds } }, take: 100, query: 'id willCallReturnDays' })
+    willCallWhere = { OR: stores.map((store: any) => ({ organization: { id: { equals: store.id } }, ...agedBefore(store.willCallReturnDays ?? 10) })) }
+  } else if (args.willCall) throw new DomainError('Unknown will-call filter')
   const baseWhere = {
     organization: { id: { in: pharmacistScope.organizationIds } },
     location: { id: { in: pharmacistScope.locationIds } },
-    OR: [
-      { status: { in: ['draft', 'pending_review', 'needs_information', 'approved', 'ready_to_dispense', 'partially_dispensed', 'ready_for_pickup'] } },
-      { refillRequests: { some: { status: { in: ['requested', 'under_review', 'prescriber_contacted'] } } } },
-      { transfers: { some: { status: { in: ['requested', 'consent_recorded', 'under_review'] } } } },
-    ],
+    ...(willCallWhere ? willCallWhere : {
+      OR: [
+        { status: { in: ['draft', 'pending_review', 'needs_information', 'approved', 'ready_to_dispense', 'partially_dispensed', 'ready_for_pickup'] } },
+        { refillRequests: { some: { status: { in: ['requested', 'under_review', 'prescriber_contacted'] } } } },
+        { transfers: { some: { status: { in: ['requested', 'consent_recorded', 'under_review'] } } } },
+      ],
+    }),
   }
   const [totalCount, records] = await Promise.all([
     context.sudo().query.Prescription.count({ where: baseWhere }),
@@ -374,7 +385,7 @@ export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first
       where: stableCursorWhere(baseWhere, cursor),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: pageSize + 1,
-      query: 'id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patient { displayName } prescriber { name verificationStatus } location { name } items(take: 1) { medicationNameSnapshot quantityPrescribed refillsRemaining } refillRequests(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }, take: 50) { id } transfers(where: { status: { in: ["requested", "consent_recorded", "under_review"] } }, take: 50) { id }',
+      query: 'id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patient { displayName } prescriber { name verificationStatus } location { name } items(take: 1) { medicationNameSnapshot quantityPrescribed refillsRemaining } refillRequests(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }, take: 50) { id } transfers(where: { status: { in: ["requested", "consent_recorded", "under_review"] } }, take: 50) { id } organization { willCallReturnDays } dispensingLabels(where: { voidedAt: null, order: null }, orderBy: { dispensedAt: desc }, take: 1) { dispensedAt }',
     }),
   ])
   const hasMore = records.length > pageSize
@@ -396,6 +407,8 @@ export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first
     refillsRemaining: record.items?.[0]?.refillsRemaining ?? null,
     openRefillCount: record.refillRequests?.length || 0,
     openTransferCount: record.transfers?.length || 0,
+    readyAt: record.status === 'ready_for_pickup' ? record.dispensingLabels?.[0]?.dispensedAt || null : null,
+    willCallReturnDays: record.organization?.willCallReturnDays ?? 10,
   }))
   return { items, totalCount, hasMore, nextCursor: hasMore && pageRecords.length ? encodeStableCursor({ createdAt: pageRecords[pageRecords.length - 1].createdAt, id: pageRecords[pageRecords.length - 1].id }) : null }
 }
@@ -409,7 +422,7 @@ export async function pharmacyPrescriptionTask(_root: unknown, args: { prescript
     where: { id: args.prescriptionId },
     query: `
       id prescriptionNumber status source sourceVerificationStatus writtenAt expiresAt
-      organization { id operatorDisplayName supportPhone cashSalesEnabled cashTaxRateBps cashTaxPolicyReference } location { id name }
+      organization { id operatorDisplayName supportPhone cashSalesEnabled cashTaxRateBps cashTaxPolicyReference willCallReturnDays } location { id name }
       patient { id displayName identityVerificationStatus identityReference identityVerifiedAt allergies(where: { status: { in: ["active", "none_known"] } }) { id allergen reaction severity updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id medicationName directions updatedAt } } prescriber { id name verificationStatus }
       approval { id approvedAt }
       items {
@@ -469,6 +482,7 @@ export async function pharmacyPrescriptionTask(_root: unknown, args: { prescript
     operatorPhone: prescription.organization.supportPhone || null,
     cashSalesEnabled: prescription.organization.cashSalesEnabled === true && Boolean(prescription.organization.cashTaxPolicyReference),
     cashTaxRateBps: prescription.organization.cashTaxRateBps || 0,
+    willCallReturnDays: prescription.organization.willCallReturnDays ?? 10,
     approvalRecorded: Boolean(prescription.approval?.id),
     approvedAt: prescription.approval?.approvedAt || null,
     availableActions: pharmacistScope.locationIds.includes(prescription.location.id)

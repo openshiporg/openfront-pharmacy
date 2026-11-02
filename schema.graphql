@@ -1648,6 +1648,7 @@ type Organization {
   supportPhone: String
   privacyNotice: String
   prescriptionFillPolicy: JSON
+  willCallReturnDays: Int
   cashSalesEnabled: Boolean
   cashTaxRateBps: Int
   cashTaxPolicyReference: String
@@ -1713,6 +1714,7 @@ input OrganizationWhereInput {
   supportEmail: StringFilter
   supportPhone: StringFilter
   privacyNotice: StringFilter
+  willCallReturnDays: IntFilter
   cashSalesEnabled: BooleanFilter
   cashTaxRateBps: IntNullableFilter
   cashTaxPolicyReference: StringFilter
@@ -1796,6 +1798,7 @@ input OrganizationOrderByInput {
   supportEmail: OrderDirection
   supportPhone: OrderDirection
   privacyNotice: OrderDirection
+  willCallReturnDays: OrderDirection
   cashSalesEnabled: OrderDirection
   cashTaxRateBps: OrderDirection
   cashTaxPolicyReference: OrderDirection
@@ -1822,6 +1825,7 @@ input OrganizationUpdateInput {
   supportPhone: String
   privacyNotice: String
   prescriptionFillPolicy: JSON
+  willCallReturnDays: Int
   cashSalesEnabled: Boolean
   cashTaxRateBps: Int
   cashTaxPolicyReference: String
@@ -4643,7 +4647,7 @@ type Query {
   pharmacyPosCashReceipt(idempotencyKey: String!): PharmacyPosCashOrderResult
   pharmacyPrescriberDirectory: [PharmacyPrescriberDirectoryItem!]!
   pharmacyPrescriptionQueue: [PharmacyPrescriptionQueueItem!]!
-  pharmacyPrescriptionWorklist(first: Int, after: String): PharmacyPrescriptionWorklist!
+  pharmacyPrescriptionWorklist(first: Int, after: String, willCall: String): PharmacyPrescriptionWorklist!
   pharmacyPrescriptionTask(prescriptionId: ID!): PharmacyPrescriptionTask!
   pharmacyInventoryQueue(first: Int, after: String, locationId: ID, status: String): PharmacyInventoryWorklist!
   pharmacyInventoryLotTask(lotId: ID!): PharmacyInventoryLotTask!
@@ -5111,6 +5115,8 @@ type PharmacyPrescriptionQueueItem {
   refillsRemaining: Int
   openRefillCount: Int
   openTransferCount: Int
+  readyAt: String
+  willCallReturnDays: Int!
 }
 
 type PharmacyPrescriptionWorklist {
@@ -5245,6 +5251,7 @@ type PharmacyPrescriptionTask {
   operatorPhone: String
   cashSalesEnabled: Boolean!
   cashTaxRateBps: Int!
+  willCallReturnDays: Int!
   approvalRecorded: Boolean!
   approvedAt: String
   availableActions: [String!]!
@@ -5791,6 +5798,7 @@ type PharmacyFillProjection {
   status: String!
   version: Int!
   fillNumber: Int!
+  attempt: Int!
   creditState: String!
   authorizedQuantity: Int!
   quantityDispensed: Int!

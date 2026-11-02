@@ -62,6 +62,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
   const [supportEmail, setSupportEmail] = useState(store.supportEmail || '');
   const [supportPhone, setSupportPhone] = useState(store.supportPhone || '');
   const [privacyNotice, setPrivacyNotice] = useState(store.privacyNotice || '');
+  const [willCallReturnDays, setWillCallReturnDays] = useState(String(store.willCallReturnDays ?? 10));
   const [isLoading, setIsLoading] = useState(false);
   const [saved, setSaved] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -75,6 +76,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
       supportEmail,
       supportPhone,
       privacyNotice,
+      willCallReturnDays: Number(willCallReturnDays),
     });
 
     if (result.success) {
@@ -147,6 +149,15 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
               </Pill>)}
             </Track>
           </div>
+        </section>
+
+        <section className="space-y-3 rounded-[6px] bg-background p-4 border border-border sm:p-5">
+          <h2 className="text-sm font-semibold">Will-call</h2>
+          <div className="grid gap-2 sm:max-w-xs">
+            <Label htmlFor="will-call-days">Return-to-stock review after (days)</Label>
+            <Input id="will-call-days" inputMode="numeric" value={willCallReturnDays} onChange={(e) => setWillCallReturnDays(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))} />
+          </div>
+          <p className="text-sm text-muted-foreground">Filled prescriptions waiting longer than this are flagged in the prescription queue. Nothing is returned automatically; a pharmacist confirms each one.</p>
         </section>
 
         <section className="space-y-3 rounded-[6px] bg-background p-4 border border-border sm:p-5">

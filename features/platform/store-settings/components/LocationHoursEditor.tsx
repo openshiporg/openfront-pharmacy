@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Callout, Pill, RxButton as Button, TitleLine, Track } from '@/features/platform/components/rx-ui'
 import { DEFAULT_WEEK, WEEKDAYS, type DayHours, type WeeklyHours } from '@/features/pharmacy/hours'
 import { updateLocationHours, type StoreLocationHours } from '../actions'
+import { PlatformTimeInput } from '@/features/platform/components/PlatformDateTime'
 
 type Counter = 'store' | 'pharmacy'
 
@@ -19,9 +20,9 @@ function DayRow({ day, value, onChange }: { day: string; value: DayHours; onChan
     </Track>
     {value
       ? <div className="col-span-2 flex min-w-0 items-center gap-1.5 sm:col-span-1">
-        <Input type="time" aria-label={`${day} opens`} value={value.open} onChange={(event) => onChange({ ...value, open: event.target.value })} className="h-9 min-w-0 rounded-[5px] tabular-nums" />
+        <PlatformTimeInput aria-label={`${day} opens`} value={value.open} onChange={(next) => onChange({ ...value, open: next })} />
         <span aria-hidden="true" className="text-muted-foreground">–</span>
-        <Input type="time" aria-label={`${day} closes`} value={value.close} onChange={(event) => onChange({ ...value, close: event.target.value })} className="h-9 min-w-0 rounded-[5px] tabular-nums" />
+        <PlatformTimeInput aria-label={`${day} closes`} value={value.close} onChange={(next) => onChange({ ...value, close: next })} />
       </div>
       : <span className="col-span-2 text-sm text-muted-foreground sm:col-span-1">Closed</span>}
   </div>

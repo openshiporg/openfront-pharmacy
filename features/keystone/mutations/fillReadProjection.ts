@@ -31,7 +31,9 @@ export async function readFillProjection(context: Context, scope: FillReadScope,
     const request = record(await q.RefillRequest.findOne({ where: { id: fill.refillRequestId }, query: 'id prescription { id } prescriptionItem { id } patient { id } location { id }' }))
     if (request.id !== fill.refillRequestId || linkedId(request.prescription) !== scope.prescriptionId || linkedId(request.prescriptionItem) !== fill.itemId || linkedId(request.patient) !== scope.patientId || linkedId(request.location) !== scope.locationId) throw readScopeError()
   }
-  return { id: fill.id, prescriptionItemId: fill.itemId, refillRequestId: fill.refillRequestId,
+  // Attempt within this refill number: a returned-to-stock fill gives its refill back, so the next fill reuses the number.
+  const attempt = 1 + await q.PrescriptionFill.count({ where: { AND: [fillReadWhere(scope), { prescriptionItem: { id: { equals: fill.itemId } } }, { fillNumber: { equals: fill.fillNumber } }, { OR: [{ createdAt: { lt: fill.createdAt } }, { createdAt: { equals: fill.createdAt }, id: { lt: fill.id } }] }] } })
+  return { id: fill.id, prescriptionItemId: fill.itemId, refillRequestId: fill.refillRequestId, attempt,
     kind: fill.kind, status: fill.status, version: fill.version, fillNumber: fill.fillNumber, creditState: fill.creditState,
     authorizedQuantity: fill.authorizedQuantity, quantityDispensed: fill.quantityDispensed, quantityReleased: fill.quantityReleased,
     quantityRemaining: fill.authorizedQuantity - fill.quantityDispensed - fill.quantityReleased,

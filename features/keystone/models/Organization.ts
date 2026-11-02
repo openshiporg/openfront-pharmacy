@@ -60,6 +60,7 @@ export const Organization = list({
     supportPhone: text(),
     privacyNotice: text({ ui: { displayMode: 'textarea', description: 'Notice of Privacy Practices shown at /privacy and linked from checkout.' } }),
     prescriptionFillPolicy: json({ access: { create: denyAll, update: denyAll }, ui: { description: 'Versioned operator-reviewed policy; only the controlled fill policy command may change it. Existing fills keep their snapshot.' } }),
+    willCallReturnDays: integer({ defaultValue: 10, validation: { isRequired: true, min: 1, max: 60 }, ui: { description: 'Days a filled prescription waits in will-call before staff should review it for return to stock. Staff still confirm each return.' } }),
     cashSalesEnabled: checkbox({ defaultValue: false, access: { create: denyAll, update: denyAll }, ui: { description: 'Enabled only by the operator-attested cash/tax policy workflow.' } }),
     cashTaxRateBps: integer({ defaultValue: 0, validation: { min: 0, max: 10000 }, access: { create: denyAll, update: denyAll } }),
     cashTaxPolicyReference: text({ access: { create: denyAll, update: denyAll } }),

@@ -4,6 +4,7 @@ import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/co
 import { reportedAge, strongestPriority } from '@/features/platform/components/workflowQueue'
 import { formatCalendarDate } from '@/features/platform/lib/dates'
 import { plural } from '@/features/platform/lib/plural'
+import { willCallDays } from '@/features/pharmacy/will-call'
 
 const decisionByStatus: Record<string, { label: string; hint: string }> = {
   draft: { label: 'Complete intake triage', hint: 'Review the reported source, patient, prescriber, and item evidence before recording a pharmacist decision.' },
@@ -24,15 +25,18 @@ const decisionByStatus: Record<string, { label: string; hint: string }> = {
 export async function PrescriptionQueuePage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
   const after = typeof params?.after === 'string' ? params.after : null
-  const response = await platformRequest<{ pharmacyPrescriptionWorklist: { items: PharmacyPrescriptionQueueProjection[]; totalCount: number; hasMore: boolean; nextCursor?: string | null } }>(`query PrescriptionWorklist($first: Int, $after: String) { pharmacyPrescriptionWorklist(first: $first, after: $after) { items { id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patientDisplayName prescriberName prescriberVerificationStatus locationName medicationName quantityPrescribed refillsRemaining openRefillCount openTransferCount } totalCount hasMore nextCursor } }`, { first: 50, after })
+  const willCall = params?.willCall === '7' || params?.willCall === 'due' ? params.willCall : null
+  const response = await platformRequest<{ pharmacyPrescriptionWorklist: { items: PharmacyPrescriptionQueueProjection[]; totalCount: number; hasMore: boolean; nextCursor?: string | null } }>(`query PrescriptionWorklist($first: Int, $after: String, $willCall: String) { pharmacyPrescriptionWorklist(first: $first, after: $after, willCall: $willCall) { items { id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patientDisplayName prescriberName prescriberVerificationStatus locationName medicationName quantityPrescribed refillsRemaining openRefillCount openTransferCount readyAt willCallReturnDays } totalCount hasMore nextCursor } }`, { first: 50, after, willCall })
   const worklist = response.success ? response.data.pharmacyPrescriptionWorklist : null
   const items = worklist ? worklist.items.map((prescription) => {
+    const waited = willCallDays(prescription.readyAt)
     const exceptions = [
       prescription.sourceVerificationStatus !== 'human_verified' ? `Source evidence: ${prescription.sourceVerificationStatus.replaceAll('_', ' ')}` : '',
       prescription.prescriberVerificationStatus !== 'validated' ? `Prescriber evidence: ${prescription.prescriberVerificationStatus.replaceAll('_', ' ')}` : '',
       !prescription.medicationName ? 'Medication details missing' : '',
       prescription.openRefillCount ? plural(prescription.openRefillCount, 'pending refill request') : '',
       prescription.openTransferCount ? plural(prescription.openTransferCount, 'pending transfer request') : '',
+      waited !== null && waited >= prescription.willCallReturnDays ? `In will-call ${plural(waited, 'day')}: review for return to stock` : '',
     ].filter(Boolean)
     const statePriority: WorkflowPriority = prescription.status === 'expired' ? 'critical' : ['pending_review', 'needs_information', 'on_hold'].includes(prescription.status) || Boolean(prescription.openRefillCount || prescription.openTransferCount) ? 'attention' : 'routine'
     const priority = strongestPriority(statePriority, exceptions.length ? 'attention' : 'routine')
@@ -60,11 +64,12 @@ export async function PrescriptionQueuePage({ searchParams }: { searchParams?: P
         { label: 'Written', value: prescription.writtenAt ? formatCalendarDate(prescription.writtenAt) : 'Not reported' },
         { label: 'Quantity / refills', value: `${prescription.quantityPrescribed ?? 'Not reported'} / ${prescription.refillsRemaining ?? 'Not reported'}` },
         { label: 'Open requests', value: `${prescription.openRefillCount || 0} refill · ${prescription.openTransferCount || 0} transfer` },
+        ...(waited !== null ? [{ label: 'Days in will-call', value: plural(waited, 'day') }] : []),
       ],
       nextDecision: decision.label,
       decisionHint: decision.hint,
     }
   }) : []
-  const nextPageHref = worklist?.hasMore && worklist.nextCursor ? `/dashboard/platform/prescriptions?after=${encodeURIComponent(worklist.nextCursor)}` : undefined
-  return <WorkflowQueuePage title="Prescriptions" description="Review prescriptions, refills, and transfers." items={items} totalCount={worklist?.totalCount} previousPageHref={after ? '/dashboard/platform/prescriptions' : undefined} nextPageHref={nextPageHref} emptyMessage="No prescriptions yet" error={response.success ? undefined : response.error} primaryAction={{ href: '/dashboard/platform/prescriptions/intake', label: 'New prescription' }} />
+  const nextPageHref = worklist?.hasMore && worklist.nextCursor ? `/dashboard/platform/prescriptions?${willCall ? `willCall=${willCall}&` : ''}after=${encodeURIComponent(worklist.nextCursor)}` : undefined
+  return <WorkflowQueuePage title="Prescriptions" description="Review prescriptions, refills, and transfers." items={items} totalCount={worklist?.totalCount} previousPageHref={after ? `/dashboard/platform/prescriptions${willCall ? `?willCall=${willCall}` : ''}` : undefined} filters={[{ param: 'willCall', label: 'Will-call', allLabel: 'All', value: willCall, options: [['7', 'Ready > 7 days'], ['due', 'Past return date']] }]} nextPageHref={nextPageHref} emptyMessage="No prescriptions yet" error={response.success ? undefined : response.error} primaryAction={{ href: '/dashboard/platform/prescriptions/intake', label: 'New prescription' }} />
 }

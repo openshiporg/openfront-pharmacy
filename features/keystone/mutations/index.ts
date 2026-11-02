@@ -288,6 +288,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         refillsRemaining: Int
         openRefillCount: Int
         openTransferCount: Int
+        readyAt: String
+        willCallReturnDays: Int!
       }
       type PharmacyPrescriptionWorklist { items: [PharmacyPrescriptionQueueItem!]!, totalCount: Int!, hasMore: Boolean!, nextCursor: String }
       type PharmacyEligibleLot {
@@ -349,6 +351,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         operatorPhone: String
         cashSalesEnabled: Boolean!
         cashTaxRateBps: Int!
+        willCallReturnDays: Int!
         approvalRecorded: Boolean!
         approvedAt: String
         availableActions: [String!]!
@@ -655,7 +658,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type PharmacyFillEventProjection { id: ID!, action: String!, version: Int!, quantity: Int!, occurredAt: String!, actorName: String!, reason: String, orderId: ID, orderNumber: String }
       type PharmacyFillProjection {
         id: ID!, prescriptionItemId: ID!, refillRequestId: ID, kind: String!, status: String!, version: Int!, fillNumber: Int!,
-        creditState: String!, authorizedQuantity: Int!, quantityDispensed: Int!, quantityReleased: Int!, quantityRemaining: Int!,
+        attempt: Int!, creditState: String!, authorizedQuantity: Int!, quantityDispensed: Int!, quantityReleased: Int!, quantityRemaining: Int!,
         expiresAt: String!, policyVersion: String!, policyReference: String!, allowPartial: Boolean!, releaseReasons: [String!]!,
         priceAmount: Int!, taxAmount: Int!, currencyCode: String!, taxable: Boolean!, itemVersion: String!,
         events: [PharmacyFillEventProjection!]!, hasMoreEvents: Boolean!
@@ -793,7 +796,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         pharmacyPosCashReceipt(idempotencyKey: String!): PharmacyPosCashOrderResult
         pharmacyPrescriberDirectory: [PharmacyPrescriberDirectoryItem!]!
         pharmacyPrescriptionQueue: [PharmacyPrescriptionQueueItem!]!
-        pharmacyPrescriptionWorklist(first: Int, after: String): PharmacyPrescriptionWorklist!
+        pharmacyPrescriptionWorklist(first: Int, after: String, willCall: String): PharmacyPrescriptionWorklist!
         pharmacyPrescriptionTask(prescriptionId: ID!): PharmacyPrescriptionTask!
         pharmacyInventoryQueue(first: Int, after: String, locationId: ID, status: String): PharmacyInventoryWorklist!
         pharmacyInventoryLotTask(lotId: ID!): PharmacyInventoryLotTask!

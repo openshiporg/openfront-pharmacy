@@ -179,6 +179,8 @@ export type PharmacyPrescriptionQueueProjection = {
   refillsRemaining?: number | null
   openRefillCount?: number | null
   openTransferCount?: number | null
+  readyAt?: string | null
+  willCallReturnDays: number
 }
 
 export type PharmacyPrescriptionTaskProjection = {
@@ -202,6 +204,7 @@ export type PharmacyPrescriptionTaskProjection = {
   operatorPhone?: string | null
   cashSalesEnabled: boolean
   cashTaxRateBps: number
+  willCallReturnDays: number
   approvalRecorded: boolean
   approvedAt?: string | null
   availableActions: string[]

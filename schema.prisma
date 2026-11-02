@@ -630,6 +630,7 @@ model Organization {
   supportPhone                           String                        @default("")
   privacyNotice                          String                        @default("")
   prescriptionFillPolicy                 Json?
+  willCallReturnDays                     Int                           @default(10)
   cashSalesEnabled                       Boolean                       @default(false)
   cashTaxRateBps                         Int?                          @default(0)
   cashTaxPolicyReference                 String                        @default("")
