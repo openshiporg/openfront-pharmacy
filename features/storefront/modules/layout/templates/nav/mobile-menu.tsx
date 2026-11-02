@@ -16,7 +16,7 @@ export function MobileMenu({ brand, categories, phone, signedIn, trigger = 'icon
   // The sheet renders in a portal outside the store wrapper, so it carries the brand tokens itself.
   return <Sheet open={open} onOpenChange={setOpen}>
     {trigger === 'tab'
-      ? <SheetTrigger className="flex min-h-14 w-full flex-col items-center justify-center gap-0.5 text-[13px] text-foreground/80"><Ellipsis aria-hidden="true" className="size-6" strokeWidth={1.6} />More</SheetTrigger>
+      ? <SheetTrigger className="flex min-h-12 w-full flex-col items-center justify-center gap-0.5 text-[12px] leading-none text-foreground/80"><Ellipsis aria-hidden="true" className="size-[22px]" strokeWidth={1.6} />More</SheetTrigger>
       : <SheetTrigger className="inline-flex size-11 items-center justify-center rounded-[4px] text-foreground" aria-label="Open menu"><Menu className="size-6" strokeWidth={1.6} /></SheetTrigger>}
     <SheetContent side="left" className={`storefront-brand ${rxFontClass} w-80 max-w-[88vw] gap-0 overflow-y-auto p-0`} style={storeBrandStyle(brand.logoColor)}>
       <div className="flex items-center gap-2.5 border-b border-[var(--rx-rule)] px-5 py-4 pr-12">

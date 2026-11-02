@@ -26,7 +26,7 @@ export function todayHours(location?: NavLocation | null) {
 function CartLink({ cartCount, className = '' }: { cartCount: number; className?: string }) {
   return <Link href="/cart" aria-label={`Cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`} className={`relative inline-flex size-11 shrink-0 items-center justify-center rounded-[4px] text-foreground hover:text-primary ${className}`}>
     <ShoppingCart aria-hidden="true" strokeWidth={1.7} className="size-[22px]" />
-    <span className="rx-num absolute right-0.5 top-0.5 grid min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[11px] font-semibold leading-[18px] text-primary-foreground">{cartCount}</span>
+    <span className="rx-num absolute right-0.5 top-0.5 grid min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[12px] font-semibold leading-[18px] text-primary-foreground">{cartCount}</span>
   </Link>
 }
 
