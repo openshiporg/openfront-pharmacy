@@ -3474,6 +3474,8 @@ type Product {
   posAvailable: Boolean
   coldChainRequired: Boolean
   imageUrl: String
+  image: ImageFieldOutput
+  photoUrl: String
   organization: Organization
   location: PharmacyLocation
   drugReference: DrugReference
@@ -3487,6 +3489,22 @@ type Product {
   prescriptionItemsCount(where: PrescriptionItemWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+type ImageFieldOutput {
+  id: ID!
+  filesize: Int!
+  width: Int!
+  height: Int!
+  extension: ImageExtension!
+  url: String!
+}
+
+enum ImageExtension {
+  jpg
+  png
+  webp
+  gif
 }
 
 input ProductWhereUniqueInput {
@@ -3560,6 +3578,7 @@ input ProductUpdateInput {
   posAvailable: Boolean
   coldChainRequired: Boolean
   imageUrl: String
+  image: ImageFieldInput
   organization: OrganizationRelateToOneForUpdateInput
   location: PharmacyLocationRelateToOneForUpdateInput
   drugReference: DrugReferenceRelateToOneForUpdateInput
@@ -3570,6 +3589,13 @@ input ProductUpdateInput {
   createdAt: DateTime
   updatedAt: DateTime
 }
+
+input ImageFieldInput {
+  upload: Upload!
+}
+
+"""The `Upload` scalar type represents a file upload."""
+scalar Upload
 
 input DrugReferenceRelateToOneForUpdateInput {
   create: DrugReferenceCreateInput
@@ -3609,6 +3635,7 @@ input ProductCreateInput {
   posAvailable: Boolean
   coldChainRequired: Boolean
   imageUrl: String
+  image: ImageFieldInput
   organization: OrganizationRelateToOneForCreateInput
   location: PharmacyLocationRelateToOneForCreateInput
   drugReference: DrugReferenceRelateToOneForCreateInput

@@ -291,7 +291,7 @@ export async function publicPharmacyCatalog(
       where: publicCatalogCursorWhere(baseWhere, cursor),
       orderBy: [{ title: 'asc' }, { id: 'asc' }],
       take: pageSize + 1,
-      query: 'id title handle sku description category priceAmount currencyCode taxable imageUrl prescriptionRequirement inventoryLots(where: { quantityAvailable: { gt: 0 } }, orderBy: { expirationDate: asc }, take: 101) { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }',
+      query: 'id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots(where: { quantityAvailable: { gt: 0 } }, orderBy: { expirationDate: asc }, take: 101) { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }',
     }),
   ])
   const hasMore = records.length > pageSize

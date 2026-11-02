@@ -16,7 +16,7 @@ const CART_QUERY = `
   customer { id }
   items {
     id quantity unitPriceAmount
-    product { id title handle sku description category priceAmount currencyCode imageUrl prescriptionRequirement }
+    product { id title handle sku description category priceAmount currencyCode imageUrl: photoUrl prescriptionRequirement }
   }
 `
 

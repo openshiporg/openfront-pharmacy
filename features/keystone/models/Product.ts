@@ -1,5 +1,5 @@
-import { list } from '@keystone-6/core'
-import { checkbox, integer, relationship, select, text } from '@keystone-6/core/fields'
+import { graphql, list } from '@keystone-6/core'
+import { checkbox, image, integer, relationship, select, text, virtual } from '@keystone-6/core/fields'
 
 import { isSignedIn, permissions, rules } from '../access'
 import { immutableRelationship } from './immutableRelationship'
@@ -134,7 +134,19 @@ export const Product = list({
     onlineAvailable: checkbox({ defaultValue: false }),
     posAvailable: checkbox({ defaultValue: true }),
     coldChainRequired: checkbox({ defaultValue: false }),
-    imageUrl: text({ label: 'Image URL' }),
+    imageUrl: text({ label: 'Image URL', ui: { description: 'External photo URL. An uploaded photo takes precedence.' } }),
+    image: image({ storage: 'my_images', label: 'Photo' }),
+    /** The photo shoppers see: the uploaded image (signed at read time) or the external URL. */
+    photoUrl: virtual({
+      field: graphql.field({
+        type: graphql.String,
+        async resolve(item: any, _args, context) {
+          if (item.image_id && item.image_extension) return context.images('my_images').getUrl(item.image_id, item.image_extension)
+          return item.imageUrl || null
+        },
+      }),
+      ui: { itemView: { fieldMode: 'hidden' }, listView: { fieldMode: 'hidden' } },
+    }),
     organization: relationship({ ref: 'Organization.products', db: requiredRelationshipDb }),
     location: relationship({ ref: 'PharmacyLocation.products', db: requiredRelationshipDb }),
     drugReference: relationship({ ref: 'DrugReference.products' }),

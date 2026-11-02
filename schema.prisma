@@ -1252,6 +1252,11 @@ model Product {
   posAvailable                   Boolean             @default(true)
   coldChainRequired              Boolean             @default(false)
   imageUrl                       String              @default("")
+  image_id                       String?
+  image_filesize                 Int?
+  image_width                    Int?
+  image_height                   Int?
+  image_extension                String?
   organization                   Organization        @relation("Product_organization", fields: [organizationId], references: [id])
   organizationId                 String              @map("organization")
   location                       PharmacyLocation    @relation("Product_location", fields: [locationId], references: [id])

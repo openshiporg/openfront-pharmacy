@@ -1191,7 +1191,7 @@ export async function pharmacyPosCatalog(_root: unknown, args: { locationId: str
     },
     orderBy: { title: 'asc' },
     take: 100,
-    query: 'id title handle sku description category priceAmount currencyCode taxable imageUrl prescriptionRequirement inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }',
+    query: 'id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }',
   })
   return records.map((record: any) => {
     const availableQuantity = (record.inventoryLots || [])
