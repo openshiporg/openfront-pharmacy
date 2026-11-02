@@ -3,6 +3,7 @@ import type { PharmacyInventoryLotProjection, PharmacyInventoryWorklistProjectio
 import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/components/WorkflowQueuePage'
 import { expiryContext, strongestPriority } from '@/features/platform/components/workflowQueue'
 import { formatCalendarDate } from '@/features/platform/lib/dates'
+import { plural } from '@/features/platform/lib/plural'
 
 const inventoryStatuses = [
   ['available', 'Available'],
@@ -32,8 +33,8 @@ export async function InventoryControlPage({ searchParams }: { searchParams?: Pr
     const expiry = expiryContext(lot.expirationDate)
     const exceptions = [
       expiry.exception || '',
-      lot.activeRecallCount > 0 ? `${lot.activeRecallCount} active recall link(s)` : '',
-      lot.openExcursionCount > 0 ? `${lot.openExcursionCount} open excursion(s)` : '',
+      lot.activeRecallCount > 0 ? plural(lot.activeRecallCount, 'active recall link') : '',
+      lot.openExcursionCount > 0 ? plural(lot.openExcursionCount, 'open excursion') : '',
       lot.quantityQuarantined > 0 ? `${lot.quantityQuarantined} unit(s) quarantined` : '',
       lot.coldChainRequired ? (lot.coldChainEvidenceComplete ? 'Cold-chain lot' : 'Cold-chain evidence missing') : '',
     ].filter(Boolean)

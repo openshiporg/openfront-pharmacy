@@ -4,6 +4,7 @@ import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/co
 import { reportedAge, strongestPriority } from '@/features/platform/components/workflowQueue'
 import { formatDateTime } from '@/features/platform/lib/dates'
 import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
+import { plural } from '@/features/platform/lib/plural'
 
 const orderStatuses = [
   ['pending', 'Pending'],
@@ -60,7 +61,7 @@ export async function OrderQueuePage({ searchParams }: { searchParams?: Promise<
       id: order.id,
       href: `/dashboard/platform/orders/${order.id}`,
       title: order.orderNumber,
-      subtitle: `${order.lineItemCount} line item(s) · ${order.fulfillmentMethod.replaceAll('_', ' ')}`,
+      subtitle: `${plural(order.lineItemCount, 'line item')} · ${order.fulfillmentMethod.replaceAll('_', ' ')}`,
       state: ORDER_STATE_LABELS[order.status] || order.status,
       priority,
       priorityLabel: priority === 'critical' ? 'Exception first' : priority === 'attention' ? 'Needs attention' : 'Routine pickup',

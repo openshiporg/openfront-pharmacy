@@ -33,7 +33,7 @@ function StorefrontPreview({ name, tagline, logoIcon, logoColor, phone }: { name
   const hue = storeBrandHue(logoColor);
   // The storefront's apothecary cabinet in miniature: ebonized ground, gold name, enamel-plated drawers.
   return <figure aria-label="Storefront preview" className={cn(rxFontClass, 'overflow-hidden rounded-[6px] border border-border text-[oklch(0.95_0.012_85)]')} style={{ background: `oklch(0.165 0.012 ${hue})` }}>
-    <div className="flex items-center justify-between gap-3 border-b px-4 py-1.5 text-[11px] font-medium" style={{ background: `oklch(0.2 0.014 ${hue})`, borderColor: `oklch(0.33 0.014 ${hue})` }}>
+    <div className="flex items-center justify-between gap-3 border-b px-4 py-1.5 text-[12px] font-medium" style={{ background: `oklch(0.2 0.014 ${hue})`, borderColor: `oklch(0.33 0.014 ${hue})` }}>
       <span className="truncate">{name || 'Store name'}</span>
       {phone && <span className="tabular-nums">{phone}</span>}
     </div>
@@ -46,7 +46,7 @@ function StorefrontPreview({ name, tagline, logoIcon, logoColor, phone }: { name
       {tagline && <p className="mt-2 text-xs opacity-75">{tagline}</p>}
       <div className="mt-4 grid grid-cols-2 gap-1.5 rounded-[6px] p-1.5" style={{ background: `oklch(0.2 0.014 ${hue})` }}>
         {['Refill a prescription', 'Track an order'].map((label) => <span key={label} className="flex flex-col items-center gap-2 rounded-[4px] px-2 py-3" style={{ background: `oklch(0.235 0.016 ${hue})` }}>
-          <span className="rounded-[3px] bg-[oklch(0.93_0.022_88)] px-2 py-0.5 text-[11px] font-bold text-[oklch(0.2_0.015_160)]">{label}</span>
+          <span className="rounded-[3px] bg-[oklch(0.93_0.022_88)] px-2 py-0.5 text-[12px] font-bold text-[oklch(0.2_0.015_160)]">{label}</span>
           <span className="block h-1 w-7 rounded-[2px] bg-[oklch(0.7_0.085_80)]" />
         </span>)}
       </div>

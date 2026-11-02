@@ -3,6 +3,7 @@ import type { PharmacyPrescriptionQueueProjection } from '@/features/pharmacy/co
 import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/components/WorkflowQueuePage'
 import { reportedAge, strongestPriority } from '@/features/platform/components/workflowQueue'
 import { formatCalendarDate } from '@/features/platform/lib/dates'
+import { plural } from '@/features/platform/lib/plural'
 
 const decisionByStatus: Record<string, { label: string; hint: string }> = {
   draft: { label: 'Complete intake triage', hint: 'Review the reported source, patient, prescriber, and item evidence before recording a pharmacist decision.' },
@@ -29,8 +30,8 @@ export async function PrescriptionQueuePage({ searchParams }: { searchParams?: P
       prescription.sourceVerificationStatus !== 'human_verified' ? `Source evidence: ${prescription.sourceVerificationStatus.replaceAll('_', ' ')}` : '',
       prescription.prescriberVerificationStatus !== 'validated' ? `Prescriber evidence: ${prescription.prescriberVerificationStatus.replaceAll('_', ' ')}` : '',
       !prescription.medicationName ? 'Medication details missing' : '',
-      prescription.openRefillCount ? `${prescription.openRefillCount} pending refill request(s)` : '',
-      prescription.openTransferCount ? `${prescription.openTransferCount} pending transfer request(s)` : '',
+      prescription.openRefillCount ? plural(prescription.openRefillCount, 'pending refill request') : '',
+      prescription.openTransferCount ? plural(prescription.openTransferCount, 'pending transfer request') : '',
     ].filter(Boolean)
     const statePriority: WorkflowPriority = prescription.status === 'expired' ? 'critical' : ['pending_review', 'needs_information', 'on_hold'].includes(prescription.status) || Boolean(prescription.openRefillCount || prescription.openTransferCount) ? 'attention' : 'routine'
     const priority = strongestPriority(statePriority, exceptions.length ? 'attention' : 'routine')

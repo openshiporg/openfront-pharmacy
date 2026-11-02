@@ -70,7 +70,7 @@ export async function RequestQueuePage({ searchParams }: { searchParams?: Promis
           <div className="min-w-0">
             <p className="text-xs text-muted-foreground">{KIND_LABELS[request.kind]} · {formatDay(request.createdAt, timeZone)} · {request.locationName}</p>
             <TitleLine as="h2" className="mt-1" title={name} tone={STATUS_TONES[request.status] || 'muted'} state={humanize(request.status)} />
-            <p className="mt-0.5 truncate text-sm text-muted-foreground">{request.customerEmail}{request.patientId ? ' · Linked patient' : ' · Not linked to a patient'}</p>
+            <p className="mt-0.5 break-all text-sm text-muted-foreground">{request.customerEmail}{request.patientId ? ' · Linked patient' : ' · Not linked to a patient'}</p>
             <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
               {request.dateOfBirth && <Field label="Date of birth">{formatCalendarDate(request.dateOfBirth)}</Field>}
               {request.phone && <Field label="Phone"><a href={`tel:${request.phone}`} className="font-mono hover:underline">{request.phone}</a></Field>}
