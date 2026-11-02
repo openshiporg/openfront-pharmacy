@@ -914,7 +914,7 @@ export async function pharmacyOrderTask(_root: unknown, args: { orderId: string 
       organization { id } location { id name }
       lineItems { id title sku ndc11Snapshot quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
       fulfillment { id method status readyAt handedOffAt assignedTo { name } }
-      payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount processedAt provider { name code } }
+      payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount processedAt provider { name code createPaymentFunction } }
     `,
   })
   if (!order || !scope.organizationIds.includes(order.organization?.id) || !scope.locationIds.includes(order.location?.id)) throw new DomainError('Order not found')
@@ -937,7 +937,7 @@ export async function pharmacyOrderTask(_root: unknown, args: { orderId: string 
     deliveryWindow: order.deliveryWindow,
     locationId: order.location.id,
     locationName: order.location.name,
-    availableFulfillmentStatuses: availableFulfillmentTransitions(order.fulfillment?.status, (order.payments || []).map((payment: any) => payment.status)),
+    availableFulfillmentStatuses: availableFulfillmentTransitions(order.fulfillment?.status, order.payments || []),
     lines: await Promise.all((order.lineItems || []).map(async (line: any) => ({
       id: line.id,
       title: line.title,

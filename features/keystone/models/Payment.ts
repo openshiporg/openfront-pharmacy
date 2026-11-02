@@ -30,6 +30,7 @@ export const Payment = list({
         { label: 'Refund pending', value: 'refund_pending' },
         { label: 'Refunded', value: 'refunded' },
         { label: 'Failed', value: 'failed' },
+        { label: 'Cancelled (unpaid)', value: 'cancelled' },
       ],
       defaultValue: 'pending',
     }),

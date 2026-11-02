@@ -1,10 +1,10 @@
 import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
-import { withDomainTransaction } from './lib/transaction'
+import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { isManualPaymentProvider } from './paymentOperations'
 import { DomainError } from './lib/errors'
-import { canCancelFulfillment } from './lib/fulfillment-cancel'
+import { canCancelFulfillment, isUnpaidPickupPayment } from './lib/fulfillment-cancel'
 
 const ORDER_STATUS: Record<string, string> = {
   preparing: 'processing',
@@ -25,7 +25,7 @@ export async function transitionOrderFulfillment(
     const sudo = transactionContext.sudo()
     const fulfillment = await sudo.query.Fulfillment.findOne({
       where: { id: args.fulfillmentId },
-      query: 'id method status organization { id } location { id } assignedTo { id } order { id status patient { id } approval { id } payments { id status provider { createPaymentFunction } } }',
+      query: 'id method status organization { id } location { id } assignedTo { id } order { id status lineItems { id prescriptionRequirementSnapshot lotAllocationSnapshot product { id } } patient { id } approval { id } payments { id status provider { createPaymentFunction } } }',
     })
     if (!fulfillment?.order) throw new DomainError('Fulfillment not found')
     const { userId } = await requireTenantMembership(transactionContext, {
@@ -33,7 +33,7 @@ export async function transitionOrderFulfillment(
       locationId: fulfillment.location.id,
     })
     if (args.status === 'out_for_delivery' && fulfillment.method !== 'delivery') throw new DomainError('Only delivery orders can go out for delivery')
-    if (args.status === 'cancelled' && fulfillment.status !== 'cancelled' && !canCancelFulfillment(fulfillment.status, (fulfillment.order.payments || []).map((payment: any) => payment.status))) {
+    if (args.status === 'cancelled' && fulfillment.status !== 'cancelled' && !canCancelFulfillment(fulfillment.status, fulfillment.order.payments || [])) {
       throw new DomainError('Cancelling a paid order requires a refund; use the refund action instead')
     }
     // Storefront orders start at preparing with nobody assigned; the first staff member to work one claims it.
@@ -58,6 +58,33 @@ export async function transitionOrderFulfillment(
           evidence: { fulfillmentId: fulfillment.id, previousStatus: fulfillment.status, status: args.status },
         })
       : null
+    if (args.status === 'cancelled' && pickupPayments.length) {
+      if (fulfillment.method !== 'pickup' || !['pending', 'preparing', 'ready'].includes(fulfillment.status)) throw new DomainError('Unpaid cancellation requires an uncollected pickup order')
+      const lines = fulfillment.order.lineItems || []
+      // Prescription allocations require pharmacist return-to-stock authority.
+      if (lines.some((line: any) => line.prescriptionRequirementSnapshot !== 'none')) throw new DomainError('Prescription orders require the pharmacist return-to-stock workflow')
+      const allocations = lines.flatMap((line: any) => {
+        if (!Array.isArray(line.lotAllocationSnapshot) || !line.product?.id) throw new DomainError('Missing original inventory allocation')
+        return line.lotAllocationSnapshot.map((allocation: any) => ({ ...allocation, productId: line.product.id, lineId: line.id }))
+      })
+      if (allocations.some((a: any) => !a.lotId || !Number.isSafeInteger(a.quantity) || a.quantity <= 0)) throw new DomainError('Invalid original inventory allocation')
+      await acquireTransactionLocks(transactionContext, allocations.map((a: any) => `lot:${a.lotId}`))
+      for (const allocation of allocations) {
+        const lot = await sudo.query.InventoryLot.findOne({ where: { id: allocation.lotId }, query: 'id quantityAvailable product { id organization { id } } location { id }' })
+        if (!lot || lot.product?.id !== allocation.productId || lot.product.organization?.id !== fulfillment.organization.id || lot.location?.id !== fulfillment.location.id) throw new DomainError('Allocation does not match this tenant lot')
+        await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable + allocation.quantity } })
+        await sudo.query.InventoryMovement.createOne({ data: {
+          movementType: 'release', quantityDelta: allocation.quantity, reason: args.reason,
+          idempotencyKey: `cancel:${fulfillment.id}:${allocation.lineId}:${lot.id}`,
+          organization: { connect: { id: fulfillment.organization.id } }, location: { connect: { id: fulfillment.location.id } },
+          product: { connect: { id: allocation.productId } }, lot: { connect: { id: lot.id } },
+          order: { connect: { id: fulfillment.order.id } }, actor: { connect: { id: userId } }, approval: { connect: { id: approval!.id } },
+        } })
+      }
+      for (const payment of payments.filter(isUnpaidPickupPayment)) {
+        await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: 'cancelled', processedAt: new Date().toISOString(), recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval!.id } } } })
+      }
+    }
     if (args.status === 'handed_off') {
       for (const payment of pickupPayments) {
         await sudo.query.Payment.updateOne({
