@@ -69,21 +69,21 @@ function hoursSummary(location: PublicPharmacyLocationProjection) {
 function InfoCards({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
   const service = serviceLine(location)
   const hours = hoursSummary(location)
-  const card = 'rx-panel flex min-w-0 flex-col gap-0.5 px-2 py-1.5 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.3_0.02_30/0.4)]'
+  const card = 'rx-panel flex min-w-0 flex-col gap-0.5 px-2 py-2 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.3_0.02_30/0.4)]'
   return <div className="grid grid-cols-3 gap-2 px-4 pt-3 lg:hidden">
     <Link href="/prescriptions#location" className={card}>
-      <span className="flex items-center gap-1.5"><Clock aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12.5px] font-semibold leading-tight">Store hours</span></span>
-      <span className="text-[12px] leading-snug text-muted-foreground">{hours || location.name}</span>
+      <span className="flex items-center gap-1.5"><Clock aria-hidden="true" strokeWidth={1.6} className="size-3.5 shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">Store hours</span></span>
+      <span className="line-clamp-2 text-[12px] leading-[1.25] text-muted-foreground">{hours || location.name}</span>
     </Link>
     {phone
       ? <a href={`tel:${phone}`} className={card}>
-        <span className="flex items-center gap-1.5"><MessageCircleMore aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12.5px] font-semibold leading-tight">Pharmacist</span></span>
-        <span className="text-[12px] leading-snug text-muted-foreground">Call to ask a question</span>
+        <span className="flex items-center gap-1.5"><MessageCircleMore aria-hidden="true" strokeWidth={1.6} className="size-3.5 shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">Pharmacist</span></span>
+        <span className="line-clamp-2 text-[12px] leading-[1.25] text-muted-foreground">Call to ask a question</span>
       </a>
       : <Link href="/prescriptions" className={card}><span className="text-[14px] font-semibold">Prescriptions</span></Link>}
     <Link href="/products" className={card}>
-      <span className="flex items-center gap-1.5"><service.icon aria-hidden="true" strokeWidth={1.6} className="size-4 shrink-0 text-primary" /><span className="text-[12.5px] font-semibold leading-tight">{location.deliveryEnabled ? 'Delivery' : 'Pickup'}</span></span>
-      <span className="text-[12px] leading-snug text-muted-foreground">{location.deliveryEnabled ? 'Order online' : 'Order online, collect in store'}</span>
+      <span className="flex items-center gap-1.5"><service.icon aria-hidden="true" strokeWidth={1.6} className="size-3.5 shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">{location.deliveryEnabled ? 'Delivery' : 'Pickup'}</span></span>
+      <span className="line-clamp-2 text-[12px] leading-[1.25] text-muted-foreground">{location.deliveryEnabled ? 'Order online' : 'Order online, collect in store'}</span>
     </Link>
   </div>
 }
@@ -126,14 +126,14 @@ export async function HomePage() {
 
       <div className="min-w-0 pr-4 lg:pr-0">
         {/* Hero */}
-        <section aria-labelledby="home-title" className="relative overflow-hidden rounded-[18px] lg:rounded-none lg:bg-[oklch(0.955_0.003_50)]">
-          <div className="absolute inset-0 lg:left-auto lg:w-[60%]">
-            <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[78%_30%] lg:object-[70%_30%]" />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/55 via-black/25 via-35% to-transparent to-60% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
+        <section aria-labelledby="home-title" className="relative overflow-hidden rounded-[18px] bg-[oklch(0.36_0.035_35)] lg:rounded-none lg:bg-[oklch(0.955_0.003_50)]">
+          <div className="absolute inset-y-0 left-[46%] right-0 lg:left-auto lg:w-[60%]">
+            <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[100%_25%] lg:object-[70%_30%]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.36_0.035_35)] to-transparent to-[14%] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
           </div>
           <div className="relative flex min-h-[160px] flex-col justify-center py-2.5 pl-3 pr-0 sm:px-4 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
-            <h1 id="home-title" className="rx-display max-w-[56%] text-[1.15rem] leading-[1.08] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
-            <p className="mt-1 max-w-[56%] text-[12px] leading-snug text-white/90 sm:max-w-[34ch] sm:text-[14px] lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85"><span className="lg:hidden">Prescriptions, refills and everyday health.</span><span className="max-lg:hidden">Prescriptions, refills and everyday health products from {location.name}.</span></p>
+            <h1 id="home-title" className="rx-display max-w-[44%] text-[1.15rem] leading-[1.08] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
+            <p className="mt-1 max-w-[44%] text-[12px] leading-snug text-white/90 sm:max-w-[34ch] sm:text-[14px] lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85"><span className="lg:hidden">Refills and everyday health.</span><span className="max-lg:hidden">Prescriptions, refills and everyday health products from {location.name}.</span></p>
             <div className="mt-2 flex flex-col items-start gap-0 lg:mt-6 lg:gap-3 lg:flex-row lg:items-center">
               <Link href="/account#account-prescriptions" className={`${buttonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:whitespace-nowrap max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[12px] max-lg:font-medium max-lg:text-foreground">Refill prescription<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
               <Link href="/products" className={`${outlineButtonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:whitespace-nowrap max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[12px] max-lg:font-medium max-lg:text-foreground">Shop OTC products<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import type { PublicPharmacyCatalogProductProjection } from '@/features/pharmacy/contracts'
 import { cn } from '@/lib/utils'
 import { prescriptionRequirementLabel, publicCatalogAvailability } from '../lib/catalog-availability'
-import { categoryLabel } from '../lib/categories'
+import { categoryLabel, categoryShortLabel } from '../lib/categories'
 import { formatMoney } from '../lib/money'
 import { AddProductButton } from './AddProductButton'
 import { ProductImage } from './ProductImage'
@@ -21,7 +21,7 @@ export function ProductCard({ product, locationId, orderingEnabled, size = 'md',
       {requirement && <span className="rx-plate absolute left-2 top-2 z-10 px-2 py-0.5 text-[12px] font-semibold">{requirement}</span>}
     </Link>
     <div className={cn('flex flex-1 flex-col', size === 'sm' ? 'px-2 pb-1.5 pt-1.5' : 'px-3 pb-3 pt-3 sm:px-4 sm:pb-4')}>
-      {product.category && <p className="truncate text-[12px] leading-tight text-muted-foreground sm:text-[13px]">{categoryLabel(product.category)}</p>}
+      {product.category && <p className={cn('text-[12px] leading-tight text-muted-foreground sm:text-[13px]', size === 'md' && 'truncate')}>{size === 'sm' ? categoryShortLabel(product.category) : categoryLabel(product.category)}</p>}
       <h3 className={cn('mt-0.5 leading-snug', size === 'sm' ? 'text-[13px] font-medium leading-[1.2]' : 'rx-serif text-[16.5px] sm:text-[19px]')}>
         <span className="line-clamp-2 break-words group-hover:text-primary">{product.title}</span>
       </h3>
