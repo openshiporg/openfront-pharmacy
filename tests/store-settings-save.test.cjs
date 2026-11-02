@@ -68,3 +68,9 @@ test('the hue is normalized to 0-359', () => {
 test('an unsafe SVG rejects the save', () => {
   assert.deepEqual(payload({ logoIcon: '<svg onload="alert(1)"></svg>' }), { success: false, error: 'Invalid SVG format' });
 });
+
+test('the storefront always draws an icon beside the name (the default stands in; nothing hides it)', () => {
+  const src = fs.readFileSync(path.join(root, 'features/storefront/lib/store-mark.ts'), 'utf8');
+  assert.doesNotMatch(src, /raw === DEFAULT_STORE_LOGO_ICON\) return/);
+  assert.match(src, /\|\| sanitizeStoreLogoSvg\(DEFAULT_STORE_LOGO_ICON\)/);
+});
