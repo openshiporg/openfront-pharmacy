@@ -9,6 +9,7 @@ import type { PharmacyCatalogQueueProjection } from '../../pharmacy/contracts'
 import { DomainError } from './lib/errors'
 import { isValidNpi } from '../workflows/prescription-eligibility'
 import { patientAccountWhere } from './lib/patient-accounts'
+import { availableFulfillmentTransitions } from './lib/fulfillment-cancel'
 
 type StableCursor = { createdAt: string; id: string }
 
@@ -57,11 +58,6 @@ function requirePatientPrivateData(context: Context) {
   }
 }
 
-const fulfillmentTransitions: Record<string, string[]> = {
-  pending: ['preparing'],
-  preparing: ['ready'],
-  ready: ['handed_off'],
-}
 
 function prescriptionActions(status: string) {
   if (['pending_review', 'needs_information'].includes(status)) return ['clinical_safety_review', 'review']
@@ -927,7 +923,7 @@ export async function pharmacyOrderTask(_root: unknown, args: { orderId: string 
     deliveryWindow: order.deliveryWindow,
     locationId: order.location.id,
     locationName: order.location.name,
-    availableFulfillmentStatuses: fulfillmentTransitions[order.fulfillment?.status || ''] || [],
+    availableFulfillmentStatuses: availableFulfillmentTransitions(order.fulfillment?.status, (order.payments || []).map((payment: any) => payment.status)),
     lines: (order.lineItems || []).map((line: any) => ({
       id: line.id,
       title: line.title,

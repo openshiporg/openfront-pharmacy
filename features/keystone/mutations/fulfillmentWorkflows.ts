@@ -4,6 +4,7 @@ import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { isManualPaymentProvider } from './paymentOperations'
 import { DomainError } from './lib/errors'
+import { canCancelFulfillment } from './lib/fulfillment-cancel'
 
 const ORDER_STATUS: Record<string, string> = {
   preparing: 'processing',
@@ -32,7 +33,9 @@ export async function transitionOrderFulfillment(
       locationId: fulfillment.location.id,
     })
     if (args.status === 'out_for_delivery' && fulfillment.method !== 'delivery') throw new DomainError('Only delivery orders can go out for delivery')
-    if (args.status === 'cancelled') throw new DomainError('Cancelling a paid order requires a refund; use the refund action instead')
+    if (args.status === 'cancelled' && fulfillment.status !== 'cancelled' && !canCancelFulfillment(fulfillment.status, (fulfillment.order.payments || []).map((payment: any) => payment.status))) {
+      throw new DomainError('Cancelling a paid order requires a refund; use the refund action instead')
+    }
     // Storefront orders start at preparing with nobody assigned; the first staff member to work one claims it.
     const assigneeId = fulfillment.assignedTo?.id || userId
     if (args.status === 'handed_off' && assigneeId !== userId) throw new DomainError('Only the assigned staff member can record the handoff')
