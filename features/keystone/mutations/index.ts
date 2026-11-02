@@ -175,6 +175,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         logoUrl: String
         logoIcon: String
         logoColor: String
+        heroUrl: String
         supportEmail: String
         supportPhone: String
         privacyNotice: String

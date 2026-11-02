@@ -15,7 +15,7 @@ const PRODUCT_FIELDS = 'id title handle sku description category priceAmount cur
 
 const TENANT_QUERY = `query StorefrontTenant($tenantKey: String!, $search: String, $first: Int, $after: String) {
   publicPharmacyTenant(tenantKey: $tenantKey, search: $search, first: $first, after: $after) {
-    brand { organizationId tenantKey displayName tagline logoUrl logoIcon logoColor supportEmail supportPhone }
+    brand { organizationId tenantKey displayName tagline logoUrl logoIcon logoColor heroUrl supportEmail supportPhone }
     locations { id name code address phone timezone hours onlineOrderingEnabled pickupEnabled deliveryEnabled }
     locationsTotalCount hasMoreLocations nextLocationCursor
   }

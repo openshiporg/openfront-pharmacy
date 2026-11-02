@@ -10,6 +10,7 @@ export type PublicPharmacyOperatorBrandProjection = {
   logoUrl?: string | null
   logoIcon?: string | null
   logoColor?: string | null
+  heroUrl?: string | null
   supportEmail?: string | null
   supportPhone?: string | null
   privacyNotice?: string | null

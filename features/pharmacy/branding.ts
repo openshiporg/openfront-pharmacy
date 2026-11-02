@@ -11,6 +11,7 @@ export type OperatorBrand = {
   logoUrl?: string | null
   logoIcon?: string | null
   logoColor?: string | null
+  heroUrl?: string | null
   supportEmail?: string | null
   supportPhone?: string | null
   privacyNotice?: string | null
@@ -66,6 +67,7 @@ export function operatorBrandFromOrganization(organization: any): OperatorBrand 
     logoUrl: organization.brandLogoUrl || null,
     logoIcon: sanitizeStoreLogoSvg(organization.logoIcon || DEFAULT_STORE_LOGO_ICON),
     logoColor: normalizeStoreLogoColor(organization.logoColor),
+    heroUrl: organization.storefrontHeroUrl || null,
     supportEmail: organization.supportEmail || null,
     supportPhone: organization.supportPhone || null,
     privacyNotice: organization.privacyNotice || null,

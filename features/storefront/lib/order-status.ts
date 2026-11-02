@@ -17,6 +17,7 @@ const ORDER_LABELS: Record<string, string> = {
   handed_off: 'Completed',
   completed: 'Completed',
   payment_failed: 'Payment failed',
+  cancelled: 'Cancelled',
 }
 
 /** One name per order state, whether it comes from the order or its fulfillment. */

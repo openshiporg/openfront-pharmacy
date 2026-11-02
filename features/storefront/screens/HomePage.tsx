@@ -128,7 +128,7 @@ export async function HomePage() {
         {/* Hero */}
         <section aria-labelledby="home-title" className="relative overflow-hidden rounded-[18px] bg-[oklch(0.36_0.035_35)] lg:rounded-none lg:bg-[oklch(0.955_0.003_50)]">
           <div className="absolute inset-y-0 left-[46%] right-0 lg:left-auto lg:w-[60%]">
-            <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[100%_25%] lg:object-[70%_30%]" />
+            <Image src={brand.heroUrl || "/storefront/hero-pharmacist.jpg"} alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[100%_25%] lg:object-[70%_30%]" />
             <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.36_0.035_35)] to-transparent to-[14%] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
           </div>
           <div className="relative flex min-h-[160px] flex-col justify-center py-2.5 pl-3 pr-0 sm:px-4 text-white sm:min-h-[340px] lg:min-h-0 lg:max-w-[44rem] lg:px-8 lg:py-4 lg:text-foreground xl:px-12">

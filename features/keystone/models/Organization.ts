@@ -1,6 +1,6 @@
-import { list } from '@keystone-6/core'
+import { graphql, list } from '@keystone-6/core'
 import { denyAll } from '@keystone-6/core/access'
-import { checkbox, integer, json, relationship, select, text, timestamp } from '@keystone-6/core/fields'
+import { checkbox, image, integer, json, relationship, select, text, timestamp, virtual } from '@keystone-6/core/fields'
 
 import { DEFAULT_STORE_LOGO_COLOR, DEFAULT_STORE_LOGO_ICON, normalizeStoreLogoColor } from '../../lib/store-logo'
 import { sanitizeStoreLogoSvg } from '../../lib/sanitize-store-logo'
@@ -45,6 +45,8 @@ export const Organization = list({
     brandPrimaryColor: text({ defaultValue: '#18352b' }),
     brandAccentColor: text({ defaultValue: '#8ec9ad' }),
     brandLogoUrl: text(),
+    storefrontHero: image({ storage: 'my_images', label: 'Storefront hero photo' }),
+    storefrontHeroUrl: virtual({ field: graphql.field({ type: graphql.String, resolve: (item: any, _args, context) => item.storefrontHero_id && item.storefrontHero_extension ? context.images('my_images').getUrl(item.storefrontHero_id, item.storefrontHero_extension) : null }) }),
     logoIcon: text({ defaultValue: DEFAULT_STORE_LOGO_ICON, hooks: {
       resolveInput: ({ resolvedData, fieldKey }) => resolvedData[fieldKey] === undefined ? undefined : sanitizeStoreLogoSvg(String(resolvedData[fieldKey] || '')),
       validateInput: ({ inputData, resolvedData, fieldKey, addValidationError }) => {

@@ -1641,6 +1641,8 @@ type Organization {
   brandPrimaryColor: String
   brandAccentColor: String
   brandLogoUrl: String
+  storefrontHero: ImageFieldOutput
+  storefrontHeroUrl: String
   logoIcon: String
   logoColor: String
   isDemo: Boolean
@@ -1685,6 +1687,22 @@ type Organization {
   integrationWebhookEventsCount(where: IntegrationWebhookEventWhereInput! = {}): Int
   createdAt: DateTime
   updatedAt: DateTime
+}
+
+type ImageFieldOutput {
+  id: ID!
+  filesize: Int!
+  width: Int!
+  height: Int!
+  extension: ImageExtension!
+  url: String!
+}
+
+enum ImageExtension {
+  jpg
+  png
+  webp
+  gif
 }
 
 input OrganizationWhereUniqueInput {
@@ -1818,6 +1836,7 @@ input OrganizationUpdateInput {
   brandPrimaryColor: String
   brandAccentColor: String
   brandLogoUrl: String
+  storefrontHero: ImageFieldInput
   logoIcon: String
   logoColor: String
   isDemo: Boolean
@@ -1849,6 +1868,13 @@ input OrganizationUpdateInput {
   createdAt: DateTime
   updatedAt: DateTime
 }
+
+input ImageFieldInput {
+  upload: Upload!
+}
+
+"""The `Upload` scalar type represents a file upload."""
+scalar Upload
 
 input PharmacyLocationRelateToManyForUpdateInput {
   disconnect: [PharmacyLocationWhereUniqueInput!]
@@ -3491,22 +3517,6 @@ type Product {
   updatedAt: DateTime
 }
 
-type ImageFieldOutput {
-  id: ID!
-  filesize: Int!
-  width: Int!
-  height: Int!
-  extension: ImageExtension!
-  url: String!
-}
-
-enum ImageExtension {
-  jpg
-  png
-  webp
-  gif
-}
-
 input ProductWhereUniqueInput {
   id: ID
   handle: String
@@ -3589,13 +3599,6 @@ input ProductUpdateInput {
   createdAt: DateTime
   updatedAt: DateTime
 }
-
-input ImageFieldInput {
-  upload: Upload!
-}
-
-"""The `Upload` scalar type represents a file upload."""
-scalar Upload
 
 input DrugReferenceRelateToOneForUpdateInput {
   create: DrugReferenceCreateInput
@@ -4984,6 +4987,7 @@ type PublicPharmacyOperatorBrand {
   logoUrl: String
   logoIcon: String
   logoColor: String
+  heroUrl: String
   supportEmail: String
   supportPhone: String
   privacyNotice: String

@@ -104,7 +104,7 @@ function publicLocationCursorWhere(where: Record<string, any>, cursor: PublicLoc
   }
 }
 
-const PUBLIC_TENANT_QUERY = 'id storefrontKey storefrontHost operatorDisplayName operatorTagline brandPrimaryColor brandAccentColor brandLogoUrl logoIcon logoColor supportEmail supportPhone privacyNotice'
+const PUBLIC_TENANT_QUERY = 'id storefrontKey storefrontHost operatorDisplayName operatorTagline brandPrimaryColor brandAccentColor brandLogoUrl logoIcon logoColor storefrontHeroUrl supportEmail supportPhone privacyNotice'
 
 function optionalTenantKey(tenantKey?: string | null) {
   if (!tenantKey?.trim()) return null
