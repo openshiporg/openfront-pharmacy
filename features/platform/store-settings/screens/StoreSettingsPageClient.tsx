@@ -3,27 +3,29 @@
 import { useState } from 'react';
 import { rxFontClass } from '@/features/storefront/lib/fonts';
 import Link from 'next/link';
-import { Check, Code } from 'lucide-react';
+import { Code } from 'lucide-react';
+import * as SelectPrimitive from '@radix-ui/react-select';
 import { toast } from 'sonner';
 
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Callout, EmptyBand, Pill, RxButton as Button, TitleLine, Track } from '@/features/platform/components/rx-ui';
+import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select';
+import { Callout, EmptyBand, Pill, RxButton, TitleLine, Track } from '@/features/platform/components/rx-ui';
 import { storeBrandHue } from '@/features/storefront/lib/rx-brand';
 import { cn } from '@/lib/utils';
 import { LOGO_ICONS, HUE_PRESETS } from '../lib/icon-registry';
 import { updateStoreSettings, type StoreLocationHours, type StoreSettings } from '../actions';
 import { LocationHoursEditor } from '../components/LocationHoursEditor';
+import { StoreSettingsSaveBar } from '../components/StoreSettingsSaveBar';
 
 interface StoreSettingsPageClientProps {
   initialData: StoreSettings[];
   initialError: string | null;
   locations?: Record<string, StoreLocationHours[]>;
 }
-
-const COLOR_PRESETS = [{ name: 'Dispensary green', value: 295 }, ...HUE_PRESETS.filter((preset) => preset.value !== 0), { name: 'Original', value: 0 }];
 
 function Mark({ svg, hue, className }: { svg: string; hue: string; className?: string }) {
   return <span aria-hidden="true" className={cn('block shrink-0 [&>svg]:block [&>svg]:size-full', className)} style={{ filter: `hue-rotate(${hue}deg)` }} dangerouslySetInnerHTML={{ __html: svg }} />;
@@ -116,38 +118,132 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
           </div>
         </section>
 
-        <section className="space-y-4 rounded-[6px] bg-background p-4 border border-border sm:p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <TitleLine as="h2" title="Logo" titleClassName="text-sm" state={selectedIcon?.name || 'Custom SVG'} />
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" type="button"><Code aria-hidden="true" />Edit SVG</Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-[500px] max-w-[calc(100vw-2rem)]" align="end">
-                <div className="space-y-3">
-                  <Label htmlFor="logo-svg">SVG code</Label>
-                  <Textarea id="logo-svg" value={logoIcon} onChange={(e) => setLogoIcon(e.target.value)} className="min-h-[300px] font-mono text-xs" placeholder="<svg>...</svg>" />
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground">Preview<Mark svg={logoIcon} hue={logoColor} className="size-8" /></div>
-                </div>
-              </PopoverContent>
-            </Popover>
+        <section className="space-y-6 rounded-[6px] bg-background p-4 border border-border sm:p-5">
+          <h2 className="text-sm font-semibold">Logo</h2>
+          {/* Logo Icon Selector */}
+          <div>
+            <Label>Logo Icon</Label>
+            <div className="mt-2 flex items-center gap-2">
+              <Select
+                value={selectedIcon?.id || ''}
+                onValueChange={(id) => {
+                  const icon = LOGO_ICONS.find((i) => i.id === id);
+                  if (icon) setLogoIcon(icon.lightSvg);
+                }}
+              >
+                <SelectPrimitive.Trigger
+                  className={cn(
+                    'flex h-12 w-12 shrink-0 rounded-lg border border-input bg-background focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 p-0 overflow-hidden items-center justify-center'
+                  )}
+                >
+                  <div
+                    dangerouslySetInnerHTML={{ __html: logoIcon }}
+                    style={{ filter: `hue-rotate(${logoColor}deg)` }}
+                    className="[&>svg]:w-6 [&>svg]:h-6"
+                  />
+                </SelectPrimitive.Trigger>
+                <SelectContent className="border-border dark:border-blue-700">
+                  {LOGO_ICONS.map((icon) => (
+                    <SelectItem key={icon.id} value={icon.id}>
+                      <span className="flex items-center gap-3">
+                        <div
+                          dangerouslySetInnerHTML={{ __html: icon.lightSvg }}
+                          style={{ filter: `hue-rotate(${logoColor}deg)` }}
+                          className="[&>svg]:w-6 [&>svg]:h-6"
+                        />
+                        <span>
+                          <span className="block font-medium text-gray-900 dark:text-gray-100">
+                            {icon.name}
+                          </span>
+                        </span>
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              {/* SVG Code Editor Popover */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="h-12 w-12 shrink-0"
+                    type="button"
+                  >
+                    <Code className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[min(500px,calc(100vw-2rem))]" align="start">
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Edit SVG Code</h4>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Edit the SVG code directly. Changes will be reflected in the icon preview.
+                      </p>
+                    </div>
+                    <Textarea
+                      value={logoIcon}
+                      onChange={(e) => setLogoIcon(e.target.value)}
+                      className="font-mono text-xs min-h-[300px]"
+                      placeholder="<svg>...</svg>"
+                    />
+                    <div className="flex items-center gap-2">
+                      <div className="text-sm text-muted-foreground">Preview:</div>
+                      <div
+                        dangerouslySetInnerHTML={{ __html: logoIcon }}
+                        style={{ filter: `hue-rotate(${logoColor}deg)` }}
+                        className="[&>svg]:w-8 [&>svg]:h-8 flex items-center justify-center p-2 border rounded"
+                      />
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
           </div>
-          <div role="radiogroup" aria-label="Logo mark" className="grid grid-cols-6 gap-1.5 rounded-[6px] bg-muted p-1.5 shadow-[inset_0_1px_2px_rgb(0_0_0/0.06)] sm:grid-cols-8 dark:bg-muted/60">
-            {LOGO_ICONS.map((icon) => {
-              const active = icon.lightSvg === logoIcon;
-              return <button key={icon.id} type="button" role="radio" aria-checked={active} aria-label={icon.name} title={icon.name} onClick={() => setLogoIcon(icon.lightSvg)} className={cn('relative grid aspect-square place-items-center rounded-[5px] transition-[background-color,box-shadow] duration-150 hover:bg-background/70 focus-visible:outline-2 focus-visible:outline-ring', active && 'bg-background shadow-[0_1px_2px_rgb(0_0_0/0.12),0_0_0_0.5px_rgb(0_0_0/0.06)] dark:bg-zinc-800')}>
-                <Mark svg={icon.lightSvg} hue={logoColor} className="size-6" />
-                {active && <Check aria-hidden="true" className="absolute right-1 top-1 size-3 text-foreground" />}
-              </button>;
-            })}
-          </div>
-          <div className="grid gap-2">
-            <span className="text-sm font-medium">Colour</span>
-            <Track label="Logo colour">
-              {COLOR_PRESETS.map((preset) => <Pill key={preset.value} active={logoColor === String(preset.value)} onClick={() => setLogoColor(String(preset.value))} aria-label={preset.name} title={preset.name} className="px-2">
-                <span aria-hidden="true" className="size-4 rounded-[3px] ring-1 ring-inset ring-black/10" style={{ background: `oklch(0.55 0.13 ${storeBrandHue(preset.value)})` }} />
-              </Pill>)}
-            </Track>
+
+          {/* Logo Color Selector */}
+          <div>
+            <Label>Logo Color</Label>
+            <div className="mt-2">
+              <Select
+                value={logoColor}
+                onValueChange={(value) => setLogoColor(value)}
+              >
+                <SelectPrimitive.Trigger
+                  className={cn(
+                    'flex h-12 w-12 shrink-0 rounded-lg border border-input bg-background focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 p-0 overflow-hidden items-center justify-center'
+                  )}
+                >
+                  <SelectValue>
+                    <div
+                      className="w-6 h-6 rounded-full"
+                      style={{
+                        background: `hsl(${(240 + parseInt(logoColor)) % 360}, 70%, 50%)`
+                      }}
+                    />
+                  </SelectValue>
+                </SelectPrimitive.Trigger>
+                <SelectContent className="border-border dark:border-blue-700">
+                  <div className="grid grid-cols-4 gap-2 p-2">
+                    {HUE_PRESETS.map((preset) => (
+                      <SelectItem
+                        key={preset.value}
+                        value={preset.value.toString()}
+                        className="cursor-pointer p-0 h-12 w-12 flex items-center justify-center [&>span:first-child]:hidden"
+                      >
+                        <div
+                          className="w-6 h-6 rounded-full"
+                          style={{
+                            background: `hsl(${(240 + preset.value) % 360}, 70%, 50%)`
+                          }}
+                        />
+                      </SelectItem>
+                    ))}
+                  </div>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </section>
 
@@ -167,9 +263,14 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
         </section>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button onClick={() => { setSaved(null); handleSave(); }} disabled={isLoading} className="min-h-10 px-5">
-            {isLoading ? 'Saving…' : 'Save settings'}
-          </Button>
+          <StoreSettingsSaveBar
+            isSaving={isLoading}
+            button={
+              <RxButton onClick={() => { setSaved(null); handleSave(); }} disabled={isLoading} className="min-h-10 px-5">
+                {isLoading ? 'Saving…' : 'Save settings'}
+              </RxButton>
+            }
+          />
           {saved && <p role="status" className={saved.ok ? 'text-sm text-muted-foreground' : 'text-sm text-red-700 dark:text-red-300'}>{saved.text}</p>}
         </div>
       </div>
@@ -191,12 +292,12 @@ export function StoreSettingsPageClient({
   const store = initialData.find((entry) => entry.id === storeId);
 
   return (
-    <div className="w-full max-w-5xl space-y-5 p-4 md:p-6">
+    <div className="w-full max-w-5xl space-y-5 p-4 pb-24 md:p-6">
       <TitleLine title="Store settings" tone={store ? 'ok' : undefined} state={store ? store.operatorDisplayName : undefined} />
       {initialError
         ? <Callout tone="danger" title="Couldn't load store settings">{initialError}</Callout>
         : !store
-          ? <EmptyBand action={<Button asChild><Link href="/dashboard">Set up the pharmacy</Link></Button>}>No store yet</EmptyBand>
+          ? <EmptyBand action={<RxButton asChild><Link href="/dashboard">Set up the pharmacy</Link></RxButton>}>No store yet</EmptyBand>
           : <>
             {initialData.length > 1 && <Track label="Store">
               {initialData.map((entry) => <Pill key={entry.id} active={entry.id === storeId} onClick={() => setStoreId(entry.id)}>{entry.operatorDisplayName}</Pill>)}
