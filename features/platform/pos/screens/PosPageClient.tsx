@@ -185,8 +185,8 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
               const available = (product.availableQuantity || 0) > 0
               return <div key={product.id} className={`flex items-center gap-3 px-3.5 py-2.5 sm:px-4 ${quantity > 0 ? 'bg-teal-50/70 dark:bg-teal-950/20' : 'bg-card'}`}>
                 <div className="min-w-0 flex-1">
-                  <div className="flex min-w-0 items-baseline gap-2"><Dot tone={available ? 'ok' : 'muted'} /><h2 className="truncate text-[13px] font-medium text-foreground">{product.title}</h2></div>
-                  <p className="mt-0.5 truncate pl-3 text-xs text-muted-foreground">{product.sku} · {product.availableQuantity || 0} on hand</p>
+                  <div className="flex min-w-0 items-baseline gap-2"><Dot tone={available ? 'ok' : 'muted'} /><h2 className="break-words text-[13px] font-medium text-foreground">{product.title}</h2></div>
+                  <p className="mt-0.5 break-words pl-3 text-xs text-muted-foreground">{product.sku} · {product.availableQuantity || 0} on hand</p>
                 </div>
                 <Mono className="shrink-0 text-sm">{money(product.priceAmount, product.currencyCode)}</Mono>
                 <div role="group" aria-label={`Quantity of ${product.title}`} className="flex shrink-0 items-center gap-1">

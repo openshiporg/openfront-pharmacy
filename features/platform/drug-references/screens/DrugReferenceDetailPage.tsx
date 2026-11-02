@@ -41,7 +41,7 @@ export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id
       {drug.reviews.length ? <ListBand className="mb-5">{drug.reviews.map((review) => <div key={review.id} className="bg-background px-3.5 py-2.5 text-sm">
         <TitleLine as="h3" titleClassName="text-sm" title={`${review.sourceName} ${review.sourceVersion}`} tone={statusTone(review.status === 'active' ? 'active' : review.status)} state={humanize(review.status)} />
         <p className="mt-0.5 text-muted-foreground">{humanize(review.marketingStatusSnapshot)} · {humanize(review.controlledScheduleSnapshot)} · {review.sourceReference}</p>
-        <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">{review.reviewedBy?.name}{review.organization ? ` · ${review.organization.name}` : ''} · {shortDate(review.reviewedAt)}</p>
+        <p className="mt-0.5 font-mono text-[12px] text-muted-foreground">{review.reviewedBy?.name}{review.organization ? ` · ${review.organization.name}` : ''} · {shortDate(review.reviewedAt)}</p>
       </div>)}</ListBand> : null}
       <DrugReviewForm drugReferenceId={drug.id} organizations={response.data.organizations} />
     </TaskSection>

@@ -38,9 +38,9 @@ function OperationalRow({ item, attention, columns }: { item: OperationalItem; a
     <tr className="border-b border-border/70 transition-colors last:border-b-0 hover:bg-muted/30">
       <td className="px-3 py-2 align-baseline">
         <span className="block min-w-0 font-medium text-foreground">{item.href ? <Link href={item.href} className="underline-offset-4 hover:underline">{item.title}</Link> : item.title}</span>
-        {item.subtitle && <span className="block truncate text-xs text-muted-foreground">{item.subtitle}</span>}
+        {item.subtitle && <span className="block break-words text-xs text-muted-foreground">{item.subtitle}</span>}
       </td>
-      {columns.map((label) => <td key={label} className="max-w-56 truncate px-3 py-2 align-baseline text-muted-foreground" title={value(label)}>{value(label) || '—'}</td>)}
+      {columns.map((label) => <td key={label} className="max-w-56 break-words px-3 py-2 align-baseline text-muted-foreground" title={value(label)}>{value(label) || '—'}</td>)}
       <td className="whitespace-nowrap px-3 py-2 align-baseline"><StatusText tone={attention ? 'warn' : statusTone(item.status)}>{statusLabel(item.status)}</StatusText></td>
       <td className="px-3 py-1.5 text-right align-baseline">
         <div className="inline-flex flex-wrap items-center justify-end gap-1.5">

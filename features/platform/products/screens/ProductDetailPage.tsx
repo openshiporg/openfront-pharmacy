@@ -71,15 +71,15 @@ export async function ProductDetailPage({ params }: { params: Promise<{ id: stri
     <TaskSection title="Drug reference">
       {product.drugReference
         ? <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <div><TitleLine as="h3" titleClassName="text-sm" title={<Link href={`/dashboard/platform/drug-references/${product.drugReference.id}`} className="hover:underline hover:underline-offset-4">{product.drugReference.proprietaryName}{product.drugReference.strength ? ` ${product.drugReference.strength}` : ''}</Link>} tone={statusTone(product.drugReference.marketingStatus === 'active' ? 'active' : 'pending_review')} state={humanize(product.drugReference.marketingStatus)} /><p className="mt-0.5 font-mono text-[11px] text-muted-foreground">NDC {product.drugReference.ndc11} · {humanize(product.drugReference.controlledSchedule)}</p></div>
+          <div><TitleLine as="h3" titleClassName="text-sm" title={<Link href={`/dashboard/platform/drug-references/${product.drugReference.id}`} className="hover:underline hover:underline-offset-4">{product.drugReference.proprietaryName}{product.drugReference.strength ? ` ${product.drugReference.strength}` : ''}</Link>} tone={statusTone(product.drugReference.marketingStatus === 'active' ? 'active' : 'pending_review')} state={humanize(product.drugReference.marketingStatus)} /><p className="mt-0.5 font-mono text-[12px] text-muted-foreground">NDC {product.drugReference.ndc11} · {humanize(product.drugReference.controlledSchedule)}</p></div>
         </div>
         : <p className="text-sm text-muted-foreground">None linked.</p>}
     </TaskSection>
 
     <TaskSection title="Lots" count={lots.length} action={<Link href="/dashboard/platform/inventory/receive" className="text-[13px] font-medium underline underline-offset-4">Receive lot</Link>}>
       {lots.length ? <ListBand>{lots.map((lot) => <Link key={lot.id} href={`/dashboard/platform/inventory/${lot.id}`} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 bg-background px-3.5 py-2.5 text-sm hover:bg-muted/40">
-        <span className="min-w-0"><TitleLine as="h3" titleClassName="text-sm font-mono" title={lot.lotNumber} tone={statusTone(lot.status)} state={humanize(lot.status)} /><span className="block font-mono text-[11px] text-muted-foreground">Expires {shortDate(lot.expirationDate)}{lot.storageBin ? ` · Bin ${lot.storageBin}` : ''}</span></span>
-        <Mono className="text-right">{lot.quantityAvailable}{lot.quantityQuarantined ? <span className="block text-[11px] text-amber-700 dark:text-amber-300">{lot.quantityQuarantined} held</span> : null}</Mono>
+        <span className="min-w-0"><TitleLine as="h3" titleClassName="text-sm font-mono" title={lot.lotNumber} tone={statusTone(lot.status)} state={humanize(lot.status)} /><span className="block font-mono text-[12px] text-muted-foreground">Expires {shortDate(lot.expirationDate)}{lot.storageBin ? ` · Bin ${lot.storageBin}` : ''}</span></span>
+        <Mono className="text-right">{lot.quantityAvailable}{lot.quantityQuarantined ? <span className="block text-[12px] text-amber-700 dark:text-amber-300">{lot.quantityQuarantined} held</span> : null}</Mono>
       </Link>)}</ListBand> : <p className="text-sm text-muted-foreground">No lots received.</p>}
     </TaskSection>
 
