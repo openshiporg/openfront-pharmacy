@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { LocationHours, OpenNow } from '../components/LocationHours'
 import { PrescriptionRequestForm } from '../components/PrescriptionRequestForm'
 import { Field, PageHead, SecondaryAction, TitleLine, buttonClass } from '../components/rx-ui'
-import { getCustomerAccount } from '../lib/data/account'
+import { getCustomerAccount, getPatientPortal } from '../lib/data/account'
 import { getStorefront } from '../lib/data/store'
 import { getCustomer } from '../lib/data/user'
 import { formatAddress } from '../lib/money'
@@ -16,7 +16,8 @@ export async function PrescriptionServicesPage() {
   const [storefront, customer] = await Promise.all([getStorefront(), getCustomer()])
   if (!storefront) return <StoreUnavailable />
   const { brand, location } = storefront
-  const account = customer ? await getCustomerAccount() : null
+  const [account, portal] = customer ? await Promise.all([getCustomerAccount(), getPatientPortal()]) : [null, null]
+  const refillable = (portal?.prescriptions || []).filter((rx) => rx.refillEligible)
   const phone = location?.phone || brand.supportPhone
   const address = formatAddress(location?.address)
 
@@ -26,7 +27,12 @@ export async function PrescriptionServicesPage() {
     <div className="mt-8 grid gap-[14px] md:grid-cols-2">
       <section id="refills" aria-labelledby="refills-title" className="flex flex-col rx-panel p-6">
         <h2 id="refills-title" className="text-xl font-semibold tracking-tight">Refills</h2>
-        <div className="mt-auto pt-6"><Link href="/account" className={buttonClass}>Request a refill</Link></div>
+        {!customer
+          ? <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">Sign in to see your prescriptions and ask for a refill.</p>
+          : refillable.length
+            ? <ul className="mt-3 divide-y divide-[var(--rx-rule)]">{refillable.map((rx) => <li key={rx.id} className="flex items-baseline justify-between gap-3 py-2.5 text-[14px]"><span className="min-w-0 break-words font-medium">{rx.medicationName}</span><span className="shrink-0 text-muted-foreground">{rx.refillsRemaining} {rx.refillsRemaining === 1 ? 'refill' : 'refills'} left</span></li>)}</ul>
+            : <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{portal?.prescriptions?.length ? 'None of your prescriptions can be refilled online right now. Call us and we can help.' : 'No prescriptions on file yet. Transfer one or send a new prescription.'}</p>}
+        <div className="mt-auto pt-6"><Link href={customer ? '/account' : '/account?from=/prescriptions'} className={buttonClass}>{customer ? 'Request a refill' : 'Sign in to request a refill'}</Link></div>
       </section>
       <section id="transfer" aria-labelledby="transfer-title" className="rx-panel p-6">
         <h2 id="transfer-title" className="text-xl font-semibold tracking-tight">Transfer or new prescription</h2>

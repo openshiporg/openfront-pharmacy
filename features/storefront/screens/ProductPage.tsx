@@ -9,7 +9,7 @@ import { OpenNow } from '../components/LocationHours'
 import { ProductImage } from '../components/ProductImage'
 import { Notice } from '../components/rx-ui'
 import { prescriptionRequirementLabel, publicCatalogAvailability } from '../lib/catalog-availability'
-import { categoryLabel } from '../lib/categories'
+import { categoryLabel, categoryShortLabel } from '../lib/categories'
 import { fetchCatalogPage, getStorefrontCategories, getStorefrontProduct } from '../lib/data/store'
 import { formatAddress, formatMoney } from '../lib/money'
 import { categoryHref } from '../modules/layout/templates/nav/links'
@@ -121,10 +121,10 @@ export async function ProductPage({ params }: Props) {
         <h2 id="related-title" className="rx-serif flex items-center gap-2 text-[20px]"><Search aria-hidden="true" strokeWidth={1.7} className="size-[18px]" />Shop related products</h2>
         <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-4 xl:grid-cols-2">
           {related.map((entry) => <li key={entry.id} className="min-w-0">
-            <Link href={`/products/${encodeURIComponent(entry.handle)}`} className="group block">
+            <Link href={`/products/${encodeURIComponent(entry.handle)}`} className="group block max-md:!flex max-md:!flex-col max-md:!items-stretch">
               <span className="rx-photo relative block aspect-square overflow-hidden rounded-[6px]"><ProductImage src={entry.imageUrl} alt={entry.title} fallbackLabel={entry.title} sizes="(max-width: 1280px) 25vw, 150px" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /></span>
-              {entry.category && <span className="mt-2 block truncate text-[13px] text-muted-foreground">{categoryLabel(entry.category)}</span>}
-              <span className="block truncate text-[15px] leading-snug group-hover:text-primary">{entry.title}</span>
+              {entry.category && <span className="mt-2 block text-[13px] leading-tight text-muted-foreground">{categoryShortLabel(entry.category)}</span>}
+              <span className="line-clamp-2 block break-words text-[15px] leading-snug group-hover:text-primary">{entry.title}</span>
               <span className="rx-num block text-[15px] font-semibold">{formatMoney(entry.priceAmount, entry.currencyCode)}</span>
             </Link>
           </li>)}
