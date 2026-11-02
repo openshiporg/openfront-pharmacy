@@ -10,6 +10,7 @@ import { DomainError } from './lib/errors'
 import { isValidNpi } from '../workflows/prescription-eligibility'
 import { patientAccountWhere } from './lib/patient-accounts'
 import { availableFulfillmentTransitions } from './lib/fulfillment-cancel'
+import { willCallWhere } from '../../pharmacy/will-call'
 
 type StableCursor = { createdAt: string; id: string }
 
@@ -359,19 +360,16 @@ export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first
   const pharmacistScope = await validatedPharmacistScope(context)
   const pageSize = boundedPageSize(args.first)
   const cursor = decodeStableCursor(args.after)
-  // Will-call aging: still waiting for pickup with a live (unvoided, unsold) label older than the cutoff.
-  // "7" is a fixed week; "due" uses each store's own return-to-stock review setting.
-  const agedBefore = (days: number) => ({ status: { equals: 'ready_for_pickup' }, dispensingLabels: { some: { voidedAt: null, order: null, dispensedAt: { lte: new Date(Date.now() - days * 86_400_000).toISOString() } } } })
-  let willCallWhere: Record<string, unknown> | null = null
-  if (args.willCall === '7') willCallWhere = agedBefore(7)
+  let willCallFilterWhere: Record<string, unknown> | null = null
+  if (args.willCall === '7') willCallFilterWhere = willCallWhere('7', [])
   else if (args.willCall === 'due') {
     const stores = await context.sudo().query.Organization.findMany({ where: { id: { in: pharmacistScope.organizationIds } }, take: 100, query: 'id willCallReturnDays' })
-    willCallWhere = { OR: stores.map((store: any) => ({ organization: { id: { equals: store.id } }, ...agedBefore(store.willCallReturnDays ?? 10) })) }
+    willCallFilterWhere = willCallWhere('due', stores as { id: string; willCallReturnDays?: number | null }[])
   } else if (args.willCall) throw new DomainError('Unknown will-call filter')
   const baseWhere = {
     organization: { id: { in: pharmacistScope.organizationIds } },
     location: { id: { in: pharmacistScope.locationIds } },
-    ...(willCallWhere ? willCallWhere : {
+    ...(willCallFilterWhere ? willCallFilterWhere : {
       OR: [
         { status: { in: ['draft', 'pending_review', 'needs_information', 'approved', 'ready_to_dispense', 'partially_dispensed', 'ready_for_pickup'] } },
         { refillRequests: { some: { status: { in: ['requested', 'under_review', 'prescriber_contacted'] } } } },

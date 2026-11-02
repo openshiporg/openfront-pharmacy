@@ -4,7 +4,7 @@ import { WorkflowQueuePage, type WorkflowPriority } from '@/features/platform/co
 import { reportedAge, strongestPriority } from '@/features/platform/components/workflowQueue'
 import { formatCalendarDate } from '@/features/platform/lib/dates'
 import { plural } from '@/features/platform/lib/plural'
-import { willCallDays } from '@/features/pharmacy/will-call'
+import { willCallDays, willCallException } from '@/features/pharmacy/will-call'
 
 const decisionByStatus: Record<string, { label: string; hint: string }> = {
   draft: { label: 'Complete intake triage', hint: 'Review the reported source, patient, prescriber, and item evidence before recording a pharmacist decision.' },
@@ -36,7 +36,7 @@ export async function PrescriptionQueuePage({ searchParams }: { searchParams?: P
       !prescription.medicationName ? 'Medication details missing' : '',
       prescription.openRefillCount ? plural(prescription.openRefillCount, 'pending refill request') : '',
       prescription.openTransferCount ? plural(prescription.openTransferCount, 'pending transfer request') : '',
-      waited !== null && waited >= prescription.willCallReturnDays ? `In will-call ${plural(waited, 'day')}: review for return to stock` : '',
+      willCallException(prescription.readyAt, prescription.willCallReturnDays) || '',
     ].filter(Boolean)
     const statePriority: WorkflowPriority = prescription.status === 'expired' ? 'critical' : ['pending_review', 'needs_information', 'on_hold'].includes(prescription.status) || Boolean(prescription.openRefillCount || prescription.openTransferCount) ? 'attention' : 'routine'
     const priority = strongestPriority(statePriority, exceptions.length ? 'attention' : 'routine')
