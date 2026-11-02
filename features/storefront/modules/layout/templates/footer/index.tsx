@@ -19,18 +19,18 @@ const QUICK_LINKS = [
 
 function Column({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
   return <div className={className ?? 'min-w-0'}>
-    <p className="rx-serif text-[18px] lg:text-[16px]">{title}</p>
-    <ul className="mt-1.5 grid lg:mt-1">{children}</ul>
+    <p className="rx-serif text-[18px] lg:text-[15px]">{title}</p>
+    <ul className="mt-1.5 grid lg:mt-0.5">{children}</ul>
   </div>
 }
 
-const linkClass = 'rx-serif inline-flex min-h-8 items-center text-[16px] text-foreground/80 hover:text-primary max-sm:min-h-10 lg:min-h-[22px] lg:text-[14px]'
+const linkClass = 'rx-serif inline-flex min-h-8 items-center text-[16px] text-foreground/80 hover:text-primary max-sm:min-h-10 lg:min-h-[20px] lg:text-[13.5px]'
 
 export default function Footer({ brand, location, categories = [] }: { brand: Pick<PublicPharmacyOperatorBrandProjection, 'displayName' | 'tagline' | 'logoIcon' | 'logoColor' | 'supportEmail' | 'supportPhone'>; location?: Pick<PublicPharmacyLocationProjection, 'name' | 'address' | 'phone' | 'hours' | 'timezone'> | null; categories?: StoreCategory[] }) {
   const address = formatAddress(location?.address)
   const phone = location?.phone || brand.supportPhone
   return <footer className="mt-auto border-t border-[var(--rx-rule)] bg-background">
-    <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-8 px-5 py-10 sm:px-8 lg:grid-cols-[1.5fr_1fr_1fr_1.3fr] lg:py-6">
+    <div className="mx-auto grid max-w-6xl grid-cols-2 gap-x-6 gap-y-8 px-5 py-10 sm:px-8 lg:grid-cols-[1.5fr_1fr_1fr_1.3fr] lg:py-4">
       <div className="col-span-2 min-w-0 sm:col-span-1">
         <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} />
         {brand.tagline && <p className="rx-serif mt-3 max-w-xs text-[16px] lg:mt-1.5 lg:text-[14px] leading-snug text-foreground/75">{brand.tagline}</p>}

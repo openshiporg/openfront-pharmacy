@@ -93,16 +93,16 @@ export default function Nav({ brand, location, cartCount, categories, signedIn, 
     {variant === 'rail'
       ? <div className="hidden lg:block">
         <div className="border-b border-[var(--rx-rule)]">
-          <div className="flex min-h-9 items-center gap-6 px-8 text-[13px] text-foreground/75 xl:px-12">
+          <div className="flex min-h-8 items-center gap-6 px-8 text-[13px] text-foreground/75 xl:px-12">
             {hours && <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><Clock aria-hidden="true" className="size-4 text-primary" strokeWidth={1.7} />{hours}</span>}
             {address && <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" className="size-4 shrink-0 text-primary" strokeWidth={1.7} /><span className="truncate">{address}</span></span>}
             <div className="ml-auto flex items-center gap-3">
-              <Link href="/account" className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap text-foreground hover:text-primary"><UserRound aria-hidden="true" className="size-4" strokeWidth={1.7} />{signedIn ? 'Account' : 'Sign in'}</Link>
+              <Link href="/account" className="inline-flex min-h-8 items-center gap-1.5 whitespace-nowrap text-foreground hover:text-primary"><UserRound aria-hidden="true" className="size-4" strokeWidth={1.7} />{signedIn ? 'Account' : 'Sign in'}</Link>
               <CartLink cartCount={cartCount} />
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-8 px-8 py-1.5 xl:px-12">
+        <div className="flex items-center gap-8 px-8 py-0.5 xl:px-12">
           <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} className="shrink-0" />
           <HeaderSearch className="w-full max-w-[26rem] flex-1" />
           <div className="ml-auto flex items-center gap-6 xl:gap-8">
