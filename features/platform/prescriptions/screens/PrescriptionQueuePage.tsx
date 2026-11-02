@@ -12,6 +12,7 @@ const decisionByStatus: Record<string, { label: string; hint: string }> = {
   approved: { label: 'Review dispense readiness', hint: 'Confirm current safety review and eligible lot evidence before preparing a fill.' },
   ready_to_dispense: { label: 'Confirm dispensing decision', hint: 'Complete the authorized human confirmation and current server eligibility checks.' },
   partially_dispensed: { label: 'Review remaining fill', hint: 'Review the recorded fill evidence and current server eligibility before any further dispensing decision.' },
+  ready_for_pickup: { label: 'Will-call: hand off or return', hint: 'Filled and labelled. Record the cash pickup at the counter, or return it to stock if it was not collected.' },
   fill_closed: { label: 'Review released fill', hint: 'Unused quantity was released; consumed entitlement is not restored. Review lineage before any further fill.' },
   dispensed: { label: 'Review completed record', hint: 'Inspect the preserved dispensing, payment, and label evidence; no further fill is inferred.' },
   refill_requested: { label: 'Review refill request', hint: 'Review the linked refill request and its current authorization evidence; the software does not authorize another fill.' },

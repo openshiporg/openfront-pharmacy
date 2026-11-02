@@ -57,7 +57,7 @@ export async function readEventProjection(context: Context, scope: FillReadScope
   let reason: string | null = null
   if (event.approvalId) {
     const approval = record(await q.HumanApproval.findOne({ where: { id: event.approvalId }, query: 'id organization { id } location { id } actor { id } actionType attested' }))
-    const actionType = event.action === 'dispensed' ? 'dispense' : event.action === 'clinical_reviewed' ? 'clinical_safety_review' : 'prescription_review'
+    const actionType = ['dispensed', 'filled'].includes(event.action) ? 'dispense' : event.action === 'picked_up' ? 'dispense' : event.action === 'clinical_reviewed' ? 'clinical_safety_review' : 'prescription_review'
     if (approval.id !== event.approvalId || linkedId(approval.organization) !== scope.organizationId || linkedId(approval.location) !== scope.locationId || linkedId(approval.actor) !== event.actorId || approval.attested !== true || approval.actionType !== actionType) throw readScopeError()
     const bound = record(await q.HumanApproval.findOne({ where: { id: event.approvalId }, query: 'id evidence' }))
     const binding = record(bound.evidence)
@@ -72,10 +72,13 @@ export async function readEventProjection(context: Context, scope: FillReadScope
   }
   let orderId: string | null = null, orderNumber: string | null = null
   if (result.orderId != null) {
-    if (event.action !== 'dispensed') throw readScopeError()
+    if (!['dispensed', 'picked_up'].includes(event.action)) throw readScopeError()
+    // A will-call pickup sells stock that already moved when the fill was labelled; the movement is checked on that event.
+    if (event.action === 'dispensed') {
     const movementId = readId(evidence.movementId)
     const movement = tuple(await q.InventoryMovement.findOne({ where: { id: movementId }, query: 'id requestFingerprint movementType quantityDelta organization { id } location { id } patient { id } prescription { id } prescriptionItem { id } order { id } actor { id } approval { id }' }), scope)
     if (movement.id !== movementId || movement.requestFingerprint !== event.commandFingerprint || movement.movementType !== 'dispense' || movement.quantityDelta !== -event.quantity || linkedId(movement.prescriptionItem) !== fill.itemId || linkedId(movement.actor) !== event.actorId || linkedId(movement.approval) !== event.approvalId || linkedId(movement.order) !== result.orderId) throw readScopeError()
+    }
     const id = readId(result.orderId)
     const order = tuple(await q.Order.findOne({ where: { id }, query: 'id organization { id } location { id } patient { id } prescription { id }' }), scope)
     if (order.id !== id) throw readScopeError()

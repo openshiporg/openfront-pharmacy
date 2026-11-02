@@ -63,10 +63,26 @@ export async function authorizeDispensingAction(input: { prescriptionId: string;
   })
 }
 
-export async function dispensePrescriptionAction(input: { prescriptionId: string; prescriptionItemId: string; lotId: string; quantity: number; cashReceivedAmount: number; auxiliaryWarnings: string[]; counselingOutcome: string; idempotencyKey: string; reason: string; attested: boolean; fillId?: string | null; expectedFillVersion?: number | null }) {
+export async function dispensePrescriptionAction(input: { prescriptionId: string; prescriptionItemId: string; lotId: string; quantity: number; cashReceivedAmount: number; auxiliaryWarnings: string[]; counselingOutcome: string; idempotencyKey: string; reason: string; attested: boolean; fillId?: string | null; expectedFillVersion?: number | null; hold?: boolean }) {
   return guardAction(async () => {
-  const response = await platformRequest<{ recordPrescriptionDispensing: PrescriptionActionResult }>(`mutation Dispense($prescriptionId: ID!, $prescriptionItemId: ID!, $lotId: ID!, $quantity: Int!, $cashReceivedAmount: Int!, $auxiliaryWarnings: [String!]!, $counselingOutcome: String!, $idempotencyKey: String!, $reason: String!, $attested: Boolean!, $fillId: ID, $expectedFillVersion: Int) { recordPrescriptionDispensing(prescriptionId: $prescriptionId, prescriptionItemId: $prescriptionItemId, lotId: $lotId, quantity: $quantity, cashReceivedAmount: $cashReceivedAmount, auxiliaryWarnings: $auxiliaryWarnings, counselingOutcome: $counselingOutcome, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested, fillId: $fillId, expectedFillVersion: $expectedFillVersion) { ${prescriptionResultFields} } }`, input)
+  const response = await platformRequest<{ recordPrescriptionDispensing: PrescriptionActionResult }>(`mutation Dispense($prescriptionId: ID!, $prescriptionItemId: ID!, $lotId: ID!, $quantity: Int!, $cashReceivedAmount: Int!, $auxiliaryWarnings: [String!]!, $counselingOutcome: String!, $idempotencyKey: String!, $reason: String!, $attested: Boolean!, $fillId: ID, $expectedFillVersion: Int, $hold: Boolean) { recordPrescriptionDispensing(prescriptionId: $prescriptionId, prescriptionItemId: $prescriptionItemId, lotId: $lotId, quantity: $quantity, cashReceivedAmount: $cashReceivedAmount, auxiliaryWarnings: $auxiliaryWarnings, counselingOutcome: $counselingOutcome, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested, fillId: $fillId, expectedFillVersion: $expectedFillVersion, hold: $hold) { ${prescriptionResultFields} } }`, input)
   return result(response, `/dashboard/platform/prescriptions/${input.prescriptionId}`).recordPrescriptionDispensing
+  })
+}
+
+export async function pickupPrescriptionFillAction(input: { prescriptionId: string; fillId: string; expectedFillVersion: number; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean }) {
+  return guardAction(async () => {
+  const response = await platformRequest<{ pickupPrescriptionFill: PrescriptionActionResult }>(`mutation Pickup($prescriptionId: ID!, $fillId: ID!, $expectedFillVersion: Int!, $cashReceivedAmount: Int!, $idempotencyKey: String!, $reason: String!, $attested: Boolean!) { pickupPrescriptionFill(prescriptionId: $prescriptionId, fillId: $fillId, expectedFillVersion: $expectedFillVersion, cashReceivedAmount: $cashReceivedAmount, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested) { ${prescriptionResultFields} } }`, input)
+  revalidatePath('/account')
+  return result(response, `/dashboard/platform/prescriptions/${input.prescriptionId}`).pickupPrescriptionFill
+  })
+}
+
+export async function returnFillToStockAction(input: { prescriptionId: string; fillId: string; expectedFillVersion: number; cause: string; idempotencyKey: string; reason: string; attested: boolean }) {
+  return guardAction(async () => {
+  const response = await platformRequest<{ returnPrescriptionFillToStock: { success: boolean; reused: boolean; fillId: string; status: string; version: number } }>(`mutation ReturnToStock($prescriptionId: ID!, $fillId: ID!, $expectedFillVersion: Int!, $cause: String!, $idempotencyKey: String!, $reason: String!, $attested: Boolean!) { returnPrescriptionFillToStock(prescriptionId: $prescriptionId, fillId: $fillId, expectedFillVersion: $expectedFillVersion, cause: $cause, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested) { success reused fillId status version } }`, input)
+  revalidatePath('/account')
+  return result(response, `/dashboard/platform/prescriptions/${input.prescriptionId}`).returnPrescriptionFillToStock
   })
 }
 

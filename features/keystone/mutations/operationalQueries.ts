@@ -63,6 +63,7 @@ function prescriptionActions(status: string) {
   if (['pending_review', 'needs_information'].includes(status)) return ['clinical_safety_review', 'review']
   if (status === 'approved') return ['clinical_safety_review', 'authorize_dispensing']
   if (['ready_to_dispense', 'partially_dispensed'].includes(status)) return ['record_dispensing']
+  if (status === 'ready_for_pickup') return ['pickup', 'return_to_stock']
   return []
 }
 
@@ -362,7 +363,7 @@ export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first
     organization: { id: { in: pharmacistScope.organizationIds } },
     location: { id: { in: pharmacistScope.locationIds } },
     OR: [
-      { status: { in: ['draft', 'pending_review', 'needs_information', 'approved', 'ready_to_dispense', 'partially_dispensed'] } },
+      { status: { in: ['draft', 'pending_review', 'needs_information', 'approved', 'ready_to_dispense', 'partially_dispensed', 'ready_for_pickup'] } },
       { refillRequests: { some: { status: { in: ['requested', 'under_review', 'prescriber_contacted'] } } } },
       { transfers: { some: { status: { in: ['requested', 'consent_recorded', 'under_review'] } } } },
     ],
@@ -424,7 +425,7 @@ export async function pharmacyPrescriptionTask(_root: unknown, args: { prescript
       }
       reviews(orderBy: { reviewedAt: desc }) { id decision reason reviewedAt pharmacist { name } }
       safetyReviews(orderBy: { reviewedAt: desc }, take: 10) { id fillNumber outcome reviewReference notes overrideReason reviewedAt pharmacist { name } }
-      dispensingLabels(orderBy: { dispensedAt: desc }, take: 10) { id labelNumber fillNumber operatorNameSnapshot operatorPhoneSnapshot locationNameSnapshot locationAddressSnapshot patientNameSnapshot prescriberNameSnapshot medicationNameSnapshot sigSnapshot quantityDispensed lotNumberSnapshot ndc11Snapshot expirationDateSnapshot auxiliaryWarnings counselingOutcome dispensedAt }
+      dispensingLabels(orderBy: { dispensedAt: desc }, take: 10) { id labelNumber fillNumber operatorNameSnapshot operatorPhoneSnapshot locationNameSnapshot locationAddressSnapshot patientNameSnapshot prescriberNameSnapshot medicationNameSnapshot sigSnapshot quantityDispensed lotNumberSnapshot ndc11Snapshot expirationDateSnapshot auxiliaryWarnings counselingOutcome dispensedAt voidedAt voidReason }
       refillRequests(orderBy: { requestedAt: desc }, take: 50) { id status requestNote resolutionNote requestedAt resolvedAt prescriptionItem { id medicationNameSnapshot } }
       transfers(orderBy: { requestedAt: desc }, take: 50) { id direction status counterpartyName counterpartyPhone requestedAt completedAt consent { id accepted } }
     `,
@@ -504,7 +505,7 @@ export async function pharmacyPrescriptionTask(_root: unknown, args: { prescript
     patientAllergies: (prescription.patient?.allergies || []).map((entry: any) => ({ id: entry.id, allergen: entry.allergen, reaction: entry.reaction, severity: entry.severity })),
     patientMedications: (prescription.patient?.medications || []).map((entry: any) => ({ id: entry.id, medicationName: entry.medicationName, directions: entry.directions })),
     safetyReviews: (prescription.safetyReviews || []).map((review: any) => ({ id: review.id, fillNumber: review.fillNumber, outcome: review.outcome, reviewReference: review.reviewReference, notes: review.notes, overrideReason: review.overrideReason, reviewedAt: review.reviewedAt, pharmacistName: review.pharmacist?.name || 'Authorized reviewer' })),
-    dispensingLabels: (prescription.dispensingLabels || []).map((label: any) => ({ id: label.id, labelNumber: label.labelNumber, fillNumber: label.fillNumber, operatorName: label.operatorNameSnapshot, operatorPhone: label.operatorPhoneSnapshot, locationName: label.locationNameSnapshot, locationAddress: label.locationAddressSnapshot, patientName: label.patientNameSnapshot, prescriberName: label.prescriberNameSnapshot, medicationName: label.medicationNameSnapshot, sig: label.sigSnapshot, quantityDispensed: label.quantityDispensed, lotNumber: label.lotNumberSnapshot, ndc11: label.ndc11Snapshot, expirationDate: label.expirationDateSnapshot, auxiliaryWarnings: Array.isArray(label.auxiliaryWarnings) ? label.auxiliaryWarnings : [], counselingOutcome: label.counselingOutcome, dispensedAt: label.dispensedAt })),
+    dispensingLabels: (prescription.dispensingLabels || []).map((label: any) => ({ id: label.id, labelNumber: label.labelNumber, fillNumber: label.fillNumber, operatorName: label.operatorNameSnapshot, operatorPhone: label.operatorPhoneSnapshot, locationName: label.locationNameSnapshot, locationAddress: label.locationAddressSnapshot, patientName: label.patientNameSnapshot, prescriberName: label.prescriberNameSnapshot, medicationName: label.medicationNameSnapshot, sig: label.sigSnapshot, quantityDispensed: label.quantityDispensed, lotNumber: label.lotNumberSnapshot, ndc11: label.ndc11Snapshot, expirationDate: label.expirationDateSnapshot, auxiliaryWarnings: Array.isArray(label.auxiliaryWarnings) ? label.auxiliaryWarnings : [], counselingOutcome: label.counselingOutcome, dispensedAt: label.dispensedAt, voidedAt: label.voidedAt || null, voidReason: label.voidReason || null })),
     refillRequests: (prescription.refillRequests || []).map((entry: any) => ({ id: entry.id, status: entry.status, requestNote: entry.requestNote, resolutionNote: entry.resolutionNote, requestedAt: entry.requestedAt, resolvedAt: entry.resolvedAt, prescriptionItemId: entry.prescriptionItem?.id, medicationName: entry.prescriptionItem?.medicationNameSnapshot || 'Prescription item' })),
     transfers: (prescription.transfers || []).map((entry: any) => ({ id: entry.id, direction: entry.direction, status: entry.status, counterpartyName: entry.counterpartyName, counterpartyPhone: entry.counterpartyPhone, requestedAt: entry.requestedAt, completedAt: entry.completedAt, consentRecorded: entry.consent?.accepted === true })),
     reviews: (prescription.reviews || []).map((review: any) => ({

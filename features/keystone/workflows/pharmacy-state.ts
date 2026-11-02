@@ -3,7 +3,10 @@ const prescriptionTransitions: Record<string, readonly string[]> = {
   pending_review: ['needs_information', 'approved', 'rejected', 'cancelled'],
   needs_information: ['pending_review', 'cancelled'],
   approved: ['ready_to_dispense', 'fill_closed', 'cancelled'],
-  ready_to_dispense: ['approved', 'partially_dispensed', 'dispensed', 'fill_closed', 'cancelled'],
+  ready_to_dispense: ['approved', 'partially_dispensed', 'ready_for_pickup', 'dispensed', 'fill_closed', 'cancelled'],
+  // Will-call bin: filled and labelled, waiting for the patient. Picked up -> dispensed;
+  // returned to stock -> fill_closed.
+  ready_for_pickup: ['dispensed', 'fill_closed', 'cancelled'],
   partially_dispensed: ['approved', 'partially_dispensed', 'dispensed', 'fill_closed', 'cancelled'],
   rejected: [],
   dispensed: ['approved', 'cancelled'],

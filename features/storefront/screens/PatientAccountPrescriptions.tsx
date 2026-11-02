@@ -11,7 +11,7 @@ import { formatStatus } from '../lib/money'
 type Prescription = PharmacyPatientPortalProjection['prescriptions'][number]
 
 function prescriptionTone(status: string): DotTone {
-  if (['dispensed', 'fill_closed', 'approved', 'ready_to_dispense'].includes(status)) return 'ok'
+  if (['dispensed', 'fill_closed', 'approved', 'ready_to_dispense', 'ready_for_pickup'].includes(status)) return 'ok'
   if (['refill_requested', 'pending_review', 'transfer_requested', 'partially_dispensed'].includes(status)) return 'info'
   if (['needs_information', 'on_hold'].includes(status)) return 'warn'
   if (['expired', 'rejected', 'cancelled'].includes(status)) return 'danger'
@@ -48,8 +48,10 @@ export function PatientAccountPrescriptions({ patientId, prescriptions }: { pati
         <Field label="Refills left"><span className="rx-num">{prescription.refillsRemaining}</span></Field>
         <Field label="Prescriber">{prescription.prescriberName}</Field>
         <Field label="Pharmacy">{prescription.locationName}</Field>
+        {prescription.status === 'ready_for_pickup' && <Field label="Pick up at">{prescription.locationName}</Field>}
         {prescription.lastRefillStatus && <Field label="Last request"><span className="capitalize">{formatStatus(prescription.lastRefillStatus)}</span></Field>}
       </dl>
+      {prescription.status === 'ready_for_pickup' && <p role="status" className="mt-4 rounded-[4px] bg-accent px-4 py-3 text-sm text-accent-foreground">Your prescription is ready for pickup at {prescription.locationName}.</p>}
       {canRefill && !completed[prescription.id] && <div className="mt-5 flex flex-col gap-2 sm:flex-row">
         <Input aria-label={`Note for ${prescription.medicationName} refill (optional)`} value={note[prescription.id] || ''} onChange={(event) => setNote((value) => ({ ...value, [prescription.id]: event.target.value }))} placeholder="Note for the pharmacist (optional)" maxLength={500} className="h-11 rounded-[4px] bg-background" />
         <button type="button" disabled={pending} onClick={() => submitRequest(prescription)} className={`${buttonClass} shrink-0`}>{requests.current[prescription.id] ? 'Try again' : 'Request refill'}</button>

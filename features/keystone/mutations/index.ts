@@ -51,7 +51,7 @@ import { replayPharmacyOutboxEvent } from './outboxWorkflows'
 import { activePharmacyPaymentProviders, initiatePharmacyPaymentSession, refundPharmacyPayment } from './paymentOperations'
 import handlePaymentProviderWebhook from './handlePaymentProviderWebhook'
 import { reconcilePharmacyPaymentSession } from './paymentRecovery'
-import { authorizePrescriptionDispensing, recordPrescriptionDispensing, recordPrescriptionReview } from './prescriptionWorkflows'
+import { authorizePrescriptionDispensing, pickupPrescriptionFill, recordPrescriptionDispensing, recordPrescriptionReview, returnPrescriptionFillToStock } from './prescriptionWorkflows'
 import { closePharmacyRecall, disposeRecallLot, openPharmacyRecall, recordRecallExposureAction } from './recallWorkflows'
 import { pharmacyOperationalSummary, publicPharmacyCatalog, publicPharmacyLocations, publicPharmacyTenant, publicPharmacyCategories } from './publicQueries'
 import redirectToInit from './redirectToInit'
@@ -318,7 +318,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type PharmacyPrescriptionPatientAllergy { id: ID!, allergen: String!, reaction: String!, severity: String! }
       type PharmacyPrescriptionPatientMedication { id: ID!, medicationName: String!, directions: String }
       type PharmacyClinicalSafetyReviewProjection { id: ID!, fillNumber: Int!, outcome: String!, reviewReference: String!, notes: String, overrideReason: String, reviewedAt: String!, pharmacistName: String! }
-      type PharmacyDispensingLabelProjection { id: ID!, labelNumber: String!, fillNumber: Int!, operatorName: String!, operatorPhone: String, locationName: String!, locationAddress: JSON, patientName: String!, prescriberName: String!, medicationName: String!, sig: String!, quantityDispensed: Int!, lotNumber: String!, ndc11: String, expirationDate: String!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, dispensedAt: String! }
+      type PharmacyDispensingLabelProjection { id: ID!, labelNumber: String!, fillNumber: Int!, operatorName: String!, operatorPhone: String, locationName: String!, locationAddress: JSON, patientName: String!, prescriberName: String!, medicationName: String!, sig: String!, quantityDispensed: Int!, lotNumber: String!, ndc11: String, expirationDate: String!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, dispensedAt: String!, voidedAt: String, voidReason: String }
       type PharmacyRefillTaskProjection { id: ID!, status: String!, requestNote: String, resolutionNote: String, requestedAt: String!, resolvedAt: String, prescriptionItemId: ID!, medicationName: String! }
       type PharmacyTransferTaskProjection { id: ID!, direction: String!, status: String!, counterpartyName: String!, counterpartyPhone: String, requestedAt: String!, completedAt: String, consentRecorded: Boolean! }
       type PharmacyPrescriptionReviewProjection {
@@ -842,7 +842,9 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         intakePharmacyPrescription(organizationId: ID!, locationId: ID!, patientId: ID!, prescriberId: ID!, prescriptionNumber: String!, source: String!, externalReference: String, writtenAt: String!, expiresAt: String!, items: [PharmacyPrescriptionIntakeItemInput!]!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
         recordPrescriptionReview(prescriptionId: ID!, decision: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
         authorizePrescriptionDispensing(prescriptionId: ID!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
-        recordPrescriptionDispensing(prescriptionId: ID!, prescriptionItemId: ID!, lotId: ID!, quantity: Int!, cashReceivedAmount: Int!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, idempotencyKey: String!, reason: String!, attested: Boolean!, fillId: ID, expectedFillVersion: Int): PharmacyPrescriptionActionResult!
+        recordPrescriptionDispensing(prescriptionId: ID!, prescriptionItemId: ID!, lotId: ID!, quantity: Int!, cashReceivedAmount: Int!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, idempotencyKey: String!, reason: String!, attested: Boolean!, fillId: ID, expectedFillVersion: Int, hold: Boolean): PharmacyPrescriptionActionResult!
+        pickupPrescriptionFill(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
+        returnPrescriptionFillToStock(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cause: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
         createPharmacyPatient(organizationId: ID!, patientNumber: String!, firstName: String!, lastName: String!, dateOfBirth: String!, email: String, phone: String, preferredContactMethod: String!, address: JSON, identityMethod: String!, identityReference: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
         updatePharmacyPatientContact(patientId: ID!, email: String, phone: String, preferredContactMethod: String!, address: JSON, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
         recordPharmacyPatientAllergy(patientId: ID!, allergen: String!, reaction: String!, severity: String!, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
@@ -953,6 +955,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         recordPrescriptionReview,
         authorizePrescriptionDispensing,
         recordPrescriptionDispensing,
+        pickupPrescriptionFill,
+        returnPrescriptionFillToStock,
         createPharmacyPatient,
         updatePharmacyPatientContact,
         recordPharmacyPatientAllergy,

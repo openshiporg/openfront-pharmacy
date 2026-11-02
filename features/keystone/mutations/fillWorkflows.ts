@@ -174,32 +174,42 @@ export async function releasePharmacyPrescriptionFill(_root: unknown, args: { pr
     const plan = releaseFillPlan(fill, args.expectedVersion, args.cause)
     const approval = await createHumanApproval(tx, { organizationId: p.organization.id, locationId: p.location.id, actorId: userId,
       actionType: 'prescription_review', reason: args.reason, attested: args.attested, evidence: { stage: 'fill_release', fillId: fill.id, cause: args.cause, entitlementRestored: false, inventoryRestocked: false } })
-    if (plan.releaseRefill) {
-      if (item.refillsReserved < 1) throw new DomainError('Refill reservation counter requires reconciliation')
-      await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1 } })
-    }
-    const { releaseRefill, ...data } = plan
-    const updated = await casFill(tx, fill, { ...data, openKey: null })
-    if (fill.refillRequest?.id) await tx.sudo().query.RefillRequest.updateOne({ where: { id: fill.refillRequest.id }, data: { status: 'cancelled', openRequestKey: null, resolutionNote: args.reason, resolvedAt: new Date().toISOString() } })
-    // Requested refills never advanced prescription state. Do not mark a partial
-    // fill dispensed, or auto-reopen/restore a consumed refill.
-    if (fill.status !== 'requested') await tx.sudo().query.Prescription.updateOne({ where: { id: p.id }, data: { status: 'fill_closed' } })
+    const updated = await applyFillReleaseInTransaction(tx, p, item, fill, plan, args.reason)
     const result = { success: true, reused: false, fillId: fill.id, status: 'released', version: updated.version }
     await appendFillEvent(tx, updated, { eventKey, fingerprint, action: 'released', actorId: userId, approvalId: approval.id, quantity: plan.quantityReleased, result,
       evidence: { cause: args.cause, inventoryRestocked: false, entitlementConsumed: plan.creditState === 'consumed' } })
     return result
   })
 }
+/**
+ * The release write path: frees a reserved refill, closes the fill, cancels its refill
+ * request and closes the prescription's current fill. Used by release and by return to
+ * stock (after the will-call consumption is reversed), so both restore entitlement the same way.
+ */
+export async function applyFillReleaseInTransaction(tx: Context, p: any, item: any, fill: any, plan: ReturnType<typeof releaseFillPlan>, reason: string, extra: Record<string, unknown> = {}) {
+  if (plan.releaseRefill) {
+    if (item.refillsReserved < 1) throw new DomainError('Refill reservation counter requires reconciliation')
+    await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1 } })
+  }
+  const { releaseRefill, ...data } = plan
+  const updated = await casFill(tx, fill, { ...data, ...extra, openKey: null })
+  if (fill.refillRequest?.id) await tx.sudo().query.RefillRequest.updateOne({ where: { id: fill.refillRequest.id }, data: { status: 'cancelled', openRequestKey: null, resolutionNote: reason, resolvedAt: new Date().toISOString() } })
+  // Requested refills never advanced prescription state. Do not mark a partial
+  // fill dispensed, or auto-reopen/restore a consumed refill.
+  if (fill.status !== 'requested') await tx.sudo().query.Prescription.updateOne({ where: { id: p.id }, data: { status: 'fill_closed' } })
+  return updated
+}
 /** Runs inside the existing stock/cash/label transaction, never as a second transaction. */
-export async function consumeFillInTransaction(tx: Context, fill: any, item: any, expectedVersion: number, quantity: number, input: { key: string; fingerprint: string; actorId: string; approvalId: string; result: any; movementId: string; safetyReviewId: string }) {
-  const plan = dispenseFillPlan(fill, expectedVersion, quantity)
+export async function consumeFillInTransaction(tx: Context, fill: any, item: any, expectedVersion: number, quantity: number, input: { key: string; fingerprint: string; actorId: string; approvalId: string; result: any; movementId: string; safetyReviewId: string; hold?: boolean }) {
+  const plan = dispenseFillPlan(fill, expectedVersion, quantity, Date.now(), input.hold === true)
   if (plan.debitRefill) {
     if (item.refillsReserved < 1 || item.refillsRemaining < 1) throw new DomainError('Refill reservation evidence requires reconciliation')
     await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1, refillsRemaining: item.refillsRemaining - 1 } })
   }
   const { debitRefill, ...data } = plan
+  // A will-call fill keeps its open key: the item has one live fill until pickup or return to stock.
   const updated = await casFill(tx, fill, { ...data, ...(plan.status === 'dispensed' ? { openKey: null } : {}) })
-  await appendFillEvent(tx, updated, { eventKey: `fill.dispense:${input.key}`, fingerprint: input.fingerprint, action: 'dispensed', actorId: input.actorId,
+  await appendFillEvent(tx, updated, { eventKey: `fill.dispense:${input.key}`, fingerprint: input.fingerprint, action: plan.status === 'ready' ? 'filled' : 'dispensed', actorId: input.actorId,
     approvalId: input.approvalId, quantity, result: input.result, evidence: { movementId: input.movementId, clinicalSafetyReviewId: input.safetyReviewId } })
   return updated
 }

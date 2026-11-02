@@ -31,12 +31,17 @@ export const DispensingLabel = list({
     auxiliaryWarnings: json({ access: { read: permissions.canViewPatientPrivateData } }),
     counselingOutcome: text({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     dispensedAt: timestamp({ defaultValue: { kind: 'now' }, validation: { isRequired: true } }),
+    // Will-call: a label is printed when the fill goes to the bin; the order is
+    // linked at pickup. A return to stock voids the label instead of deleting it.
+    voidedAt: timestamp({ db: { isNullable: true } }),
+    voidReason: text(),
     organization: relationship({ ref: 'Organization', db: requiredRelationshipDb }),
     location: relationship({ ref: 'PharmacyLocation', db: requiredRelationshipDb }),
     patient: relationship({ ref: 'PatientProfile.dispensingLabels', db: requiredRelationshipDb }),
     prescription: relationship({ ref: 'Prescription.dispensingLabels', db: requiredRelationshipDb }),
     prescriptionItem: relationship({ ref: 'PrescriptionItem.dispensingLabels', db: requiredRelationshipDb }),
-    order: relationship({ ref: 'Order.dispensingLabels', db: requiredRelationshipDb }),
+    order: relationship({ ref: 'Order.dispensingLabels' }),
+    fill: relationship({ ref: 'PrescriptionFill' }),
     pharmacist: relationship({ ref: 'User', db: requiredRelationshipDb }),
     approval: relationship({ ref: 'HumanApproval', db: requiredRelationshipDb }),
     ...trackingFields,

@@ -86,6 +86,7 @@ export const Prescription = list({
         { label: 'Approved', value: 'approved' },
         { label: 'Ready to dispense', value: 'ready_to_dispense' },
         { label: 'Partially dispensed', value: 'partially_dispensed' },
+        { label: 'Ready for pickup', value: 'ready_for_pickup' },
         { label: 'Dispensed', value: 'dispensed' },
         { label: 'Fill closed with undispensed quantity', value: 'fill_closed' },
         { label: 'Rejected', value: 'rejected' },

@@ -147,42 +147,46 @@ model ConsentRecord {
 }
 
 model DispensingLabel {
-  id                      String           @id @default(cuid())
-  labelNumber             String           @unique @default("")
+  id                      String            @id @default(cuid())
+  labelNumber             String            @unique @default("")
   fillNumber              Int
-  operatorNameSnapshot    String           @default("")
-  operatorPhoneSnapshot   String           @default("")
-  locationNameSnapshot    String           @default("")
+  operatorNameSnapshot    String            @default("")
+  operatorPhoneSnapshot   String            @default("")
+  locationNameSnapshot    String            @default("")
   locationAddressSnapshot Json?
-  patientNameSnapshot     String           @default("")
-  prescriberNameSnapshot  String           @default("")
-  medicationNameSnapshot  String           @default("")
-  sigSnapshot             String           @default("")
+  patientNameSnapshot     String            @default("")
+  prescriberNameSnapshot  String            @default("")
+  medicationNameSnapshot  String            @default("")
+  sigSnapshot             String            @default("")
   quantityDispensed       Int
-  lotNumberSnapshot       String           @default("")
-  ndc11Snapshot           String           @default("")
+  lotNumberSnapshot       String            @default("")
+  ndc11Snapshot           String            @default("")
   expirationDateSnapshot  DateTime
   auxiliaryWarnings       Json?
-  counselingOutcome       String           @default("")
-  dispensedAt             DateTime         @default(now())
-  organization            Organization     @relation("DispensingLabel_organization", fields: [organizationId], references: [id])
-  organizationId          String           @map("organization")
-  location                PharmacyLocation @relation("DispensingLabel_location", fields: [locationId], references: [id])
-  locationId              String           @map("location")
-  patient                 PatientProfile   @relation("DispensingLabel_patient", fields: [patientId], references: [id])
-  patientId               String           @map("patient")
-  prescription            Prescription     @relation("DispensingLabel_prescription", fields: [prescriptionId], references: [id])
-  prescriptionId          String           @map("prescription")
-  prescriptionItem        PrescriptionItem @relation("DispensingLabel_prescriptionItem", fields: [prescriptionItemId], references: [id])
-  prescriptionItemId      String           @map("prescriptionItem")
-  order                   Order            @relation("DispensingLabel_order", fields: [orderId], references: [id])
-  orderId                 String           @map("order")
-  pharmacist              User             @relation("DispensingLabel_pharmacist", fields: [pharmacistId], references: [id])
-  pharmacistId            String           @map("pharmacist")
-  approval                HumanApproval    @relation("DispensingLabel_approval", fields: [approvalId], references: [id])
-  approvalId              String           @map("approval")
-  createdAt               DateTime         @default(now())
-  updatedAt               DateTime         @default(now()) @updatedAt
+  counselingOutcome       String            @default("")
+  dispensedAt             DateTime          @default(now())
+  voidedAt                DateTime?
+  voidReason              String            @default("")
+  organization            Organization      @relation("DispensingLabel_organization", fields: [organizationId], references: [id])
+  organizationId          String            @map("organization")
+  location                PharmacyLocation  @relation("DispensingLabel_location", fields: [locationId], references: [id])
+  locationId              String            @map("location")
+  patient                 PatientProfile    @relation("DispensingLabel_patient", fields: [patientId], references: [id])
+  patientId               String            @map("patient")
+  prescription            Prescription      @relation("DispensingLabel_prescription", fields: [prescriptionId], references: [id])
+  prescriptionId          String            @map("prescription")
+  prescriptionItem        PrescriptionItem  @relation("DispensingLabel_prescriptionItem", fields: [prescriptionItemId], references: [id])
+  prescriptionItemId      String            @map("prescriptionItem")
+  order                   Order?            @relation("DispensingLabel_order", fields: [orderId], references: [id])
+  orderId                 String?           @map("order")
+  fill                    PrescriptionFill? @relation("DispensingLabel_fill", fields: [fillId], references: [id])
+  fillId                  String?           @map("fill")
+  pharmacist              User              @relation("DispensingLabel_pharmacist", fields: [pharmacistId], references: [id])
+  pharmacistId            String            @map("pharmacist")
+  approval                HumanApproval     @relation("DispensingLabel_approval", fields: [approvalId], references: [id])
+  approvalId              String            @map("approval")
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @default(now()) @updatedAt
 
   @@index([organizationId])
   @@index([locationId])
@@ -190,6 +194,7 @@ model DispensingLabel {
   @@index([prescriptionId])
   @@index([prescriptionItemId])
   @@index([orderId])
+  @@index([fillId])
   @@index([pharmacistId])
   @@index([approvalId])
 }
@@ -1073,6 +1078,7 @@ model PrescriptionFill {
   reservedById                    String                  @map("reservedBy")
   createdAt                       DateTime                @default(now())
   updatedAt                       DateTime                @default(now()) @updatedAt
+  from_DispensingLabel_fill       DispensingLabel[]       @relation("DispensingLabel_fill")
   from_PrescriptionFillEvent_fill PrescriptionFillEvent[] @relation("PrescriptionFillEvent_fill")
 
   @@index([organizationId])

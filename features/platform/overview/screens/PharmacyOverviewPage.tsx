@@ -56,7 +56,7 @@ export async function PharmacyOverviewPage() {
   const rx = prescriptions.page?.items ?? []
   const rxReview = count(rx, (item) => ['draft', 'pending_review', 'needs_information'].includes(item.status))
   const rxRefills = rx.reduce((sum, item) => sum + (item.openRefillCount || 0), 0)
-  const rxReady = count(rx, (item) => ['approved', 'ready_to_dispense', 'partially_dispensed'].includes(item.status))
+  const rxReady = count(rx, (item) => ['approved', 'ready_to_dispense', 'partially_dispensed', 'ready_for_pickup'].includes(item.status))
 
   const ord = orders.page?.items ?? []
   const ordToPrepare = count(ord, (item) => ['pending', 'preparing', 'in_progress'].includes(item.fulfillmentStatus))

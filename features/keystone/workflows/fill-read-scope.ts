@@ -42,7 +42,7 @@ export function scopedFill(value: unknown, scope: FillReadScope, expectedId?: st
   if ((expectedId && id !== expectedId) || linkedId(record(f.prescriptionItem).prescription) !== scope.prescriptionId || linkedId(f.prescription) !== scope.prescriptionId || linkedId(f.organization) !== scope.organizationId || linkedId(f.location) !== scope.locationId || linkedId(f.patient) !== scope.patientId || !scope.itemIds.includes(itemId)) throw readScopeError()
   const version = integer(f.version, 1), fillNumber = integer(f.fillNumber, 1)
   const authorizedQuantity = integer(f.authorizedQuantity, 1), quantityDispensed = integer(f.quantityDispensed), quantityReleased = integer(f.quantityReleased)
-  if (quantityDispensed + quantityReleased > authorizedQuantity || !['original', 'refill'].includes(String(f.kind)) || !['requested', 'approved', 'partially_dispensed', 'dispensed', 'released'].includes(String(f.status)) || !['reserved', 'consumed', 'released'].includes(String(f.creditState))) throw readScopeError()
+  if (quantityDispensed + quantityReleased > authorizedQuantity || !['original', 'refill'].includes(String(f.kind)) || !['requested', 'approved', 'partially_dispensed', 'ready', 'dispensed', 'released'].includes(String(f.status)) || !['reserved', 'consumed', 'released'].includes(String(f.creditState))) throw readScopeError()
   return { id, itemId, reservedById: linkedId(f.reservedBy), version, fillNumber, authorizedQuantity, quantityDispensed, quantityReleased, kind: String(f.kind), status: String(f.status), creditState: String(f.creditState), openKey: f.openKey,
     itemVersion: hash(f.itemVersion), authorityVersion: hash(f.authorityVersion), requestFingerprint: hash(f.requestFingerprint), createdAt: timestamp(f.createdAt), expiresAt: timestamp(f.expiresAt), refillRequestId: f.refillRequest ? linkedId(f.refillRequest) : null }
 }
@@ -54,9 +54,10 @@ export function scopedEvent(value: unknown, scope: FillReadScope, fill: ScopedFi
   const e = record(value), id = readId(e.id), linked = scopedFill(e.fill, scope, fill.id)
   if ((expectedId && id !== expectedId) || linkedId(e.prescription) !== scope.prescriptionId || linked.itemId !== fill.itemId || linked.version !== fill.version || linked.itemVersion !== fill.itemVersion || linked.authorityVersion !== fill.authorityVersion) throw readScopeError()
   const version = integer(e.version, 1)
-  if (version > fill.version || !['reserved', 'approved', 'rejected', 'released', 'dispensed', 'clinical_reviewed'].includes(String(e.action))) throw readScopeError()
+  if (version > fill.version || !['reserved', 'approved', 'rejected', 'released', 'dispensed', 'clinical_reviewed', 'filled', 'picked_up', 'returned_to_stock'].includes(String(e.action))) throw readScopeError()
   const quantity = integer(e.quantity)
-  if (e.action === 'dispensed' ? quantity < 1 || quantity > fill.quantityDispensed : e.action === 'released' ? quantity > fill.quantityReleased : quantity !== 0) throw readScopeError()
+  // filled units can later be returned to stock, so they are bounded by the authorization, not the current dispensed count.
+  if (e.action === 'dispensed' ? quantity < 1 || quantity > fill.quantityDispensed : e.action === 'filled' ? quantity < 1 || quantity > fill.authorizedQuantity : ['released', 'returned_to_stock'].includes(String(e.action)) ? quantity > fill.quantityReleased : quantity !== 0) throw readScopeError()
   const commandFingerprint = hash(e.commandFingerprint)
   if (e.action === 'reserved' && (commandFingerprint !== fill.requestFingerprint || linkedId(e.actor) !== fill.reservedById)) throw readScopeError()
   return { id, action: String(e.action), version, commandFingerprint, quantity, createdAt: timestamp(e.createdAt), actorId: linkedId(e.actor), approvalId: e.approval ? linkedId(e.approval) : null }

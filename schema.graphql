@@ -438,12 +438,15 @@ type DispensingLabel {
   auxiliaryWarnings: JSON
   counselingOutcome: String
   dispensedAt: DateTime
+  voidedAt: DateTime
+  voidReason: String
   organization: Organization
   location: PharmacyLocation
   patient: PatientProfile
   prescription: Prescription
   prescriptionItem: PrescriptionItem
   order: Order
+  fill: PrescriptionFill
   pharmacist: User
   approval: HumanApproval
   createdAt: DateTime
@@ -475,12 +478,15 @@ input DispensingLabelWhereInput {
   expirationDateSnapshot: DateTimeFilter
   counselingOutcome: StringFilter
   dispensedAt: DateTimeFilter
+  voidedAt: DateTimeNullableFilter
+  voidReason: StringFilter
   organization: OrganizationWhereInput
   location: PharmacyLocationWhereInput
   patient: PatientProfileWhereInput
   prescription: PrescriptionWhereInput
   prescriptionItem: PrescriptionItemWhereInput
   order: OrderWhereInput
+  fill: PrescriptionFillWhereInput
   pharmacist: UserWhereInput
   approval: HumanApprovalWhereInput
   createdAt: DateTimeFilter
@@ -504,6 +510,8 @@ input DispensingLabelOrderByInput {
   expirationDateSnapshot: OrderDirection
   counselingOutcome: OrderDirection
   dispensedAt: OrderDirection
+  voidedAt: OrderDirection
+  voidReason: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -4406,7 +4414,9 @@ type Mutation {
   intakePharmacyPrescription(organizationId: ID!, locationId: ID!, patientId: ID!, prescriberId: ID!, prescriptionNumber: String!, source: String!, externalReference: String, writtenAt: String!, expiresAt: String!, items: [PharmacyPrescriptionIntakeItemInput!]!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
   recordPrescriptionReview(prescriptionId: ID!, decision: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
   authorizePrescriptionDispensing(prescriptionId: ID!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
-  recordPrescriptionDispensing(prescriptionId: ID!, prescriptionItemId: ID!, lotId: ID!, quantity: Int!, cashReceivedAmount: Int!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, idempotencyKey: String!, reason: String!, attested: Boolean!, fillId: ID, expectedFillVersion: Int): PharmacyPrescriptionActionResult!
+  recordPrescriptionDispensing(prescriptionId: ID!, prescriptionItemId: ID!, lotId: ID!, quantity: Int!, cashReceivedAmount: Int!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, idempotencyKey: String!, reason: String!, attested: Boolean!, fillId: ID, expectedFillVersion: Int, hold: Boolean): PharmacyPrescriptionActionResult!
+  pickupPrescriptionFill(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
+  returnPrescriptionFillToStock(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cause: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
   createPharmacyPatient(organizationId: ID!, patientNumber: String!, firstName: String!, lastName: String!, dateOfBirth: String!, email: String, phone: String, preferredContactMethod: String!, address: JSON, identityMethod: String!, identityReference: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
   updatePharmacyPatientContact(patientId: ID!, email: String, phone: String, preferredContactMethod: String!, address: JSON, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
   recordPharmacyPatientAllergy(patientId: ID!, allergen: String!, reaction: String!, severity: String!, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
@@ -5180,6 +5190,8 @@ type PharmacyDispensingLabelProjection {
   auxiliaryWarnings: [String!]!
   counselingOutcome: String!
   dispensedAt: String!
+  voidedAt: String
+  voidReason: String
 }
 
 type PharmacyRefillTaskProjection {
