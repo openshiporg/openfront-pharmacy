@@ -16,7 +16,7 @@ export function ProductCard({ product, locationId, orderingEnabled, size = 'md',
   const canAdd = orderingEnabled && availability.canOrder
   return <article className={cn('rx-drawer group relative flex min-w-0 flex-col overflow-hidden', className)}>
     <Link href={href} aria-hidden="true" tabIndex={-1} className="absolute inset-0 z-[1]" />
-    <Link href={href} aria-label={`View ${product.title}`} className={cn('rx-photo relative z-[2] block overflow-hidden', size === 'sm' ? 'aspect-[4/3]' : 'aspect-[4/3]')}>
+    <Link href={href} aria-label={`View ${product.title}`} className={cn('rx-photo relative z-[2] block overflow-hidden', size === 'sm' ? 'aspect-[3/2] lg:aspect-[4/3]' : 'aspect-[4/3]')}>
       <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes={size === 'sm' ? '(max-width: 1024px) 40vw, 12vw' : '(max-width: 1024px) 50vw, 22vw'} className="object-cover transition-transform duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-[1.03]" />
       {requirement && <span className="rx-plate absolute left-2 top-2 z-10 px-2 py-0.5 text-[12px] font-semibold">{requirement}</span>}
     </Link>
