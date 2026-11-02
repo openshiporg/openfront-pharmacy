@@ -11,6 +11,7 @@ import { recordAuditAndOutbox } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { isManualPaymentProvider, PAYMENT_PROVIDER_ADAPTER_FIELDS } from './paymentOperations'
 import { DomainError } from './lib/errors'
+import { productPhotoSnapshot } from '../lib/product-photo'
 
 export const CHECKOUT_CONSENT = {
   policyVersion: '2026-07-18',
@@ -145,7 +146,7 @@ export async function submitPharmacyOrder(
         items {
           id quantity unitPriceAmount
           product {
-            id title sku handle status onlineAvailable prescriptionRequirement priceAmount currencyCode imageUrl taxable
+            id title sku handle status onlineAvailable prescriptionRequirement priceAmount currencyCode imageUrl image { id extension } taxable
             drugReference { ndc11 }
             inventoryLots(orderBy: { expirationDate: asc }) {
               id lotNumber expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete status
@@ -236,7 +237,7 @@ export async function submitPharmacyOrder(
           quantity: item.quantity,
           unitPriceAmount: item.unitPriceAmount,
           lineTotalAmount: item.unitPriceAmount * item.quantity,
-          imageUrl: item.product.imageUrl || undefined,
+          imageUrl: productPhotoSnapshot(item.product),
           prescriptionRequirementSnapshot: item.product.prescriptionRequirement,
           metadata: { productId: item.product.id, handle: item.product.handle },
           lotAllocationSnapshot: allocations,

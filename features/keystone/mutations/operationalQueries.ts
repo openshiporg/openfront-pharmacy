@@ -11,6 +11,7 @@ import { isValidNpi } from '../workflows/prescription-eligibility'
 import { patientAccountWhere } from './lib/patient-accounts'
 import { availableFulfillmentTransitions } from './lib/fulfillment-cancel'
 import { willCallWhere } from '../../pharmacy/will-call'
+import { resolveLinePhoto } from '../lib/product-photo'
 
 type StableCursor = { createdAt: string; id: string }
 
@@ -911,7 +912,7 @@ export async function pharmacyOrderTask(_root: unknown, args: { orderId: string 
       id orderNumber status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode createdAt pickupAt deliveryWindow
       customerName email phone
       organization { id } location { id name }
-      lineItems { id title sku ndc11Snapshot quantity unitPriceAmount lineTotalAmount prescriptionRequirementSnapshot }
+      lineItems { id title sku ndc11Snapshot quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
       fulfillment { id method status readyAt handedOffAt assignedTo { name } }
       payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount processedAt provider { name code } }
     `,
@@ -937,16 +938,17 @@ export async function pharmacyOrderTask(_root: unknown, args: { orderId: string 
     locationId: order.location.id,
     locationName: order.location.name,
     availableFulfillmentStatuses: availableFulfillmentTransitions(order.fulfillment?.status, (order.payments || []).map((payment: any) => payment.status)),
-    lines: (order.lineItems || []).map((line: any) => ({
+    lines: await Promise.all((order.lineItems || []).map(async (line: any) => ({
       id: line.id,
       title: line.title,
       sku: line.sku,
       ndc11: line.ndc11Snapshot,
+      imageUrl: await resolveLinePhoto(line.imageUrl, context),
       quantity: line.quantity,
       unitPriceAmount: line.unitPriceAmount,
       lineTotalAmount: line.lineTotalAmount,
       prescriptionRequirement: line.prescriptionRequirementSnapshot,
-    })),
+    }))),
     fulfillment: order.fulfillment ? {
       id: order.fulfillment.id,
       method: order.fulfillment.method,

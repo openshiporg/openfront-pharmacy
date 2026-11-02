@@ -11,6 +11,7 @@ import { lookupOrderByNumber } from '../lib/data/orders'
 import { orderStatusLabel, orderTone } from '../lib/order-status'
 import { formatMoney, formatStatus } from '../lib/money'
 import { Field, TitleLine, buttonClass } from './rx-ui'
+import { ProductImage } from './ProductImage'
 
 export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection }) {
   const fulfillmentStatus = order.fulfillment?.status || ''
@@ -37,7 +38,7 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
       {order.deliveryWindow && <Field label="Delivery window">{order.deliveryWindow}</Field>}
     </dl>
 
-    <ul className="mt-6 divide-y divide-[var(--rx-rule)]">{order.lines.map((line) => <li key={line.id} className="flex justify-between gap-4 py-3.5 text-sm"><span className="min-w-0"><span className="rx-num text-muted-foreground">{line.quantity}×</span> {line.title}</span><span className="rx-num">{formatMoney(line.lineTotalAmount, order.currencyCode)}</span></li>)}</ul>
+    <ul className="mt-6 divide-y divide-[var(--rx-rule)]">{order.lines.map((line) => <li key={line.id} className="flex items-center justify-between gap-4 py-3.5 text-sm"><span className="flex min-w-0 items-center gap-3">{line.imageUrl && <span className="rx-photo relative size-12 shrink-0 overflow-hidden rounded-[4px] border border-[var(--rx-rule)]"><ProductImage src={line.imageUrl} alt="" sizes="48px" /></span>}<span className="min-w-0"><span className="rx-num text-muted-foreground">{line.quantity}×</span> {line.title}</span></span><span className="rx-num">{formatMoney(line.lineTotalAmount, order.currencyCode)}</span></li>)}</ul>
     <dl className="mt-4 grid gap-2 text-sm">
       <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd className="rx-num">{formatMoney(order.subtotalAmount, order.currencyCode)}</dd></div>
       <div className="flex justify-between"><dt className="text-muted-foreground">Tax</dt><dd className="rx-num">{formatMoney(order.taxAmount, order.currencyCode)}</dd></div>

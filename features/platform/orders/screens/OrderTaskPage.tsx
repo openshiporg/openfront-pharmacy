@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyOrderTaskProjection } from '@/features/pharmacy/contracts'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
@@ -12,7 +13,7 @@ function money(amount: number, currency: string) { return new Intl.NumberFormat(
 export async function OrderTaskPage({ params }: { params: Promise<{ id: string }> }) {
   const timeZone = await getStoreTimeZone()
   const { id: orderId } = await params
-  const response = await platformRequest<{ pharmacyOrderTask: PharmacyOrderTaskProjection }>(`query Task($orderId: ID!) { pharmacyOrderTask(orderId: $orderId) { id orderNumber status fulfillmentMethod customerName customerEmail customerPhone subtotalAmount taxAmount deliveryAmount totalAmount currencyCode createdAt pickupAt deliveryWindow locationId locationName availableFulfillmentStatuses lines { id title sku ndc11 quantity unitPriceAmount lineTotalAmount prescriptionRequirement } fulfillment { id method status readyAt handedOffAt assignedToName } payment { id status amount currencyCode processedAt tenderMethod cashReceivedAmount changeDueAmount providerName providerCode } } }`, { orderId })
+  const response = await platformRequest<{ pharmacyOrderTask: PharmacyOrderTaskProjection }>(`query Task($orderId: ID!) { pharmacyOrderTask(orderId: $orderId) { id orderNumber status fulfillmentMethod customerName customerEmail customerPhone subtotalAmount taxAmount deliveryAmount totalAmount currencyCode createdAt pickupAt deliveryWindow locationId locationName availableFulfillmentStatuses lines { id title sku ndc11 imageUrl quantity unitPriceAmount lineTotalAmount prescriptionRequirement } fulfillment { id method status readyAt handedOffAt assignedToName } payment { id status amount currencyCode processedAt tenderMethod cashReceivedAmount changeDueAmount providerName providerCode } } }`, { orderId })
   if (!response.success) return <TaskPage parent={{ label: 'Orders', href: '/platform/orders' }} title="Order unavailable" description={response.error} />
   const order = response.data.pharmacyOrderTask
   const state = order.fulfillment?.status || order.status
@@ -26,7 +27,7 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
     </dl>
     <TaskSection title="Items" count={order.lines.length}>
       <div className="divide-y">{order.lines.map((line) => <div key={line.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 py-3 text-sm first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_4rem_7rem]">
-        <span className="min-w-0"><span className="font-semibold">{line.title}</span><span className="block font-mono text-[12px] text-muted-foreground">{line.sku}{line.ndc11 ? ` · NDC ${line.ndc11}` : ''}{line.prescriptionRequirement !== 'none' ? ` · ${humanize(line.prescriptionRequirement)}` : ''}</span></span>
+        <span className="flex min-w-0 items-start gap-3">{line.imageUrl && <span className="relative size-10 shrink-0 overflow-hidden rounded-md border bg-muted"><Image src={line.imageUrl} alt="" fill sizes="40px" className="object-cover" /></span>}<span className="min-w-0"><span className="font-semibold">{line.title}</span><span className="block font-mono text-[12px] text-muted-foreground">{line.sku}{line.ndc11 ? ` · NDC ${line.ndc11}` : ''}{line.prescriptionRequirement !== 'none' ? ` · ${humanize(line.prescriptionRequirement)}` : ''}</span></span></span>
         <Mono className="text-muted-foreground sm:text-right">{line.quantity}×</Mono>
         <Mono className="col-start-2 row-start-1 text-right sm:col-start-auto sm:row-start-auto">{money(line.lineTotalAmount, order.currencyCode)}</Mono>
       </div>)}</div>

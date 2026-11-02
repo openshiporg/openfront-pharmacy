@@ -367,7 +367,7 @@ export type PharmacyOrderTaskProjection = {
   locationId: string
   locationName: string
   availableFulfillmentStatuses: string[]
-  lines: Array<{ id: string; title: string; sku?: string | null; ndc11?: string | null; quantity: number; unitPriceAmount: number; lineTotalAmount: number; prescriptionRequirement: string }>
+  lines: Array<{ id: string; title: string; sku?: string | null; ndc11?: string | null; imageUrl?: string | null; quantity: number; unitPriceAmount: number; lineTotalAmount: number; prescriptionRequirement: string }>
   fulfillment?: { id: string; method: string; status: string; readyAt?: string | null; handedOffAt?: string | null; assignedToName?: string | null } | null
   payment?: { id: string; status: string; amount: number; currencyCode: string; processedAt?: string | null; tenderMethod: string; cashReceivedAmount?: number | null; changeDueAmount?: number | null; providerName: string; providerCode: string } | null
 }

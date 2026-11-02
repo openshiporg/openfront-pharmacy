@@ -13,6 +13,7 @@ import { assertItemFillLedger, assertFillBinding, consumeFillInTransaction, curr
 import { FILL_LINEAGE, dispenseFillPlan, fillHash, fillPricePortion, pickupFillPlan, returnToStockPlan } from '../workflows/fill-entitlement'
 import { appendFillEvent, applyFillReleaseInTransaction, casFill } from './fillWorkflows'
 import { DomainError } from './lib/errors'
+import { productPhotoSnapshot } from '../lib/product-photo'
 
 const CLINICAL_QUERY = 'sourceVerificationStatus writtenAt expiresAt prescriber { npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }'
 const SAFETY_QUERY = `
@@ -243,7 +244,7 @@ async function createCashPickupSale(tx: Context, s: { prescription: any; item: a
       quantity: 1,
       unitPriceAmount: subtotalAmount,
       lineTotalAmount: subtotalAmount,
-      imageUrl: s.item.product.imageUrl || undefined,
+      imageUrl: productPhotoSnapshot(s.item.product),
       prescriptionRequirementSnapshot: s.item.product.prescriptionRequirement,
       metadata: { dispensedUnits: s.quantity, prescriptionItemId: s.item.id, fillId: s.fill?.id || null, fillNumber: s.fillNumber, taxable: s.item.product.taxable !== false, taxableAmount: taxableSubtotalAmount },
       lotAllocationSnapshot: [{ lotId: s.lot.id, lotNumber: s.lot.lotNumber, quantity: s.quantity, expirationDate: s.lot.expirationDate }],
@@ -317,7 +318,7 @@ export async function recordPrescriptionDispensing(
         location { id name address phone }
         prescriber { name npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference }
         approval { id }
-        items { id fillLineage activeFillNumber refillsReserved medicationNameSnapshot sig quantityPrescribed quantityDispensed refillsAuthorized refillsRemaining product { id title sku priceAmount currencyCode taxable imageUrl prescriptionRequirement drugReference { id ndc11 } } drugReference { id ndc11 } }
+        items { id fillLineage activeFillNumber refillsReserved medicationNameSnapshot sig quantityPrescribed quantityDispensed refillsAuthorized refillsRemaining product { id title sku priceAmount currencyCode taxable imageUrl image { id extension } prescriptionRequirement drugReference { id ndc11 } } drugReference { id ndc11 } }
         reviews(where: { decision: { equals: "approved" } }, orderBy: { reviewedAt: desc }, take: 1) { id }
       `,
     })
@@ -527,7 +528,7 @@ export async function pickupPrescriptionFill(
     const sudo = tx.sudo()
     const prescription = await sudo.query.Prescription.findOne({ where: { id: args.prescriptionId }, query: `id status ${SAFETY_QUERY}
       organization { id cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt } location { id }
-      items { id product { id title sku taxable imageUrl prescriptionRequirement drugReference { ndc11 } } }
+      items { id product { id title sku taxable imageUrl image { id extension } prescriptionRequirement drugReference { ndc11 } } }
       reviews(where: { decision: { equals: "approved" } }, orderBy: { reviewedAt: desc }, take: 1) { id }` })
     if (!prescription) throw new DomainError('Prescription not found')
     const { userId } = await requireTenantMembership(tx, { organizationId: prescription.organization.id, locationId: prescription.location.id, pharmacist: true })

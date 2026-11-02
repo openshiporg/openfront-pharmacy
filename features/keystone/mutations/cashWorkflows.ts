@@ -6,6 +6,7 @@ import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
+import { productPhotoSnapshot } from '../lib/product-photo'
 
 export async function recordPharmacyCashPolicy(
   _root: unknown,
@@ -102,10 +103,10 @@ export async function submitPharmacyPosCashOrder(
     if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new DomainError('Operator-attested cash and tax policy must be configured before POS sales')
     const productIds = [...new Set(items.map((entry) => entry.productId))]
     if (productIds.length !== items.length) throw new DomainError('Combine duplicate POS product lines before submission')
-    let products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: 'id title sku imageUrl priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }' })
+    let products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: 'id title sku imageUrl image { id extension } priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }' })
     if (products.length !== items.length || products.some((product: any) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== 'published' || product.posAvailable !== true || product.prescriptionRequirement !== 'none')) throw new DomainError('Every POS item must be an available OTC product in this tenant location')
     await acquireTransactionLocks(transactionContext, products.flatMap((product: any) => product.inventoryLots.map((lot: any) => `lot:${lot.id}`)))
-    products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: 'id title sku imageUrl priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }' })
+    products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: 'id title sku imageUrl image { id extension } priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }' })
     const currencies = [...new Set(products.map((product: any) => product.currencyCode))]
     if (currencies.length !== 1) throw new DomainError('POS order currency mismatch')
     const pricedItems = items.map((entry) => ({ ...entry, product: products.find((product: any) => product.id === entry.productId)! }))
@@ -129,7 +130,7 @@ export async function submitPharmacyPosCashOrder(
         remaining -= quantity
       }
       if (remaining > 0) throw new DomainError(`Insufficient eligible inventory for ${product.title}`)
-      await sudo.query.OrderLineItem.createOne({ data: { title: product.title, sku: product.sku, ndc11Snapshot: product.drugReference?.ndc11 || undefined, quantity: entry.quantity, unitPriceAmount: product.priceAmount, lineTotalAmount: product.priceAmount * entry.quantity, imageUrl: product.imageUrl || undefined, prescriptionRequirementSnapshot: 'none', metadata: { taxable: product.taxable !== false, taxableAmount: product.taxable === false ? 0 : product.priceAmount * entry.quantity }, lotAllocationSnapshot: allocations, order: { connect: { id: order.id } }, product: { connect: { id: product.id } } } })
+      await sudo.query.OrderLineItem.createOne({ data: { title: product.title, sku: product.sku, ndc11Snapshot: product.drugReference?.ndc11 || undefined, quantity: entry.quantity, unitPriceAmount: product.priceAmount, lineTotalAmount: product.priceAmount * entry.quantity, imageUrl: productPhotoSnapshot(product), prescriptionRequirementSnapshot: 'none', metadata: { taxable: product.taxable !== false, taxableAmount: product.taxable === false ? 0 : product.priceAmount * entry.quantity }, lotAllocationSnapshot: allocations, order: { connect: { id: order.id } }, product: { connect: { id: product.id } } } })
       for (const allocation of allocations) {
         const lot = product.inventoryLots.find((candidate: any) => candidate.id === allocation.lotId)!
         const nextQuantity = lot.quantityAvailable - allocation.quantity

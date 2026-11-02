@@ -1,6 +1,7 @@
 import type { Context } from '.keystone/types'
 import { verifyGuestCartToken } from '../security/cart-token'
 import { DomainError } from './lib/errors'
+import { resolveLinePhoto } from '../lib/product-photo'
 
 export async function getGuestPharmacyOrder(
   _root: unknown,
@@ -13,7 +14,7 @@ export async function getGuestPharmacyOrder(
     query: GUEST_ORDER_QUERY,
   })
   if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new DomainError('Guest order not found')
-  return guestOrderProjection(order)
+  return signedGuestOrderProjection(order, context)
 }
 
 /**
@@ -26,7 +27,7 @@ export async function lookupPharmacyOrder(_root: unknown, args: { orderNumber: s
   if (!orderNumber || !email || orderNumber.length > 64 || email.length > 254) return null
   const order = await context.sudo().query.Order.findOne({ where: { orderNumber }, query: `email ${GUEST_ORDER_QUERY}` }).catch(() => null)
   if (!order?.email || order.email.trim().toLowerCase() !== email) return null
-  return guestOrderProjection(order)
+  return signedGuestOrderProjection(order, context)
 }
 
 export const GUEST_ORDER_QUERY = `
@@ -35,6 +36,13 @@ export const GUEST_ORDER_QUERY = `
       lineItems { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
       fulfillment { method status readyAt handedOffAt }
     `
+
+/** The projection with each line photo made displayable: stored photo references are signed at read time. */
+export async function signedGuestOrderProjection(order: any, context: Pick<Context, 'images'>) {
+  const projection = guestOrderProjection(order)
+  const lines = await Promise.all(projection.lines.map(async (line: any) => ({ ...line, imageUrl: await resolveLinePhoto(line.imageUrl, context) })))
+  return { ...projection, lines }
+}
 
 export function guestOrderProjection(order: any) {
   return {

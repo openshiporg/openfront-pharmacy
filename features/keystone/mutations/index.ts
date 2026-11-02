@@ -497,6 +497,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         title: String!
         sku: String
         ndc11: String
+        imageUrl: String
         quantity: Int!
         unitPriceAmount: Int!
         lineTotalAmount: Int!

@@ -1,6 +1,6 @@
 import { GraphQLError } from 'graphql'
 import type { Context } from '.keystone/types'
-import { GUEST_ORDER_QUERY, guestOrderProjection } from './getGuestPharmacyOrder'
+import { GUEST_ORDER_QUERY, signedGuestOrderProjection } from './getGuestPharmacyOrder'
 import { DomainError } from './lib/errors'
 
 function userInputError(message: string) {
@@ -37,7 +37,7 @@ export async function pharmacyCustomerOrderDetails(_root: unknown, args: { order
   if (!owned) throw new DomainError('Order not found')
   const order = await context.sudo().query.Order.findOne({ where: { id: owned.id }, query: GUEST_ORDER_QUERY })
   if (!order) throw new DomainError('Order not found')
-  return guestOrderProjection(order)
+  return signedGuestOrderProjection(order, context)
 }
 
 export async function pharmacyCustomerAccount(_root: unknown, _args: unknown, context: Context) {
