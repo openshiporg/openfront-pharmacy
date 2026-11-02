@@ -4,7 +4,7 @@ import type { PharmacyInventoryLotTaskProjection } from '@/features/pharmacy/con
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { Dot, Field, Mono, TitleLine, humanize, statusTone } from '@/features/platform/components/rx-ui'
 import { InventoryTaskActions } from '../components/InventoryTaskActions'
-import { formatDateTime, formatDay } from '@/features/platform/lib/dates'
+import { formatCalendarDate, formatDateTime, formatDay } from '@/features/platform/lib/dates'
 import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
 
 export async function InventoryLotTaskPage({ params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +19,7 @@ export async function InventoryLotTaskPage({ params }: { params: Promise<{ id: s
       {[['Received', lot.quantityReceived], ['Available', lot.quantityAvailable], ['Quarantined', lot.quantityQuarantined], ['Eligible', lot.eligibleQuantity]].map(([label, value]) => <div key={label} className="bg-background px-4 py-3"><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-1 font-mono text-xl tabular-nums">{value}</dd></div>)}
     </dl>
     <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
-      <Field label="Expires">{expires.toLocaleDateString()}</Field>
+      <Field label="Expires">{formatCalendarDate(lot.expirationDate)}</Field>
       <Field label="Received">{lot.receivedAt ? formatDay(lot.receivedAt, timeZone) : 'Not reported'}</Field>
       <Field label="Serial">{lot.serialNumber ? <Mono>{lot.serialNumber}</Mono> : 'None'}</Field>
       <Field label="Cold chain">{lot.coldChainRequired ? <span className="inline-flex items-baseline gap-1.5"><Dot tone={lot.coldChainEvidenceComplete ? 'ok' : 'danger'} />{lot.minimumTemperatureC ?? '—'}° to {lot.maximumTemperatureC ?? '—'}°C</span> : 'Not required'}</Field>
