@@ -35,7 +35,7 @@ export function HeaderSearch({ placeholder = 'Search for medications, vitamins, 
     <label className="relative block">
       <span className="sr-only">Search products</span>
       {pill && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 h-10 -translate-y-1/2 rounded-full border border-input bg-card" />}
-      <input type="search" name="q" maxLength={100} placeholder={placeholder} className={pill ? 'peer relative h-12 w-full rounded-full bg-transparent pl-4 pr-11 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/20' : 'h-11 w-full rounded-[4px] border border-input bg-card pl-4 pr-11 text-[15px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15'} />
+      <input type="search" name="q" maxLength={100} placeholder={placeholder} className={pill ? 'peer relative h-12 w-full rounded-full bg-transparent pl-4 pr-11 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/20' : 'h-10 w-full rounded-[4px] border border-input bg-card pl-4 pr-11 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15'} />
     </label>
     <button type="submit" aria-label="Search" className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full text-foreground/70 hover:text-primary"><Search aria-hidden="true" className="size-[18px]" strokeWidth={1.8} /></button>
   </form>
@@ -44,7 +44,7 @@ export function HeaderSearch({ placeholder = 'Search for medications, vitamins, 
 /** A header menu that opens on hover or keyboard focus. */
 function Dropdown({ label, href, children }: { label: string; href: string; children: React.ReactNode }) {
   return <div className="group/menu relative">
-    <Link href={href} className="rx-serif inline-flex min-h-11 items-center gap-1 whitespace-nowrap text-[17px] text-foreground hover:text-primary">{label}<ChevronDown aria-hidden="true" className="size-3.5 transition-transform group-focus-within/menu:rotate-180 group-hover/menu:rotate-180" /></Link>
+    <Link href={href} className="rx-serif inline-flex min-h-10 items-center gap-1 whitespace-nowrap text-[16px] text-foreground hover:text-primary">{label}<ChevronDown aria-hidden="true" className="size-3.5 transition-transform group-focus-within/menu:rotate-180 group-hover/menu:rotate-180" /></Link>
     <div className="invisible absolute left-1/2 top-full z-40 min-w-56 -translate-x-1/2 pt-1 opacity-0 transition-opacity duration-150 group-focus-within/menu:visible group-focus-within/menu:opacity-100 group-hover/menu:visible group-hover/menu:opacity-100">
       <div className="rx-panel grid p-1.5 shadow-[0_0_0_1px_var(--rx-rule),0_12px_28px_-12px_oklch(0.3_0.02_30/0.3)]">{children}</div>
     </div>
@@ -93,16 +93,16 @@ export default function Nav({ brand, location, cartCount, categories, signedIn, 
     {variant === 'rail'
       ? <div className="hidden lg:block">
         <div className="border-b border-[var(--rx-rule)]">
-          <div className="flex min-h-12 items-center gap-6 px-8 text-[14px] text-foreground/75 xl:px-16">
+          <div className="flex min-h-9 items-center gap-6 px-8 text-[13px] text-foreground/75 xl:px-12">
             {hours && <span className="inline-flex items-center gap-1.5 whitespace-nowrap"><Clock aria-hidden="true" className="size-4 text-primary" strokeWidth={1.7} />{hours}</span>}
             {address && <span className="inline-flex min-w-0 items-center gap-1.5"><MapPin aria-hidden="true" className="size-4 shrink-0 text-primary" strokeWidth={1.7} /><span className="truncate">{address}</span></span>}
             <div className="ml-auto flex items-center gap-3">
-              <Link href="/account" className="inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-foreground hover:text-primary"><UserRound aria-hidden="true" className="size-4" strokeWidth={1.7} />{signedIn ? 'Account' : 'Sign in'}</Link>
+              <Link href="/account" className="inline-flex min-h-9 items-center gap-1.5 whitespace-nowrap text-foreground hover:text-primary"><UserRound aria-hidden="true" className="size-4" strokeWidth={1.7} />{signedIn ? 'Account' : 'Sign in'}</Link>
               <CartLink cartCount={cartCount} />
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-8 px-8 py-4 xl:px-16">
+        <div className="flex items-center gap-8 px-8 py-1.5 xl:px-12">
           <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} className="shrink-0" />
           <HeaderSearch className="w-full max-w-[26rem] flex-1" />
           <div className="ml-auto flex items-center gap-6 xl:gap-8">
@@ -112,7 +112,7 @@ export default function Nav({ brand, location, cartCount, categories, signedIn, 
         </div>
       </div>
       : <div className="hidden border-b border-[var(--rx-rule)] bg-card lg:block">
-        <div className="mx-auto flex max-w-[90rem] items-center gap-8 px-8 pb-2 pt-4 xl:px-16">
+        <div className="mx-auto flex max-w-[90rem] items-center gap-8 px-8 pt-1.5 xl:px-16">
           <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} className="shrink-0" />
           <div className="flex min-w-0 items-center gap-6 text-[15px] text-foreground/80">
             {location && <Link href="/prescriptions#location" className="inline-flex min-w-0 items-center gap-1.5 hover:text-primary"><MapPin aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.7} /><span className="truncate">{typeof location.address?.line1 === 'string' ? location.address.line1 : location.name}</span><ChevronDown aria-hidden="true" className="size-3.5" /></Link>}
@@ -122,12 +122,12 @@ export default function Nav({ brand, location, cartCount, categories, signedIn, 
           {phone && <a href={`tel:${phone}`} className="hidden items-center gap-2.5 whitespace-nowrap xl:inline-flex"><Phone aria-hidden="true" className="size-6 text-primary" strokeWidth={1.6} /><span className="grid leading-tight"><span className="text-[13px] text-muted-foreground">Questions?</span><span className="rx-num rx-serif text-[19px] text-primary">{phone}</span></span></a>}
           <Link href="/account" className="ml-auto inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap text-[15px] hover:text-primary"><UserRound aria-hidden="true" className="size-[18px]" strokeWidth={1.7} />{signedIn ? 'My account' : 'Sign in'}</Link>
         </div>
-        <div className="mx-auto flex max-w-[90rem] items-center gap-10 px-8 pb-2 xl:px-16">
-          <Link href="/" className="rx-serif inline-flex min-h-11 items-center text-[18px] hover:text-primary">Home</Link>
-          <Link href="/products" className="rx-serif inline-flex min-h-11 items-center text-[18px] hover:text-primary">Products</Link>
+        <div className="mx-auto flex max-w-[90rem] items-center gap-10 px-8 pb-1 xl:px-16">
+          <Link href="/" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Home</Link>
+          <Link href="/products" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Products</Link>
           <PrimaryNav categories={categories} location={location} phone={phone} />
-          <Link href="/order-status" className="rx-serif inline-flex min-h-11 items-center text-[18px] hover:text-primary">Track order</Link>
-          <Link href="/cart" className="rx-serif ml-auto inline-flex min-h-11 items-center gap-2 rounded-[6px] bg-primary px-4 text-[17px] text-primary-foreground hover:brightness-110"><ShoppingCart aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />Cart (<span className="rx-num">{cartCount}</span>)</Link>
+          <Link href="/order-status" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Track order</Link>
+          <Link href="/cart" className="rx-serif ml-auto inline-flex min-h-9 items-center gap-2 rounded-[6px] bg-primary px-4 text-[16px] text-primary-foreground hover:brightness-110"><ShoppingCart aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />Cart (<span className="rx-num">{cartCount}</span>)</Link>
         </div>
       </div>}
   </header>

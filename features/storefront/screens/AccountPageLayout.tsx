@@ -14,7 +14,7 @@ export async function AccountPageLayout({ dashboard, login }: { dashboard?: Reac
     <div className="flex flex-col gap-5 border-b border-[var(--rx-rule)] pb-6">
       <div className="min-w-0">
         <p className="rx-eyebrow truncate">{customer.email}</p>
-        <h1 className="mt-1.5 break-words text-[2rem] font-semibold leading-tight tracking-[-0.02em]">{customer.name}</h1>
+        <h1 className="rx-display mt-1.5 break-words text-[2.25rem] leading-tight">{customer.name}</h1>
       </div>
       <AccountNav />
     </div>

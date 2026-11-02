@@ -6,12 +6,12 @@ import { categoryLabel } from '../../../../lib/categories'
 import type { StoreCategory } from '../../../../lib/data/store'
 import { categoryHref } from './links'
 
-const itemClass = 'rx-serif flex min-h-8 items-center gap-2.5 rounded-[4px] text-[16px] leading-tight lg:min-h-[30px] lg:text-[15.5px] text-foreground hover:text-primary max-lg:min-h-11'
+const itemClass = 'rx-serif flex min-h-8 items-center gap-2.5 rounded-[4px] text-[16px] leading-tight lg:min-h-[24px] lg:text-[14px] text-foreground hover:text-primary max-lg:min-h-11'
 const iconClass = 'size-4 shrink-0 text-primary'
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return <div>
-    <p className="rx-eyebrow mb-1.5">{title}</p>
+    <p className="rx-eyebrow mb-1">{title}</p>
     <ul className="grid">{children}</ul>
   </div>
 }
@@ -19,7 +19,7 @@ function Group({ title, children }: { title: string; children: React.ReactNode }
 /** The store's left rail: prescriptions, product categories with products, store and account links. */
 export function SideMenu({ categories, phone, signedIn, onNavigate }: { categories: StoreCategory[]; phone?: string | null; signedIn: boolean; onNavigate?: () => void }) {
   const item = (href: string, icon: React.ReactNode, label: string) => <li key={label}><Link href={href} onClick={onNavigate} className={itemClass}>{icon}{label}</Link></li>
-  return <div className="grid gap-6">
+  return <div className="grid gap-5">
     <Group title="Prescriptions">
       {item('/account#account-prescriptions', <RefreshCw aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Refill prescription')}
       {item('/prescriptions#transfer', <ArrowRightLeft aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Transfer prescription')}

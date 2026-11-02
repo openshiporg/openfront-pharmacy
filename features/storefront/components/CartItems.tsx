@@ -35,7 +35,7 @@ export function CartItems({ items }: { items: PharmacyCartProjection['items'] })
         return <li key={item.id} className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-4 py-5 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center">
           <Link href={`/products/${encodeURIComponent(item.product.handle)}`} className="relative size-[4.5rem] overflow-hidden rounded-[4px] border border-border bg-muted sm:size-20"><ProductImage src={item.product.imageUrl} alt="" sizes="80px" /></Link>
           <div className="min-w-0">
-            <h3 className="font-semibold leading-snug">{item.product.title}</h3>
+            <h3 className="rx-serif text-[18px] leading-snug">{item.product.title}</h3>
             <p className="rx-num mt-1 text-sm text-muted-foreground">{formatMoney(item.unitPriceAmount, item.product.currencyCode)}</p>
             {requirement && <p className="mt-1 text-[13px] font-medium text-accent-foreground">{requirement}</p>}
           </div>

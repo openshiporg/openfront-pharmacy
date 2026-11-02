@@ -54,19 +54,19 @@ export async function ProductPage({ params }: Props) {
   const methods = [location.pickupEnabled && { key: 'pickup', label: 'Pickup', icon: Store }, location.deliveryEnabled && { key: 'delivery', label: 'Delivery', icon: Truck }].filter(Boolean) as Array<{ key: string; label: string; icon: typeof Store }>
   const facts = [product.category && categoryLabel(product.category), requirement || 'No prescription needed', availability.canOrder ? 'In stock at this pharmacy' : null].filter(Boolean) as string[]
 
-  return <div className="mx-auto max-w-[90rem] px-4 pb-28 pt-4 sm:px-8 lg:pb-16 lg:pt-8 xl:px-16">
+  return <div className="mx-auto max-w-[90rem] px-4 pb-28 pt-4 sm:px-8 lg:pb-12 lg:pt-3 xl:px-12">
     <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-[14px] text-muted-foreground">
       <Link href="/products" className="inline-flex min-h-10 items-center hover:text-primary">Shop</Link>
       {product.category && <><ChevronRight aria-hidden="true" className="size-3.5 shrink-0" /><Link href={categoryHref(product.category)} className="inline-flex min-h-10 items-center truncate hover:text-primary">{categoryLabel(product.category)}</Link></>}
     </nav>
 
-    <div className="mt-2 grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[300px_minmax(0,1fr)_300px] xl:gap-10">
+    <div className="mt-2 grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[236px_minmax(0,1fr)_264px] xl:gap-10">
       {/* Left: shop by category and why shop with us */}
       <aside className="order-3 grid content-start gap-6 lg:order-none lg:row-span-2">
         {categories.length > 0 && <nav aria-labelledby="by-category">
-          <h2 id="by-category" className="rx-serif text-[22px]">Shop by category</h2>
+          <h2 id="by-category" className="rx-serif text-[22px] lg:text-[18px]">Shop by category</h2>
           <ul className="mt-3 grid">
-            {categories.map((entry) => <li key={entry.value}><Link href={categoryHref(entry.value)} aria-current={entry.value === product.category ? 'true' : undefined} className="rx-serif flex min-h-11 items-center gap-3 text-[17px] hover:text-primary aria-[current]:text-primary"><CategoryIcon category={entry.value} /><span className="flex-1">{categoryLabel(entry.value)}</span><ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" /></Link></li>)}
+            {categories.map((entry) => <li key={entry.value}><Link href={categoryHref(entry.value)} aria-current={entry.value === product.category ? 'true' : undefined} className="rx-serif flex min-h-11 items-center gap-3 text-[17px] hover:text-primary lg:min-h-8 lg:text-[15px] aria-[current]:text-primary"><CategoryIcon category={entry.value} /><span className="flex-1">{categoryLabel(entry.value)}</span><ChevronRight aria-hidden="true" className="size-4 text-muted-foreground" /></Link></li>)}
           </ul>
           <Link href="/products" className="mt-2 flex min-h-11 items-center justify-between border-t border-[var(--rx-rule)] pt-2 text-[13px] font-semibold uppercase tracking-[0.06em] hover:text-primary">Shop all categories<ChevronRight aria-hidden="true" className="size-4" /></Link>
         </nav>}
@@ -89,9 +89,9 @@ export async function ProductPage({ params }: Props) {
           </div>
           <div className="min-w-0">
             <p className="text-[15px] text-muted-foreground">{storefront.brand.displayName}</p>
-            <h1 className="rx-display mt-1 text-[1.9rem] leading-[1.1] sm:text-[2.25rem]">{product.title}</h1>
+            <h1 className="rx-display mt-1 text-[1.9rem] leading-[1.1] sm:text-[2.25rem] lg:text-[1.65rem]">{product.title}</h1>
             <p className="mt-2 inline-flex items-center gap-1.5 text-[14px] text-muted-foreground"><span className={`size-2 rounded-full ${availability.canOrder ? 'bg-emerald-600' : 'bg-muted-foreground/50'}`} aria-hidden="true" />{availability.canOrder ? 'In stock' : 'Unavailable'}<span className="text-foreground/30">·</span>SKU <span className="rx-num">{product.sku}</span></p>
-            <p className="rx-display rx-num mt-3 text-[2.25rem] text-foreground">{price}</p>
+            <p className="rx-display rx-num mt-2 text-[2.25rem] text-foreground lg:text-[1.75rem]">{price}</p>
             {product.description && <p className="mt-2 text-[15.5px] leading-relaxed text-foreground/85">{product.description}</p>}
             <ul className="mt-3 grid gap-1">{facts.map((fact) => <li key={fact} className="flex items-center gap-2 text-[15px] text-foreground/85"><Check aria-hidden="true" className="size-4 text-muted-foreground" />{fact}</li>)}</ul>
 
@@ -118,7 +118,7 @@ export async function ProductPage({ params }: Props) {
 
       {/* Right: related products */}
       {related.length > 0 && <aside aria-labelledby="related-title" className="min-w-0 lg:col-start-2 xl:col-start-auto">
-        <h2 id="related-title" className="rx-serif flex items-center gap-2 text-[20px]"><Search aria-hidden="true" strokeWidth={1.7} className="size-[18px]" />Shop related products</h2>
+        <h2 id="related-title" className="rx-serif flex items-center gap-2 text-[20px] lg:text-[17px]"><Search aria-hidden="true" strokeWidth={1.7} className="size-[18px]" />Shop related products</h2>
         <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-4 xl:grid-cols-2">
           {related.map((entry) => <li key={entry.id} className="min-w-0">
             <Link href={`/products/${encodeURIComponent(entry.handle)}`} className="group block max-md:!flex max-md:!flex-col max-md:!items-stretch">

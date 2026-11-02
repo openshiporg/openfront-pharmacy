@@ -14,7 +14,7 @@ import { getMyPrescriptionRequests, type RequestKind } from '../lib/data/request
 const REQUEST_LABELS: Record<RequestKind, string> = { registration: 'Patient registration', transfer: 'Prescription transfer', new_prescription: 'New prescription' }
 
 function SectionHead({ title, count }: { title: string; count?: number }) {
-  return <h2 className="mb-3 flex items-baseline gap-2.5 text-lg font-semibold tracking-tight">{title}{count !== undefined && <span className="rx-num text-sm font-normal text-muted-foreground">{count}</span>}</h2>
+  return <h2 className="rx-serif mb-3 flex items-baseline gap-2.5 text-[22px]">{title}{count !== undefined && <span className="rx-num text-sm font-normal text-muted-foreground">{count}</span>}</h2>
 }
 
 export async function AccountOverviewPage() {

@@ -39,8 +39,8 @@ export function StoreShell({ railHeader, plainHeader, sidebar, footer, more, chi
   // A product page carries its own sticky add-to-cart bar on phones in place of the tab bar.
   const tabs = !pathname.startsWith('/products/')
   return <div className="flex min-h-dvh overflow-x-clip bg-background font-sans text-foreground antialiased">
-    {rail && <aside aria-label="Store menu" className="hidden w-[244px] shrink-0 border-r border-[var(--rx-rule)] bg-card lg:block xl:w-[256px]">
-      <nav aria-label="Departments" className="sticky top-0 max-h-dvh overflow-y-auto px-6 pb-8 pt-6 no-scrollbar">{sidebar}</nav>
+    {rail && <aside aria-label="Store menu" className="hidden w-[244px] shrink-0 border-r border-[var(--rx-rule)] bg-card lg:block xl:w-[232px]">
+      <nav aria-label="Departments" className="sticky top-0 max-h-dvh overflow-y-auto px-6 pb-8 pt-5 no-scrollbar">{sidebar}</nav>
     </aside>}
     <div className={cn('flex min-w-0 flex-1 flex-col lg:pb-0', tabs && 'pb-24')}>
       {rail ? railHeader : plainHeader}

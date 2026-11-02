@@ -115,7 +115,7 @@ export async function HomePage() {
     { icon: ShieldCheck, title: 'Licensed pharmacists', detail: phone ? `Questions? Call ${phone}.` : 'Ask us at the counter.' },
     { icon: service.icon, title: service.title, detail: service.detail },
     { icon: PackageSearch, title: 'Track every order', detail: 'Order status online, any time.' },
-    { icon: ClipboardList, title: 'Easy prescription management', detail: 'Refill, transfer, and track prescriptions online.' },
+    { icon: ClipboardList, title: 'Prescriptions online', detail: 'Refill, transfer and track online.' },
   ]
 
   return <>
@@ -131,25 +131,25 @@ export async function HomePage() {
             <Image src="/storefront/hero-pharmacist.jpg" alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[100%_25%] lg:object-[70%_30%]" />
             <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.36_0.035_35)] to-transparent to-[14%] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
           </div>
-          <div className="relative flex min-h-[160px] flex-col justify-center py-2.5 pl-3 pr-0 sm:px-4 text-white sm:min-h-[340px] lg:min-h-[320px] lg:max-w-[44rem] lg:px-8 lg:py-9 lg:text-foreground xl:px-16">
-            <h1 id="home-title" className="rx-display max-w-[44%] text-[1.15rem] leading-[1.08] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[20ch] lg:text-[2.75rem] xl:text-[3.1rem]">{headline}</h1>
-            <p className="mt-1 max-w-[44%] text-[12px] leading-snug text-white/90 sm:max-w-[34ch] sm:text-[14px] lg:mt-3 lg:max-w-[44ch] lg:rx-serif lg:text-[19px] lg:text-foreground/85"><span className="lg:hidden">Refills and everyday health.</span><span className="max-lg:hidden">Prescriptions, refills and everyday health products from {location.name}.</span></p>
-            <div className="mt-2 flex flex-col items-start gap-0 lg:mt-6 lg:gap-3 lg:flex-row lg:items-center">
-              <Link href="/account#account-prescriptions" className={`${buttonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:whitespace-nowrap max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[12px] max-lg:font-medium max-lg:text-foreground">Refill prescription<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
-              <Link href="/products" className={`${outlineButtonClass} lg:min-h-11 max-lg:!min-h-12 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:whitespace-nowrap max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[12px] max-lg:font-medium max-lg:text-foreground">Shop OTC products<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
+          <div className="relative flex min-h-[160px] flex-col justify-center py-2.5 pl-3 pr-0 sm:px-4 text-white sm:min-h-[340px] lg:min-h-0 lg:max-w-[44rem] lg:px-8 lg:py-5 lg:text-foreground xl:px-12">
+            <h1 id="home-title" className="rx-display max-w-[44%] text-[1.15rem] leading-[1.08] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[22ch] lg:text-[2.25rem] xl:text-[2.4rem]">{headline}</h1>
+            <p className="mt-1 max-w-[44%] text-[12px] leading-snug text-white/90 sm:max-w-[34ch] sm:text-[14px] lg:mt-1.5 lg:max-w-[48ch] lg:rx-serif lg:text-[17px] lg:text-foreground/85"><span className="lg:hidden">Refills and everyday health.</span><span className="max-lg:hidden">Prescriptions, refills and everyday health products from {location.name}.</span></p>
+            <div className="mt-2 flex flex-col items-start gap-0 lg:mt-4 lg:gap-3 lg:flex-row lg:items-center">
+              <Link href="/account#account-prescriptions" className={`${buttonClass} lg:min-h-10 lg:text-[16px] max-lg:!min-h-12 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:whitespace-nowrap max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[12px] max-lg:font-medium max-lg:text-foreground">Refill prescription<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
+              <Link href="/products" className={`${outlineButtonClass} lg:min-h-10 lg:text-[16px] max-lg:!min-h-12 max-lg:border-0 max-lg:bg-transparent max-lg:p-0 max-lg:shadow-none`}><span className="lg:contents max-lg:inline-flex max-lg:whitespace-nowrap max-lg:h-6 max-lg:items-center max-lg:gap-0.5 max-lg:rounded-full max-lg:bg-white max-lg:pl-2.5 max-lg:pr-1.5 max-lg:font-sans max-lg:text-[12px] max-lg:font-medium max-lg:text-foreground">Shop OTC products<ChevronRight aria-hidden="true" className="size-3 lg:hidden" /></span></Link>
             </div>
-            <HeaderSearch placeholder="Search for products by name, brand, or keyword…" className="mt-5 hidden w-full max-w-[33rem] lg:block" />
-            <p className="mt-4 hidden items-start gap-2 lg:flex"><service.icon aria-hidden="true" strokeWidth={1.6} className="mt-0.5 size-5 text-primary" /><span><span className="rx-serif block text-[18px] leading-tight">{service.title}</span><span className="text-[14px] text-muted-foreground">{service.detail}</span></span></p>
+            <HeaderSearch placeholder="Search for products by name, brand, or keyword…" className="mt-3 hidden w-full max-w-[33rem] lg:block" />
+            <p className="mt-3 hidden items-start gap-2 lg:flex"><service.icon aria-hidden="true" strokeWidth={1.6} className="mt-0.5 size-5 text-primary" /><span><span className="rx-serif block text-[16px] leading-tight">{service.title}</span><span className="text-[13px] text-muted-foreground">{service.detail}</span></span></p>
           </div>
         </section>
 
         {/* Featured products */}
-        {featured.length > 0 && <section aria-labelledby="featured-title" className="pt-2 lg:px-8 lg:pt-8 xl:px-16">
+        {featured.length > 0 && <section aria-labelledby="featured-title" className="pt-2 lg:px-8 lg:pt-5 xl:px-12">
           <div className="flex items-baseline justify-between gap-3">
-            <h2 id="featured-title" className="rx-display text-[1.3rem] sm:text-[2rem]">Featured products</h2>
+            <h2 id="featured-title" className="rx-display text-[1.3rem] sm:text-[2rem] lg:text-[1.75rem]">Featured products</h2>
             <Link href="/products" className="rx-serif inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap text-[15px] text-primary hover:underline lg:text-[17px]">View all<span className="hidden lg:inline"> products</span><ArrowRight aria-hidden="true" className="hidden size-4 lg:block" /></Link>
           </div>
-          <ul className="mt-1 grid grid-cols-2 gap-2.5 lg:mt-4 lg:grid-cols-4 lg:gap-6">
+          <ul className="mt-1 grid grid-cols-2 gap-2.5 lg:mt-2 lg:grid-cols-4 lg:gap-5">
             {featured.map((product) => <li key={product.id} className="flex min-w-0"><ProductCard product={product} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} size="sm" className="w-full lg:hidden" /><ProductCard product={product} locationId={location.id} orderingEnabled={location.onlineOrderingEnabled} className="hidden w-full lg:flex" /></li>)}
           </ul>
         </section>}
@@ -157,11 +157,11 @@ export async function HomePage() {
     </div>
 
     {/* Trust strip */}
-    <section aria-label="Why shop with us" className="mt-8 border-y border-[var(--rx-rule)] bg-[oklch(0.955_0.003_50)] lg:mt-10">
-      <ul className="grid gap-x-6 gap-y-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8 xl:px-16">
-        {trust.map(({ icon: Icon, title, detail }) => <li key={title} className="flex items-start gap-3">
-          <Icon aria-hidden="true" strokeWidth={1.4} className="size-9 shrink-0 text-primary" />
-          <span className="min-w-0"><span className="rx-serif block text-[18px] leading-tight">{title}</span><span className="block text-[14px] text-muted-foreground">{detail}</span></span>
+    <section aria-label="Why shop with us" className="mt-8 border-y border-[var(--rx-rule)] bg-[oklch(0.955_0.003_50)] lg:mt-6">
+      <ul className="grid gap-x-5 gap-y-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8 lg:py-3 xl:px-12">
+        {trust.map(({ icon: Icon, title, detail }) => <li key={title} className="flex items-start gap-3 lg:items-center lg:gap-2.5">
+          <Icon aria-hidden="true" strokeWidth={1.4} className="size-9 shrink-0 text-primary lg:size-7" />
+          <span className="min-w-0"><span className="rx-serif block text-[18px] leading-tight lg:text-[15px]">{title}</span><span className="block text-[14px] text-muted-foreground lg:text-[12.5px] lg:leading-snug">{detail}</span></span>
         </li>)}
       </ul>
     </section>
