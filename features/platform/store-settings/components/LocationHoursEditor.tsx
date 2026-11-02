@@ -19,7 +19,7 @@ function DayRow({ day, value, onChange }: { day: string; value: DayHours; onChan
       <Pill active={!value} onClick={() => onChange(null)}>Closed</Pill>
     </Track>
     {value
-      ? <div className="col-span-2 flex min-w-0 items-center gap-1.5 sm:col-span-1">
+      ? <div className="col-span-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 sm:col-span-1">
         <PlatformTimeInput aria-label={`${day} opens`} value={value.open} onChange={(next) => onChange({ ...value, open: next })} />
         <span aria-hidden="true" className="text-muted-foreground">–</span>
         <PlatformTimeInput aria-label={`${day} closes`} value={value.close} onChange={(next) => onChange({ ...value, close: next })} />
