@@ -1,5 +1,5 @@
 import { ClientError, GraphQLClient } from 'graphql-request'
-import { getGraphQLEndpoint } from '@/features/dashboard/lib/getBaseUrl'
+import { getServerGraphQLTarget } from '@/features/dashboard/lib/getBaseUrl'
 import { getAuthHeaders } from './data/cookies'
 
 const USER_INPUT_CODES = new Set(['BAD_USER_INPUT', 'KS_USER_INPUT_ERROR', 'KS_VALIDATION_FAILURE'])
@@ -14,7 +14,9 @@ export type StorefrontResult<T> = { success: true; data: T } | { success: false;
  */
 export async function storefrontRequest<T>(query: string, variables: Record<string, unknown> = {}, fallback = STOREFRONT_REQUEST_ERROR): Promise<StorefrontResult<T>> {
   try {
-    const client = new GraphQLClient(await getGraphQLEndpoint(), { headers: await getAuthHeaders(), redirect: 'error' })
+    // Per request: loopback with THIS request's signed end-user identity; public endpoint if PORT is unknown.
+    const { endpoint, fetch: internalFetch } = await getServerGraphQLTarget()
+    const client = new GraphQLClient(endpoint, { headers: await getAuthHeaders(), redirect: 'error', ...(internalFetch ? { fetch: internalFetch } : {}) })
     return { success: true, data: await client.request<T>(query, variables) }
   } catch (error) {
     const first = error instanceof ClientError ? error.response.errors?.[0] : undefined

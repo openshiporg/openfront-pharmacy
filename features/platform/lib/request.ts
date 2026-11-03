@@ -1,7 +1,7 @@
 import { ClientError, GraphQLClient } from 'graphql-request'
 
 import { getAuthHeaders } from '@/features/dashboard/lib/cookies'
-import { getGraphQLEndpoint } from '@/features/dashboard/lib/getBaseUrl'
+import { getServerGraphQLTarget } from '@/features/dashboard/lib/getBaseUrl'
 import type { KeystoneResponse } from '@/features/dashboard/lib/keystoneClient'
 import { PUBLIC_REQUEST_ERROR } from '@/features/dashboard/lib/security'
 
@@ -15,7 +15,8 @@ const OPERATOR_CODES = new Set(['BAD_USER_INPUT', 'PHARMACY_CONFLICT', 'KS_USER_
  */
 export async function platformRequest<T = any>(query: string, variables: Record<string, unknown> = {}): Promise<KeystoneResponse<T>> {
   try {
-    const client = new GraphQLClient(await getGraphQLEndpoint(), { credentials: 'include', redirect: 'error', headers: (await getAuthHeaders()) || {} })
+    const { endpoint, fetch: internalFetch } = await getServerGraphQLTarget()
+    const client = new GraphQLClient(endpoint, { credentials: 'include', redirect: 'error', headers: (await getAuthHeaders()) || {}, ...(internalFetch ? { fetch: internalFetch } : {}) })
     return { success: true, data: await client.request<T>(query, variables) }
   } catch (error) {
     const first = error instanceof ClientError ? error.response.errors?.[0] : undefined

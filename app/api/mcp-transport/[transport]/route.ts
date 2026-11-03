@@ -13,6 +13,8 @@ import {
   isInputObjectType,
 } from 'graphql';
 import { getBaseUrl } from '@/features/dashboard/lib/getBaseUrl';
+import { headers as nextHeaders } from 'next/headers';
+import { clientSourceFromHeaders, internalIdentityHeaders, loopbackOrigin } from '@/features/keystone/lib/internal-origin';
 
 // Get simple type name for display
 function getSimpleTypeName(type: any): string {
@@ -25,11 +27,27 @@ function getSimpleTypeName(type: any): string {
   return type.name || type.toString();
 }
 
+// Server-to-self GraphQL goes over loopback; sign THIS request's end-user address (per call, never cached)
+// so the rate limiter counts the visitor, not the server.
+async function selfGraphqlEndpoint(): Promise<string> {
+  const loopback = loopbackOrigin();
+  return `${loopback ?? await getBaseUrl()}/api/graphql`;
+}
+async function selfIdentityHeaders(endpoint: string): Promise<Record<string, string>> {
+  try {
+    if (new URL(endpoint).hostname !== '127.0.0.1') return {};
+    return internalIdentityHeaders(clientSourceFromHeaders(await nextHeaders()));
+  } catch {
+    return {};
+  }
+}
+
 // Execute GraphQL query with authentication
 async function executeGraphQL(query: string, graphqlEndpoint: string, cookie: string): Promise<any> {
   const response = await fetch(graphqlEndpoint, {
     method: 'POST',
     headers: {
+      ...(await selfIdentityHeaders(graphqlEndpoint)),
       'Content-Type': 'application/json',
       'Cookie': cookie,
     },
@@ -48,6 +66,7 @@ async function getGraphQLSchema(graphqlEndpoint: string, cookie: string): Promis
   const response = await fetch(graphqlEndpoint, {
     method: 'POST',
     headers: { 
+      ...(await selfIdentityHeaders(graphqlEndpoint)),
       'Content-Type': 'application/json',
       'Cookie': cookie,
     },
@@ -90,8 +109,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tra
     const { transport } = await params;
     
     // Construct GraphQL endpoint
-    const baseUrl = await getBaseUrl();
-    const graphqlEndpoint = `${baseUrl}/api/graphql`;
+    const graphqlEndpoint = await selfGraphqlEndpoint();
     
     // Extract cookie from request
     const cookie = request.headers.get('cookie') || ''
@@ -935,8 +953,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tra
 export async function GET(request: Request, { params }: { params: Promise<{ transport: string }> }) {
   const { transport } = await params;
   
-  const baseUrl = await getBaseUrl();
-  const graphqlEndpoint = `${baseUrl}/api/graphql`;
+  const graphqlEndpoint = await selfGraphqlEndpoint();
   if (!(await hasDashboardSession(graphqlEndpoint, request.headers.get('cookie') || ''))) return unauthorized()
   
   return new Response(JSON.stringify({ 
