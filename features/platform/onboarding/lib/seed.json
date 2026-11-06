@@ -9,7 +9,7 @@
     "brandAccentColor": "#8ec9ad",
     "logoIcon": "<svg fill=\"none\" height=\"100%\" viewBox=\"0 0 40 48\" width=\"100%\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"14\" cy=\"18\" fill=\"#1570ef\" r=\"14\"/><circle cx=\"26\" cy=\"30\" fill=\"#53b1fd\" r=\"14\"/></svg>",
     "logoColor": "295",
-    "supportEmail": "care@cedarelmpharmacy.com",
+    "supportEmail": "hello@pharmacy.openship.org",
     "supportPhone": "(212) 555-0142"
   },
   "cashPolicy": {
@@ -17,15 +17,15 @@
     "policyReference": "Standard cash policy"
   },
   "location": {
-    "name": "Cedar & Elm — Main Street",
+    "name": "Cedar & Elm — Upper West Side",
     "code": "CEDAR-ELM-MAIN-001",
     "timezone": "America/New_York",
     "phone": "(212) 555-0142",
     "address": {
-      "line1": "100 Main Street",
+      "line1": "247 West 72nd Street",
       "city": "New York",
       "region": "NY",
-      "postalCode": "10001",
+      "postalCode": "10023",
       "countryCode": "US"
     },
     "hours": {
