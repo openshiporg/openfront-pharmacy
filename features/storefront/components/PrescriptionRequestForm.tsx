@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useTransition, type FormEvent, type ReactNode } from 'react'
+import { useId, useRef, useState, useTransition, type FormEvent, type ReactNode } from 'react'
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -34,6 +34,9 @@ function Field({ id, label, children }: { id: string; label: string; children: R
 /** Online request to the pharmacy team: register as a patient, transfer a prescription, or fill a new one. */
 export function PrescriptionRequestForm({ kinds, locationId, needsIdentity, defaultPhone }: { kinds: RequestKind[]; locationId: string; needsIdentity: boolean; defaultPhone?: string | null }) {
   const [kind, setKind] = useState<RequestKind>(kinds[0])
+  // Two forms can share a page (refill and transfer): every field id is scoped to this form.
+  const uid = useId()
+  const fid = (name: string) => `${uid}-${name}`
   const [error, setError] = useState('')
   const [sent, setSent] = useState<RequestKind | null>(null)
   const [pending, startTransition] = useTransition()
@@ -79,33 +82,33 @@ export function PrescriptionRequestForm({ kinds, locationId, needsIdentity, defa
     </Track>}
 
     {identity && <div className="grid gap-4 sm:grid-cols-3">
-      <Field id="rq-first" label="Legal first name"><Input id="rq-first" name="firstName" autoComplete="given-name" maxLength={120} required className={inputClass} /></Field>
-      <Field id="rq-last" label="Legal last name"><Input id="rq-last" name="lastName" autoComplete="family-name" maxLength={120} required className={inputClass} /></Field>
-      <Field id="rq-dob" label="Date of birth"><Input id="rq-dob" name="dateOfBirth" type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10} pattern="(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/(19|20)[0-9]{2}" title="Month/day/year, for example 04/09/1986" autoComplete="bday" required onChange={formatBirthDate} className={inputClass} /></Field>
+      <Field id={fid("rq-first")} label="Legal first name"><Input id={fid("rq-first")} name="firstName" autoComplete="given-name" maxLength={120} required className={inputClass} /></Field>
+      <Field id={fid("rq-last")} label="Legal last name"><Input id={fid("rq-last")} name="lastName" autoComplete="family-name" maxLength={120} required className={inputClass} /></Field>
+      <Field id={fid("rq-dob")} label="Date of birth"><Input id={fid("rq-dob")} name="dateOfBirth" type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10} pattern="(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/(19|20)[0-9]{2}" title="Month/day/year, for example 04/09/1986" autoComplete="bday" required onChange={formatBirthDate} className={inputClass} /></Field>
     </div>}
 
     {kind === 'transfer' && <div className="grid gap-4 sm:grid-cols-2">
-      <Field id="rq-from" label="Transfer from (pharmacy)"><Input id="rq-from" name="counterpartyName" maxLength={200} required className={inputClass} /></Field>
-      <Field id="rq-from-phone" label="That pharmacy's phone"><Input id="rq-from-phone" name="counterpartyPhone" type="tel" maxLength={40} className={inputClass} /></Field>
+      <Field id={fid("rq-from")} label="Transfer from (pharmacy)"><Input id={fid("rq-from")} name="counterpartyName" maxLength={200} required className={inputClass} /></Field>
+      <Field id={fid("rq-from-phone")} label="That pharmacy's phone"><Input id={fid("rq-from-phone")} name="counterpartyPhone" type="tel" maxLength={40} className={inputClass} /></Field>
     </div>}
 
     {kind === 'new_prescription' && <div className="grid gap-4 sm:grid-cols-2">
-      <Field id="rq-prescriber" label="Prescriber"><Input id="rq-prescriber" name="prescriberName" maxLength={200} required className={inputClass} /></Field>
-      <Field id="rq-prescriber-phone" label="Prescriber's phone"><Input id="rq-prescriber-phone" name="prescriberPhone" type="tel" maxLength={40} className={inputClass} /></Field>
+      <Field id={fid("rq-prescriber")} label="Prescriber"><Input id={fid("rq-prescriber")} name="prescriberName" maxLength={200} required className={inputClass} /></Field>
+      <Field id={fid("rq-prescriber-phone")} label="Prescriber's phone"><Input id={fid("rq-prescriber-phone")} name="prescriberPhone" type="tel" maxLength={40} className={inputClass} /></Field>
     </div>}
 
-    {kind === 'refill' && <Field id="rq-rx" label="Rx number(s), one per line"><Textarea id="rq-rx" name="medications" maxLength={2000} required placeholder="The Rx number is printed on your label" className={areaClass} /></Field>}
+    {kind === 'refill' && <Field id={fid("rq-rx")} label="Rx number(s), one per line"><Textarea id={fid("rq-rx")} name="medications" maxLength={2000} required placeholder="The Rx number is printed on your label" className={areaClass} /></Field>}
 
-    {kind !== 'registration' && kind !== 'refill' && <Field id="rq-meds" label="Medications"><Textarea id="rq-meds" name="medications" maxLength={2000} required className={areaClass} /></Field>}
+    {kind !== 'registration' && kind !== 'refill' && <Field id={fid("rq-meds")} label="Medications"><Textarea id={fid("rq-meds")} name="medications" maxLength={2000} required className={areaClass} /></Field>}
 
     {identity && <div className="grid gap-4 sm:grid-cols-2">
-      <Field id="rq-allergies" label="Allergies (or None)"><Textarea id="rq-allergies" name="allergies" maxLength={1000} required={kind === 'registration'} className={areaClass} /></Field>
-      <Field id="rq-insurance" label="Insurance (optional)"><Textarea id="rq-insurance" name="insurance" maxLength={1000} className={areaClass} /></Field>
+      <Field id={fid("rq-allergies")} label="Allergies (or None)"><Textarea id={fid("rq-allergies")} name="allergies" maxLength={1000} required={kind === 'registration'} className={areaClass} /></Field>
+      <Field id={fid("rq-insurance")} label="Insurance (optional)"><Textarea id={fid("rq-insurance")} name="insurance" maxLength={1000} className={areaClass} /></Field>
     </div>}
 
     <div className="grid gap-4 sm:grid-cols-2">
-      <Field id="rq-phone" label="Your phone"><Input id="rq-phone" name="phone" type="tel" autoComplete="tel" defaultValue={defaultPhone || ''} maxLength={40} required className={inputClass} /></Field>
-      <Field id="rq-note" label="Note (optional)"><Input id="rq-note" name="note" maxLength={1000} className={inputClass} /></Field>
+      <Field id={fid("rq-phone")} label="Your phone"><Input id={fid("rq-phone")} name="phone" type="tel" autoComplete="tel" defaultValue={defaultPhone || ''} maxLength={40} required className={inputClass} /></Field>
+      <Field id={fid("rq-note")} label="Note (optional)"><Input id={fid("rq-note")} name="note" maxLength={1000} className={inputClass} /></Field>
     </div>
 
     {error && <Notice tone="danger">{error}</Notice>}
