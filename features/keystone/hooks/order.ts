@@ -38,7 +38,7 @@ export const orderHooks = {
         Boolean(resolvedData.cart?.connect?.id),
         Boolean(resolvedData.prescription?.connect?.id),
         ['pos', 'pickup'].includes(resolvedData.fulfillmentMethod)
-          && resolvedData.checkoutEvidence?.workflow === 'operator_attested_otc_pos_cash'
+          && ['operator_attested_otc_pos_cash', 'otc_pos_card'].includes(resolvedData.checkoutEvidence?.workflow)
           && Boolean(resolvedData.approval?.connect?.id)
           && resolvedData.checkoutEvidence.approvalId === resolvedData.approval.connect.id,
       ].filter(Boolean).length

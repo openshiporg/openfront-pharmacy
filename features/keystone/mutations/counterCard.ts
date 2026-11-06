@@ -61,13 +61,16 @@ export function assertCounterCardCovers(card: VerifiedCounterCard, totalAmount: 
  * committed (a replay) or the refusal is a retryable conflict. Returns the error to surface.
  */
 export async function refundRefusedCounterCard(context: Context, card: VerifiedCounterCard | null, error: unknown, committed: () => Promise<boolean>) {
-  if (!card || !(error instanceof DomainError) || error instanceof DomainConflictError) return error
+  // Any refusal that left no sale behind refunds the charge (domain rules, validation hooks, Prisma errors),
+  // except a retryable conflict, where the client retries the same key against the same charge.
+  if (!card || error instanceof DomainConflictError) return error
   if (await committed().catch(() => true)) return error
+  const message = error instanceof Error ? error.message : 'The sale could not be recorded'
   try {
     const provider = await context.sudo().query.PaymentProvider.findOne({ where: { id: card.providerId }, query: PAYMENT_PROVIDER_ADAPTER_FIELDS })
     await refundPayment({ provider: provider!, paymentId: card.paymentIntentId, amount: card.amount, currency: card.currencyCode, idempotencyKey: `counter-card-void:${card.paymentIntentId}` })
-    return new DomainError(`${error.message}. The card charge was refunded.`)
+    return new DomainError(`${message}. The card charge was refunded.`)
   } catch {
-    return new DomainError(`${error.message}. The card was charged and the automatic refund failed: refund ${card.paymentIntentId} in Stripe.`)
+    return new DomainError(`${message}. The card was charged and the automatic refund failed: refund ${card.paymentIntentId} in Stripe.`)
   }
 }
