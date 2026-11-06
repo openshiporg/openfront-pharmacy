@@ -67,4 +67,4 @@ export function formatDay(day: DayHours) {
   return day ? `${formatTime(day.open)} – ${formatTime(day.close)}` : 'Closed'
 }
 
-export const DEFAULT_WEEK: DayHours[] = [null, ...Array.from({ length: 5 }, () => ({ open: '09:00', close: '19:00' })), { open: '10:00', close: '16:00' }]
+export const DEFAULT_WEEK: DayHours[] = [null, ...Array.from({ length: 5 }, () => ({ open: '09:00', close: '19:00' })), { open: '09:00', close: '17:00' }]
