@@ -1,3 +1,5 @@
+import { DomainError } from '../mutations/lib/errors'
+
 export type PrescriptionClinicalEligibility = {
   sourceVerificationStatus?: string | null
   writtenAt?: string | Date | null
@@ -30,9 +32,9 @@ export function isValidNpi(value: string | null | undefined) {
 }
 
 export function assertPrescriptionClinicallyEligible(input: PrescriptionClinicalEligibility, now = Date.now()) {
-  if (input.sourceVerificationStatus !== 'human_verified') throw new Error('Prescription source must be verified by an authorized human')
-  if (!input.writtenAt || new Date(input.writtenAt).getTime() > now) throw new Error('Prescription written date is invalid')
-  if (!input.expiresAt || new Date(input.expiresAt).getTime() <= now) throw new Error('Prescription is expired')
+  if (input.sourceVerificationStatus !== 'human_verified') throw new DomainError('Prescription source must be verified by an authorized human')
+  if (!input.writtenAt || new Date(input.writtenAt).getTime() > now) throw new DomainError('Prescription written date is invalid')
+  if (!input.expiresAt || new Date(input.expiresAt).getTime() <= now) throw new DomainError('Prescription is expired')
   const prescriber = input.prescriber
   const credentialExpiry = prescriber?.credentialExpiresAt ? new Date(prescriber.credentialExpiresAt).getTime() : Number.NaN
   if (
@@ -48,6 +50,6 @@ export function assertPrescriptionClinicallyEligible(input: PrescriptionClinical
     || !Number.isFinite(credentialExpiry)
     || credentialExpiry <= now
   ) {
-    throw new Error('Current organization-recorded prescriber identity and credential review evidence is required')
+    throw new DomainError('Current organization-recorded prescriber identity and credential review evidence is required')
   }
 }
