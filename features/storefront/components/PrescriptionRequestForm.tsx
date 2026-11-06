@@ -11,7 +11,21 @@ import { Notice, Pill, Track, buttonClass } from './rx-ui'
 const inputClass = 'h-11 rounded-[4px] bg-background'
 const areaClass = 'min-h-20 rounded-[4px] bg-background'
 
-const KIND_LABELS: Record<RequestKind, string> = { registration: 'New patient', transfer: 'Transfer', new_prescription: 'New prescription' }
+const KIND_LABELS: Record<RequestKind, string> = { registration: 'New patient', transfer: 'Transfer', new_prescription: 'New prescription', refill: 'Refill' }
+
+/** Types the slashes for the patient: "04091986" reads as 04/09/1986. */
+function formatBirthDate(event: { currentTarget: HTMLInputElement }) {
+  const iso = event.currentTarget.value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) { event.currentTarget.value = `${iso[2]}/${iso[3]}/${iso[1]}`; return }
+  const digits = event.currentTarget.value.replace(/\D/g, '').slice(0, 8)
+  event.currentTarget.value = [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/')
+}
+
+/** MM/DD/YYYY as typed, sent to the pharmacy as YYYY-MM-DD. */
+function isoBirthDate(value?: string) {
+  const match = value?.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  return match ? `${match[3]}-${match[1]}-${match[2]}` : value
+}
 
 function Field({ id, label, children }: { id: string; label: string; children: ReactNode }) {
   return <div className="grid gap-2"><Label htmlFor={id}>{label}</Label>{children}</div>
@@ -41,7 +55,7 @@ export function PrescriptionRequestForm({ kinds, locationId, needsIdentity, defa
         idempotencyKey,
         firstName: value('firstName'),
         lastName: value('lastName'),
-        dateOfBirth: value('dateOfBirth'),
+        dateOfBirth: isoBirthDate(value('dateOfBirth')),
         phone: value('phone'),
         allergies: value('allergies'),
         insurance: value('insurance'),
@@ -67,7 +81,7 @@ export function PrescriptionRequestForm({ kinds, locationId, needsIdentity, defa
     {identity && <div className="grid gap-4 sm:grid-cols-3">
       <Field id="rq-first" label="Legal first name"><Input id="rq-first" name="firstName" autoComplete="given-name" maxLength={120} required className={inputClass} /></Field>
       <Field id="rq-last" label="Legal last name"><Input id="rq-last" name="lastName" autoComplete="family-name" maxLength={120} required className={inputClass} /></Field>
-      <Field id="rq-dob" label="Date of birth"><Input id="rq-dob" name="dateOfBirth" type="date" autoComplete="bday" required className={inputClass} /></Field>
+      <Field id="rq-dob" label="Date of birth"><Input id="rq-dob" name="dateOfBirth" type="text" inputMode="numeric" placeholder="MM/DD/YYYY" maxLength={10} pattern="(0[1-9]|1[0-2])/(0[1-9]|[12][0-9]|3[01])/(19|20)[0-9]{2}" title="Month/day/year, for example 04/09/1986" autoComplete="bday" required onChange={formatBirthDate} className={inputClass} /></Field>
     </div>}
 
     {kind === 'transfer' && <div className="grid gap-4 sm:grid-cols-2">
@@ -80,7 +94,9 @@ export function PrescriptionRequestForm({ kinds, locationId, needsIdentity, defa
       <Field id="rq-prescriber-phone" label="Prescriber's phone"><Input id="rq-prescriber-phone" name="prescriberPhone" type="tel" maxLength={40} className={inputClass} /></Field>
     </div>}
 
-    {kind !== 'registration' && <Field id="rq-meds" label="Medications"><Textarea id="rq-meds" name="medications" maxLength={2000} required className={areaClass} /></Field>}
+    {kind === 'refill' && <Field id="rq-rx" label="Rx number(s), one per line"><Textarea id="rq-rx" name="medications" maxLength={2000} required placeholder="The Rx number is printed on your label" className={areaClass} /></Field>}
+
+    {kind !== 'registration' && kind !== 'refill' && <Field id="rq-meds" label="Medications"><Textarea id="rq-meds" name="medications" maxLength={2000} required className={areaClass} /></Field>}
 
     {identity && <div className="grid gap-4 sm:grid-cols-2">
       <Field id="rq-allergies" label="Allergies (or None)"><Textarea id="rq-allergies" name="allergies" maxLength={1000} required={kind === 'registration'} className={areaClass} /></Field>

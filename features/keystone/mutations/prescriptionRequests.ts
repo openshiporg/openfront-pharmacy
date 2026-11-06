@@ -11,7 +11,7 @@ import { DomainError } from './lib/errors'
 // patient-reported. Staff review them and record the patient and prescription through the controlled
 // workflows; nothing here creates a patient record or a prescription.
 
-const KINDS = ['registration', 'transfer', 'new_prescription'] as const
+const KINDS = ['registration', 'transfer', 'new_prescription', 'refill'] as const
 const RESOLUTIONS = ['in_review', 'completed', 'declined'] as const
 const REQUEST_FIELDS = 'id kind status createdAt resolvedAt resolutionNote firstName lastName dateOfBirth phone email allergies insurance counterpartyName counterpartyPhone prescriberName prescriberPhone medications note organization { id } location { id name } user { id name email } patient { id }'
 
@@ -116,6 +116,8 @@ export async function submitPharmacyPrescriptionRequest(_root: unknown, args: { 
   }
   if (kind === 'transfer' && (!data.counterpartyName || !data.medications)) throw userInputError('Enter the pharmacy to transfer from and the medications.')
   if (kind === 'new_prescription' && (!data.prescriberName || !data.medications)) throw userInputError('Enter the prescriber and the medications.')
+  // Refill by Rx number: the numbers from the labels; staff match them to the patient's prescriptions.
+  if (kind === 'refill' && !data.medications) throw userInputError('Enter the Rx number from your label.')
 
   const user = await sudo.query.User.findOne({ where: { id: userId }, query: 'id email patientProfile { id }' })
   const request = await sudo.query.PrescriptionRequest.createOne({

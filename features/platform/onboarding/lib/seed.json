@@ -27,6 +27,62 @@
       "region": "NY",
       "postalCode": "10001",
       "countryCode": "US"
+    },
+    "hours": {
+      "store": [
+        null,
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "17:00"
+        }
+      ],
+      "pharmacy": [
+        null,
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "19:00"
+        },
+        {
+          "open": "09:00",
+          "close": "17:00"
+        }
+      ]
     }
   },
   "paymentProviders": [

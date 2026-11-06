@@ -7,7 +7,7 @@ import { trackingFields } from './trackingFields'
 
 /**
  * A customer's online request: register as a patient, transfer a prescription from another pharmacy,
- * or ask for a new prescription to be filled. Details are patient-reported; staff review them and use
+ * ask for a new prescription to be filled, or ask for a refill by Rx number (the number on the label). Details are patient-reported; staff review them and use
  * the controlled patient and prescription workflows. Read and written only through the custom
  * pharmacy queries and mutations (features/keystone/mutations/prescriptionRequests.ts).
  */
@@ -23,6 +23,7 @@ export const PrescriptionRequest = list({
         { label: 'Patient registration', value: 'registration' },
         { label: 'Transfer', value: 'transfer' },
         { label: 'New prescription', value: 'new_prescription' },
+        { label: 'Refill by Rx number', value: 'refill' },
       ],
       validation: { isRequired: true },
     }),

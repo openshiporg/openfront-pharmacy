@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 
 import { storefrontRequest, type StorefrontResult } from '../storefront-client'
 
-export type RequestKind = 'registration' | 'transfer' | 'new_prescription'
+export type RequestKind = 'registration' | 'transfer' | 'new_prescription' | 'refill'
 
 export type CustomerRequest = { id: string; kind: RequestKind; status: string; createdAt: string; resolvedAt?: string | null; resolutionNote?: string | null; locationName: string; counterpartyName?: string | null; medications?: string | null }
 

@@ -10,7 +10,7 @@ import { RequestActions } from '../components/RequestActions'
 
 type PrescriptionRequest = {
   id: string
-  kind: 'registration' | 'transfer' | 'new_prescription'
+  kind: 'registration' | 'transfer' | 'new_prescription' | 'refill'
   status: string
   createdAt: string
   resolvedAt?: string | null
@@ -34,7 +34,7 @@ type PrescriptionRequest = {
   note?: string | null
 }
 
-const KIND_LABELS = { registration: 'Patient registration', transfer: 'Transfer in', new_prescription: 'New prescription' } as const
+const KIND_LABELS = { registration: 'Patient registration', transfer: 'Transfer in', new_prescription: 'New prescription', refill: 'Refill by Rx number' } as const
 const STATUS_TABS = [['requested', 'Requested'], ['in_review', 'In review'], ['completed', 'Completed'], ['declined', 'Declined']] as const
 const STATUS_TONES: Record<string, DotTone> = { requested: 'warn', in_review: 'info', completed: 'ok', declined: 'muted' }
 
@@ -76,7 +76,7 @@ export async function RequestQueuePage({ searchParams }: { searchParams?: Promis
               {request.phone && <Field label="Phone"><a href={`tel:${request.phone}`} className="font-mono hover:underline">{request.phone}</a></Field>}
               {request.counterpartyName && <Field label="Transfer from">{request.counterpartyName}{request.counterpartyPhone ? <span className="block font-mono text-xs text-muted-foreground">{request.counterpartyPhone}</span> : null}</Field>}
               {request.prescriberName && <Field label="Prescriber">{request.prescriberName}{request.prescriberPhone ? <span className="block font-mono text-xs text-muted-foreground">{request.prescriberPhone}</span> : null}</Field>}
-              {request.medications && <Field label="Medications" className="col-span-2 sm:col-span-3"><span className="whitespace-pre-line">{request.medications}</span></Field>}
+              {request.medications && <Field label={request.kind === 'refill' ? 'Rx numbers' : 'Medications'} className="col-span-2 sm:col-span-3"><span className="whitespace-pre-line">{request.medications}</span></Field>}
               {request.allergies && <Field label="Allergies (patient-reported)" className="col-span-2 sm:col-span-3"><span className="whitespace-pre-line">{request.allergies}</span></Field>}
               {request.insurance && <Field label="Insurance" className="col-span-2 sm:col-span-3"><span className="whitespace-pre-line">{request.insurance}</span></Field>}
               {request.note && <Field label="Note" className="col-span-2 sm:col-span-3">{request.note}</Field>}
@@ -87,7 +87,8 @@ export async function RequestQueuePage({ searchParams }: { searchParams?: Promis
             <RequestActions requestId={request.id} status={request.status} />
             <div className="flex flex-wrap gap-2">
               {!request.patientId && <RaisedLink href={`${basePath}/platform/patients/create?request=${request.id}`}>Create patient</RaisedLink>}
-              {request.kind !== 'registration' && <RaisedLink href={`${basePath}/platform/prescriptions/intake`}>Prescription intake</RaisedLink>}
+              {request.kind === 'refill' && <RaisedLink href={`${basePath}/platform/refills`}>Refill queue</RaisedLink>}
+              {request.kind !== 'registration' && request.kind !== 'refill' && <RaisedLink href={`${basePath}/platform/prescriptions/intake`}>Prescription intake</RaisedLink>}
               {request.patientId && <Link href={`${basePath}/platform/patients/${request.patientId}`} className="inline-flex min-h-9 items-center px-2 text-[13px] font-medium underline underline-offset-4">Patient</Link>}
             </div>
           </div>

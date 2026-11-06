@@ -11,7 +11,7 @@ import { PatientAccountPrescriptions } from './PatientAccountPrescriptions'
 import { PrescriptionRequestForm } from '../components/PrescriptionRequestForm'
 import { getMyPrescriptionRequests, type RequestKind } from '../lib/data/requests'
 
-const REQUEST_LABELS: Record<RequestKind, string> = { registration: 'Patient registration', transfer: 'Prescription transfer', new_prescription: 'New prescription' }
+const REQUEST_LABELS: Record<RequestKind, string> = { registration: 'Patient registration', transfer: 'Prescription transfer', new_prescription: 'New prescription', refill: 'Refill by Rx number' }
 
 function SectionHead({ title, count }: { title: string; count?: number }) {
   return <h2 className="rx-serif mb-3 flex items-baseline gap-2.5 text-[22px]">{title}{count !== undefined && <span className="rx-num text-sm font-normal text-muted-foreground">{count}</span>}</h2>
