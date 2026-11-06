@@ -14,6 +14,8 @@ import { FILL_LINEAGE, dispenseFillPlan, fillHash, fillPricePortion, pickupFillP
 import { appendFillEvent, applyFillReleaseInTransaction, casFill } from './fillWorkflows'
 import { DomainError } from './lib/errors'
 import { productPhotoSnapshot } from '../lib/product-photo'
+import { notifyPrescriptionReady } from './pickupNotice'
+import { assertCounterCardCovers, openCounterCardIntent, refundRefusedCounterCard, verifyCounterCardIntent, type VerifiedCounterCard } from './counterCard'
 
 const CLINICAL_QUERY = 'sourceVerificationStatus writtenAt expiresAt prescriber { npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }'
 const SAFETY_QUERY = `
@@ -204,23 +206,23 @@ export async function authorizePrescriptionDispensing(
  */
 async function createCashPickupSale(tx: Context, s: { prescription: any; item: any; fill: any; userId: string; reason: string; attested: boolean; idempotencyKey: string; operationSuffix: string; at: string;
   dispenseApprovalId: string; clinicalSafetyReviewId: string; pharmacistReviewId?: string; fillNumber: number; readyAt?: string; quantity: number; lot: any;
-  subtotalAmount: number; taxableSubtotalAmount: number; taxAmount: number; totalAmount: number; currencyCode: string; tender: { cashReceivedAmount: number; changeDueAmount: number } }) {
+  subtotalAmount: number; taxableSubtotalAmount: number; taxAmount: number; totalAmount: number; currencyCode: string; tender: { cashReceivedAmount: number; changeDueAmount: number }; card?: VerifiedCounterCard | null }) {
   const sudo = tx.sudo()
   const { subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, currencyCode } = s
   const cashApproval = await createHumanApproval(tx, {
     organizationId: s.prescription.organization.id,
     locationId: s.prescription.location.id,
     actorId: s.userId,
-    actionType: 'cash_tender',
+    actionType: s.card ? 'card_tender' : 'cash_tender',
     reason: s.reason,
     attested: s.attested,
-    evidence: { subtotalAmount, taxableSubtotalAmount, taxAmount, amountDue: totalAmount, cashReceivedAmount: s.tender.cashReceivedAmount, changeDueAmount: s.tender.changeDueAmount, taxRateBps: s.prescription.organization.cashTaxRateBps || 0, taxPolicyReference: s.prescription.organization.cashTaxPolicyReference, providerSettlementClaimed: false },
+    evidence: { subtotalAmount, taxableSubtotalAmount, taxAmount, amountDue: totalAmount, ...(s.card ? { paymentIntentId: s.card.paymentIntentId } : { cashReceivedAmount: s.tender.cashReceivedAmount, changeDueAmount: s.tender.changeDueAmount }), taxRateBps: s.prescription.organization.cashTaxRateBps || 0, taxPolicyReference: s.prescription.organization.cashTaxPolicyReference, providerSettlementClaimed: !!s.card },
   })
   const order = await sudo.query.Order.createOne({
     data: {
       orderNumber: `RX-${s.operationSuffix}`,
       idempotencyKey: `rx-cash:${s.idempotencyKey}`,
-      checkoutEvidence: { workflow: 'operator_attested_cash_prescription_pickup', pharmacistReviewId: s.pharmacistReviewId ?? null, clinicalSafetyReviewId: s.clinicalSafetyReviewId, dispenseApprovalId: s.dispenseApprovalId, cashApprovalId: cashApproval.id, taxRateBps: s.prescription.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: false },
+      checkoutEvidence: { workflow: s.card ? 'prescription_pickup_card' : 'operator_attested_cash_prescription_pickup', pharmacistReviewId: s.pharmacistReviewId ?? null, clinicalSafetyReviewId: s.clinicalSafetyReviewId, dispenseApprovalId: s.dispenseApprovalId, cashApprovalId: cashApproval.id, taxRateBps: s.prescription.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: !!s.card },
       status: 'completed',
       fulfillmentMethod: 'pickup',
       subtotalAmount,
@@ -257,11 +259,10 @@ async function createCashPickupSale(tx: Context, s: { prescription: any; item: a
       amount: totalAmount,
       currencyCode,
       status: 'captured',
-      tenderMethod: 'cash',
-      cashReceivedAmount: s.tender.cashReceivedAmount,
-      changeDueAmount: s.tender.changeDueAmount,
+      ...(s.card
+        ? { tenderMethod: 'provider', externalPaymentId: s.card.paymentIntentId, provider: { connect: { id: s.card.providerId } }, data: { evidenceType: 'stripe_payment_intent_succeeded', approvalId: cashApproval.id, providerSettlementClaimed: true, brand: s.card.brand, last4: s.card.last4 } }
+        : { tenderMethod: 'cash', cashReceivedAmount: s.tender.cashReceivedAmount, changeDueAmount: s.tender.changeDueAmount, data: { evidenceType: 'operator_attested_cash_received', approvalId: cashApproval.id, providerSettlementClaimed: false } }),
       processedAt: s.at,
-      data: { evidenceType: 'operator_attested_cash_received', approvalId: cashApproval.id, providerSettlementClaimed: false },
       organization: { connect: { id: s.prescription.organization.id } },
       location: { connect: { id: s.prescription.location.id } },
       order: { connect: { id: order.id } },
@@ -298,6 +299,18 @@ export async function recordPrescriptionDispensing(
   if (!['offered_accepted', 'offered_declined'].includes(args.counselingOutcome)) throw new DomainError('Counseling offer outcome must be recorded')
   const auxiliaryWarnings = [...new Set((args.auxiliaryWarnings || []).map((value) => value.trim()).filter(Boolean))]
   if (!auxiliaryWarnings.length || auxiliaryWarnings.length > 20 || auxiliaryWarnings.some((value) => value.length > 200)) throw new DomainError('Auxiliary warning evidence is invalid')
+  const result = await recordDispensingInTransaction(args, auxiliaryWarnings, hold, context)
+  // Filled into will-call: tell the patient it is ready (once per fill, after commit).
+  if (hold && args.fillId && result?.status === 'ready_for_pickup') await notifyPrescriptionReady(context, { prescriptionId: args.prescriptionId, fillId: args.fillId })
+  return result
+}
+
+async function recordDispensingInTransaction(
+  args: { prescriptionId: string; prescriptionItemId: string; lotId: string; quantity: number; cashReceivedAmount: number; auxiliaryWarnings: string[]; counselingOutcome: string; idempotencyKey: string; reason: string; attested: boolean; fillId?: string | null; expectedFillVersion?: number | null; hold?: boolean | null },
+  auxiliaryWarnings: string[],
+  hold: boolean,
+  context: Context,
+): Promise<any> {
   return withDomainTransaction(context, [
     `dispense:${args.idempotencyKey}`,
     `lot:${args.lotId}`,
@@ -517,13 +530,59 @@ async function loadWillCallEvidence(tx: Context, fill: any) {
  * Pickup at the counter: the sale/handoff for a fill already in the will-call bin.
  * Records the same Order, Payment and handed-off Fulfillment as direct dispensing.
  */
-export async function pickupPrescriptionFill(
+/** Amount due at the will-call counter for a ready fill: the fill's own price snapshot, as pickup records it. */
+function willCallAmountDue(fill: any) {
+  const subtotalAmount = fillPricePortion(fill.priceSnapshot.amount, fill.authorizedQuantity, 0, fill.authorizedQuantity)
+  const taxAmount = fillPricePortion(fill.priceSnapshot.taxAmount, fill.authorizedQuantity, 0, fill.authorizedQuantity)
+  return { subtotalAmount, taxAmount, totalAmount: subtotalAmount + taxAmount, currencyCode: fill.priceSnapshot.currencyCode as string }
+}
+
+/** Opens the Stripe card payment for a will-call pickup, for exactly the amount pickup will record. */
+export async function openPrescriptionPickupCardPayment(
   _root: unknown,
-  args: { prescriptionId: string; fillId: string; expectedFillVersion: number; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean },
+  args: { prescriptionId: string; fillId: string; idempotencyKey: string },
   context: Context,
 ) {
   requirePermission(context, 'canDispenseMedications')
   if (!args.idempotencyKey?.trim()) throw new DomainError('Idempotency key is required')
+  const sudo = context.sudo()
+  const prescription = await sudo.query.Prescription.findOne({ where: { id: args.prescriptionId }, query: 'id status organization { id } location { id }' })
+  if (!prescription) throw new DomainError('Prescription not found')
+  await requireTenantMembership(context, { organizationId: prescription.organization.id, locationId: prescription.location.id, pharmacist: true })
+  if (prescription.status !== 'ready_for_pickup') throw new DomainError('Prescription is not waiting for pickup')
+  const fill = await fillStore(context).PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY })
+  if (!fill || fill.prescription?.id !== prescription.id || fill.status !== 'ready') throw new DomainError('Fill is not in will-call')
+  const due = willCallAmountDue(fill)
+  return openCounterCardIntent(context, { organizationId: prescription.organization.id, scope: 'rx', idempotencyKey: args.idempotencyKey, amount: due.totalAmount, currencyCode: due.currencyCode })
+}
+
+export async function pickupPrescriptionFill(
+  _root: unknown,
+  args: { prescriptionId: string; fillId: string; expectedFillVersion: number; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean; tenderMethod?: string | null; paymentIntentId?: string | null },
+  context: Context,
+) {
+  requirePermission(context, 'canDispenseMedications')
+  if (!args.idempotencyKey?.trim()) throw new DomainError('Idempotency key is required')
+  if (args.tenderMethod && !['cash', 'card'].includes(args.tenderMethod)) throw new DomainError('Tender must be cash or card')
+  let card: VerifiedCounterCard | null = null
+  if (args.tenderMethod === 'card') {
+    const scope = await context.sudo().query.Prescription.findOne({ where: { id: args.prescriptionId }, query: 'id organization { id } location { id }' })
+    if (!scope) throw new DomainError('Prescription not found')
+    await requireTenantMembership(context, { organizationId: scope.organization.id, locationId: scope.location.id, pharmacist: true })
+    card = await verifyCounterCardIntent(context, { organizationId: scope.organization.id, scope: 'rx', idempotencyKey: args.idempotencyKey, paymentIntentId: args.paymentIntentId || '' })
+  }
+  try {
+    return await recordWillCallPickup(args, context, card)
+  } catch (error) {
+    throw await refundRefusedCounterCard(context, card, error, async () => !!(await fillStore(context).PrescriptionFillEvent.findOne({ where: { eventKey: `fill.pickup:${args.idempotencyKey}` }, query: 'id' })))
+  }
+}
+
+async function recordWillCallPickup(
+  args: { prescriptionId: string; fillId: string; expectedFillVersion: number; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean; tenderMethod?: string | null; paymentIntentId?: string | null },
+  context: Context,
+  card: VerifiedCounterCard | null,
+) {
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `fill:${args.fillId}`, `fill-command:${args.idempotencyKey}`], async tx => {
     const sudo = tx.sudo()
     const prescription = await sudo.query.Prescription.findOne({ where: { id: args.prescriptionId }, query: `id status ${SAFETY_QUERY}
@@ -551,22 +610,21 @@ export async function pickupPrescriptionFill(
     if (prescription.status !== 'ready_for_pickup') throw new DomainError('Prescription is not waiting for pickup')
     if (prescription.organization.cashSalesEnabled !== true || !prescription.organization.cashTaxPolicyReference?.trim() || !prescription.organization.cashPolicyReviewedAt) throw new DomainError('Operator-attested cash and tax policy must be configured before pickup')
     const { label, lot } = await loadWillCallEvidence(tx, fill)
-    const subtotalAmount = fillPricePortion(fill.priceSnapshot.amount, fill.authorizedQuantity, 0, fill.authorizedQuantity)
-    const taxAmount = fillPricePortion(fill.priceSnapshot.taxAmount, fill.authorizedQuantity, 0, fill.authorizedQuantity)
-    const totalAmount = subtotalAmount + taxAmount, currencyCode = fill.priceSnapshot.currencyCode
-    const tender = assertCashTender(totalAmount, args.cashReceivedAmount)
+    const { subtotalAmount, taxAmount, totalAmount, currencyCode } = willCallAmountDue(fill)
+    if (card) assertCounterCardCovers(card, totalAmount, currencyCode)
+    const tender = card ? { cashReceivedAmount: totalAmount, changeDueAmount: 0 } : assertCashTender(totalAmount, args.cashReceivedAmount)
     const approval = await createHumanApproval(tx, { organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, actionType: 'dispense', reason: args.reason, attested: args.attested,
       evidence: { stage: 'will_call_pickup', fillId: fill.id, fillVersion: fill.version, itemVersion: fill.itemVersion, labelId: label.id, idempotencyKey: args.idempotencyKey } })
     const at = new Date().toISOString()
     const sale = await createCashPickupSale(tx, { prescription, item, fill, userId, reason: args.reason, attested: args.attested, idempotencyKey: args.idempotencyKey,
       operationSuffix: createHash('sha256').update(args.idempotencyKey).digest('hex').slice(0, 12).toUpperCase(), at, readyAt: label.dispensedAt,
       dispenseApprovalId: approval.id, clinicalSafetyReviewId: prescription.safetyReviews?.[0]?.id, pharmacistReviewId: prescription.reviews?.[0]?.id, fillNumber: fill.fillNumber,
-      quantity: fill.quantityDispensed, lot, subtotalAmount, taxableSubtotalAmount: fill.priceSnapshot.taxable ? subtotalAmount : 0, taxAmount, totalAmount, currencyCode, tender })
+      quantity: fill.quantityDispensed, lot, subtotalAmount, taxableSubtotalAmount: fill.priceSnapshot.taxable ? subtotalAmount : 0, taxAmount, totalAmount, currencyCode, tender, card })
     await sudo.query.DispensingLabel.updateOne({ where: { id: label.id }, data: { order: { connect: { id: sale.order.id } } } })
     const updated = await casFill(tx, fill, { ...plan, openKey: null })
     if (fill.refillRequest?.id) await sudo.query.RefillRequest.updateOne({ where: { id: fill.refillRequest.id }, data: { status: 'fulfilled', openRequestKey: null } })
     await sudo.query.Prescription.updateOne({ where: { id: prescription.id }, data: { status: 'dispensed', dispensedAt: at, approval: { connect: { id: approval.id } } } })
-    const result = { success: true, reused: false, prescriptionId: prescription.id, status: 'dispensed', approvalId: approval.id, orderId: sale.order.id, orderNumber: sale.order.orderNumber, receiptItemTitle: item.product.title, paymentId: sale.payment.id, labelId: label.id, totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, currencyCode }
+    const result = { success: true, reused: false, prescriptionId: prescription.id, status: 'dispensed', approvalId: approval.id, orderId: sale.order.id, orderNumber: sale.order.orderNumber, receiptItemTitle: item.product.title, paymentId: sale.payment.id, labelId: label.id, totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, currencyCode, tenderMethod: card ? 'card' : 'cash' }
     await appendFillEvent(tx, updated, { eventKey, fingerprint, action: 'picked_up', actorId: userId, approvalId: approval.id, result, evidence: { labelId: label.id, orderId: sale.order.id, paymentId: sale.payment.id, cashApprovalId: sale.cashApproval.id } })
     return result
   })

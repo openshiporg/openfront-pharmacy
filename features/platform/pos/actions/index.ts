@@ -32,18 +32,25 @@ export type PharmacyPosCashReceipt = {
   currencyCode: string
   paymentId: string
   paymentStatus: string
+  tenderMethod?: string | null
   cashReceivedAmount: number
   changeDueAmount: number
 }
 
-export async function submitPosOrder(input: { locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; reason: string; attested: boolean; idempotencyKey: string }): Promise<PharmacyPosCashReceipt | ActionFailure> {
+export async function submitPosOrder(input: { locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; reason: string; attested: boolean; idempotencyKey: string; tenderMethod?: 'cash' | 'card'; paymentIntentId?: string | null }): Promise<PharmacyPosCashReceipt | ActionFailure> {
   return guardAction(async () => {
-  return unwrap(await platformRequest<{ submitPharmacyPosCashOrder: PharmacyPosCashReceipt }>(`mutation PosCash($locationId: ID!, $customerCartId: ID, $fulfillmentMethod: String, $items: [PharmacyPosCashItemInput!]!, $cashReceivedAmount: Int!, $idempotencyKey: String!, $reason: String!, $attested: Boolean!) { submitPharmacyPosCashOrder(locationId: $locationId, customerCartId: $customerCartId, fulfillmentMethod: $fulfillmentMethod, items: $items, cashReceivedAmount: $cashReceivedAmount, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested) { success reused orderId orderNumber status recordedAt lines { title sku quantity unitPriceAmount lineTotalAmount } subtotalAmount taxAmount totalAmount currencyCode paymentId paymentStatus cashReceivedAmount changeDueAmount } }`, input)).submitPharmacyPosCashOrder
+  return unwrap(await platformRequest<{ submitPharmacyPosCashOrder: PharmacyPosCashReceipt }>(`mutation PosCash($locationId: ID!, $customerCartId: ID, $fulfillmentMethod: String, $items: [PharmacyPosCashItemInput!]!, $cashReceivedAmount: Int!, $idempotencyKey: String!, $reason: String!, $attested: Boolean!, $tenderMethod: String, $paymentIntentId: String) { submitPharmacyPosCashOrder(locationId: $locationId, customerCartId: $customerCartId, fulfillmentMethod: $fulfillmentMethod, items: $items, cashReceivedAmount: $cashReceivedAmount, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested, tenderMethod: $tenderMethod, paymentIntentId: $paymentIntentId) { success reused orderId orderNumber status recordedAt lines { title sku quantity unitPriceAmount lineTotalAmount } subtotalAmount taxAmount totalAmount currencyCode paymentId paymentStatus tenderMethod cashReceivedAmount changeDueAmount } }`, input)).submitPharmacyPosCashOrder
   })
 }
 
 export async function recoverPosOrder(idempotencyKey: string): Promise<PharmacyPosCashReceipt | null | ActionFailure> {
   return guardAction(async () => {
-  return unwrap(await platformRequest<{ pharmacyPosCashReceipt: PharmacyPosCashReceipt | null }>(`query PosReceipt($idempotencyKey: String!) { pharmacyPosCashReceipt(idempotencyKey: $idempotencyKey) { success reused orderId orderNumber status recordedAt lines { title sku quantity unitPriceAmount lineTotalAmount } subtotalAmount taxAmount totalAmount currencyCode paymentId paymentStatus cashReceivedAmount changeDueAmount } }`, { idempotencyKey })).pharmacyPosCashReceipt
+  return unwrap(await platformRequest<{ pharmacyPosCashReceipt: PharmacyPosCashReceipt | null }>(`query PosReceipt($idempotencyKey: String!) { pharmacyPosCashReceipt(idempotencyKey: $idempotencyKey) { success reused orderId orderNumber status recordedAt lines { title sku quantity unitPriceAmount lineTotalAmount } subtotalAmount taxAmount totalAmount currencyCode paymentId paymentStatus tenderMethod cashReceivedAmount changeDueAmount } }`, { idempotencyKey })).pharmacyPosCashReceipt
   })
+}
+
+export type CounterCardPayment = { clientSecret: string; paymentIntentId: string; amount: number; currencyCode: string }
+
+export async function openPosCardPayment(input: { locationId: string; items: Array<{ productId: string; quantity: number }>; idempotencyKey: string }): Promise<CounterCardPayment | ActionFailure> {
+  return guardAction(async () => unwrap(await platformRequest<{ openPharmacyPosCardPayment: CounterCardPayment }>(`mutation PosCard($locationId: ID!, $items: [PharmacyPosCashItemInput!]!, $idempotencyKey: String!) { openPharmacyPosCardPayment(locationId: $locationId, items: $items, idempotencyKey: $idempotencyKey) { clientSecret paymentIntentId amount currencyCode } }`, input)).openPharmacyPosCardPayment)
 }

@@ -4,5 +4,5 @@ import { PosPageClient } from './PosPageClient'
 
 export async function PosPage() {
   const storefront = await getPharmacyPosStorefront()
-  return <PosPageClient {...storefront} timeZone={await getStoreTimeZone()} />
+  return <PosPageClient {...storefront} timeZone={await getStoreTimeZone()} stripeKey={process.env.NEXT_PUBLIC_STRIPE_KEY || null} />
 }

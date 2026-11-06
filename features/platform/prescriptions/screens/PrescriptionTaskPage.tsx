@@ -44,7 +44,7 @@ export async function PrescriptionTaskPage({ params }: { params: Promise<{ id: s
       </div>
     </TaskSection>
     <TaskSection title="Fills">{workbench ? <PrescriptionFillWorkbench prescriptionId={prescription.id} workbench={workbench} timeZone={timeZone} itemNames={Object.fromEntries(prescription.items.map((item) => [item.id, item.medicationName]))} /> : <Callout tone="danger" title="Couldn't load fills">{fillResponse.success ? null : fillResponse.error}</Callout>}</TaskSection>
-    <TaskSection title="Actions"><PrescriptionTaskActions prescription={prescription} workbench={workbench} timeZone={timeZone} /></TaskSection>
+    <TaskSection title="Actions"><PrescriptionTaskActions prescription={prescription} workbench={workbench} timeZone={timeZone} stripeKey={process.env.NEXT_PUBLIC_STRIPE_KEY || null} /></TaskSection>
     <TaskSection title="Transfers" count={prescription.transfers.length}>
       {prescription.transfers.length > 0 && <ListBand className="mb-4">{prescription.transfers.map((transfer) => <div key={transfer.id} className="bg-background px-3.5 py-2.5 text-sm"><TitleLine as="h3" titleClassName="text-sm capitalize" title={`${transfer.direction} · ${transfer.counterpartyName}`} tone={statusTone(transfer.status)} state={humanize(transfer.status)} /><p className="mt-0.5 font-mono text-[12px] text-muted-foreground">{transfer.counterpartyPhone || 'No phone'} · {formatDay(transfer.requestedAt, timeZone)}</p></div>)}</ListBand>}
       {!['rejected', 'cancelled'].includes(prescription.status) && <TransferOutForm prescriptionId={prescription.id} patientId={prescription.patientId} />}

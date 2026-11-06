@@ -87,7 +87,7 @@ function storeAppearance(host: HTMLElement) {
 }
 
 /** Payment Element for a PaymentIntent; calls onPaid once Stripe reports the payment succeeded. */
-export function StripeCardStep({ publishableKey, clientSecret, returnUrl, totalLabel, onBeforeConfirm, onPaid }: { publishableKey: string; clientSecret: string; returnUrl: string; totalLabel: string; onBeforeConfirm: () => void; onPaid: () => void }) {
+export function StripeCardStep({ publishableKey, clientSecret, returnUrl, totalLabel, onBeforeConfirm, onPaid, payButtonClass, payLabel }: { publishableKey: string; clientSecret: string; returnUrl: string; totalLabel: string; onBeforeConfirm: () => void; onPaid: () => void; payButtonClass?: string; payLabel?: string }) {
   const mountRef = useRef<HTMLDivElement>(null)
   const stripeRef = useRef<{ stripe: StripeInstance; elements: StripeElements } | null>(null)
   const [ready, setReady] = useState(false)
@@ -127,6 +127,6 @@ export function StripeCardStep({ publishableKey, clientSecret, returnUrl, totalL
   return <div className="grid w-full min-w-0 gap-4">
     <div ref={mountRef} className="min-h-24 w-full min-w-0" aria-busy={!ready} />
     {error && <p role="alert" className="rounded-[4px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
-    <button type="button" onClick={pay} disabled={!ready || pending} className={`${buttonClass} min-h-12 w-full`}>{pending ? 'Paying…' : `Pay ${totalLabel}`}</button>
+    <button type="button" onClick={pay} disabled={!ready || pending} className={payButtonClass || `${buttonClass} min-h-12 w-full`}>{pending ? 'Charging…' : payLabel || `Pay ${totalLabel}`}</button>
   </div>
 }

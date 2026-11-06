@@ -2,7 +2,7 @@ import { pharmacyCustomerAccount, pharmacyCustomerOrder, pharmacyCustomerOrderDe
 import { mergeSchemas } from '@graphql-tools/schema'
 import type { GraphQLSchema } from 'graphql'
 
-import { pharmacyPosCustomers, pharmacyPosCashReceipt, refundPharmacyCashPayment, recordPharmacyCashPolicy, submitPharmacyPosCashOrder } from './cashWorkflows'
+import { openPharmacyPosCardPayment, pharmacyPosCustomers, pharmacyPosCashReceipt, refundPharmacyCashPayment, recordPharmacyCashPolicy, submitPharmacyPosCashOrder } from './cashWorkflows'
 import { addPharmacyCartItem, createPharmacyCart, pharmacyCart, removePharmacyCartItem, updatePharmacyCartItem } from './cartOperations'
 import { holdPrescriptionForClinicalReReview, recordPharmacyDrugReferenceReview, recordPrescriptionClinicalSafetyReview } from './clinicalWorkflows'
 import { recordPharmacyPrescriberCredentialReview, recordPharmacyStaffCredentialReview } from './credentialWorkflows'
@@ -51,7 +51,7 @@ import { replayPharmacyOutboxEvent } from './outboxWorkflows'
 import { activePharmacyPaymentProviders, initiatePharmacyPaymentSession, refundPharmacyPayment } from './paymentOperations'
 import handlePaymentProviderWebhook from './handlePaymentProviderWebhook'
 import { reconcilePharmacyPaymentSession } from './paymentRecovery'
-import { authorizePrescriptionDispensing, pickupPrescriptionFill, recordPrescriptionDispensing, recordPrescriptionReview, returnPrescriptionFillToStock } from './prescriptionWorkflows'
+import { authorizePrescriptionDispensing, openPrescriptionPickupCardPayment, pickupPrescriptionFill, recordPrescriptionDispensing, recordPrescriptionReview, returnPrescriptionFillToStock } from './prescriptionWorkflows'
 import { closePharmacyRecall, disposeRecallLot, openPharmacyRecall, recordRecallExposureAction } from './recallWorkflows'
 import { pharmacyOperationalSummary, publicPharmacyCatalog, publicPharmacyLocations, publicPharmacyTenant, publicPharmacyCategories } from './publicQueries'
 import redirectToInit from './redirectToInit'
@@ -646,14 +646,15 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
       type PharmacyRefundResult { success: Boolean!, reused: Boolean, paymentId: ID!, status: String!, amount: Int! }
       type PharmacyCashPolicyResult { success: Boolean!, organizationId: ID!, status: String!, taxRateBps: Int!, approvalId: ID! }
       type PharmacyPosCashReceiptLine { title: String!, sku: String!, quantity: Int!, unitPriceAmount: Int!, lineTotalAmount: Int! }
-      type PharmacyPosCashOrderResult { success: Boolean!, reused: Boolean!, orderId: ID!, orderNumber: String!, status: String!, recordedAt: String!, lines: [PharmacyPosCashReceiptLine!]!, subtotalAmount: Int!, taxAmount: Int!, totalAmount: Int!, currencyCode: String!, paymentId: ID!, paymentStatus: String!, cashReceivedAmount: Int!, changeDueAmount: Int! }
+      type PharmacyPosCashOrderResult { success: Boolean!, reused: Boolean!, orderId: ID!, orderNumber: String!, status: String!, recordedAt: String!, lines: [PharmacyPosCashReceiptLine!]!, subtotalAmount: Int!, taxAmount: Int!, totalAmount: Int!, currencyCode: String!, paymentId: ID!, paymentStatus: String!, tenderMethod: String, cashReceivedAmount: Int!, changeDueAmount: Int! }
+      type PharmacyCounterCardPayment { clientSecret: String!, paymentIntentId: String!, amount: Int!, currencyCode: String! }
       type PharmacyPaymentReconciliationResult { success: Boolean!, paymentSessionId: ID!, status: String! }
       type PharmacyPaymentWebhookResult { accepted: Boolean!, reused: Boolean!, eventId: String!, status: String! }
       type PharmacyIntegrationConfigurationResult { success: Boolean!, providerId: ID!, status: String! }
       type PharmacyPrescriberValidationResult { success: Boolean!, prescriberId: ID!, status: String!, validationReference: String! }
       type PharmacyExternalWorkflowResult { success: Boolean!, reused: Boolean!, workflowId: ID!, status: String!, externalReference: String }
       type PharmacyIntegrationWebhookResult { accepted: Boolean!, reused: Boolean!, eventId: String!, status: String! }
-      type PharmacyPrescriptionActionResult { success: Boolean!, reused: Boolean, prescriptionId: ID, reviewId: ID, approvalId: ID, orderId: ID, orderNumber: String, receiptItemTitle: String, paymentId: ID, labelId: ID, status: String, totalAmount: Int, cashReceivedAmount: Int, changeDueAmount: Int, currencyCode: String }
+      type PharmacyPrescriptionActionResult { success: Boolean!, reused: Boolean, prescriptionId: ID, reviewId: ID, approvalId: ID, orderId: ID, orderNumber: String, receiptItemTitle: String, paymentId: ID, labelId: ID, status: String, totalAmount: Int, cashReceivedAmount: Int, changeDueAmount: Int, currencyCode: String, tenderMethod: String }
       type PharmacyTransferResult { success: Boolean!, reused: Boolean, transferId: ID!, approvalId: ID, status: String! }
       type PharmacyRefillResult { success: Boolean!, reused: Boolean, refillRequestId: ID!, status: String!, approvalId: ID }
       type PharmacyFillCommandResult { success: Boolean!, reused: Boolean!, fillId: ID, status: String!, version: Int }
@@ -835,7 +836,9 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         refundPharmacyPayment(paymentId: ID!, reason: String!, attested: Boolean!): PharmacyRefundResult!
         refundPharmacyCashPayment(paymentId: ID!, cashReturnedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyRefundResult!
         recordPharmacyCashPolicy(organizationId: ID!, taxRateBps: Int!, policyReference: String!, reason: String!, attested: Boolean!): PharmacyCashPolicyResult!
-        submitPharmacyPosCashOrder(locationId: ID!, customerCartId: ID, fulfillmentMethod: String, items: [PharmacyPosCashItemInput!]!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPosCashOrderResult!
+        submitPharmacyPosCashOrder(locationId: ID!, customerCartId: ID, fulfillmentMethod: String, items: [PharmacyPosCashItemInput!]!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!, tenderMethod: String, paymentIntentId: String): PharmacyPosCashOrderResult!
+        openPharmacyPosCardPayment(locationId: ID!, items: [PharmacyPosCashItemInput!]!, idempotencyKey: String!): PharmacyCounterCardPayment!
+        openPrescriptionPickupCardPayment(prescriptionId: ID!, fillId: ID!, idempotencyKey: String!): PharmacyCounterCardPayment!
         reconcilePharmacyPaymentSession(paymentSessionId: ID!): PharmacyPaymentReconciliationResult!
         handlePaymentProviderWebhook(providerId: ID!, event: JSON!, headers: JSON!): PharmacyPaymentWebhookResult!
         configurePharmacyIntegrationProvider(providerId: ID!, baseUrl: String!, validationPath: String!, submitPath: String!, statusPath: String!, prescriberValidationPath: String, bearerToken: String!, webhookSecret: String!): PharmacyIntegrationConfigurationResult!
@@ -848,7 +851,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         recordPrescriptionReview(prescriptionId: ID!, decision: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
         authorizePrescriptionDispensing(prescriptionId: ID!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
         recordPrescriptionDispensing(prescriptionId: ID!, prescriptionItemId: ID!, lotId: ID!, quantity: Int!, cashReceivedAmount: Int!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, idempotencyKey: String!, reason: String!, attested: Boolean!, fillId: ID, expectedFillVersion: Int, hold: Boolean): PharmacyPrescriptionActionResult!
-        pickupPrescriptionFill(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
+        pickupPrescriptionFill(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!, tenderMethod: String, paymentIntentId: String): PharmacyPrescriptionActionResult!
         returnPrescriptionFillToStock(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cause: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
         createPharmacyPatient(organizationId: ID!, patientNumber: String!, firstName: String!, lastName: String!, dateOfBirth: String!, email: String, phone: String, preferredContactMethod: String!, address: JSON, identityMethod: String!, identityReference: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
         updatePharmacyPatientContact(patientId: ID!, email: String, phone: String, preferredContactMethod: String!, address: JSON, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
@@ -949,6 +952,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         refundPharmacyCashPayment,
         recordPharmacyCashPolicy,
         submitPharmacyPosCashOrder,
+        openPharmacyPosCardPayment,
+        openPrescriptionPickupCardPayment,
         reconcilePharmacyPaymentSession,
         handlePaymentProviderWebhook,
         configurePharmacyIntegrationProvider,

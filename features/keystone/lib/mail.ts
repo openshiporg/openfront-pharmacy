@@ -67,7 +67,7 @@ function escapeHtml(value: string) {
 }
 
 /** An absolute origin for links: SMTP_STORE_LINK when set, otherwise the public host of the current request. */
-function requestOrigin(request?: { headers?: Record<string, string | string[] | undefined> }) {
+export function requestOrigin(request?: { headers?: Record<string, string | string[] | undefined> }) {
   const configured = getBaseUrlForEmails()
   if (configured) return configured.replace(/\/$/, '')
   const header = (name: string) => {
@@ -134,4 +134,30 @@ export async function sendPasswordResetEmail(resetToken: string, to: string, bas
   if (process.env.MAIL_USER?.includes("ethereal.email")) {
     console.log(`📧 Message Sent!  Preview it at ${getTestMessageUrl(info as any)}`);
   }
+}
+/**
+ * "Ready for pickup" (Digital Pharmacist / Shopify local pickup). Prescription notices are minimum
+ * necessary: they name the pharmacy and a reference, never the medication.
+ */
+export async function sendPickupReadyEmail({ to, storeName, kind, reference, locationName, phone, url }: { to: string; storeName: string; kind: 'prescription' | 'order'; reference: string; locationName: string; phone?: string | null; url: string }): Promise<{ sent: boolean; messageId?: string }> {
+  if (!(await isEmailConfigured())) return { sent: false }
+  const headline = kind === 'prescription' ? 'Your prescription is ready for pickup' : `Order ${reference} is ready for pickup`
+  const detail = kind === 'prescription'
+    ? `Pick it up at the pharmacy counter at ${locationName}. Bring a photo ID.`
+    : `Pick it up at ${locationName}. Bring your order number.`
+  const info = await transport.sendMail({
+    to,
+    from: process.env.SMTP_FROM,
+    subject: `${storeName}: ${kind === 'prescription' ? 'prescription ready for pickup' : `order ${reference} is ready for pickup`}`,
+    html: `
+    <body style="background: #f9f9f9;">
+      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: #ffffff; max-width: 600px; margin: auto; border-radius: 10px; font-family: Helvetica, Arial, sans-serif; color: #444444;">
+        <tr><td align="center" style="font-size: 18px;">${escapeHtml(storeName)}</td></tr>
+        <tr><td align="center" style="font-size: 16px;"><strong>${escapeHtml(headline)}</strong></td></tr>
+        <tr><td align="center" style="font-size: 15px; line-height: 22px;">${escapeHtml(detail)}${phone ? `<br />Questions? Call ${escapeHtml(phone)}.` : ''}</td></tr>
+        ${url ? `<tr><td align="center" style="padding: 10px 0 20px;"><a href="${escapeHtml(url)}" target="_blank" style="font-size: 16px; color: #ffffff; background: #1f6f5c; text-decoration: none; border-radius: 999px; padding: 12px 22px; display: inline-block; font-weight: bold;">${kind === 'prescription' ? 'View in your account' : 'View order'}</a></td></tr>` : ''}
+      </table>
+    </body>`,
+  })
+  return { sent: true, messageId: (info as any)?.messageId }
 }

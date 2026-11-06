@@ -5,6 +5,7 @@ import { acquireTransactionLocks, withDomainTransaction } from './lib/transactio
 import { isManualPaymentProvider } from './paymentOperations'
 import { DomainError } from './lib/errors'
 import { canCancelFulfillment, isUnpaidPickupPayment } from './lib/fulfillment-cancel'
+import { notifyOrderReady } from './pickupNotice'
 
 const ORDER_STATUS: Record<string, string> = {
   preparing: 'processing',
@@ -21,6 +22,13 @@ export async function transitionOrderFulfillment(
 ) {
   requirePermission(context, 'canManageOrders')
   if (!ORDER_STATUS[args.status]) throw new DomainError('Unsupported fulfillment status')
+  const result = await transitionInTransaction(args, context)
+  // Pickup order is on the shelf: tell the customer (once per fulfillment, after commit).
+  if (args.status === 'ready') await notifyOrderReady(context, { fulfillmentId: args.fulfillmentId })
+  return result
+}
+
+async function transitionInTransaction(args: { fulfillmentId: string; status: string; reason: string; attested: boolean }, context: Context) {
   return withDomainTransaction(context, [`fulfillment:${args.fulfillmentId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const fulfillment = await sudo.query.Fulfillment.findOne({

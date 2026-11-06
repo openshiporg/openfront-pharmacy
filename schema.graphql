@@ -4437,7 +4437,9 @@ type Mutation {
   refundPharmacyPayment(paymentId: ID!, reason: String!, attested: Boolean!): PharmacyRefundResult!
   refundPharmacyCashPayment(paymentId: ID!, cashReturnedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyRefundResult!
   recordPharmacyCashPolicy(organizationId: ID!, taxRateBps: Int!, policyReference: String!, reason: String!, attested: Boolean!): PharmacyCashPolicyResult!
-  submitPharmacyPosCashOrder(locationId: ID!, customerCartId: ID, fulfillmentMethod: String, items: [PharmacyPosCashItemInput!]!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPosCashOrderResult!
+  submitPharmacyPosCashOrder(locationId: ID!, customerCartId: ID, fulfillmentMethod: String, items: [PharmacyPosCashItemInput!]!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!, tenderMethod: String, paymentIntentId: String): PharmacyPosCashOrderResult!
+  openPharmacyPosCardPayment(locationId: ID!, items: [PharmacyPosCashItemInput!]!, idempotencyKey: String!): PharmacyCounterCardPayment!
+  openPrescriptionPickupCardPayment(prescriptionId: ID!, fillId: ID!, idempotencyKey: String!): PharmacyCounterCardPayment!
   reconcilePharmacyPaymentSession(paymentSessionId: ID!): PharmacyPaymentReconciliationResult!
   handlePaymentProviderWebhook(providerId: ID!, event: JSON!, headers: JSON!): PharmacyPaymentWebhookResult!
   configurePharmacyIntegrationProvider(providerId: ID!, baseUrl: String!, validationPath: String!, submitPath: String!, statusPath: String!, prescriberValidationPath: String, bearerToken: String!, webhookSecret: String!): PharmacyIntegrationConfigurationResult!
@@ -4449,7 +4451,7 @@ type Mutation {
   recordPrescriptionReview(prescriptionId: ID!, decision: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
   authorizePrescriptionDispensing(prescriptionId: ID!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
   recordPrescriptionDispensing(prescriptionId: ID!, prescriptionItemId: ID!, lotId: ID!, quantity: Int!, cashReceivedAmount: Int!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, idempotencyKey: String!, reason: String!, attested: Boolean!, fillId: ID, expectedFillVersion: Int, hold: Boolean): PharmacyPrescriptionActionResult!
-  pickupPrescriptionFill(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
+  pickupPrescriptionFill(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!, tenderMethod: String, paymentIntentId: String): PharmacyPrescriptionActionResult!
   returnPrescriptionFillToStock(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cause: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
   createPharmacyPatient(organizationId: ID!, patientNumber: String!, firstName: String!, lastName: String!, dateOfBirth: String!, email: String, phone: String, preferredContactMethod: String!, address: JSON, identityMethod: String!, identityReference: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
   updatePharmacyPatientContact(patientId: ID!, email: String, phone: String, preferredContactMethod: String!, address: JSON, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
@@ -5723,8 +5725,16 @@ type PharmacyPosCashOrderResult {
   currencyCode: String!
   paymentId: ID!
   paymentStatus: String!
+  tenderMethod: String
   cashReceivedAmount: Int!
   changeDueAmount: Int!
+}
+
+type PharmacyCounterCardPayment {
+  clientSecret: String!
+  paymentIntentId: String!
+  amount: Int!
+  currencyCode: String!
 }
 
 type PharmacyPaymentReconciliationResult {
@@ -5784,6 +5794,7 @@ type PharmacyPrescriptionActionResult {
   cashReceivedAmount: Int
   changeDueAmount: Int
   currencyCode: String
+  tenderMethod: String
 }
 
 type PharmacyTransferResult {

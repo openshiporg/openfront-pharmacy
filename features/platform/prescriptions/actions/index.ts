@@ -28,7 +28,7 @@ type PrescriptionActionResult = {
   currencyCode?: string | null
 }
 
-const prescriptionResultFields = 'success reused prescriptionId reviewId approvalId orderId orderNumber receiptItemTitle paymentId labelId status totalAmount cashReceivedAmount changeDueAmount currencyCode'
+const prescriptionResultFields = 'success reused prescriptionId reviewId approvalId orderId orderNumber receiptItemTitle paymentId labelId status totalAmount cashReceivedAmount changeDueAmount currencyCode tenderMethod'
 
 export async function intakePrescriptionAction(input: {
   organizationId: string
@@ -70,9 +70,9 @@ export async function dispensePrescriptionAction(input: { prescriptionId: string
   })
 }
 
-export async function pickupPrescriptionFillAction(input: { prescriptionId: string; fillId: string; expectedFillVersion: number; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean }) {
+export async function pickupPrescriptionFillAction(input: { prescriptionId: string; fillId: string; expectedFillVersion: number; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean; tenderMethod?: 'cash' | 'card'; paymentIntentId?: string | null }) {
   return guardAction(async () => {
-  const response = await platformRequest<{ pickupPrescriptionFill: PrescriptionActionResult }>(`mutation Pickup($prescriptionId: ID!, $fillId: ID!, $expectedFillVersion: Int!, $cashReceivedAmount: Int!, $idempotencyKey: String!, $reason: String!, $attested: Boolean!) { pickupPrescriptionFill(prescriptionId: $prescriptionId, fillId: $fillId, expectedFillVersion: $expectedFillVersion, cashReceivedAmount: $cashReceivedAmount, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested) { ${prescriptionResultFields} } }`, input)
+  const response = await platformRequest<{ pickupPrescriptionFill: PrescriptionActionResult }>(`mutation Pickup($prescriptionId: ID!, $fillId: ID!, $expectedFillVersion: Int!, $cashReceivedAmount: Int!, $idempotencyKey: String!, $reason: String!, $attested: Boolean!, $tenderMethod: String, $paymentIntentId: String) { pickupPrescriptionFill(prescriptionId: $prescriptionId, fillId: $fillId, expectedFillVersion: $expectedFillVersion, cashReceivedAmount: $cashReceivedAmount, idempotencyKey: $idempotencyKey, reason: $reason, attested: $attested, tenderMethod: $tenderMethod, paymentIntentId: $paymentIntentId) { ${prescriptionResultFields} } }`, input)
   revalidatePath('/account')
   return result(response, `/dashboard/platform/prescriptions/${input.prescriptionId}`).pickupPrescriptionFill
   })
@@ -131,5 +131,13 @@ export async function requestTransferOutAction(input: { prescriptionId: string; 
   if (!response.success) return { success: false as const, error: response.error }
   revalidatePath(`/dashboard/platform/prescriptions/${input.prescriptionId}`)
   return { success: true as const }
+  })
+}
+
+export async function openPickupCardPaymentAction(input: { prescriptionId: string; fillId: string; idempotencyKey: string }) {
+  return guardAction(async () => {
+    const response = await platformRequest<{ openPrescriptionPickupCardPayment: { clientSecret: string; paymentIntentId: string; amount: number; currencyCode: string } }>(`mutation PickupCard($prescriptionId: ID!, $fillId: ID!, $idempotencyKey: String!) { openPrescriptionPickupCardPayment(prescriptionId: $prescriptionId, fillId: $fillId, idempotencyKey: $idempotencyKey) { clientSecret paymentIntentId amount currencyCode } }`, input)
+    if (!response.success) throw new ActionError(response.error)
+    return response.data.openPrescriptionPickupCardPayment
   })
 }

@@ -34,6 +34,7 @@ export const HumanApproval = list({
         { label: 'Cash/tax policy review', value: 'cash_policy' },
         { label: 'Cash tender received', value: 'cash_tender' },
         { label: 'Cash refund returned', value: 'cash_refund' },
+        { label: 'Card charged at the counter', value: 'card_tender' },
         { label: 'Consequential agent action', value: 'agent_action' },
       ],
       validation: { isRequired: true },

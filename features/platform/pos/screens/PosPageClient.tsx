@@ -13,19 +13,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
 import type { PharmacyCatalogProductProjection, PharmacyOperatorLocationProjection } from '@/features/pharmacy/contracts'
 import { calculateTaxAmount, calculateTaxableSubtotal } from '@/features/keystone/workflows/commerce-policy'
-import { recoverPosOrder, submitPosOrder } from '../actions'
+import { openPosCardPayment, recoverPosOrder, submitPosOrder, type CounterCardPayment } from '../actions'
+import { StripeCardStep } from '@/features/storefront/components/StripeCardStep'
 import { unwrapAction } from '@/features/platform/lib/action-result'
 import { formatDateTime } from '@/features/platform/lib/dates'
 
-type CashReceipt = { orderNumber: string; paymentId: string; recordedAt: string; currencyCode: string; paymentStatus: string; lines: Array<{ title: string; sku: string; quantity: number; unitPriceAmount: number; lineTotalAmount: number }>; subtotalAmount: number; taxAmount: number; totalAmount: number; cashReceivedAmount: number; changeDueAmount: number }
+type CashReceipt = { orderNumber: string; paymentId: string; recordedAt: string; currencyCode: string; paymentStatus: string; tenderMethod?: string | null; lines: Array<{ title: string; sku: string; quantity: number; unitPriceAmount: number; lineTotalAmount: number }>; subtotalAmount: number; taxAmount: number; totalAmount: number; cashReceivedAmount: number; changeDueAmount: number }
 const WALK_IN = '__walk_in__'
 
-type PosPendingIntent = { idempotencyKey: string; locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; reason: string; attested: boolean }
+type PosPendingIntent = { idempotencyKey: string; locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; reason: string; attested: boolean; tenderMethod?: 'cash' | 'card'; paymentIntentId?: string | null }
 
-export function PosPageClient({ location, products, customers, timeZone }: { location: PharmacyOperatorLocationProjection | null; products: PharmacyCatalogProductProjection[]; customers: Array<{ id: string; label: string }>; timeZone?: string | null }) {
+export function PosPageClient({ location, products, customers, timeZone, stripeKey }: { location: PharmacyOperatorLocationProjection | null; products: PharmacyCatalogProductProjection[]; customers: Array<{ id: string; label: string }>; timeZone?: string | null; stripeKey?: string | null }) {
   const [isPending, startTransition] = useTransition()
   const [cart, setCart] = useState<Record<string, number>>({})
   const [cashReceived, setCashReceived] = useState('')
+  const [tender, setTender] = useState<'cash' | 'card'>('cash')
+  const [cardPayment, setCardPayment] = useState<CounterCardPayment | null>(null)
   const [customerCartId, setCustomerCartId] = useState('')
   const [fulfillmentMethod, setFulfillmentMethod] = useState('pos')
   const [reason, setReason] = useState('Walk-in cash sale')
@@ -71,14 +74,15 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
       setCashReceived((intent.cashReceivedAmount / 100).toFixed(2))
       setFulfillmentMethod(intent.fulfillmentMethod || 'pos')
       setCustomerCartId(intent.customerCartId || '')
+      setTender(intent.tenderMethod || 'cash')
       setReason(intent.reason)
       setAttested(intent.attested)
       setIntentUnresolved(true)
       setMessage('An unfinished sale was restored. Retry it to recover the receipt.')
       unwrapAction(recoverPosOrder(intent.idempotencyKey)).then((order) => {
         if (!order) return
-        setReceipt({ orderNumber: order.orderNumber, paymentId: order.paymentId, recordedAt: order.recordedAt, currencyCode: order.currencyCode, paymentStatus: order.paymentStatus, lines: order.lines, subtotalAmount: order.subtotalAmount, taxAmount: order.taxAmount, totalAmount: order.totalAmount, cashReceivedAmount: order.cashReceivedAmount, changeDueAmount: order.changeDueAmount })
-        setMessage(`Recovered cash sale ${order.orderNumber}.`)
+        setReceipt({ orderNumber: order.orderNumber, paymentId: order.paymentId, recordedAt: order.recordedAt, currencyCode: order.currencyCode, paymentStatus: order.paymentStatus, tenderMethod: order.tenderMethod, lines: order.lines, subtotalAmount: order.subtotalAmount, taxAmount: order.taxAmount, totalAmount: order.totalAmount, cashReceivedAmount: order.cashReceivedAmount, changeDueAmount: order.changeDueAmount })
+        setMessage(`Recovered ${order.tenderMethod === 'card' ? 'card' : 'cash'} sale ${order.orderNumber}.`)
         sessionStorage.removeItem(storageKey)
         idempotencyKey.current = null
         pendingIntent.current = null
@@ -90,6 +94,44 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
       setIntentUnresolved(true)
     }
   }, [locationId])
+
+  function finishSale(order: { orderNumber: string; currencyCode: string; totalAmount: number; tenderMethod?: string | null }) {
+    if (!location) return
+    setMessage(`${order.tenderMethod === 'card' ? 'Card' : 'Cash'} sale ${order.orderNumber} recorded. Total ${new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currencyCode }).format(order.totalAmount / 100)}.`)
+    sessionStorage.removeItem(`pharmacy-pos-pending:${location.id}`)
+    idempotencyKey.current = null
+    pendingIntent.current = null
+    setIntentUnresolved(false)
+    setCardPayment(null)
+    setCart({}); setCashReceived(''); setAttested(false); setTender('cash')
+  }
+
+  /** Card: open the Stripe payment for this basket; the sale records once Stripe reports it paid. */
+  function startCard() {
+    if (!location) return setError('No pharmacy location available')
+    setError(''); setMessage('')
+    const key = idempotencyKey.current || crypto.randomUUID()
+    idempotencyKey.current = key
+    const items = lines.map((line) => ({ productId: line.product.id, quantity: line.quantity }))
+    startTransition(() => unwrapAction(openPosCardPayment({ locationId: location.id, items, idempotencyKey: key })).then(setCardPayment).catch((cause) => setError(cause instanceof Error ? cause.message : 'Card payment could not start')))
+  }
+
+  function recordCardSale(paymentIntentId: string) {
+    if (!location || !idempotencyKey.current) return
+    pendingIntent.current = {
+      locationId: location.id,
+      customerCartId: customerCartId || null,
+      fulfillmentMethod,
+      items: lines.map((line) => ({ productId: line.product.id, quantity: line.quantity })),
+      cashReceivedAmount: 0,
+      reason,
+      attested,
+      idempotencyKey: idempotencyKey.current,
+      tenderMethod: 'card',
+      paymentIntentId,
+    }
+    sell()
+  }
 
   function sell() {
     if (!location) return setError('No pharmacy location available')
@@ -109,13 +151,8 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
     sessionStorage.setItem(`pharmacy-pos-pending:${location.id}`, JSON.stringify(intent))
     setIntentUnresolved(true)
     startTransition(() => unwrapAction(submitPosOrder(intent)).then((order) => {
-      setReceipt({ orderNumber: order.orderNumber, paymentId: order.paymentId, recordedAt: order.recordedAt, currencyCode: order.currencyCode, paymentStatus: order.paymentStatus, lines: order.lines, subtotalAmount: order.subtotalAmount, taxAmount: order.taxAmount, totalAmount: order.totalAmount, cashReceivedAmount: order.cashReceivedAmount, changeDueAmount: order.changeDueAmount })
-      setMessage(`Cash sale ${order.orderNumber} recorded. Total ${new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currencyCode }).format(order.totalAmount / 100)}.`)
-      sessionStorage.removeItem(`pharmacy-pos-pending:${location.id}`)
-      idempotencyKey.current = null
-      pendingIntent.current = null
-      setIntentUnresolved(false)
-      setCart({}); setCashReceived(''); setAttested(false)
+      setReceipt({ orderNumber: order.orderNumber, paymentId: order.paymentId, recordedAt: order.recordedAt, currencyCode: order.currencyCode, paymentStatus: order.paymentStatus, tenderMethod: order.tenderMethod, lines: order.lines, subtotalAmount: order.subtotalAmount, taxAmount: order.taxAmount, totalAmount: order.totalAmount, cashReceivedAmount: order.cashReceivedAmount, changeDueAmount: order.changeDueAmount })
+      finishSale(order)
     }).catch((cause) => setError(cause instanceof Error ? cause.message : 'Sale failed')))
   }
   const breadcrumbs = [
@@ -146,16 +183,16 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
 
       {message && <Callout tone="muted"><span role="status" aria-live="polite" className="inline-flex items-baseline gap-2 text-foreground"><CheckCircle2 aria-hidden="true" className="size-4 translate-y-0.5 text-emerald-600" />{message}</span></Callout>}
       {error && <Callout tone="danger">{error}</Callout>}
-      {isPending && <p role="status" className="sr-only">Recording cash sale</p>}
+      {isPending && <p role="status" className="sr-only">Recording sale</p>}
 
-      {receipt && <section className="mx-auto w-full max-w-md rounded-[6px] bg-background p-5 font-mono text-[13px] border border-border print:max-w-none print:ring-0" aria-label="Cash receipt">
+      {receipt && <section className="mx-auto w-full max-w-md rounded-[6px] bg-background p-5 font-mono text-[13px] border border-border print:max-w-none print:ring-0" aria-label="Sale receipt">
         <div className="flex items-start justify-between gap-4 border-b border-dashed pb-3 font-sans">
           <div><p className="text-base font-semibold">{location.operatorDisplayName}</p><p className="text-xs text-muted-foreground">{location.name}{location.operatorPhone ? ` · ${location.operatorPhone}` : ''}</p></div>
           <Button variant="outline" size="sm" onClick={() => window.print()} className="print:hidden">Print</Button>
         </div>
         <div className="grid gap-0.5 border-b border-dashed py-3 text-[11px] text-muted-foreground"><p>ORDER {receipt.orderNumber}</p><p>PAYMENT {receipt.paymentId} · {receipt.paymentStatus.replaceAll('_', ' ')}</p><p>{formatDateTime(receipt.recordedAt, timeZone)}</p></div>
         <div className="grid gap-1.5 border-b border-dashed py-3">{receipt.lines.map((line, index) => <div key={`${line.sku}:${index}`} className="flex justify-between gap-4"><span className="min-w-0">{line.quantity}× {line.title}<span className="block text-[11px] text-muted-foreground">{line.sku}</span></span><span className="tabular-nums">{money(line.lineTotalAmount, receipt.currencyCode)}</span></div>)}</div>
-        <dl className="grid gap-1 pt-3 tabular-nums"><div className="flex justify-between"><dt>Subtotal</dt><dd>{money(receipt.subtotalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Tax</dt><dd>{money(receipt.taxAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between font-semibold"><dt>Total</dt><dd>{money(receipt.totalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Cash</dt><dd>{money(receipt.cashReceivedAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Change</dt><dd>{money(receipt.changeDueAmount, receipt.currencyCode)}</dd></div></dl>
+        <dl className="grid gap-1 pt-3 tabular-nums"><div className="flex justify-between"><dt>Subtotal</dt><dd>{money(receipt.subtotalAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Tax</dt><dd>{money(receipt.taxAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between font-semibold"><dt>Total</dt><dd>{money(receipt.totalAmount, receipt.currencyCode)}</dd></div>{receipt.tenderMethod === 'card' ? <div className="flex justify-between"><dt>Card</dt><dd>{money(receipt.totalAmount, receipt.currencyCode)}</dd></div> : <><div className="flex justify-between"><dt>Cash</dt><dd>{money(receipt.cashReceivedAmount, receipt.currencyCode)}</dd></div><div className="flex justify-between"><dt>Change</dt><dd>{money(receipt.changeDueAmount, receipt.currencyCode)}</dd></div></>}</dl>
       </section>}
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_23rem] lg:items-start">
@@ -190,9 +227,9 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
                 </div>
                 <Mono className="shrink-0 text-sm">{money(product.priceAmount, product.currencyCode)}</Mono>
                 <div role="group" aria-label={`Quantity of ${product.title}`} className="flex shrink-0 items-center gap-1">
-                  <button type="button" className={`${buttonClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity - 1)} disabled={intentUnresolved || quantity === 0} aria-label={`Remove one ${product.title} from cart`}><Minus className="size-3.5" /></button>
+                  <button type="button" className={`${buttonClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity - 1)} disabled={intentUnresolved || !!cardPayment || quantity === 0} aria-label={`Remove one ${product.title} from cart`}><Minus className="size-3.5" /></button>
                   <Mono className="w-6 text-center text-sm" aria-label={`${quantity} ${product.title} in cart`}>{quantity}</Mono>
-                  <button type="button" className={`${buttonClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity + 1)} disabled={intentUnresolved || !available || quantity >= (product.availableQuantity || 0)} aria-label={`Add one ${product.title} to cart`}><Plus className="size-3.5" /></button>
+                  <button type="button" className={`${buttonClass} size-8 px-0 max-sm:size-10`} onClick={() => setQuantity(product.id, quantity + 1)} disabled={intentUnresolved || !!cardPayment || !available || quantity >= (product.availableQuantity || 0)} aria-label={`Add one ${product.title} to cart`}><Plus className="size-3.5" /></button>
                 </div>
               </div>
             })}</ListBand>}
@@ -201,17 +238,25 @@ export function PosPageClient({ location, products, customers, timeZone }: { loc
         <aside id="sale" aria-label="Sale" className="space-y-4 rounded-[6px] border border-border bg-card p-4 lg:sticky lg:top-4">
           <div className="flex items-baseline justify-between gap-3"><h2 className="text-sm font-semibold text-foreground">Sale</h2><Count>{itemCount} items</Count></div>
           {lines.length > 0 && <ul className="grid gap-1 text-sm">{lines.map((line) => <li key={line.product.id} className="flex justify-between gap-3"><span className="min-w-0 truncate"><Mono className="text-muted-foreground">{line.quantity}×</Mono> {line.product.title}</span><Mono>{money(line.product.priceAmount * line.quantity)}</Mono></li>)}</ul>}
-          <div className="grid gap-2"><Label>Customer</Label><Select value={customerCartId || WALK_IN} disabled={intentUnresolved} onValueChange={(value) => setCustomerCartId(value === WALK_IN ? '' : value)}><SelectTrigger aria-label="Customer" className="rounded-[5px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={WALK_IN}>Walk-in</SelectItem>{customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.label}</SelectItem>)}</SelectContent></Select></div>
-          <div className="grid gap-2"><span className="text-sm font-medium">Handoff</span><Track label="Handoff" className="w-fit"><Pill active={fulfillmentMethod === 'pos'} disabled={intentUnresolved} onClick={() => setFulfillmentMethod('pos')}>Collected now</Pill><Pill active={fulfillmentMethod === 'pickup'} disabled={intentUnresolved} onClick={() => setFulfillmentMethod('pickup')}>Pickup later</Pill></Track></div>
+          <div className="grid gap-2"><Label>Customer</Label><Select value={customerCartId || WALK_IN} disabled={intentUnresolved || !!cardPayment} onValueChange={(value) => setCustomerCartId(value === WALK_IN ? '' : value)}><SelectTrigger aria-label="Customer" className="rounded-[5px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value={WALK_IN}>Walk-in</SelectItem>{customers.map(customer => <SelectItem key={customer.id} value={customer.id}>{customer.label}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-2"><span className="text-sm font-medium">Handoff</span><Track label="Handoff" className="w-fit"><Pill active={fulfillmentMethod === 'pos'} disabled={intentUnresolved || !!cardPayment} onClick={() => setFulfillmentMethod('pos')}>Collected now</Pill><Pill active={fulfillmentMethod === 'pickup'} disabled={intentUnresolved || !!cardPayment} onClick={() => setFulfillmentMethod('pickup')}>Pickup later</Pill></Track></div>
           <dl className="grid gap-1.5 border-y border-border py-3 text-sm"><div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd><Mono>{money(subtotal)}</Mono></dd></div><div className="flex justify-between"><dt className="text-muted-foreground">Tax</dt><dd><Mono>{money(tax)}</Mono></dd></div><div className="flex items-baseline justify-between pt-1"><dt className="font-semibold">Total</dt><dd><Mono className="text-2xl">{money(total)}</Mono></dd></div></dl>
-          {!location.cashSalesEnabled && <Callout tone="warn">Cash sales are not enabled for this pharmacy.</Callout>}
-          <div className="grid gap-2"><Label htmlFor="pos-cash">Cash received (USD)</Label><Input id="pos-cash" inputMode="decimal" value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} disabled={intentUnresolved} className="h-9 rounded-[5px] tabular-nums" />
+          {!location.cashSalesEnabled && <Callout tone="warn">Counter sales are not enabled for this pharmacy.</Callout>}
+          <div className="grid gap-2"><span className="text-sm font-medium">Tender</span><Track label="Tender" className="w-fit"><Pill active={tender === 'cash'} disabled={intentUnresolved || !!cardPayment} onClick={() => setTender('cash')}>Cash</Pill><Pill active={tender === 'card'} disabled={intentUnresolved || !!cardPayment || !stripeKey} onClick={() => setTender('card')}>Card</Pill></Track>{!stripeKey && <p className="text-xs text-muted-foreground">Card needs Stripe connected under Payment providers.</p>}</div>
+          <div className="grid gap-2"><Label htmlFor="pos-reason">Note</Label><Input id="pos-reason" value={reason} onChange={(event) => setReason(event.target.value)} disabled={intentUnresolved || !!cardPayment} className="h-9 rounded-[5px]" /></div>
+          {tender === 'cash' && <>
+            <div className="grid gap-2"><Label htmlFor="pos-cash">Cash received (USD)</Label><Input id="pos-cash" inputMode="decimal" value={cashReceived} onChange={(event) => setCashReceived(event.target.value)} disabled={intentUnresolved || !!cardPayment} className="h-9 rounded-[5px] tabular-nums" />
             {tenders.length > 0 && !intentUnresolved && <div role="group" aria-label="Quick cash amounts" className="flex flex-wrap gap-1.5">{tenders.map((amount, index) => <button type="button" key={amount} aria-pressed={cashReceivedAmount === amount} onClick={() => setCashReceived((amount / 100).toFixed(2))} className={`${buttonClass} tabular-nums aria-pressed:border-foreground aria-pressed:bg-muted`}>{index === 0 && amount === total ? 'Exact' : money(amount)}</button>)}</div>}
           </div>
           {cashReceivedAmount >= total && total > 0 && <div className="flex items-baseline justify-between rounded-[6px] bg-emerald-50 px-4 py-3 text-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-100"><span className="text-sm font-medium">Change due</span><Mono className="text-xl">{money(cashReceivedAmount - total)}</Mono></div>}
-          <div className="grid gap-2"><Label htmlFor="pos-reason">Note</Label><Input id="pos-reason" value={reason} onChange={(event) => setReason(event.target.value)} disabled={intentUnresolved} className="h-9 rounded-[5px]" /></div>
-          <label className="flex items-start gap-3 text-sm"><Checkbox checked={attested} onCheckedChange={(checked) => setAttested(checked === true)} disabled={intentUnresolved} className="mt-0.5" />I received the cash and will return the change shown.</label>
-          <Button onClick={sell} disabled={isPending || (!intentUnresolved && !location.cashSalesEnabled) || (intentUnresolved ? !pendingIntent.current : (!lines.length || cashReceivedAmount < total || reason.trim().length < 8 || !attested))} className="min-h-11 w-full">{isPending ? 'Recording…' : intentUnresolved ? 'Retry sale' : 'Record cash sale'}</Button>
+            <label className="flex items-start gap-3 text-sm"><Checkbox checked={attested} onCheckedChange={(checked) => setAttested(checked === true)} disabled={intentUnresolved || !!cardPayment} className="mt-0.5" />I received the cash and will return the change shown.</label>
+            <Button onClick={sell} disabled={isPending || (!intentUnresolved && !location.cashSalesEnabled) || (intentUnresolved ? !pendingIntent.current : (!lines.length || cashReceivedAmount < total || reason.trim().length < 8 || !attested))} className="min-h-11 w-full">{isPending ? 'Recording…' : intentUnresolved ? 'Retry sale' : 'Record cash sale'}</Button>
+          </>}
+          {tender === 'card' && <>
+            <label className="flex items-start gap-3 text-sm"><Checkbox checked={attested} onCheckedChange={(checked) => setAttested(checked === true)} disabled={intentUnresolved || !!cardPayment} className="mt-0.5" />The customer is present and is paying the total shown by card.</label>
+            {!cardPayment && <Button onClick={intentUnresolved ? sell : startCard} disabled={isPending || (!intentUnresolved && !location.cashSalesEnabled) || (intentUnresolved ? !pendingIntent.current : (!lines.length || total < 50 || reason.trim().length < 8 || !attested))} className="min-h-11 w-full">{isPending ? 'Starting…' : intentUnresolved ? 'Retry sale' : `Charge ${money(total)} by card`}</Button>}
+            {cardPayment && stripeKey && <div className="grid gap-2"><p className="text-xs text-muted-foreground">Enter the card, or hand the screen to the customer. Test cards only in Stripe test mode.</p><StripeCardStep publishableKey={stripeKey} clientSecret={cardPayment.clientSecret} returnUrl={typeof window === 'undefined' ? '' : window.location.href} totalLabel={money(cardPayment.amount, cardPayment.currencyCode)} payLabel={`Charge ${money(cardPayment.amount, cardPayment.currencyCode)}`} payButtonClass="inline-flex min-h-11 w-full items-center justify-center rounded-[5px] bg-foreground px-4 text-sm font-semibold text-background disabled:opacity-50" onBeforeConfirm={() => {}} onPaid={() => recordCardSale(cardPayment.paymentIntentId)} /><Button variant="outline" disabled={isPending} onClick={() => { setCardPayment(null); idempotencyKey.current = null }}>Cancel card</Button></div>}
+          </>}
         </aside>
       </div>
     </div>

@@ -7,6 +7,7 @@ import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
 import { productPhotoSnapshot } from '../lib/product-photo'
+import { assertCounterCardCovers, openCounterCardIntent, refundRefusedCounterCard, verifyCounterCardIntent, type VerifiedCounterCard } from './counterCard'
 
 export async function recordPharmacyCashPolicy(
   _root: unknown,
@@ -29,11 +30,13 @@ export async function recordPharmacyCashPolicy(
 export async function readCommittedPosReceipt(sudo: any, orderId: string, reused: boolean) {
   const order = await sudo.query.Order.findOne({
     where: { id: orderId },
-    query: 'id orderNumber status createdAt subtotalAmount taxAmount totalAmount currencyCode lineItems(orderBy: { createdAt: asc }) { title sku quantity unitPriceAmount lineTotalAmount } payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount }',
+    query: 'id orderNumber status createdAt subtotalAmount taxAmount totalAmount currencyCode lineItems(orderBy: { createdAt: asc }) { title sku quantity unitPriceAmount lineTotalAmount } payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount externalPaymentId }',
   })
-  const payment = order?.payments?.find((entry: any) => entry.tenderMethod === 'cash')
+  const payment = order?.payments?.find((entry: any) => entry.tenderMethod === 'cash' || entry.tenderMethod === 'provider')
+  const card = payment?.tenderMethod === 'provider'
   const lineSubtotal = (order?.lineItems || []).reduce((sum: number, line: any) => sum + line.lineTotalAmount, 0)
-  if (!order || !payment || !['captured', 'refunded'].includes(payment.status) || payment.amount !== order.totalAmount || payment.currencyCode !== order.currencyCode || payment.cashReceivedAmount == null || payment.changeDueAmount == null || payment.cashReceivedAmount < payment.amount || payment.changeDueAmount !== payment.cashReceivedAmount - payment.amount || lineSubtotal !== order.subtotalAmount || order.subtotalAmount + order.taxAmount !== order.totalAmount) {
+  const tenderEvidenceOk = card ? !!payment.externalPaymentId : payment && payment.cashReceivedAmount != null && payment.changeDueAmount != null && payment.cashReceivedAmount >= payment.amount && payment.changeDueAmount === payment.cashReceivedAmount - payment.amount
+  if (!order || !payment || !['captured', 'refunded'].includes(payment.status) || payment.amount !== order.totalAmount || payment.currencyCode !== order.currencyCode || !tenderEvidenceOk || lineSubtotal !== order.subtotalAmount || order.subtotalAmount + order.taxAmount !== order.totalAmount) {
     throw new DomainError('Committed POS receipt evidence is incomplete or inconsistent; do not submit a new sale')
   }
   return {
@@ -50,9 +53,42 @@ export async function readCommittedPosReceipt(sudo: any, orderId: string, reused
     currencyCode: order.currencyCode,
     paymentId: payment.id,
     paymentStatus: payment.status,
-    cashReceivedAmount: payment.cashReceivedAmount,
-    changeDueAmount: payment.changeDueAmount,
+    tenderMethod: card ? 'card' : 'cash',
+    cashReceivedAmount: card ? payment.amount : payment.cashReceivedAmount,
+    changeDueAmount: card ? 0 : payment.changeDueAmount,
   }
+}
+
+/** One price for a POS basket: the card is opened for exactly what the sale will record. */
+export function posSaleTotals(pricedItems: Array<{ quantity: number; product: Record<string, any> }>, taxRateBps: number) {
+  const subtotalAmount = pricedItems.reduce((sum, entry) => sum + entry.product.priceAmount * entry.quantity, 0)
+  const taxableSubtotalAmount = calculateTaxableSubtotal(pricedItems.map((entry) => ({ unitPriceAmount: entry.product.priceAmount, quantity: entry.quantity, taxable: entry.product.taxable })))
+  const taxAmount = calculateTaxAmount(taxableSubtotalAmount, taxRateBps)
+  return { subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount: subtotalAmount + taxAmount }
+}
+
+/** Opens the Stripe card payment for a POS basket, priced the same way submitPharmacyPosCashOrder prices it. */
+export async function openPharmacyPosCardPayment(
+  _root: unknown,
+  args: { locationId: string; items: Array<{ productId: string; quantity: number }>; idempotencyKey: string },
+  context: Context,
+) {
+  requirePermission(context, 'canManageOrders')
+  requirePermission(context, 'canManagePayments')
+  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError('A request key is required')
+  const items = (args.items || []).filter((entry) => entry?.productId && Number.isInteger(entry.quantity) && entry.quantity > 0 && entry.quantity <= 99)
+  if (!items.length || items.length > 50 || items.length !== args.items.length) throw new DomainError('POS order must contain 1-50 valid line items')
+  const sudo = context.sudo()
+  const location = await sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: 'id status organization { id cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt }' })
+  if (!location || location.status !== 'active') throw new DomainError('POS location not found')
+  await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id })
+  if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new DomainError('Operator-attested cash and tax policy must be configured before POS sales')
+  const products = await sudo.query.Product.findMany({ where: { id: { in: items.map((entry) => entry.productId) } }, take: 50, query: 'id priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id }' })
+  if (products.length !== items.length || products.some((product: any) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== 'published' || product.posAvailable !== true || product.prescriptionRequirement !== 'none')) throw new DomainError('Every POS item must be an available OTC product in this tenant location')
+  const currencies = [...new Set(products.map((product: any) => product.currencyCode))]
+  if (currencies.length !== 1) throw new DomainError('POS order currency mismatch')
+  const { totalAmount } = posSaleTotals(items.map((entry) => ({ ...entry, product: products.find((product: any) => product.id === entry.productId)! })), location.organization.cashTaxRateBps || 0)
+  return openCounterCardIntent(context, { organizationId: location.organization.id, scope: 'pos', idempotencyKey: args.idempotencyKey, amount: totalAmount, currencyCode: currencies[0] })
 }
 
 // Adapt E-commerce/Restaurant's cart-owned customer association without email
@@ -69,18 +105,39 @@ export async function pharmacyPosCustomers(_root: unknown, args: { locationId: s
 
 export async function submitPharmacyPosCashOrder(
   _root: unknown,
-  args: { locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean },
+  args: { locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean; tenderMethod?: string | null; paymentIntentId?: string | null },
   context: Context,
 ) {
   requirePermission(context, 'canManageOrders')
   requirePermission(context, 'canManagePayments')
   requirePermission(context, 'canManageInventory')
+  if (args.tenderMethod && !['cash', 'card'].includes(args.tenderMethod)) throw new DomainError('Tender must be cash or card')
+  let card: VerifiedCounterCard | null = null
+  if (args.tenderMethod === 'card') {
+    if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError('A request key is required')
+    const scope = await context.sudo().query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: 'id organization { id }' })
+    if (!scope) throw new DomainError('POS location not found')
+    await requireTenantMembership(context, { organizationId: scope.organization.id, locationId: scope.id })
+    card = await verifyCounterCardIntent(context, { organizationId: scope.organization.id, scope: 'pos', idempotencyKey: args.idempotencyKey, paymentIntentId: args.paymentIntentId || '' })
+  }
+  try {
+    return await recordPosSale(args, context, card)
+  } catch (error) {
+    throw await refundRefusedCounterCard(context, card, error, async () => !!(await context.sudo().query.Order.findOne({ where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` }, query: 'id' })))
+  }
+}
+
+async function recordPosSale(
+  args: { locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean },
+  context: Context,
+  card: VerifiedCounterCard | null,
+) {
   const method = args.fulfillmentMethod || 'pos'
   if (!['pos', 'pickup'].includes(method)) throw new DomainError('Cash fulfillment method is invalid')
   const items = (args.items || []).filter((entry) => entry?.productId && Number.isInteger(entry.quantity) && entry.quantity > 0 && entry.quantity <= 99)
   if (!items.length || items.length > 50 || items.length !== args.items.length) throw new DomainError('POS order must contain 1-50 valid line items')
   if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError('A request key is required')
-  const requestFingerprint = createHash('sha256').update(JSON.stringify({ locationId: args.locationId, ...(args.customerCartId ? { customerCartId: args.customerCartId } : {}), ...(method === 'pickup' ? { fulfillmentMethod: method } : {}), items: [...items].sort((left, right) => left.productId.localeCompare(right.productId)), cashReceivedAmount: args.cashReceivedAmount, reason: args.reason?.trim(), attested: args.attested })).digest('hex')
+  const requestFingerprint = createHash('sha256').update(JSON.stringify({ locationId: args.locationId, ...(args.customerCartId ? { customerCartId: args.customerCartId } : {}), ...(method === 'pickup' ? { fulfillmentMethod: method } : {}), items: [...items].sort((left, right) => left.productId.localeCompare(right.productId)), ...(card ? { tender: 'card', paymentIntentId: card.paymentIntentId } : { cashReceivedAmount: args.cashReceivedAmount }), reason: args.reason?.trim(), attested: args.attested })).digest('hex')
   return withDomainTransaction(context, [`pos-cash:${args.idempotencyKey}`, ...(args.customerCartId ? [`cart:${args.customerCartId}`] : []), ...items.map((entry) => `product:${entry.productId}`)], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const existing = await sudo.query.Order.findOne({ where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` }, query: 'id orderNumber status totalAmount currencyCode checkoutEvidence payments { id status } organization { id } location { id }' })
@@ -110,14 +167,13 @@ export async function submitPharmacyPosCashOrder(
     const currencies = [...new Set(products.map((product: any) => product.currencyCode))]
     if (currencies.length !== 1) throw new DomainError('POS order currency mismatch')
     const pricedItems = items.map((entry) => ({ ...entry, product: products.find((product: any) => product.id === entry.productId)! }))
-    const subtotalAmount = pricedItems.reduce((sum, entry) => sum + entry.product.priceAmount * entry.quantity, 0)
-    const taxableSubtotalAmount = calculateTaxableSubtotal(pricedItems.map((entry) => ({ unitPriceAmount: entry.product.priceAmount, quantity: entry.quantity, taxable: entry.product.taxable })))
-    const taxAmount = calculateTaxAmount(taxableSubtotalAmount, location.organization.cashTaxRateBps || 0)
-    const totalAmount = subtotalAmount + taxAmount
-    const tender = assertCashTender(totalAmount, args.cashReceivedAmount)
-    const approval = await createHumanApproval(transactionContext, { organizationId: location.organization.id, locationId: location.id, actorId: userId, actionType: 'cash_tender', reason: args.reason, attested: args.attested, evidence: { workflow: 'operator_attested_otc_pos_cash', subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, taxRateBps: location.organization.cashTaxRateBps || 0, providerSettlementClaimed: false } })
+    const { subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount } = posSaleTotals(pricedItems, location.organization.cashTaxRateBps || 0)
+    if (card) assertCounterCardCovers(card, totalAmount, currencies[0])
+    const tender = card ? { cashReceivedAmount: totalAmount, changeDueAmount: 0 } : assertCashTender(totalAmount, args.cashReceivedAmount)
+    const workflow = card ? 'otc_pos_card' : 'operator_attested_otc_pos_cash'
+    const approval = await createHumanApproval(transactionContext, { organizationId: location.organization.id, locationId: location.id, actorId: userId, actionType: card ? 'card_tender' : 'cash_tender', reason: args.reason, attested: args.attested, evidence: { workflow, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, ...(card ? { paymentIntentId: card.paymentIntentId } : { cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount }), taxRateBps: location.organization.cashTaxRateBps || 0, providerSettlementClaimed: !!card } })
     const suffix = createHash('sha256').update(args.idempotencyKey).digest('hex').slice(0, 12).toUpperCase()
-    const order = await sudo.query.Order.createOne({ data: { orderNumber: `POS-${suffix}`, idempotencyKey: `pos-cash:${args.idempotencyKey}`, checkoutEvidence: { workflow: 'operator_attested_otc_pos_cash', customerCartId: args.customerCartId || null, customerId: customerId || null, approvalId: approval.id, requestFingerprint, taxRateBps: location.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: false }, status: method === 'pickup' ? 'processing' : 'completed', fulfillmentMethod: method, subtotalAmount, taxAmount, deliveryAmount: 0, totalAmount, currencyCode: currencies[0], customer: customerId ? { connect: { id: customerId } } : undefined, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, approval: { connect: { id: approval.id } } }, query: 'id orderNumber status' })
+    const order = await sudo.query.Order.createOne({ data: { orderNumber: `POS-${suffix}`, idempotencyKey: `pos-cash:${args.idempotencyKey}`, checkoutEvidence: { workflow, customerCartId: args.customerCartId || null, customerId: customerId || null, approvalId: approval.id, requestFingerprint, taxRateBps: location.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: !!card }, status: method === 'pickup' ? 'processing' : 'completed', fulfillmentMethod: method, subtotalAmount, taxAmount, deliveryAmount: 0, totalAmount, currencyCode: currencies[0], customer: customerId ? { connect: { id: customerId } } : undefined, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, approval: { connect: { id: approval.id } } }, query: 'id orderNumber status' })
     for (const entry of items) {
       const product = products.find((candidate: any) => candidate.id === entry.productId)!
       let remaining = entry.quantity
@@ -138,9 +194,9 @@ export async function submitPharmacyPosCashOrder(
         await sudo.query.InventoryMovement.createOne({ data: { movementType: 'sale', quantityDelta: -allocation.quantity, reason: args.reason, idempotencyKey: `pos:${args.idempotencyKey}:${product.id}:${lot.id}`, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, product: { connect: { id: product.id } }, lot: { connect: { id: lot.id } }, actor: { connect: { id: userId } }, order: { connect: { id: order.id } }, approval: { connect: { id: approval.id } } } })
       }
     }
-    const payment = await sudo.query.Payment.createOne({ data: { amount: totalAmount, currencyCode: currencies[0], status: 'captured', tenderMethod: 'cash', cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, processedAt: new Date().toISOString(), data: { evidenceType: 'operator_attested_cash_received', approvalId: approval.id, providerSettlementClaimed: false }, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: 'id status' })
+    const payment = await sudo.query.Payment.createOne({ data: { amount: totalAmount, currencyCode: currencies[0], status: 'captured', ...(card ? { tenderMethod: 'provider', externalPaymentId: card.paymentIntentId, provider: { connect: { id: card.providerId } }, data: { evidenceType: 'stripe_payment_intent_succeeded', approvalId: approval.id, providerSettlementClaimed: true, brand: card.brand, last4: card.last4 } } : { tenderMethod: 'cash', cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, data: { evidenceType: 'operator_attested_cash_received', approvalId: approval.id, providerSettlementClaimed: false } }), processedAt: new Date().toISOString(), organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: 'id status' })
     await sudo.query.Fulfillment.createOne({ data: { method, status: method === 'pickup' ? 'preparing' : 'handed_off', ...(method === 'pos' ? { readyAt: new Date().toISOString(), handedOffAt: new Date().toISOString() } : {}), organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, assignedTo: { connect: { id: userId } } } })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `pos.cash_sale:${args.idempotencyKey}`, organizationId: location.organization.id, locationId: location.id, actorId: userId, eventType: 'pos.cash_sale_recorded', resourceType: 'Order', resourceId: order.id, metadata: { paymentId: payment.id, lineCount: items.length, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, approvalId: approval.id, providerSettlementClaimed: false } })
+    await recordAuditAndOutbox(transactionContext, { eventKey: `pos.${card ? 'card' : 'cash'}_sale:${args.idempotencyKey}`, organizationId: location.organization.id, locationId: location.id, actorId: userId, eventType: card ? 'pos.card_sale_recorded' : 'pos.cash_sale_recorded', resourceType: 'Order', resourceId: order.id, metadata: { paymentId: payment.id, lineCount: items.length, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, approvalId: approval.id, providerSettlementClaimed: !!card } })
     return readCommittedPosReceipt(sudo, order.id, false)
   })
 }
