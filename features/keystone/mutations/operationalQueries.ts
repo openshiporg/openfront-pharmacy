@@ -290,13 +290,13 @@ export async function pharmacyInventoryReceiptProductWorklist(
       where: stableCursorWhere(baseWhere, cursor),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: pageSize + 1,
-      query: 'id title sku createdAt',
+      query: 'id title sku createdAt coldChainRequired',
     }),
   ])
   const hasMore = products.length > pageSize
   const pageProducts = products.slice(0, pageSize)
   return {
-    items: pageProducts.map((product: any) => ({ id: product.id, label: product.title, scopeId: args.locationId, detail: product.sku })),
+    items: pageProducts.map((product: any) => ({ id: product.id, label: product.title, scopeId: args.locationId, detail: product.sku, coldChainRequired: Boolean(product.coldChainRequired) })),
     totalCount,
     hasMore,
     nextCursor: hasMore && pageProducts.length
@@ -612,7 +612,7 @@ export async function pharmacyInventoryLotTask(_root: unknown, args: { lotId: st
       storageBin coldChainRequired minimumTemperatureC maximumTemperatureC coldChainEvidenceComplete
       product { id title sku } location { id name }
       recalls { id recallNumber status classification }
-      temperatureExcursions(orderBy: { startedAt: desc }) { id status observedMinimumC observedMaximumC startedAt endedAt }
+      temperatureExcursions(orderBy: { startedAt: desc }) { id status observedMinimumC observedMaximumC startedAt endedAt dispositionReason resolutionNote resolvedAt }
       movements(orderBy: { occurredAt: desc }, take: 50) { id movementType quantityDelta reason occurredAt actor { name } }
     `,
   })
@@ -647,6 +647,9 @@ export async function pharmacyInventoryLotTask(_root: unknown, args: { lotId: st
       observedMaximumC: excursion.observedMaximumC,
       startedAt: excursion.startedAt,
       endedAt: excursion.endedAt,
+      dispositionReason: excursion.dispositionReason || null,
+      resolutionNote: excursion.resolutionNote || null,
+      resolvedAt: excursion.resolvedAt || null,
     })),
     movements: (lot.movements || []).map((movement: any) => ({
       id: movement.id,

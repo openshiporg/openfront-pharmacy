@@ -150,7 +150,7 @@ export type SubmitPharmacyOrderProjection = {
   guestOrderToken?: string | null
 }
 
-export type PharmacyTaskOption = { id: string; label: string; scopeId: string; detail?: string | null }
+export type PharmacyTaskOption = { id: string; label: string; scopeId: string; detail?: string | null; coldChainRequired?: boolean | null }
 export type PharmacyPrescriptionIntakeOptions = {
   organizations: PharmacyTaskOption[]
   locations: PharmacyTaskOption[]
@@ -283,7 +283,7 @@ export type PharmacyInventoryLotTaskProjection = {
   locationName: string
   canAdjust: boolean
   recalls: Array<{ id: string; recallNumber: string; status: string; classification: string }>
-  excursions: Array<{ id: string; status: string; observedMinimumC: number; observedMaximumC: number; startedAt: string; endedAt?: string | null }>
+  excursions: Array<{ id: string; status: string; observedMinimumC: number; observedMaximumC: number; startedAt: string; endedAt?: string | null; dispositionReason?: string | null; resolutionNote?: string | null; resolvedAt?: string | null }>
   movements: Array<{ id: string; movementType: string; quantityDelta: number; reason: string; occurredAt: string; actorName: string }>
 }
 

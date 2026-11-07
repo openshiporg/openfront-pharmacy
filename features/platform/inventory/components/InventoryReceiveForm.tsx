@@ -84,11 +84,15 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
   const [serialNumber, setSerialNumber] = useState('')
   const [expirationDate, setExpirationDate] = useState('')
   const [quantity, setQuantity] = useState(1)
+  const [minimumTemperatureC, setMinimumTemperatureC] = useState('2')
+  const [maximumTemperatureC, setMaximumTemperatureC] = useState('8')
+  const [temperatureLogReviewed, setTemperatureLogReviewed] = useState(false)
   const [reason, setReason] = useState('')
   const [attested, setAttested] = useState(false)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
+  const coldChain = Boolean(products.find((entry) => entry.id === productId)?.coldChainRequired)
   const idempotencyKey = useRef<string | null>(null)
 
   function submit() {
@@ -96,14 +100,16 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
     startTransition(() => unwrapAction(receiveInventoryAction({
       productId, locationId, supplierId: supplierId || undefined, lotNumber, serialNumber: serialNumber.trim() || undefined,
       expirationDate: new Date(`${expirationDate}T12:00:00.000Z`).toISOString(), quantity,
-      coldChainRequired: false,
-      coldChainEvidenceComplete: true,
+      coldChainRequired: coldChain,
+      ...(coldChain ? { minimumTemperatureC: Number(minimumTemperatureC), maximumTemperatureC: Number(maximumTemperatureC) } : {}),
+      coldChainEvidenceComplete: coldChain ? temperatureLogReviewed : true,
       reason, idempotencyKey: idempotencyKey.current || (idempotencyKey.current = `receive:${crypto.randomUUID()}`), attested,
     })).then((result) => { idempotencyKey.current = null; setMessage(`Lot ${lotNumber.trim()} recorded with ${result.quantityAvailable} available.`) }).catch((cause) => setError(cause instanceof Error ? cause.message : 'Receipt failed')))
   }
 
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
-  const ready = locationId && productId && products.some((entry) => entry.id === productId && entry.scopeId === locationId) && lotNumber.trim() && expirationDate >= tomorrow && quantity > 0 && reason.trim().length >= 8 && attested
+  const coldChainReady = !coldChain || (minimumTemperatureC.trim() !== '' && maximumTemperatureC.trim() !== '' && Number(minimumTemperatureC) < Number(maximumTemperatureC) && temperatureLogReviewed)
+  const ready = coldChainReady && locationId && productId && products.some((entry) => entry.id === productId && entry.scopeId === locationId) && lotNumber.trim() && expirationDate >= tomorrow && quantity > 0 && reason.trim().length >= 8 && attested
   return <div className="grid gap-4 sm:grid-cols-2">
     <label className="text-sm">Location<OptionSelect value={locationId} onValueChange={(value) => { const nextLocationId = value; setLocationId(nextLocationId); setSupplierId(''); setProductSearch(''); void loadFirstProductPage(nextLocationId, productStatus) }} className="mt-2">{options.locations.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</OptionSelect></label>
     <div className="grid gap-2">
@@ -122,7 +128,12 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
     <label className="text-sm">Serial / package identifier (optional)<Input value={serialNumber} onChange={(event) => setSerialNumber(event.target.value)} className="mt-2" /></label>
     <label className="text-sm">Expiration date<PlatformDateInput min={tomorrow} value={expirationDate} onChange={(value) => setExpirationDate(value)} className="mt-2" /></label>
     <label className="text-sm">Quantity received<Input type="number" min={1} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} className="mt-2" /></label>
-    <p className="rounded-[5px] bg-amber-50 p-3 text-sm text-amber-900 sm:col-span-2">Cold-chain receiving isn&apos;t supported. Receive room-temperature, non-controlled products only.</p>
+    {coldChain ? <fieldset className="grid gap-3 rounded-[6px] border border-border p-3 sm:col-span-2 sm:grid-cols-2">
+      <legend className="px-1 text-sm font-medium">Cold chain</legend>
+      <label className="text-sm">Storage minimum (°C)<Input type="number" step="0.1" value={minimumTemperatureC} onChange={(event) => setMinimumTemperatureC(event.target.value)} className="mt-2" /></label>
+      <label className="text-sm">Storage maximum (°C)<Input type="number" step="0.1" value={maximumTemperatureC} onChange={(event) => setMaximumTemperatureC(event.target.value)} className="mt-2" /></label>
+      <label className="flex items-start gap-3 text-sm sm:col-span-2"><input type="checkbox" checked={temperatureLogReviewed} onChange={(event) => setTemperatureLogReviewed(event.target.checked)} className="mt-1" />The shipment temperature log was reviewed and stayed in range.</label>
+    </fieldset> : <p className="rounded-[5px] bg-muted p-3 text-sm text-muted-foreground sm:col-span-2">Room-temperature product. Cold-chain products ask for their storage range here.</p>}
     <label className="text-sm sm:col-span-2">Receiving reason<Input value={reason} onChange={(event) => setReason(event.target.value)} className="mt-2" /></label>
     <label className="flex items-start gap-3 text-sm sm:col-span-2"><input type="checkbox" checked={attested} onChange={(event) => setAttested(event.target.checked)} className="mt-1" />I am the authorized human recording this receipt and attest that the source evidence was reviewed.</label>
     <div className="sm:col-span-2"><Button disabled={pending || !ready} onClick={submit}>Record inventory receipt</Button></div>

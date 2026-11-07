@@ -52,6 +52,7 @@ import { activePharmacyPaymentProviders, initiatePharmacyPaymentSession, refundP
 import handlePaymentProviderWebhook from './handlePaymentProviderWebhook'
 import { reconcilePharmacyPaymentSession } from './paymentRecovery'
 import { authorizePrescriptionDispensing, openPrescriptionPickupCardPayment, pickupPrescriptionFill, recordPrescriptionDispensing, recordPrescriptionReview, returnPrescriptionFillToStock } from './prescriptionWorkflows'
+import { recordTemperatureExcursion, resolveTemperatureExcursion } from './coldChainWorkflows'
 import { closePharmacyRecall, disposeRecallLot, openPharmacyRecall, recordRecallExposureAction } from './recallWorkflows'
 import { pharmacyOperationalSummary, publicPharmacyCatalog, publicPharmacyLocations, publicPharmacyTenant, publicPharmacyCategories } from './publicQueries'
 import redirectToInit from './redirectToInit'
@@ -119,7 +120,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         inventorySummaryStatus: String!
       }
 
-      type PharmacyTaskOption { id: ID!, label: String!, scopeId: ID!, detail: String }
+      type PharmacyTaskOption { id: ID!, label: String!, scopeId: ID!, detail: String, coldChainRequired: Boolean }
       type PharmacyPrescriptionIntakeOptions {
         organizations: [PharmacyTaskOption!]!
         locations: [PharmacyTaskOption!]!
@@ -398,7 +399,11 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         observedMaximumC: Float!
         startedAt: String!
         endedAt: String
+        dispositionReason: String
+        resolutionNote: String
+        resolvedAt: String
       }
+      type PharmacyExcursionResult { success: Boolean!, reused: Boolean, excursionId: ID!, lotId: ID!, status: String!, lotStatus: String, quantityAvailable: Int, movementId: ID, approvalId: ID }
       type PharmacyRecallReference { id: ID!, recallNumber: String!, status: String!, classification: String! }
       type PharmacyInventoryLotTask {
         id: ID!
@@ -871,6 +876,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
 
         receivePharmacyInventoryLot(productId: ID!, locationId: ID!, supplierId: ID, lotNumber: String!, serialNumber: String, expirationDate: String!, quantity: Int!, coldChainRequired: Boolean!, minimumTemperatureC: Float, maximumTemperatureC: Float, coldChainEvidenceComplete: Boolean!, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyInventoryActionResult!
         adjustPharmacyInventoryLot(lotId: ID!, targetQuantity: Int!, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyInventoryActionResult!
+        recordPharmacyTemperatureExcursion(lotId: ID!, observedMinimumC: Float!, observedMaximumC: Float!, startedAt: String!, endedAt: String, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyExcursionResult!
+        resolvePharmacyTemperatureExcursion(excursionId: ID!, disposition: String!, note: String!, idempotencyKey: String!, attested: Boolean!): PharmacyExcursionResult!
         openPharmacyRecall(organizationId: ID!, locationId: ID, recallNumber: String!, classification: String!, reason: String!, source: String!, sourceReference: String!, lotIds: [ID!]!, attested: Boolean!): PharmacyInventoryActionResult!
         quarantineRecallLots(recallId: ID!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
         recordRecallExposureAction(exposureId: ID!, status: String!, contactMethod: String!, outcome: String!, notes: String, reason: String!, attested: Boolean!): PharmacyRecallExposureActionResult!
@@ -984,6 +991,8 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         holdPrescriptionForClinicalReReview,
         receivePharmacyInventoryLot: receiveInventoryLot,
         adjustPharmacyInventoryLot: adjustInventoryLot,
+        recordPharmacyTemperatureExcursion: recordTemperatureExcursion,
+        resolvePharmacyTemperatureExcursion: resolveTemperatureExcursion,
         openPharmacyRecall,
         quarantineRecallLots,
         recordRecallExposureAction,

@@ -47,6 +47,9 @@ export const TemperatureExcursion = list({
       defaultValue: 'open',
     }),
     dispositionReason: text({ ui: { displayMode: 'textarea' } }),
+    // Written once by resolvePharmacyTemperatureExcursion: the pharmacist's note and when the excursion closed.
+    resolutionNote: text({ ui: { displayMode: 'textarea' } }),
+    resolvedAt: timestamp(),
     organization: relationship({ ref: 'Organization', db: requiredRelationshipDb }),
     location: relationship({ ref: 'PharmacyLocation', db: requiredRelationshipDb }),
     lot: relationship({ ref: 'InventoryLot.temperatureExcursions', db: requiredRelationshipDb }),

@@ -4101,6 +4101,8 @@ type TemperatureExcursion {
   endedAt: DateTime
   status: String
   dispositionReason: String
+  resolutionNote: String
+  resolvedAt: DateTime
   organization: Organization
   location: PharmacyLocation
   lot: InventoryLot
@@ -4127,6 +4129,8 @@ input TemperatureExcursionWhereInput {
   endedAt: DateTimeNullableFilter
   status: StringNullableFilter
   dispositionReason: StringFilter
+  resolutionNote: StringFilter
+  resolvedAt: DateTimeNullableFilter
   organization: OrganizationWhereInput
   location: PharmacyLocationWhereInput
   lot: InventoryLotWhereInput
@@ -4156,6 +4160,8 @@ input TemperatureExcursionOrderByInput {
   endedAt: OrderDirection
   status: OrderDirection
   dispositionReason: OrderDirection
+  resolutionNote: OrderDirection
+  resolvedAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
 }
@@ -4470,6 +4476,8 @@ type Mutation {
   holdPrescriptionForClinicalReReview(prescriptionId: ID!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
   receivePharmacyInventoryLot(productId: ID!, locationId: ID!, supplierId: ID, lotNumber: String!, serialNumber: String, expirationDate: String!, quantity: Int!, coldChainRequired: Boolean!, minimumTemperatureC: Float, maximumTemperatureC: Float, coldChainEvidenceComplete: Boolean!, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyInventoryActionResult!
   adjustPharmacyInventoryLot(lotId: ID!, targetQuantity: Int!, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyInventoryActionResult!
+  recordPharmacyTemperatureExcursion(lotId: ID!, observedMinimumC: Float!, observedMaximumC: Float!, startedAt: String!, endedAt: String, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyExcursionResult!
+  resolvePharmacyTemperatureExcursion(excursionId: ID!, disposition: String!, note: String!, idempotencyKey: String!, attested: Boolean!): PharmacyExcursionResult!
   openPharmacyRecall(organizationId: ID!, locationId: ID, recallNumber: String!, classification: String!, reason: String!, source: String!, sourceReference: String!, lotIds: [ID!]!, attested: Boolean!): PharmacyInventoryActionResult!
   quarantineRecallLots(recallId: ID!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
   recordRecallExposureAction(exposureId: ID!, status: String!, contactMethod: String!, outcome: String!, notes: String, reason: String!, attested: Boolean!): PharmacyRecallExposureActionResult!
@@ -5338,6 +5346,21 @@ type PharmacyTemperatureExcursionProjection {
   observedMaximumC: Float!
   startedAt: String!
   endedAt: String
+  dispositionReason: String
+  resolutionNote: String
+  resolvedAt: String
+}
+
+type PharmacyExcursionResult {
+  success: Boolean!
+  reused: Boolean
+  excursionId: ID!
+  lotId: ID!
+  status: String!
+  lotStatus: String
+  quantityAvailable: Int
+  movementId: ID
+  approvalId: ID
 }
 
 type PharmacyRecallReference {

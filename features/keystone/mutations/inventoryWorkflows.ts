@@ -32,7 +32,10 @@ export async function receiveInventoryLot(
   if (!args.idempotencyKey?.trim() || !args.lotNumber?.trim()) throw new DomainError('Lot number and idempotency key are required')
   const expirationDate = new Date(args.expirationDate)
   if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new DomainError('Expiration date must be in the future')
-  if (args.coldChainRequired) throw new DomainError('Cold-chain receiving is not supported yet')
+  if (args.coldChainRequired) {
+    if (typeof args.minimumTemperatureC !== 'number' || typeof args.maximumTemperatureC !== 'number' || args.minimumTemperatureC >= args.maximumTemperatureC) throw new DomainError('Cold-chain receipt needs a storage range with the minimum below the maximum')
+    if (!args.coldChainEvidenceComplete) throw new DomainError('Review the shipment temperature log before receiving cold-chain stock')
+  }
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ productId: args.productId, locationId: args.locationId, supplierId: args.supplierId || null, lotNumber: args.lotNumber.trim(), serialNumber: args.serialNumber?.trim() || null, expirationDate: expirationDate.toISOString(), quantity: args.quantity, coldChainRequired: args.coldChainRequired, minimumTemperatureC: args.minimumTemperatureC ?? null, maximumTemperatureC: args.maximumTemperatureC ?? null, coldChainEvidenceComplete: args.coldChainEvidenceComplete, reason: args.reason?.trim(), attested: args.attested })).digest('hex')
 
   return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${args.lotNumber}`], async (transactionContext) => {
@@ -54,6 +57,8 @@ export async function receiveInventoryLot(
     if (!isProductAtActiveTenantLocation(product, location)) {
       throw new DomainError('This product cannot be received at this location')
     }
+    if (product.coldChainRequired && !args.coldChainRequired) throw new DomainError('This product is cold-chain; receive it with its storage range and temperature log')
+    if (!product.coldChainRequired && args.coldChainRequired) throw new DomainError('This product is not marked cold-chain; update the product before receiving it refrigerated')
     if (args.supplierId && (!supplier || supplier.organization?.id !== location.organization.id || supplier.status !== 'active')) {
       throw new DomainError('Supplier must be active in the receiving organization')
     }
@@ -76,9 +81,9 @@ export async function receiveInventoryLot(
         quantityAvailable: args.quantity,
         quantityQuarantined: 0,
         status: 'available',
-        coldChainRequired: false,
-        minimumTemperatureC: null,
-        maximumTemperatureC: null,
+        coldChainRequired: args.coldChainRequired,
+        minimumTemperatureC: args.coldChainRequired ? args.minimumTemperatureC : null,
+        maximumTemperatureC: args.coldChainRequired ? args.maximumTemperatureC : null,
         coldChainEvidenceComplete: true,
         product: { connect: { id: product.id } },
         location: { connect: { id: location.id } },

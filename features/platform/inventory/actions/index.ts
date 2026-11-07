@@ -16,7 +16,7 @@ type InventoryActionResult = { success: boolean; reused?: boolean | null; moveme
 export async function loadInventoryReceiptProductPageAction(input: { locationId: string; first?: number; after?: string | null; status?: string | null }) {
   return guardAction(async () => {
   const response = await platformRequest<{ pharmacyInventoryReceiptProductWorklist: PharmacyProductOptionWorklistProjection }>(
-    `query ReceiptProductWorklist($locationId: ID!, $first: Int, $after: String, $status: String) { pharmacyInventoryReceiptProductWorklist(locationId: $locationId, first: $first, after: $after, status: $status) { items { id label scopeId detail } totalCount hasMore nextCursor } }`,
+    `query ReceiptProductWorklist($locationId: ID!, $first: Int, $after: String, $status: String) { pharmacyInventoryReceiptProductWorklist(locationId: $locationId, first: $first, after: $after, status: $status) { items { id label scopeId detail coldChainRequired } totalCount hasMore nextCursor } }`,
     input,
   )
   if (!response.success) throw new ActionError(response.error)
@@ -50,5 +50,22 @@ export async function adjustInventoryAction(input: { lotId: string; targetQuanti
   return guardAction(async () => {
   const response = await platformRequest<{ adjustPharmacyInventoryLot: InventoryActionResult }>(`mutation Adjust($lotId: ID!, $targetQuantity: Int!, $reason: String!, $idempotencyKey: String!, $attested: Boolean!) { adjustPharmacyInventoryLot(lotId: $lotId, targetQuantity: $targetQuantity, reason: $reason, idempotencyKey: $idempotencyKey, attested: $attested) { success reused movementId lotId quantityAvailable approvalId status } }`, input)
   return result(response, `/dashboard/platform/inventory/${input.lotId}`).adjustPharmacyInventoryLot
+  })
+}
+
+type ExcursionActionResult = { success: boolean; reused?: boolean | null; excursionId: string; lotId: string; status: string; lotStatus?: string | null; quantityAvailable?: number | null }
+
+export async function recordExcursionAction(input: { lotId: string; observedMinimumC: number; observedMaximumC: number; startedAt: string; endedAt?: string; reason: string; idempotencyKey: string; attested: boolean }) {
+  return guardAction(async () => {
+  const response = await platformRequest<{ recordPharmacyTemperatureExcursion: ExcursionActionResult }>(`mutation RecordExcursion($lotId: ID!, $observedMinimumC: Float!, $observedMaximumC: Float!, $startedAt: String!, $endedAt: String, $reason: String!, $idempotencyKey: String!, $attested: Boolean!) { recordPharmacyTemperatureExcursion(lotId: $lotId, observedMinimumC: $observedMinimumC, observedMaximumC: $observedMaximumC, startedAt: $startedAt, endedAt: $endedAt, reason: $reason, idempotencyKey: $idempotencyKey, attested: $attested) { success reused excursionId lotId status lotStatus quantityAvailable } }`, input)
+  return result(response, `/dashboard/platform/inventory/${input.lotId}`).recordPharmacyTemperatureExcursion
+  })
+}
+
+export async function resolveExcursionAction(input: { lotId: string; excursionId: string; disposition: 'released' | 'destroyed'; note: string; idempotencyKey: string; attested: boolean }) {
+  return guardAction(async () => {
+  const { lotId, ...variables } = input
+  const response = await platformRequest<{ resolvePharmacyTemperatureExcursion: ExcursionActionResult }>(`mutation ResolveExcursion($excursionId: ID!, $disposition: String!, $note: String!, $idempotencyKey: String!, $attested: Boolean!) { resolvePharmacyTemperatureExcursion(excursionId: $excursionId, disposition: $disposition, note: $note, idempotencyKey: $idempotencyKey, attested: $attested) { success reused excursionId lotId status lotStatus quantityAvailable } }`, variables)
+  return result(response, `/dashboard/platform/inventory/${lotId}`).resolvePharmacyTemperatureExcursion
   })
 }

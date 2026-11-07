@@ -35,6 +35,155 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// features/keystone/lib/mail.ts
+var mail_exports = {};
+__export(mail_exports, {
+  isEmailConfigured: () => isEmailConfigured,
+  requestOrigin: () => requestOrigin,
+  sendOrderConfirmationEmail: () => sendOrderConfirmationEmail,
+  sendPasswordResetEmail: () => sendPasswordResetEmail,
+  sendPasswordResetToken: () => sendPasswordResetToken,
+  sendPickupReadyEmail: () => sendPickupReadyEmail
+});
+function getBaseUrlForEmails() {
+  if (process.env.SMTP_STORE_LINK) {
+    return process.env.SMTP_STORE_LINK;
+  }
+  console.warn("SMTP_STORE_LINK not set. Please add SMTP_STORE_LINK to your environment variables for email links to work properly.");
+  return "";
+}
+function passwordResetEmail({ url }) {
+  const backgroundColor = "#f9f9f9";
+  const textColor = "#444444";
+  const mainBackgroundColor = "#ffffff";
+  const buttonBackgroundColor = "#346df1";
+  const buttonBorderColor = "#346df1";
+  const buttonTextColor = "#ffffff";
+  return `
+    <body style="background: ${backgroundColor};">
+      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: ${mainBackgroundColor}; max-width: 600px; margin: auto; border-radius: 10px;">
+        <tr>
+          <td align="center" style="padding: 10px 0px 0px 0px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
+            Please click below to reset your password
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding: 20px 0;">
+            <table border="0" cellspacing="0" cellpadding="0">
+              <tr>
+                <td align="center" style="border-radius: 5px;" bgcolor="${buttonBackgroundColor}"><a href="${url}" target="_blank" style="font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${buttonTextColor}; text-decoration: none; border-radius: 5px; padding: 10px 20px; border: 1px solid ${buttonBorderColor}; display: inline-block; font-weight: bold;">Reset Password</a></td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" style="padding: 0px 0px 10px 0px; font-size: 16px; line-height: 22px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
+            If you did not request this email you can safely ignore it.
+          </td>
+        </tr>
+      </table>
+    </body>
+  `;
+}
+async function isEmailConfigured() {
+  return Boolean(process.env.SMTP_HOST);
+}
+function escapeHtml(value) {
+  return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
+}
+function requestOrigin(request) {
+  const configured = getBaseUrlForEmails();
+  if (configured) return configured.replace(/\/$/, "");
+  const header = (name) => {
+    const value = request?.headers?.[name];
+    return Array.isArray(value) ? value[0] : value;
+  };
+  const host = header("x-forwarded-host") || header("host");
+  if (!host) return "";
+  const protocol = header("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
+  return `${protocol}://${host}`;
+}
+async function sendPasswordResetToken({ itemId, identity, token, context }) {
+  if (!await isEmailConfigured()) {
+    console.warn("Password reset email skipped: SMTP_HOST is not set.");
+    return;
+  }
+  const user = await context.sudo().query.User.findOne({ where: { id: String(itemId) }, query: "id role { canAccessDashboard }" });
+  const origin = requestOrigin(context.req);
+  const url = user?.role?.canAccessDashboard ? `${origin}/dashboard/reset?token=${encodeURIComponent(token)}` : `${origin}/account/reset?${new URLSearchParams({ token, email: identity })}`;
+  await sendPasswordResetEmail(token, identity, void 0, url);
+}
+async function sendOrderConfirmationEmail({ to, orderNumber: orderNumber2, storeName, url }) {
+  if (!await isEmailConfigured()) return false;
+  const info = await transport.sendMail({
+    to,
+    from: process.env.SMTP_FROM,
+    subject: `${storeName}: order ${orderNumber2}`,
+    html: `
+    <body style="background: #f9f9f9;">
+      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: #ffffff; max-width: 600px; margin: auto; border-radius: 10px; font-family: Helvetica, Arial, sans-serif; color: #444444;">
+        <tr><td align="center" style="font-size: 18px;">${escapeHtml(storeName)}</td></tr>
+        <tr><td align="center" style="font-size: 16px;">Order <strong>${escapeHtml(orderNumber2)}</strong> received</td></tr>
+        <tr><td align="center" style="padding: 10px 0 20px;"><a href="${escapeHtml(url)}" target="_blank" style="font-size: 16px; color: #ffffff; background: #1f6f5c; text-decoration: none; border-radius: 999px; padding: 12px 22px; display: inline-block; font-weight: bold;">Track order</a></td></tr>
+      </table>
+    </body>`
+  });
+  if (process.env.MAIL_USER?.includes("ethereal.email")) {
+    console.log(`\u{1F4E7} Message Sent!  Preview it at ${(0, import_nodemailer.getTestMessageUrl)(info)}`);
+  }
+  return true;
+}
+async function sendPasswordResetEmail(resetToken, to, baseUrl, url) {
+  const frontendUrl = baseUrl || getBaseUrlForEmails();
+  const info = await transport.sendMail({
+    to,
+    from: process.env.SMTP_FROM,
+    subject: "Your password reset token!",
+    html: passwordResetEmail({
+      url: url || `${frontendUrl}/dashboard/reset?token=${resetToken}`
+    })
+  });
+  if (process.env.MAIL_USER?.includes("ethereal.email")) {
+    console.log(`\u{1F4E7} Message Sent!  Preview it at ${(0, import_nodemailer.getTestMessageUrl)(info)}`);
+  }
+}
+async function sendPickupReadyEmail({ to, storeName, kind, reference, locationName, phone, url }) {
+  if (!await isEmailConfigured()) return { sent: false };
+  const headline = kind === "prescription" ? "Your prescription is ready for pickup" : `Order ${reference} is ready for pickup`;
+  const detail = kind === "prescription" ? `Pick it up at the pharmacy counter at ${locationName}. Bring a photo ID.` : `Pick it up at ${locationName}. Bring your order number.`;
+  const info = await transport.sendMail({
+    to,
+    from: process.env.SMTP_FROM,
+    subject: `${storeName}: ${kind === "prescription" ? "prescription ready for pickup" : `order ${reference} is ready for pickup`}`,
+    html: `
+    <body style="background: #f9f9f9;">
+      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: #ffffff; max-width: 600px; margin: auto; border-radius: 10px; font-family: Helvetica, Arial, sans-serif; color: #444444;">
+        <tr><td align="center" style="font-size: 18px;">${escapeHtml(storeName)}</td></tr>
+        <tr><td align="center" style="font-size: 16px;"><strong>${escapeHtml(headline)}</strong></td></tr>
+        <tr><td align="center" style="font-size: 15px; line-height: 22px;">${escapeHtml(detail)}${phone ? `<br />Questions? Call ${escapeHtml(phone)}.` : ""}</td></tr>
+        ${url ? `<tr><td align="center" style="padding: 10px 0 20px;"><a href="${escapeHtml(url)}" target="_blank" style="font-size: 16px; color: #ffffff; background: #1f6f5c; text-decoration: none; border-radius: 999px; padding: 12px 22px; display: inline-block; font-weight: bold;">${kind === "prescription" ? "View in your account" : "View order"}</a></td></tr>` : ""}
+      </table>
+    </body>`
+  });
+  return { sent: true, messageId: info?.messageId };
+}
+var import_nodemailer, transport;
+var init_mail = __esm({
+  "features/keystone/lib/mail.ts"() {
+    "use strict";
+    import_nodemailer = require("nodemailer");
+    transport = (0, import_nodemailer.createTransport)({
+      // @ts-ignore
+      host: process.env.SMTP_HOST,
+      port: process.env.SMTP_PORT,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD
+      }
+    });
+  }
+});
+
 // features/integrations/payment/stripe.ts
 var stripe_exports = {};
 __export(stripe_exports, {
@@ -56,6 +205,7 @@ async function createPaymentFunction({ cart, amount, currency }) {
     metadata: cart?.id ? { cartId: cart.id } : void 0
   }, cart?.id ? { idempotencyKey: `cart:${cart.id}:${amount}:${currency.toLowerCase()}` } : void 0);
   return {
+    status: paymentIntent.status,
     clientSecret: paymentIntent.client_secret,
     paymentIntentId: paymentIntent.id
   };
@@ -885,96 +1035,8 @@ var rules = {
   }
 };
 
-// features/keystone/lib/mail.ts
-var import_nodemailer = require("nodemailer");
-function getBaseUrlForEmails() {
-  if (process.env.SMTP_STORE_LINK) {
-    return process.env.SMTP_STORE_LINK;
-  }
-  console.warn("SMTP_STORE_LINK not set. Please add SMTP_STORE_LINK to your environment variables for email links to work properly.");
-  return "";
-}
-var transport = (0, import_nodemailer.createTransport)({
-  // @ts-ignore
-  host: process.env.SMTP_HOST,
-  port: process.env.SMTP_PORT,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASSWORD
-  }
-});
-function passwordResetEmail({ url }) {
-  const backgroundColor = "#f9f9f9";
-  const textColor = "#444444";
-  const mainBackgroundColor = "#ffffff";
-  const buttonBackgroundColor = "#346df1";
-  const buttonBorderColor = "#346df1";
-  const buttonTextColor = "#ffffff";
-  return `
-    <body style="background: ${backgroundColor};">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: ${mainBackgroundColor}; max-width: 600px; margin: auto; border-radius: 10px;">
-        <tr>
-          <td align="center" style="padding: 10px 0px 0px 0px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            Please click below to reset your password
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 20px 0;">
-            <table border="0" cellspacing="0" cellpadding="0">
-              <tr>
-                <td align="center" style="border-radius: 5px;" bgcolor="${buttonBackgroundColor}"><a href="${url}" target="_blank" style="font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${buttonTextColor}; text-decoration: none; border-radius: 5px; padding: 10px 20px; border: 1px solid ${buttonBorderColor}; display: inline-block; font-weight: bold;">Reset Password</a></td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 0px 0px 10px 0px; font-size: 16px; line-height: 22px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            If you did not request this email you can safely ignore it.
-          </td>
-        </tr>
-      </table>
-    </body>
-  `;
-}
-async function isEmailConfigured() {
-  return Boolean(process.env.SMTP_HOST);
-}
-function requestOrigin(request) {
-  const configured = getBaseUrlForEmails();
-  if (configured) return configured.replace(/\/$/, "");
-  const header = (name) => {
-    const value = request?.headers?.[name];
-    return Array.isArray(value) ? value[0] : value;
-  };
-  const host = header("x-forwarded-host") || header("host");
-  if (!host) return "";
-  const protocol = header("x-forwarded-proto") || (host.startsWith("localhost") ? "http" : "https");
-  return `${protocol}://${host}`;
-}
-async function sendPasswordResetToken({ itemId, identity, token, context }) {
-  if (!await isEmailConfigured()) {
-    console.warn("Password reset email skipped: SMTP_HOST is not set.");
-    return;
-  }
-  const user = await context.sudo().query.User.findOne({ where: { id: String(itemId) }, query: "id role { canAccessDashboard }" });
-  const origin = requestOrigin(context.req);
-  const url = user?.role?.canAccessDashboard ? `${origin}/dashboard/reset?token=${encodeURIComponent(token)}` : `${origin}/account/reset?${new URLSearchParams({ token, email: identity })}`;
-  await sendPasswordResetEmail(token, identity, void 0, url);
-}
-async function sendPasswordResetEmail(resetToken, to, baseUrl, url) {
-  const frontendUrl = baseUrl || getBaseUrlForEmails();
-  const info = await transport.sendMail({
-    to,
-    from: process.env.SMTP_FROM,
-    subject: "Your password reset token!",
-    html: passwordResetEmail({
-      url: url || `${frontendUrl}/dashboard/reset?token=${resetToken}`
-    })
-  });
-  if (process.env.MAIL_USER?.includes("ethereal.email")) {
-    console.log(`\u{1F4E7} Message Sent!  Preview it at ${(0, import_nodemailer.getTestMessageUrl)(info)}`);
-  }
-}
+// features/keystone/index.ts
+init_mail();
 
 // features/keystone/models/AuditEvent.ts
 var import_core = require("@keystone-6/core");
@@ -1354,12 +1416,17 @@ var DispensingLabel = (0, import_core6.list)({
     auxiliaryWarnings: (0, import_fields7.json)({ access: { read: permissions.canViewPatientPrivateData } }),
     counselingOutcome: (0, import_fields7.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     dispensedAt: (0, import_fields7.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
+    // Will-call: a label is printed when the fill goes to the bin; the order is
+    // linked at pickup. A return to stock voids the label instead of deleting it.
+    voidedAt: (0, import_fields7.timestamp)({ db: { isNullable: true } }),
+    voidReason: (0, import_fields7.text)(),
     organization: (0, import_fields7.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
     location: (0, import_fields7.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
     patient: (0, import_fields7.relationship)({ ref: "PatientProfile.dispensingLabels", db: requiredRelationshipDb }),
     prescription: (0, import_fields7.relationship)({ ref: "Prescription.dispensingLabels", db: requiredRelationshipDb }),
     prescriptionItem: (0, import_fields7.relationship)({ ref: "PrescriptionItem.dispensingLabels", db: requiredRelationshipDb }),
-    order: (0, import_fields7.relationship)({ ref: "Order.dispensingLabels", db: requiredRelationshipDb }),
+    order: (0, import_fields7.relationship)({ ref: "Order.dispensingLabels" }),
+    fill: (0, import_fields7.relationship)({ ref: "PrescriptionFill" }),
     pharmacist: (0, import_fields7.relationship)({ ref: "User", db: requiredRelationshipDb }),
     approval: (0, import_fields7.relationship)({ ref: "HumanApproval", db: requiredRelationshipDb }),
     ...trackingFields
@@ -1671,6 +1738,7 @@ var HumanApproval = (0, import_core11.list)({
         { label: "Cash/tax policy review", value: "cash_policy" },
         { label: "Cash tender received", value: "cash_tender" },
         { label: "Cash refund returned", value: "cash_refund" },
+        { label: "Card charged at the counter", value: "card_tender" },
         { label: "Consequential agent action", value: "agent_action" }
       ],
       validation: { isRequired: true }
@@ -2090,7 +2158,7 @@ var orderHooks = {
       const sourceCount = [
         Boolean(resolvedData.cart?.connect?.id),
         Boolean(resolvedData.prescription?.connect?.id),
-        ["pos", "pickup"].includes(resolvedData.fulfillmentMethod) && resolvedData.checkoutEvidence?.workflow === "operator_attested_otc_pos_cash" && Boolean(resolvedData.approval?.connect?.id) && resolvedData.checkoutEvidence.approvalId === resolvedData.approval.connect.id
+        ["pos", "pickup"].includes(resolvedData.fulfillmentMethod) && ["operator_attested_otc_pos_cash", "otc_pos_card"].includes(resolvedData.checkoutEvidence?.workflow) && Boolean(resolvedData.approval?.connect?.id) && resolvedData.checkoutEvidence.approvalId === resolvedData.approval.connect.id
       ].filter(Boolean).length;
       if (!resolvedData.organization?.connect?.id || !resolvedData.location?.connect?.id || sourceCount !== 1) {
         addValidationError("Order requires organization, location, and exactly one authorized cart, prescription, or cash-POS source");
@@ -2296,16 +2364,272 @@ var import_core20 = require("@keystone-6/core");
 var import_access32 = require("@keystone-6/core/access");
 var import_fields21 = require("@keystone-6/core/fields");
 
+// features/platform/store-settings/lib/icon-registry.ts
+var LOGO_ICONS = [
+  {
+    id: "3portals",
+    name: "3Portals",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill-rule="evenodd"><path d="m34.5868 8.40061-9.6868-2.59556c-.6687-.17919-1.2108.23679-1.2108.92911v10.02854c0 .6923.5421 1.3988 1.2108 1.578l9.6868 2.5955c.6687.1792 1.2109-.2368 1.2109-.9291v-10.02848c0-.69232-.5422-1.39882-1.2109-1.57801zm-9.6868-6.35625c-2.6749-.71674-4.8434.94718-4.8434 3.71647v10.02847c0 2.7693 2.1685 5.5953 4.8434 6.312l9.6868 2.5956c2.6749.7168 4.8434-.9472 4.8434-3.7165v-10.0284c0-2.76934-2.1685-5.59533-4.8434-6.31207z" fill="#8098f9"/><path d="m26.9812 16.5707-12.1085-3.2444c-.6687-.1792-1.2109.2368-1.2109.9291v12.5356c0 .6923.5422 1.3988 1.2109 1.578l12.1085 3.2445c.6687.1792 1.2108-.2368 1.2108-.9291v-12.5356c0-.6924-.5421-1.3989-1.2108-1.5781zm-12.1085-7.0051c-2.6749-.71674-4.8434.9472-4.8434 3.7165v12.5356c0 2.7693 2.1685 5.5953 4.8434 6.312l12.1085 3.2445c2.6749.7167 4.8433-.9472 4.8433-3.7165v-12.5356c0-2.7693-2.1684-5.5953-4.8433-6.312z" fill="#6172f3"/><path d="m19.3736 24.7409-14.53021-3.8934c-.66873-.1792-1.21085.2368-1.21085.9291v15.0428c0 .6923.54212 1.3988 1.21085 1.578l14.53021 3.8933c.6687.1792 1.2108-.2368 1.2108-.9291v-15.0427c0-.6923-.5421-1.3988-1.2108-1.578zm-14.53021-7.6541c-2.67493-.7167-4.84339.9472-4.84339 3.7165v15.0427c0 2.7693 2.16846 5.5953 4.84339 6.3121l14.53021 3.8933c2.6749.7168 4.8433-.9472 4.8433-3.7164v-15.0428c0-2.7693-2.1684-5.5953-4.8433-6.312z" fill="#444ce7"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#fff" fill-rule="evenodd"><path d="m34.5868 8.40061-9.6868-2.59556c-.6687-.17919-1.2108.23679-1.2108.92911v10.02854c0 .6923.5421 1.3988 1.2108 1.578l9.6868 2.5955c.6687.1792 1.2109-.2368 1.2109-.9291v-10.02848c0-.69232-.5422-1.39882-1.2109-1.57801zm-9.6868-6.35625c-2.6749-.71674-4.8434.94718-4.8434 3.71647v10.02847c0 2.7693 2.1685 5.5953 4.8434 6.312l9.6868 2.5956c2.6749.7168 4.8434-.9472 4.8434-3.7165v-10.0284c0-2.76934-2.1685-5.59533-4.8434-6.31207z" opacity=".5"/><path d="m26.9812 16.5707-12.1085-3.2444c-.6687-.1792-1.2109.2368-1.2109.9291v12.5356c0 .6923.5422 1.3988 1.2109 1.578l12.1085 3.2445c.6687.1792 1.2108-.2368 1.2108-.9291v-12.5356c0-.6924-.5421-1.3989-1.2108-1.5781zm-12.1085-7.0051c-2.6749-.71674-4.8434.9472-4.8434 3.7165v12.5356c0 2.7693 2.1685 5.5953 4.8434 6.312l12.1085 3.2445c2.6749.7167 4.8433-.9472 4.8433-3.7165v-12.5356c0-2.7693-2.1684-5.5953-4.8433-6.312z" opacity=".7"/><path d="m19.3736 24.7409-14.53021-3.8934c-.66873-.1792-1.21085.2368-1.21085.9291v15.0428c0 .6923.54212 1.3988 1.21085 1.578l14.53021 3.8933c.6687.1792 1.2108-.2368 1.2108-.9291v-15.0427c0-.6923-.5421-1.3988-1.2108-1.578zm-14.53021-7.6541c-2.67493-.7167-4.84339.9472-4.84339 3.7165v15.0427c0 2.7693 2.16846 5.5953 4.84339 6.3121l14.53021 3.8933c2.6749.7168 4.8433-.9472 4.8433-3.7164v-15.0428c0-2.7693-2.1684-5.5953-4.8433-6.312z"/></g></svg>`
+  },
+  {
+    id: "45-degrees",
+    name: "45 Degrees",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 24 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 15.8981h17.3455l-17.061314 17.0613 2.756374 2.7564 17.06134-17.0613v17.3455h.1104l3.7877-3.7877v-15.9638l-4.2485-4.2485h-15.96596l-3.78553995 3.7855z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 24 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 15.8981h17.3455l-17.061314 17.0613 2.756374 2.7564 17.06134-17.0613v17.3455h.1104l3.7877-3.7877v-15.9638l-4.2485-4.2485h-15.96596l-3.78553995 3.7855z" fill="#155eef"/></svg>`
+  },
+  {
+    id: "acme-corp",
+    name: "Acme Corp",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m0 24c15.2548 0 24-8.7452 24-24 0 15.2548 8.7452 24 24 24-15.2548 0-24 8.7452-24 24 0-15.2548-8.7452-24-24-24z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m0 24c15.2548 0 24-8.7452 24-24 0 15.2548 8.7452 24 24 24-15.2548 0-24 8.7452-24 24 0-15.2548-8.7452-24-24-24z" fill="#155eef" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "alphawave",
+    name: "AlphaWave",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 47 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m24.9706 7.03309c-3.1242-3.1242-8.1896-3.1242-11.3137 0l-11.31375 11.31371c-3.124199 3.1242-3.124199 8.1895 0 11.3137l11.31375 11.3137c3.1241 3.1242 8.1895 3.1242 11.3137 0l5.3982-5.3983c-4.4939-1.7337-7.682-6.0944-7.682-11.1997 0-5.3087 3.4472-9.8123 8.2254-11.3943-.0935-.0982-.1884-.1955-.2848-.292z" fill="#155eef"/><path d="m30.3691 35.5798c1.3398.5168 2.7955.8001 4.3174.8001 6.6274 0 12-5.3726 12-12s-5.3726-12-12-12c-1.3185 0-2.5873.2126-3.774.6055 5.9623 6.2681 5.8675 16.1836-.2846 22.3356z" fill="#155eef" opacity=".7"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 47 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m24.9706 7.03309c-3.1242-3.1242-8.1896-3.1242-11.3137 0l-11.31375 11.31371c-3.124199 3.1242-3.124199 8.1895 0 11.3137l11.31375 11.3137c3.1241 3.1242 8.1895 3.1242 11.3137 0l5.3982-5.3983c-4.4939-1.7337-7.682-6.0944-7.682-11.1997 0-5.3087 3.4472-9.8123 8.2254-11.3943-.0935-.0982-.1884-.1955-.2848-.292z" fill="#155eef"/><path d="m30.3691 35.5798c1.3398.5168 2.7955.8001 4.3174.8001 6.6274 0 12-5.3726 12-12s-5.3726-12-12-12c-1.3185 0-2.5873.2126-3.774.6055 5.9623 6.2681 5.8675 16.1836-.2846 22.3356z" fill="#155eef" opacity=".7"/></svg>`
+  },
+  {
+    id: "alt-shift",
+    name: "Alt+Shift",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m23.4538 34.7189c-3.1818-1.1818-6.4544-1.3636-9.4544-.5455-2.0909.5455-4.09082 1.6364-5.90897 3l-1.27273 1.0909-.36362.3636.81816.7273c.09091 0 .09092.0909.18183.1818.18181.1818.36364.2727.63636.4545l.54542.3636.54545-.4545c.09091-.0909.27273-.2727.45454-.3636 1.63636-1.3636 3.45446-2.2727 5.36356-2.7272 2.4545-.6364 5.0908-.5455 7.7271.4545 2.1818.8182 6.6363 1.8181 11.9998-.4545l.1818-.091.2728-.2727c0-.0909.0909-.0909.1818-.1818.4545-.5454.9091-1.0909 1.2727-1.7272l1.8181-2.8182-2.909 1.6363c-4.2727 2.3636-8.1817 2.8182-12.0907 1.3637z"/><path d="m10.9998 24.9011c2.4545-.6363 5.0908-.5454 7.7272.4546 2.909 1.0909 10.3634 2.6363 18.7269-4.909l1.8182-1.8182-.1819-.4545c-.0909-.3636-.2727-.8182-.4545-1.2727l-.4545-1.2727-.9091.909c-.0909.1819-.2727.2728-.4546.4546-3.9999 4.0908-10.1816 8.2726-17.2724 5.7272-3.1817-1.1818-6.4544-1.3637-9.4544-.5455-2.909.8182-5.45442 2.3636-7.81801 4.5454v-.0909l-1.363614 1.4545c0 .0909-.090891.0909-.181798.1818l-.27274.2727.090913.3637c.090908.4545.272717.909.363625 1.3636l.545454 1.4545.90907-1.1818c.09091-.1818.27272-.2727.36363-.4545 1.90905-1.7273 4.54538-4.1818 8.27257-5.1818z"/><path d="m2.1818 23.2646c2.09088-2.1818 4.45445-3.5454 6.99987-4.2727 2.45453-.6363 5.09083-.5454 7.72713.4546 8.1817 2.9999 15.2725-1.9091 18.3633-4.5454l1.1818-1.1818.4546-.3636-.3637-.5455c-.2727-.2727-.4545-.6363-.7272-1l-.5455-.7272-.6363.6363c-.0909.0909-.2727.2727-.3637.3637-3.8181 3.6363-9.7271 7.3635-16.4542 4.8181-3.1818-1.1818-6.4544-1.3637-9.4544-.5455-1.90906.5455-3.72721 1.4545-5.54536 2.6363l-1.909065 1.5455c-.181815.1818-.272722.2727-.454537.4545l-.181799.1818v.2727c-.090907.6364-.090918 1.2727-.1818259 1.8182l-.0909131 2.2727 1.54544-1.6364c.18181-.1818.36364-.4545.63636-.6363z"/><path d="m26.0908 40.9007c-.2727-.0909-.4545-.1819-.7272-.2728-3.1818-1.1818-6.4545-1.3636-9.4545-.5454-.6363.1818-1.2726.3636-1.909.6364l-2.1818.9999-.5454.2728 1.8181.6363c.5455.1818 1.0909.3637 1.6364.5455l.2727.0909.2727-.0909c.2727-.0909.5455-.2728.8182-.2728.1818 0 .3636-.0909.5454-.1818 2.1818-.5454 4.5454-.5454 7.0908.2727.2727.091.4546.1819.7273.2728l.4545.1818.2727-.0909c.6364-.1818 1.3636-.3636 1.9091-.6364l2.5454-.909-2.6363-.6364c-.2727-.0909-.6364-.1818-.9091-.2727z"/><path d="m40 22.0829-1.3636 1.3636c-.1818.1818-.3636.3636-.5454.5454-3.7272 3.5454-9.7271 7.3635-16.4543 4.8181-3.1818-1.1818-6.4544-1.3636-9.4544-.5454-2.81811.8182-5.36354 2.2727-7.63623 4.4545l-1.18179 1.2727-.36362.4545.36362.5454c.27273.3637.45455.6364.63637 1l.54542.8182.63636-.8182c.09091-.0909.27272-.2727.36363-.3636 2.18178-2.3636 4.54534-3.8181 7.27264-4.5454 2.4545-.6364 5.0908-.5454 7.7271.4545 2.2727.8182 4.6363 1.0909 6.9999.8182 4.1817-.4545 8.3635-2.8181 11.4543-5.4544.1819-.1818.3636-.2727.5455-.4546l.2727-.2727v-.2727c0-.5455.0909-1.1818.0909-1.7273z"/><path d="m5.45373 13.7196c.54545-.2728 1.18182-.4546 1.72726-.6364 2.45451-.6364 5.09081-.5455 7.72711.4545 1.7273.6364 3.4545.9091 5.3636.9091 3.8181 0 7.6362-1.3636 11.1816-3.9999l1.8181-1.45455-.8181-.63636c-.2727-.27273-.6364-.54544-1-.72725l-.5455-.36363-.4545.36363c-.1818.09091-.2727.27272-.4545.36362-4.8181 3.63634-9.6362 4.63634-14.1816 2.90904-3.2727-1.18178-6.54535-1.45451-9.81802-.4545-.27272.0909-.54544.1818-.90907.2727l-.1818.0909-.27274.2727c0 .0909-.09089.0909-.1818.1818-.36363.5455-.81818 1-1.18181 1.5455l-1.72724 2.6363 2.81814-1.4545c.45453 0 .81815-.1818 1.09087-.2727z"/><path d="m12.9089 7.53769.2727.09091c1.1818.45454 3 .90907 5.2726.90907 2.3636 0 4.6363-.54545 6.909-1.45452l2.8181-1.36361-1.909-.63634c-.5454-.18182-1.0909-.36363-1.7273-.45454h-.2727l-.2727.09089c-.2727.0909-.5455.27274-.8182.36365-2.7272.99998-5.4544 1.1818-8.0907.45454-.2728-.09091-.5455-.18183-.8182-.27274l-.2727-.09091-.2728.09091c-.5454.18181-1.0908.36364-1.6363.63636l-2.09087.90908 2.18177.63633c.1818-.0909.4546.00001.7273.09092z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m23.4538 34.7189c-3.1818-1.1818-6.4544-1.3636-9.4544-.5455-2.0909.5455-4.09082 1.6364-5.90897 3l-1.27273 1.0909-.36362.3636.81816.7273c.09091 0 .09092.0909.18183.1818.18181.1818.36364.2727.63636.4545l.54542.3636.54545-.4545c.09091-.0909.27273-.2727.45454-.3636 1.63636-1.3636 3.45446-2.2727 5.36356-2.7272 2.4545-.6364 5.0908-.5455 7.7271.4545 2.1818.8182 6.6363 1.8181 11.9998-.4545l.1818-.091.2728-.2727c0-.0909.0909-.0909.1818-.1818.4545-.5454.9091-1.0909 1.2727-1.7272l1.8181-2.8182-2.909 1.6363c-4.2727 2.3636-8.1817 2.8182-12.0907 1.3637z"/><path d="m10.9998 24.9011c2.4545-.6363 5.0908-.5454 7.7272.4546 2.909 1.0909 10.3634 2.6363 18.7269-4.909l1.8182-1.8182-.1819-.4545c-.0909-.3636-.2727-.8182-.4545-1.2727l-.4545-1.2727-.9091.909c-.0909.1819-.2727.2728-.4546.4546-3.9999 4.0908-10.1816 8.2726-17.2724 5.7272-3.1817-1.1818-6.4544-1.3637-9.4544-.5455-2.909.8182-5.45442 2.3636-7.81801 4.5454v-.0909l-1.363614 1.4545c0 .0909-.090891.0909-.181798.1818l-.27274.2727.090913.3637c.090908.4545.272717.909.363625 1.3636l.545454 1.4545.90907-1.1818c.09091-.1818.27272-.2727.36363-.4545 1.90905-1.7273 4.54538-4.1818 8.27257-5.1818z"/><path d="m2.1818 23.2646c2.09088-2.1818 4.45445-3.5454 6.99987-4.2727 2.45453-.6363 5.09083-.5454 7.72713.4546 8.1817 2.9999 15.2725-1.9091 18.3633-4.5454l1.1818-1.1818.4546-.3636-.3637-.5455c-.2727-.2727-.4545-.6363-.7272-1l-.5455-.7272-.6363.6363c-.0909.0909-.2727.2727-.3637.3637-3.8181 3.6363-9.7271 7.3635-16.4542 4.8181-3.1818-1.1818-6.4544-1.3637-9.4544-.5455-1.90906.5455-3.72721 1.4545-5.54536 2.6363l-1.909065 1.5455c-.181815.1818-.272722.2727-.454537.4545l-.181799.1818v.2727c-.090907.6364-.090918 1.2727-.1818259 1.8182l-.0909131 2.2727 1.54544-1.6364c.18181-.1818.36364-.4545.63636-.6363z"/><path d="m26.0908 40.9007c-.2727-.0909-.4545-.1819-.7272-.2728-3.1818-1.1818-6.4545-1.3636-9.4545-.5454-.6363.1818-1.2726.3636-1.909.6364l-2.1818.9999-.5454.2728 1.8181.6363c.5455.1818 1.0909.3637 1.6364.5455l.2727.0909.2727-.0909c.2727-.0909.5455-.2728.8182-.2728.1818 0 .3636-.0909.5454-.1818 2.1818-.5454 4.5454-.5454 7.0908.2727.2727.091.4546.1819.7273.2728l.4545.1818.2727-.0909c.6364-.1818 1.3636-.3636 1.9091-.6364l2.5454-.909-2.6363-.6364c-.2727-.0909-.6364-.1818-.9091-.2727z"/><path d="m40 22.0829-1.3636 1.3636c-.1818.1818-.3636.3636-.5454.5454-3.7272 3.5454-9.7271 7.3635-16.4543 4.8181-3.1818-1.1818-6.4544-1.3636-9.4544-.5454-2.81811.8182-5.36354 2.2727-7.63623 4.4545l-1.18179 1.2727-.36362.4545.36362.5454c.27273.3637.45455.6364.63637 1l.54542.8182.63636-.8182c.09091-.0909.27272-.2727.36363-.3636 2.18178-2.3636 4.54534-3.8181 7.27264-4.5454 2.4545-.6364 5.0908-.5454 7.7271.4545 2.2727.8182 4.6363 1.0909 6.9999.8182 4.1817-.4545 8.3635-2.8181 11.4543-5.4544.1819-.1818.3636-.2727.5455-.4546l.2727-.2727v-.2727c0-.5455.0909-1.1818.0909-1.7273z"/><path d="m5.45373 13.7196c.54545-.2728 1.18182-.4546 1.72726-.6364 2.45451-.6364 5.09081-.5455 7.72711.4545 1.7273.6364 3.4545.9091 5.3636.9091 3.8181 0 7.6362-1.3636 11.1816-3.9999l1.8181-1.45455-.8181-.63636c-.2728-.27273-.6364-.54544-1-.72725l-.5455-.36363-.4545.36363c-.1818.09091-.2727.27272-.4545.36362-4.8181 3.63634-9.6362 4.63634-14.1816 2.90904-3.2727-1.18178-6.54535-1.45451-9.81802-.4545-.27272.0909-.54544.1818-.90907.2727l-.1818.0909-.27274.2727c0 .0909-.09089.0909-.1818.1818-.36363.5455-.81818 1-1.18181 1.5455l-1.72724 2.6363 2.81814-1.4545c.45453 0 .81815-.1818 1.09087-.2727z"/><path d="m12.9089 7.53769.2727.09091c1.1818.45454 3 .90907 5.2726.90907 2.3636 0 4.6363-.54545 6.909-1.45452l2.8181-1.36361-1.909-.63634c-.5454-.18182-1.0909-.36363-1.7273-.45454h-.2727l-.2727.09089c-.2727.0909-.5455.27274-.8182.36365-2.7272.99998-5.4544 1.1818-8.0907.45454-.2728-.09091-.5455-.18183-.8182-.27274l-.2727-.09091-.2728.09091c-.5454.18181-1.0908.36364-1.6363.63636l-2.09087.90908 2.18177.63633c.1818-.0909.4546.00001.7273.09092z"/></g></svg>`
+  },
+  {
+    id: "biosynthesis",
+    name: "Biosynthesis",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill-rule="evenodd"><path d="m4.29111 28.6025c.90712.9019.9071 2.3641-.00003 3.266l-.04646.0462c-.90713.9019-2.37788.9018-3.284994-.0001-.9071177-.9019-.9071038-2.3641.000031-3.266l.046453-.0462c.90714-.9019 2.37788-.9018 3.285.0001z" fill="#a4bcfd"/><path d="m15.2112 29.298c.9055.9035.9028 2.3658-.006 3.266l-6.43424 6.3741c-.90876.9002-2.3795.8976-3.28499-.0059-.90548-.9035-.90282-2.3658.00594-3.266l6.43429-6.3741c.9088-.9002 2.3795-.8976 3.285.0059z" fill="#6172f3"/><path d="m23.9431 40.2706c.7116-1.0613 2.1538-1.348 3.2212-.6405l.1394.0923c1.0674.7075 1.3558 2.1414.6442 3.2026-.7116 1.0613-2.1538 1.3481-3.2212.6406l-.1394-.0924c-1.0674-.7075-1.3558-2.1414-.6442-3.2026z" fill="#a4bcfd"/><path d="m39.2728 28.4638c.9072.9019.9072 2.3641 0 3.266l-3.159 3.1408c-.9072.9019-2.3779.9019-3.285 0s-.9071-2.3641 0-3.266l3.1591-3.1408c.9071-.9019 2.3778-.9019 3.2849 0z" fill="#6172f3"/><g fill="#444ce7"><path d="m39.3197 16.8473c.9071.9019.9071 2.3642 0 3.266l-23.3446 23.2098c-.9071.9019-2.3779.9019-3.285 0s-.9071-2.3641 0-3.266l23.3446-23.2098c.9071-.9019 2.3778-.9019 3.285 0z"/><path d="m34.905 9.71133c.9072.90187.9072 2.36417 0 3.26607l-13.426 13.3485c-.9071.9019-2.3779.9019-3.285 0s-.9071-2.3642 0-3.2661l13.4261-13.34847c.9071-.90189 2.3778-.90189 3.2849 0z"/><path d="m27.8187 5.18362c.9077.90128.9087 2.36353.0022 3.26603l-17.2588 17.18215c-.90647.9025-2.37721.9035-3.28495.0022-.90773-.9013-.90872-2.3635-.00221-3.266l17.25876-17.18218c.9065-.9025 2.3772-.90348 3.285-.0022z"/></g><path d="m10.7276 10.6841c.9056.9035.9031 2.3657-.0056 3.266l-6.75949 6.6974c-.90869.9003-2.37943.8978-3.28499-.0056-.905563-.9035-.903032-2.3657.005654-3.2661l6.759476-6.6973c.90868-.90034 2.37942-.89783 3.28495.0056z" fill="#6172f3"/><path d="m14.8678 4.00024c1.2828 0 2.3228 1.03397 2.3228 2.30944v.23094c0 1.27546-1.04 2.30943-2.3228 2.30943-1.2829 0-2.3229-1.03397-2.3229-2.30943v-.23094c0-1.27547 1.04-2.30944 2.3229-2.30944z" fill="#a4bcfd"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#fff" fill-rule="evenodd"><path d="m4.29111 28.6025c.90712.9019.9071 2.3641-.00003 3.266l-.04646.0462c-.90713.9019-2.37788.9018-3.284994-.0001-.9071177-.9019-.9071038-2.3641.000031-3.266l.046453-.0462c.90714-.9019 2.37788-.9018 3.285.0001z" opacity=".5"/><path d="m15.2112 29.298c.9055.9035.9028 2.3658-.006 3.266l-6.43424 6.3741c-.90876.9002-2.3795.8976-3.28499-.0059-.90548-.9035-.90282-2.3658.00594-3.266l6.43429-6.3741c.9088-.9002 2.3795-.8976 3.285.0059z" opacity=".7"/><path d="m23.9431 40.2706c.7116-1.0613 2.1538-1.348 3.2212-.6405l.1394.0923c1.0674.7075 1.3558 2.1414.6442 3.2026-.7116 1.0613-2.1538 1.3481-3.2212.6406l-.1394-.0924c-1.0674-.7075-1.3558-2.1414-.6442-3.2026z" opacity=".5"/><path d="m39.2728 28.4638c.9072.9019.9072 2.3641 0 3.266l-3.159 3.1408c-.9072.9019-2.3779.9019-3.285 0s-.9071-2.3641 0-3.266l3.1591-3.1408c.9071-.9019 2.3778-.9019 3.2849 0z" opacity=".7"/><path d="m39.3197 16.8473c.9071.9019.9071 2.3642 0 3.266l-23.3446 23.2098c-.9071.9019-2.3779.9019-3.285 0s-.9071-2.3641 0-3.266l23.3446-23.2098c.9071-.9019 2.3778-.9019 3.285 0z"/><path d="m34.905 9.71133c.9072.90187.9072 2.36417 0 3.26607l-13.426 13.3485c-.9071.9019-2.3779.9019-3.285 0s-.9071-2.3642 0-3.2661l13.4261-13.34847c.9071-.90189 2.3778-.90189 3.2849 0z"/><path d="m27.8187 5.18362c.9077.90128.9087 2.36353.0022 3.26603l-17.2588 17.18215c-.90647.9025-2.37721.9035-3.28495.0022-.90773-.9013-.90872-2.3635-.00221-3.266l17.25876-17.18218c.9065-.9025 2.3772-.90348 3.285-.0022z"/><path d="m10.7276 10.6841c.9056.9035.9031 2.3657-.0056 3.266l-6.75949 6.6974c-.90869.9003-2.37943.8978-3.28499-.0056-.905563-.9035-.903032-2.3657.005654-3.2661l6.759476-6.6973c.90868-.90034 2.37942-.89783 3.28495.0056z" opacity=".7"/><path d="m14.8678 4.00024c1.2828 0 2.3228 1.03397 2.3228 2.30944v.23094c0 1.27546-1.04 2.30943-2.3228 2.30943-1.2829 0-2.3229-1.03397-2.3229-2.30943v-.23094c0-1.27547 1.04-2.30944 2.3229-2.30944z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "boltshift",
+    name: "Boltshift",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m20 44c11.0457 0 20-8.9543 20-20s-8.9543-20-20-20c-11.04572 0-20 8.9543-20 20s8.95428 20 20 20zm6.2393-30.6832c.3037-1.0787-.7432-1.7167-1.6993-1.0355l-13.3469 9.5083c-1.0369.7387-.8738 2.2104.245 2.2104h3.5146v-.0272h6.8498l-5.5813 1.9693-2.4605 8.7411c-.3037 1.0788.7431 1.7167 1.6993 1.0355l13.3469-9.5082c1.0369-.7387.8737-2.2105-.245-2.2105h-5.3298z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m20 44c11.0457 0 20-8.9543 20-20s-8.9543-20-20-20c-11.04572 0-20 8.9543-20 20s8.95428 20 20 20zm6.2393-30.6832c.3037-1.0787-.7432-1.7167-1.6993-1.0355l-13.3469 9.5083c-1.0369.7387-.8738 2.2104.245 2.2104h3.5146v-.0272h6.8498l-5.5813 1.9693-2.4605 8.7411c-.3037 1.0788.7431 1.7167 1.6993 1.0355l13.3469-9.5082c1.0369-.7387.8737-2.2105-.245-2.2105h-5.3298z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "buildingblocks",
+    name: "BuildingBlocks",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 37 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m12.8841 4.30945-6.8842 3.97574 6.8891 3.97661 6.8862-3.97575zm8.8919 7.44025-6.887 3.9762-.0007 7.9532 6.8877-3.9771zm2 11.4164-6.8879 3.9772 6.8889 3.9765 6.8871-3.9763zm8.8879 7.4416-6.8868 3.9761v7.9522l6.8868-3.9761zm-10.8868 11.9287v-7.9525l-6.8891-3.9766v7.9525zm-10.8888-18.8569-6.8883-3.9775v-7.9526l6.889 3.9765zm-.0003 4.6187-9.38814-5.4209c-.928127-.5359-1.49986-1.5262-1.49986-2.598v-11.99368c0-.71444.381106-1.37463.999789-1.73193l10.383811-5.996798c.9281-.5359626 2.0716-.5361538 2.9998-.000505l10.3922 5.996973c.619.3572 1.0004 1.01758 1.0004 1.73226v11.41638l9.888 5.7096c.6188.3573.9999 1.0175.9999 1.732v11.9937c0 1.0718-.5718 2.0621-1.5 2.598l-10.3868 5.9969c-.6187.3572-1.381.3572-1.9998.0001l-10.3891-5.9969c-.9283-.5358-1.5002-1.5263-1.5002-2.5982z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 37 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m12.8841 4.30945-6.8842 3.97574 6.8891 3.97661 6.8862-3.97575zm8.8919 7.44025-6.887 3.9762-.0007 7.9532 6.8877-3.9771zm2 11.4164-6.8879 3.9772 6.8889 3.9765 6.8871-3.9763zm8.8879 7.4416-6.8868 3.9761v7.9522l6.8868-3.9761zm-10.8868 11.9287v-7.9525l-6.8891-3.9766v7.9525zm-10.8888-18.8569-6.8883-3.9775v-7.9526l6.889 3.9765zm-.0003 4.6187-9.38814-5.4209c-.928127-.5359-1.49986-1.5262-1.49986-2.598v-11.99368c0-.71444.381106-1.37463.999789-1.73193l10.383811-5.996798c.9281-.5359626 2.0716-.5361538 2.9998-.000505l10.3922 5.996973c.619.3572 1.0004 1.01758 1.0004 1.73226v11.41638l9.888 5.7096c.6188.3573.9999 1.0175.9999 1.732v11.9937c0 1.0718-.5718 2.0621-1.5 2.598l-10.3868 5.9969c-.6187.3572-1.381.3572-1.9998.0001l-10.3891-5.9969c-.9283-.5358-1.5002-1.5263-1.5002-2.5982z" fill="#155eef" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "calescence",
+    name: "Calescence",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 36 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#1570ef" fill-rule="evenodd"><path d="m35.3721 14v8.0492h-9.9698v-2.2927z"/><path d="m35.3699 14.0001-9.9698 5.7565-7.3513-4.2436v-11.513z" opacity=".9"/><path d="m18.0512 4v11.513l-7.349 4.2436-9.969778-5.7565z" opacity=".8"/><path d="m10.7002 19.7565v8.4868l-9.969731 5.756v-19.9993z" opacity=".7"/><path d="m18.0492 32.4871v11.5129l-17.318731-10.0006 9.969731-5.756z" opacity=".6"/><path d="m35.3699 33.9994-17.3211 10.0006v-11.5129l7.3513-4.2437z" opacity=".5"/><path d="m35.3721 25.9507v8.0487l-9.9698-5.756v-2.2927z" opacity=".4"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 36 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#fff" fill-rule="evenodd"><path d="m35.3721 14v8.0492h-9.9698v-2.2927z"/><path d="m35.3699 14.0001-9.9698 5.7565-7.3513-4.2436v-11.513z" opacity=".9"/><path d="m18.0512 4v11.513l-7.349 4.2436-9.969778-5.7565z" opacity=".8"/><path d="m10.7002 19.7565v8.4868l-9.969731 5.756v-19.9993z" opacity=".7"/><path d="m18.0492 32.4871v11.5129l-17.318731-10.0006 9.969731-5.756z" opacity=".6"/><path d="m35.3699 33.9994-17.3211 10.0006v-11.5129l7.3513-4.2437z" opacity=".5"/><path d="m35.3721 25.9507v8.0487l-9.9698-5.756v-2.2927z" opacity=".4"/></g></svg>`
+  },
+  {
+    id: "capsule",
+    name: "Capsule",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="18" fill="#1570ef" r="14"/><circle cx="26" cy="30" fill="#53b1fd" r="14"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><circle cx="14" cy="18" opacity=".7" r="14"/><circle cx="26" cy="30" opacity=".7" r="14"/></g></svg>`
+  },
+  {
+    id: "constellation",
+    name: "Constellation",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m16 8 5.0912 10.9088 10.9088 5.0912-10.9088 5.0912-5.0912 10.9088-5.0912-10.9088-10.9088-5.0912 10.9088-5.0912z"/><path d="m20.0469 31.3286 6.3539-1.0932 3.6 9.7646 3.6-9.7646 10.2565 1.7646-6.6564-8 6.6564-8-10.2565 1.7646-3.6-9.7646-3.6 9.7646-6.3539-1.0932 1.0442 2.2374 10.9088 5.0912-10.9088 5.0912z" opacity=".5"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m16 8 5.0912 10.9088 10.9088 5.0912-10.9088 5.0912-5.0912 10.9088-5.0912-10.9088-10.9088-5.0912 10.9088-5.0912z"/><path d="m20.0469 31.3286 6.3539-1.0932 3.6 9.7646 3.6-9.7646 10.2565 1.7646-6.6564-8 6.6564-8-10.2565 1.7646-3.6-9.7646-3.6 9.7646-6.3539-1.0932 1.0442 2.2374 10.9088 5.0912-10.9088 5.0912z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "codecraft",
+    name: "Codecraft",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 9c0-2.76142 2.23858-5 5-5h10c2.7614 0 5 2.23858 5 5v9.8192c.0002.06.0003.1203.0003.1808 0 2.7575 2.2322 4.9936 4.9881 5h.0116 10c2.7614 0 5 2.2386 5 5v10c0 2.7614-2.2386 5-5 5h-10c-2.7614 0-5-2.2386-5-5v-10c0-.0139.0001-.0277.0002-.0416-.0224-2.7422-2.2523-4.9584-4.9999-4.9584-.0129 0-.0258 0-.0387 0h-9.9616c-2.76142 0-5-2.2386-5-5z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 9c0-2.76142 2.23858-5 5-5h10c2.7614 0 5 2.23858 5 5v9.8192c.0002.06.0003.1203.0003.1808 0 2.7575 2.2322 4.9936 4.9881 5h.0116 10c2.7614 0 5 2.2386 5 5v10c0 2.7614-2.2386 5-5 5h-10c-2.7614 0-5-2.2386-5-5v-10c0-.0139.0001-.0277.0002-.0416-.0224-2.7422-2.2523-4.9584-4.9999-4.9584-.0129 0-.0258 0-.0387 0h-9.9616c-2.76142 0-5-2.2386-5-5z" fill="#155eef"/></svg>`
+  },
+  {
+    id: "command-r",
+    name: "Command+R",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 32 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m18.6667 30.6667c7.3638 0 13.3333-5.9696 13.3333-13.3334 0-7.36376-5.9695-13.3333-13.3333-13.3333h-18.6667v26.6667z" fill="#155eef"/><path d="m0 4 32 40h-21.3333l-10.6667-13.3333z" fill="#2e90fa"/><path d="m21.1488 30.436c-.8042.1515-1.6339.2307-2.4821.2307h-18.6667v-26.6667z" fill="#53b1fd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 32 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m18.6667 30.6667c7.3638 0 13.3333-5.9696 13.3333-13.3334 0-7.36376-5.9695-13.3333-13.3333-13.3333h-18.6667v26.6667z" opacity=".7"/><path d="m0 4 32 40h-21.3333l-10.6667-13.3333z" opacity=".7"/><path d="m21.1488 30.436c-.8042.1515-1.6339.2307-2.4821.2307h-18.6667v-26.6667z" opacity=".7"/></g></svg>`
+  },
+  {
+    id: "contrast-ai",
+    name: "ContrastAI",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m20 4c11.0457 0 20 8.9543 20 20s-8.9543 20-20 20-20-8.9543-20-20 8.9543-20 20-20zm15 20c0 8.2843-6.7157 15-15 15v-30c8.2843 0 15 6.7157 15 15z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m20 4c11.0457 0 20 8.9543 20 20s-8.9543 20-20 20-20-8.9543-20-20 8.9543-20 20-20zm15 20c0 8.2843-6.7157 15-15 15v-30c8.2843 0 15 6.7157 15 15z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "convergence",
+    name: "Convergence",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m22.1017 20.8596 9.8995-9.8994-2.1213-2.12137-7.3389 7.33887v-13.1777h-3v13.1777l-7.3388-7.33887-2.1213 2.12137 9.8995 9.8994 1.0606 1.0607zm2.1207 2.1214 9.8995-9.8995 2.1213 2.1213-7.3388 7.3388h13.0956v3h-13.0956l7.3388 7.3389-2.1213 2.1213-9.8995-9.8995-1.0607-1.0607zm-16.26224 12.0208 9.89944-9.8995 1.0607-1.0607-1.0607-1.0606-9.89944-9.8995-2.12133 2.1213 7.33887 7.3388h-13.17574688v3h13.17574688l-7.33887 7.3389zm12.02024-7.7782-9.8995 9.8995 2.1213 2.1213 7.3388-7.3388v13.0944h3v-13.0944l7.3389 7.3388 2.1213-2.1213-9.8995-9.8995-1.0607-1.0607z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m22.1017 20.8596 9.8995-9.8994-2.1213-2.12137-7.3389 7.33887v-13.1777h-3v13.1777l-7.3388-7.33887-2.1213 2.12137 9.8995 9.8994 1.0606 1.0607zm2.1207 2.1214 9.8995-9.8995 2.1213 2.1213-7.3388 7.3388h13.0956v3h-13.0956l7.3388 7.3389-2.1213 2.1213-9.8995-9.8995-1.0607-1.0607zm-16.26224 12.0208 9.89944-9.8995 1.0607-1.0607-1.0607-1.0606-9.89944-9.8995-2.12133 2.1213 7.33887 7.3388h-13.17574688v3h13.17574688l-7.33887 7.3389zm12.02024-7.7782-9.8995 9.8995 2.1213 2.1213 7.3388-7.3388v13.0944h3v-13.0944l7.3389 7.3388 2.1213-2.1213-9.8995-9.8995-1.0607-1.0607z" fill="#155eef" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "core-os",
+    name: "CoreOS",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m15.2286 4.99951c-3.2154 0-6.18655 1.71539-7.79425 4.5l-5.7735 9.99999c-1.6076941 2.7846-1.607697 6.2154 0 9l5.7735 10c1.6077 2.7846 4.57885 4.5 7.79425 4.5h11.547c3.2154 0 6.1865-1.7154 7.7942-4.5l5.7735-10c1.6077-2.7846 1.6077-6.2154 0-9l-5.7735-9.99999c-1.6077-2.78461-4.5788-4.5-7.7942-4.5zm11.547 5.99999h-7.2169c-1.1547 0-1.8762 1.2499-1.298 2.2494 1.784 3.0838 3.5722 6.1653 5.3536 9.2506.5359.9282.5359 2.0718 0 3-1.7814 3.0854-3.5696 6.1668-5.3536 9.2506-.5782.9995.1433 2.2494 1.298 2.2494h7.2169c1.0718 0 2.0622-.5718 2.5981-1.5l5.7735-10c.5359-.9282.5359-2.0718 0-3l-5.7735-10c-.5359-.9282-1.5263-1.5-2.5981-1.5z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m15.2286 4.99951c-3.2154 0-6.18655 1.71539-7.79425 4.5l-5.7735 9.99999c-1.6076941 2.7846-1.607697 6.2154 0 9l5.7735 10c1.6077 2.7846 4.57885 4.5 7.79425 4.5h11.547c3.2154 0 6.1865-1.7154 7.7942-4.5l5.7735-10c1.6077-2.7846 1.6077-6.2154 0-9l-5.7735-9.99999c-1.6077-2.78461-4.5788-4.5-7.7942-4.5zm11.547 5.99999h-7.2169c-1.1547 0-1.8762 1.2499-1.298 2.2494 1.784 3.0838 3.5722 6.1653 5.3536 9.2506.5359.9282.5359 2.0718 0 3-1.7814 3.0854-3.5696 6.1668-5.3536 9.2506-.5782.9995.1433 2.2494 1.298 2.2494h7.2169c1.0718 0 2.0622-.5718 2.5981-1.5l5.7735-10c.5359-.9282.5359-2.0718 0-3l-5.7735-10c-.5359-.9282-1.5263-1.5-2.5981-1.5z" fill="#155eef" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "cubekit",
+    name: "Cubekit",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 14.5264v18.9473l17.8947-12.2437v-18.94741z" fill="#155eef" opacity=".5"/><path d="m0 33.4737v-18.9474l17.8947 12.2438v18.9474z" fill="#1570ef" opacity=".5"/><path d="m40 14.5263v18.9474l-17.8947-12.2438v-18.94737z" fill="#155eef" opacity=".5"/><path d="m40 33.4737v-18.9474l-17.8947 12.2438v18.9474z" fill="#1570ef" opacity=".5"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m0 14.5264v18.9473l17.8947-12.2437v-18.94741z" opacity=".5"/><path d="m0 33.4737v-18.9474l17.8947 12.2438v18.9474z" opacity=".5"/><path d="m40 14.5263v18.9474l-17.8947-12.2438v-18.94737z" opacity=".5"/><path d="m40 33.4737v-18.9474l-17.8947 12.2438v18.9474z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "europa",
+    name: "Europa",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m28.6446 39.168c-.6032 1.3404-1.353 2.6531-2.2519 3.7888 7.4581-2.5137 12.9483-9.3054 13.5527-17.4568h-2.6549c-3.2399 0-5.8424 2.5861-6.369 5.7829-.4855 2.9468-1.2621 5.6301-2.2769 7.8851z"/><path d="m22.7724 25.5c3.3921 0 6.167 2.8299 5.5439 6.1643-1.3533 7.2424-4.5667 12.3357-8.3155 12.3357-4.7435 0-8.6299-8.1549-8.975-18.5z"/><path d="m30.9904 17.1502c.4961 3.2267 3.1106 5.8498 6.3752 5.8498h2.6107c-.4123-8.3729-5.9735-15.39183-13.5836-17.95683.8989 1.13575 1.6487 2.44843 2.2519 3.78878 1.0643 2.36505 1.8666 5.20115 2.3458 8.31825z"/><path d="m28.4165 16.8957c.5674 3.3176-2.1954 6.1043-5.5612 6.1043h-11.8434c.2344-10.5811 4.1693-19 8.9889-19 3.8447 0 7.1263 5.35721 8.4157 12.8957z"/><path d="m8.51131 23c.11359-5.4083 1.14536-10.3894 2.84579-14.16805.6031-1.34035 1.3529-2.65303 2.2519-3.78878-7.61011 2.565-13.171316 9.58393-13.5836094 17.95683z"/><path d="m.0562286 25.5c.6043994 8.1514 6.0946514 14.9431 13.5527714 17.4568-.899-1.1357-1.6488-2.4484-2.2519-3.7888-1.6479-3.6619-2.66781-8.4531-2.83264-13.668z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m28.6446 39.168c-.6032 1.3404-1.353 2.6531-2.2519 3.7888 7.4581-2.5137 12.9483-9.3054 13.5527-17.4568h-2.6549c-3.2399 0-5.8424 2.5861-6.369 5.7829-.4855 2.9468-1.2621 5.6301-2.2769 7.8851z"/><path d="m22.7724 25.5c3.3921 0 6.167 2.8299 5.5439 6.1643-1.3533 7.2424-4.5667 12.3357-8.3155 12.3357-4.7435 0-8.6299-8.1549-8.975-18.5z"/><path d="m30.9904 17.1502c.4961 3.2267 3.1106 5.8498 6.3752 5.8498h2.6107c-.4123-8.3729-5.9735-15.39183-13.5836-17.95683.8989 1.13575 1.6487 2.44843 2.2519 3.78878 1.0643 2.36505 1.8666 5.20115 2.3458 8.31825z"/><path d="m28.4165 16.8957c.5674 3.3176-2.1954 6.1043-5.5612 6.1043h-11.8434c.2344-10.5811 4.1693-19 8.9889-19 3.8447 0 7.1263 5.35721 8.4157 12.8957z"/><path d="m8.51131 23c.11359-5.4083 1.14536-10.3894 2.84579-14.16805.6031-1.34035 1.3529-2.65303 2.2519-3.78878-7.61011 2.565-13.171316 9.58393-13.5836094 17.95683z"/><path d="m.0562286 25.5c.6043994 8.1514 6.0946514 14.9431 13.5527714 17.4568-.899-1.1357-1.6488-2.4484-2.2519-3.7888-1.6479-3.6619-2.66781-8.4531-2.83264-13.668z"/></g></svg>`
+  },
+  {
+    id: "feather-dev",
+    name: "FeatherDev",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m36.3068 11.4224c-.4322-.4323-.8644-.8645-1.2967-1.2967-1.2966-1.38311-2.6797-2.76621-4.4086-3.63065-1.9882-1.03733-4.1493-.778-6.3104-.778-3.2849 0-11.4971 0-16.33798 0l3.28488 4.40865h19.6228c1.8153 0 3.3713.3458 4.8409 1.2967.2593.0864.5186.0864.6051 0z" fill="#53b1fd"/><path d="m39.9368 18.511c-.4322-.4322-.8645-.8645-1.2967-1.2967-1.2967-1.3831-2.6797-2.7662-4.4086-3.6306-1.9882-1.0374-4.1494-.778-6.3105-.778-2.8526 0-9.6817 0-14.5226 0l3.2849 4.4086h17.8939c1.8154 0 3.3714.3458 4.8409 1.2967.1729.0864.3458.0864.5187 0z" fill="#2e90fa"/><path d="m44 25.4263c-.4322-.4323-.8645-.8645-1.2967-1.2967-1.2966-1.3831-2.6797-2.7662-4.4086-3.6307-1.9882-1.0373-4.1493-.7779-6.3104-.7779-2.6798 0-8.558 0-13.3124 0l3.2848 4.4086h16.5973c1.8153 0 3.3713.3458 4.8409 1.2967.2593.0864.4322.1729.6051 0z" fill="#1570ef"/><path d="m7.60742 37.0961c.43222.4322.86444.8644 1.29666 1.2966 1.29662 1.3831 2.67972 2.7662 4.40862 3.6307 1.9882 1.0373 4.1493.778 6.3104.778h16.338l-3.2849-4.4087c-5.9646 0-15.3006 0-19.6228 0-1.8153 0-3.37132-.3457-4.84087-1.2966-.25933-.0865-.43222-.0865-.60511 0z" fill="#53b1fd"/><path d="m3.97656 30.0079c.43222.4323.86444.8645 1.29666 1.2967 1.29667 1.3831 2.67976 2.7662 4.40864 3.6307 1.98824 1.0373 4.14934.778 6.31044.778h14.5226l-3.2849-4.4087c-5.8782 0-13.9175 0-17.89391 0-1.81532 0-3.37132-.3458-4.84087-1.2967-.17289-.0864-.34577-.0864-.51866 0z" fill="#2e90fa"/><path d="m0 23.0058c.43222.4322.864441.8644 1.29666 1.2966 1.29666 1.3831 2.67977 2.7662 4.40866 3.6307 1.98821 1.0373 4.1493.778 6.31038.778h13.3124l-3.2849-4.4087c-5.7053 0-12.96657 0-16.59722 0-1.81533 0-3.37132-.3458-4.840874-1.2966-.259332-.0865-.432218-.0865-.605106 0z" fill="#1570ef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m36.3068 11.4224c-.4322-.4323-.8644-.8645-1.2967-1.2967-1.2966-1.38311-2.6797-2.76621-4.4086-3.63065-1.9882-1.03733-4.1493-.778-6.3104-.778-3.2849 0-11.4971 0-16.33798 0l3.28488 4.40865h19.6228c1.8153 0 3.3713.3458 4.8409 1.2967.2593.0864.5186.0864.6051 0z" opacity=".5"/><path d="m39.9368 18.511c-.4322-.4322-.8645-.8645-1.2967-1.2967-1.2967-1.3831-2.6797-2.7662-4.4086-3.6306-1.9882-1.0374-4.1494-.778-6.3105-.778-2.8526 0-9.6817 0-14.5226 0l3.2849 4.4086h17.8939c1.8154 0 3.3714.3458 4.8409 1.2967.1729.0864.3458.0864.5187 0z" opacity=".7"/><path d="m44 25.4263c-.4322-.4323-.8645-.8645-1.2967-1.2967-1.2966-1.3831-2.6797-2.7662-4.4086-3.6307-1.9882-1.0373-4.1493-.7779-6.3104-.7779-2.6798 0-8.558 0-13.3124 0l3.2848 4.4086h16.5973c1.8153 0 3.3713.3458 4.8409 1.2967.2593.0864.4322.1729.6051 0z"/><path d="m7.60742 37.0961c.43222.4322.86444.8644 1.29666 1.2966 1.29662 1.3832 2.67972 2.7662 4.40862 3.6307 1.9882 1.0373 4.1493.778 6.3104.778h16.338l-3.2849-4.4087c-5.9646 0-15.3006 0-19.6228 0-1.8153 0-3.37132-.3457-4.84087-1.2966-.25933-.0865-.43222-.0865-.60511 0z" opacity=".5"/><path d="m3.97656 30.0079c.43222.4323.86444.8645 1.29666 1.2967 1.29667 1.3831 2.67976 2.7662 4.40864 3.6307 1.98824 1.0373 4.14934.778 6.31044.778h14.5226l-3.2849-4.4087c-5.8782 0-13.9175 0-17.89391 0-1.81532 0-3.37132-.3458-4.84087-1.2967-.17289-.0864-.34577-.0864-.51866 0z" opacity=".7"/><path d="m0 23.0058c.43222.4322.864441.8644 1.29666 1.2966 1.29666 1.3831 2.67977 2.7662 4.40866 3.6307 1.98821 1.0373 4.1493.778 6.31038.778h13.3124l-3.2849-4.4087c-5.7053 0-12.96657 0-16.59722 0-1.81533 0-3.37132-.3458-4.840874-1.2966-.259332-.0865-.432218-.0865-.605106 0z"/></g></svg>`
+  },
+  {
+    id: "flora-fauna",
+    name: "Flora&Fauna",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m13.7146 4c-2.2564 0-4.4203.89634-6.01579 2.49183l-7.69881 7.69877v3.524c0 2.4897 1.06944 4.7296 2.77401 6.2854-1.70457 1.5558-2.77401 3.7957-2.77401 6.2854v3.524l7.69881 7.6988c1.59549 1.5955 3.75939 2.4918 6.01579 2.4918 2.4897 0 4.7296-1.0694 6.2854-2.774 1.5558 1.7046 3.7957 2.774 6.2854 2.774 2.2564 0 4.4203-.8963 6.0158-2.4918l7.6988-7.6988v-3.524c0-2.4897-1.0694-4.7296-2.774-6.2854 1.7046-1.5558 2.774-3.7957 2.774-6.2854v-3.524l-7.6988-7.69877c-1.5955-1.59549-3.7594-2.49183-6.0158-2.49183-2.4897 0-4.7296 1.06944-6.2854 2.77401-1.5558-1.70457-3.7957-2.77401-6.2854-2.77401zm12.0442 20c-.0959-.0875-.19-.1774-.2822-.2696l-5.4766-5.4766-5.4766 5.4766c-.0922.0922-.1863.1821-.2822.2696.0959.0875.19.1774.2822.2696l5.4766 5.4766 5.4766-5.4766c.0922-.0922.1863-.1821.2822-.2696zm-3.5366 9.8094v1.683c0 2.244 1.8192 4.0632 4.0632 4.0632 1.0776 0 2.1111-.4281 2.8731-1.1901l6.3971-6.3971v-1.683c0-2.244-1.8192-4.0632-4.0632-4.0632-1.0776 0-2.1111.4281-2.8731 1.1901zm-4.4444 0-6.3971-6.3971c-.762-.762-1.79546-1.1901-2.87308-1.1901-2.24403 0-4.06318 1.8192-4.06318 4.0632v1.683l6.39706 6.3971c.762.762 1.7955 1.1901 2.8731 1.1901 2.244 0 4.0632-1.8192 4.0632-4.0632zm0-21.3018v1.683l-6.3971 6.3971c-.762.762-1.79546 1.1901-2.87308 1.1901-2.24403 0-4.06318-1.8192-4.06318-4.0632v-1.683l6.39706-6.39708c.762-.76199 1.7955-1.19007 2.8731-1.19007 2.244 0 4.0632 1.81915 4.0632 4.06315zm10.8415 8.0801-6.3971-6.3971v-1.683c0-2.244 1.8192-4.06315 4.0632-4.06315 1.0776 0 2.1111.42808 2.8731 1.19007l6.3971 6.39708v1.683c0 2.244-1.8192 4.0632-4.0632 4.0632-1.0776 0-2.1111-.4281-2.8731-1.1901z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m13.7146 4c-2.2564 0-4.4203.89634-6.01579 2.49183l-7.69881 7.69877v3.524c0 2.4897 1.06944 4.7296 2.77401 6.2854-1.70457 1.5558-2.77401 3.7957-2.77401 6.2854v3.524l7.69881 7.6988c1.59549 1.5955 3.75939 2.4918 6.01579 2.4918 2.4897 0 4.7296-1.0694 6.2854-2.774 1.5558 1.7046 3.7957 2.774 6.2854 2.774 2.2564 0 4.4203-.8963 6.0158-2.4918l7.6988-7.6988v-3.524c0-2.4897-1.0694-4.7296-2.774-6.2854 1.7046-1.5558 2.774-3.7957 2.774-6.2854v-3.524l-7.6988-7.69877c-1.5955-1.59549-3.7594-2.49183-6.0158-2.49183-2.4897 0-4.7296 1.06944-6.2854 2.77401-1.5558-1.70457-3.7957-2.77401-6.2854-2.77401zm12.0442 20c-.0959-.0875-.19-.1774-.2822-.2696l-5.4766-5.4766-5.4766 5.4766c-.0922.0922-.1863.1821-.2822.2696.0959.0875.19.1774.2822.2696l5.4766 5.4766 5.4766-5.4766c.0922-.0922.1863-.1821.2822-.2696zm-3.5366 9.8094v1.683c0 2.244 1.8192 4.0632 4.0632 4.0632 1.0776 0 2.1111-.4281 2.8731-1.1901l6.3971-6.3971v-1.683c0-2.244-1.8192-4.0632-4.0632-4.0632-1.0776 0-2.1111.4281-2.8731 1.1901zm-4.4444 0-6.3971-6.3971c-.762-.762-1.79546-1.1901-2.87308-1.1901-2.24403 0-4.06318 1.8192-4.06318 4.0632v1.683l6.39706 6.3971c.762.762 1.7955 1.1901 2.8731 1.1901 2.244 0 4.0632-1.8192 4.0632-4.0632zm0-21.3018v1.683l-6.3971 6.3971c-.762.762-1.79546 1.1901-2.87308 1.1901-2.24403 0-4.06318-1.8192-4.06318-4.0632v-1.683l6.39706-6.39708c.762-.76199 1.7955-1.19007 2.8731-1.19007 2.244 0 4.0632 1.81915 4.0632 4.06315zm10.8415 8.0801-6.3971-6.3971v-1.683c0-2.244 1.8192-4.06315 4.0632-4.06315 1.0776 0 2.1111.42808 2.8731 1.19007l6.3971 6.39708v1.683c0 2.244-1.8192 4.0632-4.0632 4.0632-1.0776 0-2.1111-.4281-2.8731-1.1901z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "focal-point",
+    name: "FocalPoint",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m10.7788 6.1817 4.6901 17.5036v-19.24382c.3719-.08679.7478-.16322 1.1273-.22897v19.47459l5.2752-19.6871c.3801.03442.7572.07945 1.1309.13479l-5.3176 19.84571 10.5701-18.30794c.3443.15492.6835.31927 1.0172.49274l-10.6095 18.3763 15.1464-15.1465c.2731.25824.5389.52407.7971.7972l-15.1486 15.1487 18.3784-10.6108c.1734.3337.3377.6729.4926 1.0173l-18.3034 10.5675 19.8403-5.3162c.0553.3737.1003.7508.1347 1.1309l-19.6869 5.2751h19.4741c-.0658.3796-.1422.7554-.229 1.1273h-19.2481l17.507 4.691c-.1798.3443-.3693.6827-.5681 1.0149l-17.2257-4.6156 14.3874 8.3066c-.2723.2801-.5528.5522-.8411.8161l-14.1087-8.1457 10.6759 10.6758c-.3377.1973-.6817.385-1.0316.5628l-10.4426-10.4426 6.8421 11.8508c-.3746.1059-.7537.2012-1.1368.2855l-6.6825-11.5744 3.2219 12.0243c-.2872.0122-.5759.0184-.8661.0184-.0991 0-.198-.0007-.2967-.0022l-3.1483-11.7497v11.4569c-.3795-.0657-.7554-.1421-1.1273-.2289v-11.2261l-2.7759 10.36c-.3541-.1396-.7033-.289-1.0471-.4478l2.7337-10.2024-5.13175 8.8884c-.3177-.2034-.62928-.4156-.9344-.6361l5.09135-8.8186-7.1301 7.1302c-.2731-.2583-.53893-.5241-.79717-.7971l7.12787-7.1279-8.81599 5.0899c-.22059-.3051-.4328-.6167-.6363-.9344l8.89259-5.1341-10.20737 2.735c-.15888-.3438-.3083-.693-.44793-1.047l10.3599-2.776h-11.226124c-.086806-.3719-.163256-.7477-.22903-1.1273h11.452154l-11.74511583-3.1471c-.00145443-.0995-.00218417-.1991-.00218417-.2989 0-.2894.00613487-.5774.0182816-.8639l12.0258184 3.2224-11.57621-6.6836c.084291-.3832.179549-.7623.285427-1.1369l11.855683 6.8449-10.44698-10.447c.17774-.3499.36544-.6939.56273-1.0315l10.68025 10.6802-8.14896-14.1144c.26387-.2882.53605-.56863.81617-.84096l8.30809 14.38996-4.61634-17.22828c.33214-.1988.67064-.38826 1.01484-.56802z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m10.7788 6.1817 4.6901 17.5036v-19.24382c.3719-.08679.7478-.16322 1.1273-.22897v19.47459l5.2752-19.6871c.3801.03442.7572.07945 1.1309.13479l-5.3176 19.84571 10.5701-18.30794c.3443.15492.6835.31927 1.0172.49274l-10.6095 18.3763 15.1464-15.1465c.2731.25824.5389.52407.7971.7972l-15.1486 15.1487 18.3784-10.6108c.1734.3337.3377.6729.4926 1.0173l-18.3034 10.5675 19.8403-5.3162c.0553.3737.1003.7508.1347 1.1309l-19.6869 5.2751h19.4741c-.0658.3796-.1422.7554-.229 1.1273h-19.2481l17.507 4.691c-.1798.3443-.3693.6827-.5681 1.0149l-17.2257-4.6156 14.3874 8.3066c-.2723.2801-.5528.5522-.8411.8161l-14.1087-8.1457 10.6759 10.6758c-.3377.1973-.6817.385-1.0316.5628l-10.4426-10.4426 6.8421 11.8508c-.3746.1059-.7537.2012-1.1368.2855l-6.6825-11.5744 3.2219 12.0243c-.2872.0122-.5759.0184-.8661.0184-.0991 0-.198-.0007-.2967-.0022l-3.1483-11.7497v11.4569c-.3795-.0657-.7554-.1421-1.1273-.2289v-11.2261l-2.7759 10.36c-.3541-.1396-.7033-.289-1.0471-.4478l2.7337-10.2024-5.13174 8.8884c-.31771-.2034-.62929-.4156-.93441-.6361l5.09135-8.8186-7.1301 7.1302c-.2731-.2583-.53893-.5241-.79717-.7971l7.12787-7.1279-8.81599 5.0899c-.22059-.3051-.4328-.6167-.6363-.9344l8.89259-5.1341-10.20737 2.735c-.15888-.3438-.3083-.693-.44793-1.047l10.3599-2.776h-11.226124c-.086806-.3719-.163256-.7477-.22903-1.1273h11.452154l-11.74511583-3.1471c-.00145443-.0995-.00218417-.1991-.00218417-.2989 0-.2894.00613486-.5774.0182816-.8639l12.0258184 3.2224-11.57621-6.6836c.084291-.3832.179549-.7623.285427-1.1369l11.855683 6.8449-10.44698-10.447c.17774-.3499.36544-.6939.56273-1.0315l10.68025 10.6802-8.14896-14.1144c.26387-.2882.53605-.56863.81617-.84096l8.30809 14.38996-4.61634-17.22828c.33214-.1988.67064-.38826 1.01484-.56802z" fill="#fff"/></svg>`
+  },
+  {
+    id: "foresight",
+    name: "Foresight",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 31 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#444ce7"><path d="m-.00195312 17.8433 30.90545312-17.8433-.8189 12.6994-26.32058 15.1961z"/><path d="m3.76367 27.8951 21.73573-12.5492-.8189 12.6994-17.15086 9.902z" opacity=".5"/><path d="m7.52734 37.9477 12.56596-7.255-.8189 12.6994-7.9811 4.6079z" opacity=".25"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 31 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m-.00195312 17.8433 30.90545312-17.8433-.8189 12.6994-26.32058 15.1961z"/><path d="m3.76367 27.8951 21.73573-12.5492-.8189 12.6994-17.15086 9.902z" opacity=".5"/><path d="m7.52734 37.9477 12.56596-7.255-.8189 12.6994-7.9811 4.6079z" opacity=".25"/></g></svg>`
+  },
+  {
+    id: "galileo",
+    name: "Galileo",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m29.5411 6.41772c2.6913 5.27688 4.209 11.25228 4.209 17.58218s-1.5177 12.3054-4.2091 17.5823c6.2304-3.3881 10.4593-9.9914 10.4593-17.5823s-4.2289-14.19404-10.4592-17.58218z" fill="#6172f3"/><path d="m20.5481 5.99826c-.9047-1.28153-2.4457-1.9717-3.9913-1.70349-9.40496 1.63214-16.5568 9.83343-16.5568 19.70503 0 9.8717 7.1518 18.0729 16.5567 19.7051 1.5456.2682 3.0867-.4219 3.9913-1.7035 3.5923-5.0889 5.7025-11.2988 5.7025-18.0016 0-6.7027-2.1101-12.9126-5.7024-18.00154z" fill="#444ce7"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m29.5411 6.41772c2.6913 5.27688 4.209 11.25228 4.209 17.58218s-1.5177 12.3054-4.2091 17.5823c6.2304-3.3881 10.4593-9.9914 10.4593-17.5823s-4.2289-14.19404-10.4592-17.58218z" opacity=".7"/><path d="m20.5481 5.99826c-.9047-1.28153-2.4457-1.9717-3.9913-1.70349-9.40496 1.63214-16.5568 9.83343-16.5568 19.70503 0 9.8717 7.1518 18.0729 16.5567 19.7051 1.5456.2682 3.0867-.4219 3.9913-1.7035 3.5923-5.0889 5.7025-11.2988 5.7025-18.0016 0-6.7027-2.1101-12.9126-5.7024-18.00154z"/></g></svg>`
+  },
+  {
+    id: "global-bank",
+    name: "GlobalBank",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m27.6627 4h-15.3253l-12.3374 12.3373v15.3253l12.3374 12.3374h15.3253l12.3373-12.3374v-15.3253zm-13.2049 27.8554-7.90357-7.9036 7.90357-7.9036c2.988-2.988 7.9037-2.988 10.8916 0l7.9036 7.9036-7.9036 7.9036c-2.9879 2.988-7.8072 2.988-10.8916 0z" fill="#444ce7"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m27.6627 4h-15.3253l-12.3374 12.3373v15.3253l12.3374 12.3374h15.3253l12.3373-12.3374v-15.3253zm-13.2049 27.8554-7.90357-7.9036 7.90357-7.9036c2.988-2.988 7.9037-2.988 10.8916 0l7.9036 7.9036-7.9036 7.9036c-2.9879 2.988-7.8072 2.988-10.8916 0z" fill="#fff"/></svg>`
+  },
+  {
+    id: "hexsmith",
+    name: "Hexsmith",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m9.72461 41.7983h18.49589c1.2717 0 2.4469-.6785 3.0827-1.7798l4.1102-7.1191h-20.5481z" opacity=".7"/><path d="m25.1445 15.1015h-20.55661l4.11021-7.11909c.63585-1.10133 1.811-1.77977 3.0827-1.77977h18.4959z" opacity=".4"/><path d="m39.5272 25.7801c.6358-1.1014.6358-2.4582 0-3.5596l-4.1102-7.1191-5.1378 8.8989h-20.55068l5.13718 8.8989h20.5481l.0016-.0027.0016.0027z" opacity=".4"/><path d="m14.8634 32.8992-5.13775-8.8988-5.13776 8.8988 5.13776 8.8989z"/><path d="m25.1445 15.1014h-20.55593l-4.108166 7.1192c-.635516 1.1013-.635318 2.458.000521 3.5591l4.111125 7.1195 5.13775-8.8989h20.55l.0013-.0021z" opacity=".7"/><path d="m35.4181 15.1015-5.1378-8.89886-5.1377 8.89886 5.1377 8.8989z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m9.72461 41.7983h18.49589c1.2717 0 2.4469-.6785 3.0827-1.7798l4.1102-7.1191h-20.5481z" opacity=".7"/><path d="m25.1445 15.1015h-20.55661l4.11021-7.11909c.63585-1.10133 1.811-1.77977 3.0827-1.77977h18.4959z" opacity=".4"/><path d="m39.5272 25.7801c.6358-1.1013.6358-2.4582 0-3.5596l-4.1102-7.1191-5.1378 8.8989h-20.55068l5.13718 8.8989h20.5481l.0016-.0027.0016.0027z" opacity=".4"/><path d="m14.8634 32.8992-5.13775-8.8988-5.13776 8.8988 5.13776 8.8989z"/><path d="m25.1445 15.1014h-20.55593l-4.108166 7.1192c-.635516 1.1013-.635318 2.458.000521 3.5591l4.111125 7.1195 5.13775-8.8989h20.55l.0013-.0022z" opacity=".7"/><path d="m35.4181 15.1015-5.1378-8.89886-5.1377 8.89886 5.1377 8.8989z"/></g></svg>`
+  },
+  {
+    id: "hourglass",
+    name: "Hourglass",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 30 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 41.2222c0 1.5341 1.24365 2.7778 2.77778 2.7778h24.44442c1.5341 0 2.7778-1.2437 2.7778-2.7778v-7.2222c0-8.2843-6.7157-15-15-15-8.28427 0-15 6.7157-15 15z" fill="#1570ef"/><path d="m0 6.77778c0-1.53413 1.24365-2.77778 2.77778-2.77778h24.44442c1.5341 0 2.7778 1.24365 2.7778 2.77778v7.22222c0 8.2843-6.7157 15-15 15-8.28427 0-15-6.7157-15-15z" fill="#53b1fd" opacity=".5"/></svg>`,
+    darkSvg: `<svg width="100%" height="100%" viewBox="0 0 30 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path opacity="0.7" d="M0 41.2222C0 42.7563 1.24365 44 2.77778 44H27.2222C28.7563 44 30 42.7563 30 41.2222V34C30 25.7157 23.2843 19 15 19C6.71573 19 0 25.7157 0 34V41.2222Z" fill="white"/><path opacity="0.7" d="M0 6.77778C0 5.24365 1.24365 4 2.77778 4H27.2222C28.7563 4 30 5.24365 30 6.77778V14C30 22.2843 23.2843 29 15 29C6.71573 29 0 22.2843 0 14V6.77778Z" fill="white"/></svg>`
+  },
+  {
+    id: "kintsugi",
+    name: "Kintsugi",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m20 4 4.2861 9.6525 9.856-3.79464-3.7946 9.85604 9.6525 4.2861-9.6525 4.2861 3.7946 9.856-9.856-3.7946-4.2861 9.6525-4.2861-9.6525-9.85604 3.7946 3.79469-9.856-9.65255-4.2861 9.65255-4.2861-3.79469-9.85604 9.85604 3.79464z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m20 4 4.2861 9.6525 9.856-3.79464-3.7946 9.85604 9.6525 4.2861-9.6525 4.2861 3.7946 9.856-9.856-3.7946-4.2861 9.6525-4.2861-9.6525-9.85604 3.7946 3.79469-9.856-9.65255-4.2861 9.65255-4.2861-3.79469-9.85604 9.85604 3.79464z" fill="#155eef"/></svg>`
+  },
+  {
+    id: "layers",
+    name: "Layers",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m5.03741 15.4637c.7506-2.8008 3.62961-5.67985 6.43049-6.43044l17.4617-4.67957c2.8009-.7506 4.4629.91146 3.7123 3.71231l-4.6795 17.4617c-.7506 2.8009-3.6297 5.6799-6.4305 6.4305l-17.46175 4.6796c-2.80085.7505-4.462904-.9115-3.712306-3.7124z" opacity=".7"/><path d="m12.0355 22.4642c.7506-2.8008 3.6296-5.6799 6.4304-6.4305l17.4617-4.6795c2.8009-.7506 4.4629.9114 3.7123 3.7123l-4.6795 17.4617c-.7506 2.8009-3.6296 5.6799-6.4305 6.4305l-17.4617 4.6795c-2.80085.7506-4.46291-.9114-3.71231-3.7123z" opacity=".7"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m5.03741 15.4637c.7506-2.8008 3.62961-5.67985 6.43049-6.43044l17.4617-4.67957c2.8009-.7506 4.4629.91146 3.7123 3.71231l-4.6795 17.4617c-.7506 2.8009-3.6297 5.6799-6.4305 6.4305l-17.46175 4.6795c-2.80085.7506-4.462904-.9114-3.712306-3.7123z" opacity=".7"/><path d="m12.0355 22.4642c.7506-2.8008 3.6296-5.6799 6.4304-6.4305l17.4617-4.6795c2.8009-.7506 4.4629.9114 3.7123 3.7123l-4.6795 17.4617c-.7506 2.8009-3.6296 5.6799-6.4305 6.4305l-17.4617 4.6795c-2.80085.7506-4.46291-.9114-3.71231-3.7123z" opacity=".7"/></g></svg>`
+  },
+  {
+    id: "lightspeed",
+    name: "Lightspeed",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 24c0 6.6274 5.37258 12 12 12v-12c0 6.6274 5.3726 12 12 12v-12c0 6.6274 5.3726 12 12 12s12-5.3726 12-12-5.3726-12-12-12-12 5.3726-12 12v-12c-6.6274 0-12 5.3726-12 12v-12c-6.62742 0-12 5.3726-12 12z" fill="#155eef"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m0 24c0 6.6274 5.37258 12 12 12v-12c0 6.6274 5.3726 12 12 12v-12c0 6.6274 5.3726 12 12 12s12-5.3726 12-12-5.3726-12-12-12-12 5.3726-12 12v-12c-6.6274 0-12 5.3726-12 12v-12c-6.62742 0-12 5.3726-12 12z" fill="#155eef"/></svg>`
+  },
+  {
+    id: "luminescence",
+    name: "Luminescence",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m32.3008 36h-.1015c-.0261.0402-.0523.0804-.0787.1204-2.7604 1.8201-6.0668 2.8794-9.6206 2.8794-9.665 0-17.5-7.835-17.5-17.5 0-3.5538 1.05931-6.8602 2.87939-9.6206.04009-.0264.08029-.0527.12061-.0788v-.1017c-.04056.0599-.08077.1201-.12061.1805-4.7469 3.1299-7.87939 8.5094-7.87939 14.6206 0 9.665 7.83502 17.5 17.5 17.5 6.1112 0 11.4907-3.1325 14.6206-7.8794.0603-.0398.1204-.0799.1802-.1204z"/><g opacity=".5"><path d="m40.0003 21.5c0 6.1112-3.1325 11.4907-7.8794 14.6206 1.8201-2.7604 2.8794-6.0668 2.8794-9.6206 0-9.665-7.835-17.5-17.5-17.5-3.5538 0-6.8602 1.0593-9.6206 2.8794 3.1299-4.74691 8.5094-7.8794 14.6206-7.8794 9.665 0 17.5 7.835 17.5 17.5z"/><path d="m32.0003 36.1994c.0403-.0261.0805-.0524.1206-.0788-.0398.0604-.08.1206-.1206.1805z"/><path d="m7.80088 12c.02611-.0403.05238-.0805.07882-.1206-.06043.0398-.12059.08-.18048.1206z"/></g></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m32.3008 36h-.1015c-.0261.0402-.0523.0804-.0787.1204-2.7604 1.8201-6.0668 2.8794-9.6206 2.8794-9.665 0-17.5-7.835-17.5-17.5 0-3.5538 1.05931-6.8602 2.87939-9.6206.04009-.0264.08029-.0527.12061-.0788v-.1017c-.04056.0599-.08077.1201-.12061.1805-4.7469 3.1299-7.87939 8.5094-7.87939 14.6206 0 9.665 7.83502 17.5 17.5 17.5 6.1112 0 11.4907-3.1325 14.6206-7.8794.0603-.0398.1204-.0799.1802-.1204z"/><g opacity=".5"><path d="m40.0003 21.5c0 6.1112-3.1325 11.4907-7.8794 14.6206 1.8201-2.7604 2.8794-6.0668 2.8794-9.6206 0-9.665-7.835-17.5-17.5-17.5-3.5538 0-6.8602 1.0593-9.6206 2.8794 3.1299-4.74691 8.5094-7.8794 14.6206-7.8794 9.665 0 17.5 7.835 17.5 17.5z"/><path d="m32.0003 36.1994c.0403-.0261.0805-.0524.1206-.0788-.0398.0604-.08.1206-.1206.1805z"/><path d="m7.80088 12c.02611-.0403.05238-.0805.07882-.1206-.06043.0398-.12059.08-.18048.1206z"/></g></g></svg>`
+  },
+  {
+    id: "luminous",
+    name: "Luminous",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m14.1061 19.6565c5.499-2.6299 9.8025-7.0929 12.2731-12.67168-1.5939-1.67362-3.666-2.86907-5.8975-3.58634l-1.1954-.39848c-.0797.15939-.1594.39849-.1594.55788-1.9127 5.41936-5.8178 9.80262-11.07766 12.27322-3.66599 1.7533-6.37564 4.9412-7.650763 8.7666l-.398477 1.1955c.159391.0797.39848.1593.557871.1593 1.514209.5579 3.028419 1.2752 4.462939 2.1519 1.99238-3.5864 5.18019-6.6148 9.08529-8.4479z"/><path d="m37.2173 19.9753c-2.9487 4.463-7.0132 8.0494-12.034 10.4403-4.0645 1.9127-7.1726 5.499-8.6071 9.8026l-.3985 1.3549c1.5142 1.3548 3.3472 2.3909 5.3396 3.0284l1.1955.3985c.0796-.1594.1593-.3985.1593-.5579 1.9127-5.4193 5.8178-9.8026 11.0777-12.2732 3.666-1.7533 6.4553-4.9412 7.6507-8.7666l.3985-1.1954c-1.6736-.4782-3.2675-1.2752-4.7817-2.2316z" opacity=".6"/><path d="m12.9903 37.4284c1.9924-4.7818 5.6584-8.6869 10.3604-10.9184 4.3035-2.0721 7.8898-5.26 10.3604-9.1651-1.833-1.7533-3.3472-3.7458-4.463-6.1366-2.9487 5.4193-7.571 9.8026-13.2294 12.5123-3.2675 1.5142-5.8974 4.1442-7.49136 7.3321 1.75326 1.6736 3.18786 3.7457 4.30356 6.0569 0 0 .0797.1594.1594.3188z" opacity=".8"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 42 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m14.1061 19.6565c5.499-2.6299 9.8025-7.0929 12.2731-12.67168-1.5939-1.67362-3.666-2.86907-5.8975-3.58634l-1.1954-.39848c-.0797.15939-.1594.39849-.1594.55788-1.9127 5.41936-5.8178 9.80262-11.07766 12.27322-3.66599 1.7533-6.37564 4.9412-7.650763 8.7666l-.398477 1.1955c.159391.0797.39848.1593.557871.1593 1.514209.5579 3.028419 1.2752 4.462939 2.1519 1.99238-3.5864 5.18019-6.6148 9.08529-8.4479z"/><path d="m37.2173 19.9753c-2.9487 4.463-7.0132 8.0494-12.034 10.4403-4.0645 1.9127-7.1726 5.499-8.6071 9.8026l-.3985 1.3549c1.5142 1.3548 3.3472 2.3909 5.3396 3.0284l1.1955.3985c.0796-.1594.1593-.3985.1593-.5579 1.9127-5.4193 5.8178-9.8026 11.0777-12.2732 3.666-1.7533 6.4553-4.9412 7.6507-8.7666l.3985-1.1954c-1.6736-.4782-3.2675-1.2752-4.7817-2.2316z" opacity=".5"/><path d="m12.9903 37.4284c1.9924-4.7818 5.6584-8.6869 10.3604-10.9184 4.3035-2.0721 7.8898-5.26 10.3604-9.1651-1.833-1.7533-3.3472-3.7458-4.463-6.1366-2.9487 5.4193-7.571 9.8026-13.2294 12.5123-3.2675 1.5142-5.8974 4.1442-7.49136 7.3321 1.75326 1.6736 3.18786 3.7457 4.30356 6.0569 0 0 .0797.1594.1594.3188z" opacity=".7"/></g></svg>`
+  },
+  {
+    id: "pollinate",
+    name: "Pollinate",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m25.0008 24c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m25.0008 10c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6c0-3.31371 2.6863-6 6-6s6 2.68629 6 6z"/><path d="m37.125 31c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m37.127 17.0002c0 3.3137-2.6863 6-6 6-3.3138 0-6-2.6863-6-6s2.6862-6 6-6c3.3137 0 6 2.6863 6 6z"/><path d="m25.0008 38c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m12.877 17c0 3.3137-2.6863 6-6.00005 6-3.31371 0-5.999997-2.6863-5.999997-6s2.686287-6 5.999997-6c3.31375 0 6.00005 2.6863 6.00005 6z"/><path d="m12.875 30.9997c0 3.3137-2.6863 6-6 6-3.31371 0-6-2.6863-6-6s2.68629-6 6-6c3.3137 0 6 2.6863 6 6z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m25.0008 24c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m25.0008 10c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6c0-3.31371 2.6863-6 6-6s6 2.68629 6 6z"/><path d="m37.125 31c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m37.127 17.0002c0 3.3137-2.6863 6-6 6-3.3138 0-6-2.6863-6-6s2.6862-6 6-6c3.3137 0 6 2.6863 6 6z"/><path d="m25.0008 38c0 3.3137-2.6863 6-6 6s-6-2.6863-6-6 2.6863-6 6-6 6 2.6863 6 6z"/><path d="m12.877 17c0 3.3137-2.6863 6-6.00005 6-3.31371 0-5.999997-2.6863-5.999997-6s2.686287-6 5.999997-6c3.31375 0 6.00005 2.6863 6.00005 6z"/><path d="m12.875 30.9997c0 3.3137-2.6863 6-6 6-3.31371 0-6-2.6863-6-6s2.68629-6 6-6c3.3137 0 6 2.6863 6 6z"/></g></svg>`
+  },
+  {
+    id: "polymath",
+    name: "Polymath",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="19" cy="24" r="16" stroke="#155eef" stroke-width="6"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 38 48" width="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="19" cy="24" r="16" stroke="#fff" stroke-width="6"/></svg>`
+  },
+  {
+    id: "prometheus",
+    name: "Prometheus",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m10.4993 16.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h19c2.2091 0 4-1.7909 4-4v-3h-22.5c-3.0376 0-5.5 2.46243-5.5 5.5 0 3.0376-2.4631 5.5-5.5007 5.5z"/><path d="m10.4993 26.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h13c2.2091 0 4-1.7909 4-4v-3h-16.5c-3.0376 0-5.5 2.4624-5.5 5.5s-2.4631 5.5-5.5007 5.5z" opacity=".7"/><path d="m10.4993 36.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h7.8c1.7673 0 3.2-1.4327 3.2-3.2v-3.8h-10.5c-3.0376 0-5.5 2.4624-5.5 5.5s-2.4631 5.5-5.5007 5.5z" opacity=".5"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m10.4993 16.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h19c2.2091 0 4-1.7909 4-4v-3h-22.5c-3.0376 0-5.5 2.46243-5.5 5.5 0 3.0376-2.4631 5.5-5.5007 5.5z"/><path d="m10.4993 26.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h13c2.2091 0 4-1.7909 4-4v-3h-16.5c-3.0376 0-5.5 2.4624-5.5 5.5s-2.4631 5.5-5.5007 5.5z" opacity=".75"/><path d="m10.4993 36.5h-7.29875c-1.76731 0-3.20055 1.4327-3.20055 3.2v2.8h11c2.7614 0 5-2.2386 5-5s2.2386-5 5-5h7.8c1.7673 0 3.2-1.4327 3.2-3.2v-3.8h-10.5c-3.0376 0-5.5 2.4624-5.5 5.5s-2.4631 5.5-5.5007 5.5z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "quantum",
+    name: "Quantum",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 39 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m9 23c0-5.5228 4.4772-10 10-10 5.5229 0 10 4.4772 10 10h9c0-10.4934-8.5066-19-19-19-10.49341 0-18.99999908 8.5066-19 19s8.50659 19 19 19v-9c-5.5228 0-10-4.4771-10-10z"/><path d="m29 23c0 5.5228 4.4772 10 10 10v9c-10.4934 0-19-8.5066-19-19z" opacity=".5"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 39 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m9 23c0-5.5228 4.4772-10 10-10 5.5229 0 10 4.4772 10 10h9c0-10.4934-8.5066-19-19-19-10.49341 0-18.99999908 8.5066-19 19s8.50659 19 19 19v-9c-5.5228 0-10-4.4771-10-10z"/><path d="m29 23c0 5.5228 4.4772 10 10 10v9c-10.4934 0-19-8.5066-19-19z" opacity=".5"/></g></svg>`
+  },
+  {
+    id: "quartz-ai",
+    name: "QuartzAI",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m17.6264 6.5h14.8017l11.4661 18.6661-15.7786 15.9489-22.68835-4.0459-5.157719-19.2098zm.5273 4.9692-6.816 15.105 6.4504 5.3411 8.8246-3.7975zm12.3276 15.3 9.2139-2.7073-7.1983-11.7184zm-.6163-17.2692h-9.3468l7.3309 14.4284zm6.9795 18.5263-6.779 1.9919-.5448 5.4109zm-10.5005 9.008.5824-5.7856-6.0573 2.6067zm-6.8394-.5022-10.91261-1.9459 1.64741-5.0264 6.438 5.3308zm-11.69782-9.1824-2.7037-3.0571 1.66868 6.215zm-3.53432-8.5248 4.81433 5.4437 5.50351-12.1963z" fill="#155eef" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 44 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m17.6264 6.5h14.8017l11.4661 18.6661-15.7786 15.9489-22.68835-4.0459-5.157719-19.2098zm.5273 4.9692-6.816 15.105 6.4504 5.3411 8.8246-3.7975zm12.3276 15.3 9.2139-2.7073-7.1983-11.7184zm-.6163-17.2692h-9.3468l7.3309 14.4284zm6.9795 18.5263-6.779 1.9919-.5448 5.4109zm-10.5005 9.008.5824-5.7856-6.0573 2.6067zm-6.8394-.5022-10.91261-1.9459 1.64741-5.0264 6.438 5.3308zm-11.69782-9.1824-2.7037-3.0571 1.66868 6.215zm-3.53432-8.5248 4.81433 5.4437 5.50351-12.1963z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "radius",
+    name: "Radius",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#155eef" fill-rule="evenodd"><path d="m18.5 19v-15h3v15z"/><path d="m18.5 44v-15h3v15z"/><path d="m22.4754 19.404 10.6066-10.60664 2.1214 2.12134-8.4853 8.4853z"/><path d="m4.79776 37.0816 10.60664-10.6066 2.1213 2.1214-10.60662 10.6066z"/><path d="m26.7178 28.5963 8.4853 8.4852-2.1213 2.1214-10.6066-10.6066z"/><path d="m6.91885 8.79727 10.60665 10.60663-2.1214 2.1213-10.60657-10.6066z"/><path d="m18.5 22.5h21.5v3h-21.5z"/><path d="m.00000026 22.5h14.99999974v3h-15z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g clip-rule="evenodd" fill="#155eef" fill-rule="evenodd"><path d="m18.5 19v-15h3v15z"/><path d="m18.5 44v-15h3v15z"/><path d="m22.4754 19.404 10.6066-10.60664 2.1214 2.12134-8.4853 8.4853z"/><path d="m4.79776 37.0816 10.60664-10.6066 2.1213 2.1214-10.60662 10.6066z"/><path d="m26.7178 28.5963 8.4853 8.4852-2.1213 2.1214-10.6066-10.6066z"/><path d="m6.91885 8.79727 10.60665 10.60663-2.1214 2.1213-10.60657-10.6066z"/><path d="m18.5 22.5h21.5v3h-21.5z"/><path d="m.00000026 22.5h14.99999974v3h-15z"/></g></svg>`
+  },
+  {
+    id: "railspeed",
+    name: "Railspeed",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 36 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m0 7.5h28.8c2.5202 0 3.7804 0 4.743.49047.8467.43143 1.5351 1.11984 1.9665 1.96657.4905.96256.4905 2.22276.4905 4.74296v1.8h-28.8c-2.52024 0-3.78035 0-4.74296-.4905-.84673-.4314-1.535139-1.1198-1.966569-1.9665-.490471-.9626-.490471-2.2228-.490471-4.743z"/><path d="m0 28.5h28.8c2.5202 0 3.7804 0 4.743-.4905.8467-.4314 1.5351-1.1198 1.9665-1.9665.4905-.9626.4905-2.2228.4905-4.743v-1.8h-28.8c-2.52024 0-3.78035 0-4.74296.4905-.84673.4314-1.535139 1.1198-1.966569 1.9665-.490471.9626-.490471 2.2228-.490471 4.743z"/><path d="m14 31.5h14.8c2.5202 0 3.7804 0 4.743.4905.8467.4314 1.5351 1.1198 1.9665 1.9665.4905.9626.4905 2.2228.4905 4.743v1.8h-14.8c-2.5202 0-3.7804 0-4.743-.4905-.8467-.4314-1.5351-1.1198-1.9665-1.9665-.4905-.9626-.4905-2.2228-.4905-4.743z"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 36 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m0 7.5h28.8c2.5202 0 3.7804 0 4.743.49047.8467.43143 1.5351 1.11984 1.9665 1.96657.4905.96256.4905 2.22276.4905 4.74296v1.8h-28.8c-2.52024 0-3.78035 0-4.74296-.4905-.84673-.4314-1.535139-1.1198-1.966569-1.9665-.490471-.9626-.490471-2.2228-.490471-4.743z"/><path d="m0 28.5h28.8c2.5202 0 3.7804 0 4.743-.4905.8467-.4314 1.5351-1.1198 1.9665-1.9665.4905-.9626.4905-2.2228.4905-4.743v-1.8h-28.8c-2.52024 0-3.78035 0-4.74296.4905-.84673.4314-1.535139 1.1198-1.966569 1.9665-.490471.9626-.490471 2.2228-.490471 4.743z"/><path d="m14 31.5h14.8c2.5202 0 3.7804 0 4.743.4905.8467.4314 1.5351 1.1198 1.9665 1.9665.4905.9626.4905 2.2228.4905 4.743v1.8h-14.8c-2.5202 0-3.7804 0-4.743-.4905-.8467-.4314-1.5351-1.1198-1.9665-1.9665-.4905-.9626-.4905-2.2228-.4905-4.743z"/></g></svg>`
+  },
+  {
+    id: "refractional",
+    name: "Refractional",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path d="m48 11h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z" fill="#444ce7"/><path d="m46 19h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z" fill="#155eef"/><path d="m44 27h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z" fill="#8098f9"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 48 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#fff"><path d="m48 11h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z"/><path d="m46 19h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z"/><path d="m44 27h-17.0775c-1.2151 0-2.3644.5524-3.1235 1.5012l-1.598 1.9976c-.7591.9488-1.9084 1.5012-3.1235 1.5012h-15.0775l-4 5h17.0775c1.2151 0 2.3644-.5524 3.1235-1.5012l1.598-1.9976c.7591-.9488 1.9084-1.5012 3.1235-1.5012h15.0775z"/></g></svg>`
+  },
+  {
+    id: "renaissance",
+    name: "Renaissance",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 35 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m12.7018 5c1.841 0 3.4172 1.31967 3.7408 3.13199l.4648 2.60271c.3236 1.8123 1.8998 3.132 3.7408 3.132h3.1518c4.8969 0 8.8667 3.9697 8.8667 8.8666 0 2.9333-1.4244 5.5339-3.6191 7.1479.92.3126 1.6466.809 2.1799 1.461.549.7191.9411 1.7411 1.1764 3.028.0392.3406.0883.6718.1373 1.003s.098.6624.1372 1.003c.0408.3538.0709.6566.096.9083.0232.233.042.4223.0609.5679.0784 1.0598.1961 1.9303.3529 2.5738.1655.9048.4994 1.7867.9727 2.5738h-6.6982c-.3137-.6056-.5098-1.3248-.6666-2.1196-.1349-.6836-.2408-1.5352-.3676-2.5548-.0207-.1659-.0418-.3362-.0638-.5111l-.2353-1.7411c-.1961-1.3247-.4314-2.271-.6667-2.8766-.2745-.5677-.7058-.9841-1.2941-1.2112-.6274-.2271-1.5686-.3856-2.9019-.3856h-.3018c-1.841 0-3.4172-1.3197-3.7408-3.132l-.4648-2.6027c-.3236-1.8123-1.8998-3.132-3.7408-3.132h-5.68517v10.1334h-6.33333v-27.8667zm13.6315 17.7333c0 1.3992-1.1342 2.5334-2.5333 2.5334h-3.1518c-1.841 0-3.4172-1.3197-3.7408-3.132l-.4648-2.6027c-.3236-1.8123-1.8998-3.132-3.7408-3.132h-5.36847v-5.0667h5.68517c1.841 0 3.4172 1.3197 3.7408 3.132l.4647 2.6027c.3237 1.8123 1.8999 3.132 3.7409 3.132h2.8351c1.3991 0 2.5333 1.1342 2.5333 2.5333z" fill="#1849a9" fill-rule="evenodd"/></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 35 48" width="100%" xmlns="http://www.w3.org/2000/svg"><path clip-rule="evenodd" d="m12.7018 5c1.841 0 3.4172 1.31967 3.7408 3.13199l.4648 2.60271c.3236 1.8123 1.8998 3.132 3.7408 3.132h3.1518c4.8969 0 8.8667 3.9697 8.8667 8.8666 0 2.9333-1.4244 5.5339-3.6191 7.1479.92.3126 1.6466.809 2.1799 1.461.549.7191.9411 1.7411 1.1764 3.028.0392.3406.0883.6718.1373 1.003s.098.6624.1372 1.003c.0408.3538.0709.6566.096.9083.0232.233.042.4223.0609.5679.0784 1.0598.1961 1.9303.3529 2.5738.1655.9048.4994 1.7867.9727 2.5738h-6.6982c-.3137-.6056-.5098-1.3247-.6666-2.1196-.1349-.6836-.2408-1.5352-.3676-2.5548-.0207-.1659-.0418-.3362-.0638-.5111l-.2353-1.7411c-.1961-1.3247-.4314-2.271-.6667-2.8766-.2745-.5677-.7058-.9841-1.2941-1.2112-.6274-.2271-1.5686-.3856-2.9019-.3856h-.3018c-1.841 0-3.4172-1.3197-3.7408-3.132l-.4648-2.6027c-.3236-1.8123-1.8998-3.132-3.7408-3.132h-5.68517v10.1334h-6.33333v-27.8667zm13.6315 17.7333c0 1.3992-1.1342 2.5334-2.5333 2.5334h-3.1518c-1.841 0-3.4172-1.3197-3.7408-3.132l-.4648-2.6027c-.3236-1.8123-1.8998-3.132-3.7408-3.132h-5.36847v-5.0667h5.68517c1.841 0 3.4172 1.3197 3.7408 3.132l.4647 2.6027c.3237 1.8123 1.8999 3.132 3.7409 3.132h2.8351c1.3991 0 2.5333 1.1342 2.5333 2.5333z" fill="#fff" fill-rule="evenodd"/></svg>`
+  },
+  {
+    id: "sisyphus",
+    name: "Sisyphus",
+    lightSvg: `<svg fill="none" height="100%" viewBox="0 0 32 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m.599609 19.2002h9.59998v9.59999h-9.59998z"/><path d="m31.4004 28.7998h9.6v9.59999h-9.6z" transform="matrix(-1 0 -0 -1 62.8008 57.5996)"/><path d="m10.1992 19.2001 11.6-9.6v9.6l-11.6 9.6z" opacity=".2"/><path d="m21.7988 28.7999-11.6 9.6v-9.6l11.6-9.6z" opacity=".5"/><path d="m.599609 19.2 21.199991-19.2v9.59999l-11.6 9.60001z" opacity=".6"/><path d="m31.4004 28.8-21.2 19.2v-9.6l11.6-9.6z" opacity=".7"/></g></svg>`,
+    darkSvg: `<svg fill="none" height="100%" viewBox="0 0 32 48" width="100%" xmlns="http://www.w3.org/2000/svg"><g fill="#155eef"><path d="m.599609 19.2002h9.59998v9.59999h-9.59998z"/><path d="m31.4004 28.7998h9.6v9.59999h-9.6z" transform="matrix(-1 0 -0 -1 62.8008 57.5996)"/><path d="m10.1992 19.2001 11.6-9.6v9.6l-11.6 9.6z" opacity=".2"/><path d="m21.7988 28.7999-11.6 9.6v-9.6l11.6-9.6z" opacity=".5"/><path d="m.599609 19.2 21.199991-19.2v9.59999l-11.6 9.60001z" opacity=".6"/><path d="m31.4004 28.8-21.2 19.2v-9.6l11.6-9.6z" opacity=".7"/></g></svg>`
+  },
+  {
+    id: "solaris-energy",
+    name: "Solaris Energy",
+    lightSvg: `<svg width="100%" height="100%" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4V16.3604C20 19.087 16.6569 20.3998 14.8016 18.4017L7 10M40 24H27.6396C24.913 24 23.6002 20.6569 25.5983 18.8016L34 11M20 44V31.6396C20 28.913 23.3431 27.6002 25.1984 29.5983L33 38M0 24L12.3604 24C15.087 24 16.3998 27.3431 14.4017 29.1984L6 37" stroke="#175CD3" stroke-width="4"/></svg>`,
+    darkSvg: `<svg width="100%" height="100%" viewBox="0 0 40 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20 4V16.3604C20 19.087 16.6569 20.3998 14.8016 18.4017L7 10M40 24H27.6396C24.913 24 23.6002 20.6569 25.5983 18.8016L34 11M20 44V31.6396C20 28.913 23.3431 27.6002 25.1984 29.5983L33 38M0 24L12.3604 24C15.087 24 16.3998 27.3431 14.4017 29.1984L6 37" stroke="white" stroke-width="4"/></svg>`
+  }
+];
+
 // features/lib/store-logo.ts
-var DEFAULT_STORE_LOGO_ICON = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" height="100%" width="100%" viewBox="0 0 42 48"><path fill="#155eef" fill-rule="evenodd" d="m22.102 20.86 9.9-9.9L29.88 8.84l-7.339 7.339V3h-3v13.178l-7.339-7.34-2.121 2.122 9.9 9.9 1.06 1.06zm2.12 2.121 9.9-9.9 2.121 2.122-7.339 7.339H42v3H28.904l7.34 7.339L34.121 35l-9.9-9.899-1.06-1.06zM7.96 35.001l9.9-9.899 1.06-1.06-1.06-1.061-9.9-9.9-2.121 2.122 7.339 7.339H.002v3h13.176l-7.34 7.339zm12.02-7.777-9.9 9.9 2.122 2.12 7.339-7.338V45h3V31.906l7.339 7.338L32 37.124l-9.9-9.9-1.06-1.061z" clip-rule="evenodd"/></svg>';
-var DEFAULT_STORE_LOGO_COLOR = "0";
+var DEFAULT_STORE_LOGO_ICON = LOGO_ICONS.find((icon) => icon.id === "capsule").lightSvg;
+var DEFAULT_STORE_LOGO_COLOR = "295";
 function normalizeStoreLogoColor(value) {
   const numeric = Number.parseFloat(String(value ?? DEFAULT_STORE_LOGO_COLOR));
   if (!Number.isFinite(numeric)) return DEFAULT_STORE_LOGO_COLOR;
   return String((numeric % 360 + 360) % 360);
 }
 
-// features/lib/sanitize-store-logo.ts
+// features/keystone/utils/storeLogo.ts
 var ALLOWED_ELEMENTS = /* @__PURE__ */ new Set([
   "svg",
   "g",
@@ -2367,8 +2691,12 @@ var ATTRIBUTE_PATTERN = /\s+([A-Za-z_:][\w:.-]*)\s*=\s*("[^"]*"|'[^']*')/g;
 var TAG_PATTERN = /<\/?\s*([A-Za-z][\w:-]*)([^<>]*)>/g;
 function sanitizeStoreLogoSvg(svg) {
   const source = svg.trim();
-  if (!source.startsWith("<svg") || !source.endsWith("</svg>") || source.length > 1e5) return "";
-  if (/<!|<\?|\b(?:javascript|data|vbscript):|\bon[a-z]+\s*=|\b(?:href|src|style)\s*=/i.test(source)) return "";
+  if (!source.startsWith("<svg") || !source.endsWith("</svg>") || source.length > 1e5) {
+    return "";
+  }
+  if (/<!|<\?|\b(?:javascript|data|vbscript):|\bon[a-z]+\s*=|\b(?:href|src|style)\s*=/i.test(source)) {
+    return "";
+  }
   let tagCount = 0;
   let match;
   TAG_PATTERN.lastIndex = 0;
@@ -2423,6 +2751,7 @@ function operatorBrandFromOrganization(organization) {
     logoUrl: organization.brandLogoUrl || null,
     logoIcon: sanitizeStoreLogoSvg(organization.logoIcon || DEFAULT_STORE_LOGO_ICON),
     logoColor: normalizeStoreLogoColor(organization.logoColor),
+    heroUrl: organization.storefrontHeroUrl || null,
     supportEmail: organization.supportEmail || null,
     supportPhone: organization.supportPhone || null,
     privacyNotice: organization.privacyNotice || null
@@ -2466,6 +2795,8 @@ var Organization = (0, import_core20.list)({
     brandPrimaryColor: (0, import_fields21.text)({ defaultValue: "#18352b" }),
     brandAccentColor: (0, import_fields21.text)({ defaultValue: "#8ec9ad" }),
     brandLogoUrl: (0, import_fields21.text)(),
+    storefrontHero: (0, import_fields21.image)({ storage: "my_images", label: "Storefront hero photo" }),
+    storefrontHeroUrl: (0, import_fields21.virtual)({ field: import_core20.graphql.field({ type: import_core20.graphql.String, resolve: (item, _args, context) => item.storefrontHero_id && item.storefrontHero_extension ? context.images("my_images").getUrl(item.storefrontHero_id, item.storefrontHero_extension) : null }) }),
     logoIcon: (0, import_fields21.text)({ defaultValue: DEFAULT_STORE_LOGO_ICON, hooks: {
       resolveInput: ({ resolvedData, fieldKey }) => resolvedData[fieldKey] === void 0 ? void 0 : sanitizeStoreLogoSvg(String(resolvedData[fieldKey] || "")),
       validateInput: ({ inputData, resolvedData, fieldKey, addValidationError }) => {
@@ -2481,6 +2812,7 @@ var Organization = (0, import_core20.list)({
     supportPhone: (0, import_fields21.text)(),
     privacyNotice: (0, import_fields21.text)({ ui: { displayMode: "textarea", description: "Notice of Privacy Practices shown at /privacy and linked from checkout." } }),
     prescriptionFillPolicy: (0, import_fields21.json)({ access: { create: import_access32.denyAll, update: import_access32.denyAll }, ui: { description: "Versioned operator-reviewed policy; only the controlled fill policy command may change it. Existing fills keep their snapshot." } }),
+    willCallReturnDays: (0, import_fields21.integer)({ defaultValue: 10, validation: { isRequired: true, min: 1, max: 60 }, ui: { description: "Days a filled prescription waits in will-call before staff should review it for return to stock. Staff still confirm each return." } }),
     cashSalesEnabled: (0, import_fields21.checkbox)({ defaultValue: false, access: { create: import_access32.denyAll, update: import_access32.denyAll }, ui: { description: "Enabled only by the operator-attested cash/tax policy workflow." } }),
     cashTaxRateBps: (0, import_fields21.integer)({ defaultValue: 0, validation: { min: 0, max: 1e4 }, access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
     cashTaxPolicyReference: (0, import_fields21.text)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
@@ -2827,7 +3159,8 @@ var Payment = (0, import_core25.list)({
         { label: "Captured", value: "captured" },
         { label: "Refund pending", value: "refund_pending" },
         { label: "Refunded", value: "refunded" },
-        { label: "Failed", value: "failed" }
+        { label: "Failed", value: "failed" },
+        { label: "Cancelled (unpaid)", value: "cancelled" }
       ],
       defaultValue: "pending"
     }),
@@ -3042,7 +3375,7 @@ function weeklyHoursError(value) {
   if (value === null || value === void 0) return null;
   return normalizeWeeklyHours(value) ? null : "Hours need an opening and a later closing time (HH:MM) for each open day.";
 }
-var DEFAULT_WEEK = [null, ...Array.from({ length: 5 }, () => ({ open: "09:00", close: "19:00" })), { open: "10:00", close: "16:00" }];
+var DEFAULT_WEEK = [null, ...Array.from({ length: 5 }, () => ({ open: "09:00", close: "19:00" })), { open: "09:00", close: "17:00" }];
 
 // features/keystone/models/PharmacyLocation.ts
 var PharmacyLocation = (0, import_core29.list)({
@@ -3199,7 +3532,10 @@ var prescriptionTransitions = {
   pending_review: ["needs_information", "approved", "rejected", "cancelled"],
   needs_information: ["pending_review", "cancelled"],
   approved: ["ready_to_dispense", "fill_closed", "cancelled"],
-  ready_to_dispense: ["approved", "partially_dispensed", "dispensed", "fill_closed", "cancelled"],
+  ready_to_dispense: ["approved", "partially_dispensed", "ready_for_pickup", "dispensed", "fill_closed", "cancelled"],
+  // Will-call bin: filled and labelled, waiting for the patient. Picked up -> dispensed;
+  // returned to stock -> fill_closed.
+  ready_for_pickup: ["dispensed", "fill_closed", "cancelled"],
   partially_dispensed: ["approved", "partially_dispensed", "dispensed", "fill_closed", "cancelled"],
   rejected: [],
   dispensed: ["approved", "cancelled"],
@@ -3243,6 +3579,61 @@ function assertAuthorizedHumanApproval(input) {
   if (!input.reason?.trim() || input.reason.trim().length < 8) {
     throw new Error("A meaningful approval reason is required");
   }
+}
+var PAYMENT_SESSION_TRANSITIONS = {
+  pending: ["requires_action", "authorized", "captured", "settled_unordered", "failed", "cancelled"],
+  requires_action: ["pending", "authorized", "captured", "settled_unordered", "failed", "cancelled"],
+  authorized: ["captured", "settled_unordered", "failed", "cancelled"],
+  // Money arrived but no order exists yet: it becomes an order payment, or is refunded.
+  settled_unordered: ["captured", "compensation_pending", "compensated"],
+  captured: [],
+  compensation_pending: ["compensated"],
+  compensated: [],
+  // A success that arrives after a failure or cancel is real money and must surface for reconciliation.
+  failed: ["settled_unordered"],
+  cancelled: ["settled_unordered"]
+};
+function canMovePaymentSession(from, to) {
+  return from === to || Boolean(PAYMENT_SESSION_TRANSITIONS[from]?.includes(to));
+}
+var PAYMENT_TRANSITIONS = {
+  pending: ["authorized", "captured", "failed", "cancelled"],
+  authorized: ["captured", "failed", "cancelled"],
+  captured: ["refund_pending", "refunded"],
+  refund_pending: ["refunded"],
+  refunded: [],
+  failed: [],
+  cancelled: []
+};
+function canMovePayment(from, to) {
+  return from === to || Boolean(PAYMENT_TRANSITIONS[from]?.includes(to));
+}
+var QUARANTINABLE_LOT_STATUSES = ["available", "quarantined"];
+function lotStatusAfterAdjustment(current, targetQuantity) {
+  if (targetQuantity === 0) return ["available", "depleted"].includes(current) ? "depleted" : null;
+  return current === "depleted" ? "available" : null;
+}
+var EXCURSION_DISPOSITIONS = ["released", "destroyed"];
+var OPEN_EXCURSION_STATUSES = ["open", "under_review"];
+function excursionDispositionError(input) {
+  if (!EXCURSION_DISPOSITIONS.includes(input.disposition)) return "Disposition must be released or destroyed";
+  if (!OPEN_EXCURSION_STATUSES.includes(input.excursionStatus)) return `This excursion is already closed (${input.excursionStatus.replace(/_/g, " ")})`;
+  if (!input.note?.trim() || input.note.trim().length < 8) return "A disposition note of at least 8 characters is required";
+  const expired = input.lotStatus === "expired" || new Date(input.lotExpiresAt).getTime() <= (input.now ?? /* @__PURE__ */ new Date()).getTime();
+  if (input.disposition === "released") {
+    if (input.lotStatus === "recalled") return "A recalled lot cannot be released; dispose of it through the recall";
+    if (expired) return "An expired lot cannot be released back to stock";
+    if (input.lotStatus !== "quarantined") return `A ${input.lotStatus} lot cannot be released`;
+  }
+  if (input.disposition === "destroyed" && input.lotStatus !== "quarantined") {
+    return input.lotStatus === "recalled" ? "A recalled lot is destroyed through its recall disposition" : `A ${input.lotStatus} lot cannot be written off from an excursion`;
+  }
+  return null;
+}
+function lotAfterExcursionDisposition(disposition, lot, otherOpenExcursions) {
+  if (disposition === "destroyed") return { status: "depleted", quantityAvailable: 0, quantityQuarantined: 0, writeOff: lot.quantityAvailable };
+  if (otherOpenExcursions > 0) return { status: "quarantined", quantityAvailable: lot.quantityAvailable, quantityQuarantined: lot.quantityAvailable, writeOff: 0 };
+  return { status: lot.quantityAvailable > 0 ? "available" : "depleted", quantityAvailable: lot.quantityAvailable, quantityQuarantined: 0, writeOff: 0 };
 }
 
 // features/keystone/models/Prescription.ts
@@ -3328,6 +3719,7 @@ var Prescription = (0, import_core31.list)({
         { label: "Approved", value: "approved" },
         { label: "Ready to dispense", value: "ready_to_dispense" },
         { label: "Partially dispensed", value: "partially_dispensed" },
+        { label: "Ready for pickup", value: "ready_for_pickup" },
         { label: "Dispensed", value: "dispensed" },
         { label: "Fill closed with undispensed quantity", value: "fill_closed" },
         { label: "Rejected", value: "rejected" },
@@ -3691,7 +4083,19 @@ var Product = (0, import_core37.list)({
     onlineAvailable: (0, import_fields38.checkbox)({ defaultValue: false }),
     posAvailable: (0, import_fields38.checkbox)({ defaultValue: true }),
     coldChainRequired: (0, import_fields38.checkbox)({ defaultValue: false }),
-    imageUrl: (0, import_fields38.text)({ label: "Image URL" }),
+    imageUrl: (0, import_fields38.text)({ label: "Image URL", ui: { description: "External photo URL. An uploaded photo takes precedence." } }),
+    image: (0, import_fields38.image)({ storage: "my_images", label: "Photo" }),
+    /** The photo shoppers see: the uploaded image (signed at read time) or the external URL. */
+    photoUrl: (0, import_fields38.virtual)({
+      field: import_core37.graphql.field({
+        type: import_core37.graphql.String,
+        async resolve(item, _args, context) {
+          if (item.image_id && item.image_extension) return context.images("my_images").getUrl(item.image_id, item.image_extension);
+          return item.imageUrl || null;
+        }
+      }),
+      ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
+    }),
     organization: (0, import_fields38.relationship)({ ref: "Organization.products", db: requiredRelationshipDb }),
     location: (0, import_fields38.relationship)({ ref: "PharmacyLocation.products", db: requiredRelationshipDb }),
     drugReference: (0, import_fields38.relationship)({ ref: "DrugReference.products" }),
@@ -3871,7 +4275,8 @@ var PrescriptionRequest = (0, import_core41.list)({
       options: [
         { label: "Patient registration", value: "registration" },
         { label: "Transfer", value: "transfer" },
-        { label: "New prescription", value: "new_prescription" }
+        { label: "New prescription", value: "new_prescription" },
+        { label: "Refill by Rx number", value: "refill" }
       ],
       validation: { isRequired: true }
     }),
@@ -4053,6 +4458,9 @@ var TemperatureExcursion = (0, import_core44.list)({
       defaultValue: "open"
     }),
     dispositionReason: (0, import_fields47.text)({ ui: { displayMode: "textarea" } }),
+    // Written once by resolvePharmacyTemperatureExcursion: the pharmacist's note and when the excursion closed.
+    resolutionNote: (0, import_fields47.text)({ ui: { displayMode: "textarea" } }),
+    resolvedAt: (0, import_fields47.timestamp)(),
     organization: (0, import_fields47.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
     location: (0, import_fields47.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
     lot: (0, import_fields47.relationship)({ ref: "InventoryLot.temperatureExcursions", db: requiredRelationshipDb }),
@@ -4257,6 +4665,31 @@ var DomainError = class extends import_graphql.GraphQLError {
   }
 };
 
+// features/keystone/lib/product-photo.ts
+var PRODUCT_PHOTO_STORAGE = "my_images";
+var PREFIX = `storage:${PRODUCT_PHOTO_STORAGE}/`;
+function productPhotoSnapshot(product) {
+  const id = product.image?.id;
+  const extension = product.image?.extension;
+  if (id && extension && /^[\w-]+$/.test(id) && /^[a-z0-9]+$/i.test(extension)) return `${PREFIX}${id}.${extension}`;
+  return product.imageUrl || void 0;
+}
+function parsePhotoReference(value) {
+  if (!value?.startsWith(PREFIX)) return null;
+  const match = /^([\w-]+)\.([a-z0-9]+)$/i.exec(value.slice(PREFIX.length));
+  return match ? { id: match[1], extension: match[2] } : null;
+}
+async function resolveLinePhoto(value, context) {
+  if (!value) return null;
+  const reference = parsePhotoReference(value);
+  if (!reference) return value.startsWith("storage:") ? null : value;
+  try {
+    return await context.images(PRODUCT_PHOTO_STORAGE).getUrl(reference.id, reference.extension);
+  } catch {
+    return null;
+  }
+}
+
 // features/keystone/mutations/getGuestPharmacyOrder.ts
 async function getGuestPharmacyOrder(_root, args, context) {
   if (!args.guestOrderToken?.trim()) throw new DomainError("Guest order token is required");
@@ -4265,7 +4698,7 @@ async function getGuestPharmacyOrder(_root, args, context) {
     query: GUEST_ORDER_QUERY
   });
   if (!order?.guestTokenHash || !verifyGuestCartToken(args.guestOrderToken, order.guestTokenHash)) throw new DomainError("Guest order not found");
-  return guestOrderProjection(order);
+  return signedGuestOrderProjection(order, context);
 }
 async function lookupPharmacyOrder(_root, args, context) {
   const orderNumber2 = args.orderNumber?.trim().toUpperCase();
@@ -4273,7 +4706,7 @@ async function lookupPharmacyOrder(_root, args, context) {
   if (!orderNumber2 || !email || orderNumber2.length > 64 || email.length > 254) return null;
   const order = await context.sudo().query.Order.findOne({ where: { orderNumber: orderNumber2 }, query: `email ${GUEST_ORDER_QUERY}` }).catch(() => null);
   if (!order?.email || order.email.trim().toLowerCase() !== email) return null;
-  return guestOrderProjection(order);
+  return signedGuestOrderProjection(order, context);
 }
 var GUEST_ORDER_QUERY = `
       id orderNumber guestTokenHash status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt
@@ -4281,6 +4714,11 @@ var GUEST_ORDER_QUERY = `
       lineItems { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
       fulfillment { method status readyAt handedOffAt }
     `;
+async function signedGuestOrderProjection(order, context) {
+  const projection = guestOrderProjection(order);
+  const lines = await Promise.all(projection.lines.map(async (line) => ({ ...line, imageUrl: await resolveLinePhoto(line.imageUrl, context) })));
+  return { ...projection, lines };
+}
 function guestOrderProjection(order) {
   return {
     id: order.id,
@@ -4346,22 +4784,23 @@ async function pharmacyCustomerOrderDetails(_root, args, context) {
   if (!owned) throw new DomainError("Order not found");
   const order = await context.sudo().query.Order.findOne({ where: { id: owned.id }, query: GUEST_ORDER_QUERY });
   if (!order) throw new DomainError("Order not found");
-  return guestOrderProjection(order);
+  return signedGuestOrderProjection(order, context);
 }
 async function pharmacyCustomerAccount(_root, _args, context) {
   const userId = context.session?.itemId;
   if (!userId || context.session?.listKey !== "User") throw new DomainError("Authentication required");
-  const user = await context.query.User.findOne({ where: { id: userId }, query: "id name patientProfile { id }" });
+  const user = await context.query.User.findOne({ where: { id: userId }, query: "id name" });
   if (!user) throw new DomainError("Account not found");
+  const linkedPatients = await context.sudo().query.PatientProfile.count({ where: { user: { id: { equals: userId } } } });
   const orders = await context.query.Order.findMany({ where: { customer: { id: { equals: userId } } }, orderBy: [{ createdAt: "desc" }, { id: "desc" }], take: 50, query: "id orderNumber status totalAmount currencyCode createdAt lineItems { title quantity unitPriceAmount }" });
-  return { id: user.id, name: user.name, hasPatientProfile: Boolean(user.patientProfile?.id), orders };
+  return { id: user.id, name: user.name, hasPatientProfile: linkedPatients > 0, orders };
 }
 
 // features/keystone/mutations/index.ts
 var import_schema = require("@graphql-tools/schema");
 
 // features/keystone/mutations/cashWorkflows.ts
-var import_node_crypto3 = require("node:crypto");
+var import_node_crypto5 = require("node:crypto");
 
 // features/keystone/workflows/lot-eligibility.ts
 var BLOCKING_RECALL_STATUSES = /* @__PURE__ */ new Set(["active", "quarantined"]);
@@ -4574,187 +5013,110 @@ async function withDomainTransaction(context, lockKeys, operation, options = {})
   throw new DomainConflictError();
 }
 
-// features/keystone/mutations/cashWorkflows.ts
-async function recordPharmacyCashPolicy(_root, args, context) {
-  requirePermission(context, "canManagePayments");
-  requirePermission(context, "canApproveConsequentialActions");
-  if (!Number.isInteger(args.taxRateBps) || args.taxRateBps < 0 || args.taxRateBps > 1e4) throw new DomainError("Tax rate must be integer basis points between 0 and 10000");
-  if (!args.policyReference?.trim()) throw new DomainError("Cash/tax policy source reference is required");
-  return withDomainTransaction(context, [`cash-policy:${args.organizationId}`], async (transactionContext) => {
-    const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId });
-    const approval = await createHumanApproval(transactionContext, { organizationId: args.organizationId, actorId: userId, actionType: "cash_policy", reason: args.reason, attested: args.attested, evidence: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), scope: "operator_attested_cash_direct_pay" } });
-    await transactionContext.sudo().query.Organization.updateOne({ where: { id: args.organizationId }, data: { cashSalesEnabled: true, cashTaxRateBps: args.taxRateBps, cashTaxPolicyReference: args.policyReference.trim(), cashPolicyReviewedAt: (/* @__PURE__ */ new Date()).toISOString(), cashPolicyReviewedBy: { connect: { id: userId } } }, query: "id" });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `cash_policy.recorded:${args.organizationId}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: "cash_policy.recorded", resourceType: "Organization", resourceId: args.organizationId, metadata: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), approvalId: approval.id } });
-    return { success: true, organizationId: args.organizationId, status: "enabled", taxRateBps: args.taxRateBps, approvalId: approval.id };
-  });
-}
-async function readCommittedPosReceipt(sudo, orderId, reused) {
-  const order = await sudo.query.Order.findOne({
-    where: { id: orderId },
-    query: "id orderNumber status createdAt subtotalAmount taxAmount totalAmount currencyCode lineItems(orderBy: { createdAt: asc }) { title sku quantity unitPriceAmount lineTotalAmount } payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount }"
-  });
-  const payment = order?.payments?.find((entry) => entry.tenderMethod === "cash");
-  const lineSubtotal = (order?.lineItems || []).reduce((sum, line) => sum + line.lineTotalAmount, 0);
-  if (!order || !payment || !["captured", "refunded"].includes(payment.status) || payment.amount !== order.totalAmount || payment.currencyCode !== order.currencyCode || payment.cashReceivedAmount == null || payment.changeDueAmount == null || payment.cashReceivedAmount < payment.amount || payment.changeDueAmount !== payment.cashReceivedAmount - payment.amount || lineSubtotal !== order.subtotalAmount || order.subtotalAmount + order.taxAmount !== order.totalAmount) {
-    throw new DomainError("Committed POS receipt evidence is incomplete or inconsistent; do not submit a new sale");
+// features/keystone/utils/paymentProviderAdapter.ts
+init_payment();
+var ADAPTER_OPERATIONS = /* @__PURE__ */ new Set([
+  "createPaymentFunction",
+  "capturePaymentFunction",
+  "refundPaymentFunction",
+  "getPaymentStatusFunction",
+  "generatePaymentLinkFunction",
+  "handleWebhookFunction",
+  "cancelPaymentFunction"
+]);
+var FORWARDED_HEADERS = (key) => {
+  const k = key.toLowerCase();
+  return k === "stripe-signature" || k === "__rawbody" || k.startsWith("paypal-");
+};
+function paymentAdapterPayload(provider, args) {
+  const projectedProvider = { id: provider.id, code: provider.code, credentials: provider.credentials || {}, metadata: provider.metadata || {} };
+  const input = { ...args };
+  if (input.headers && typeof input.headers === "object") {
+    input.headers = Object.fromEntries(Object.entries(input.headers).filter(([key]) => FORWARDED_HEADERS(key)));
   }
-  return {
-    success: true,
-    reused,
-    orderId: order.id,
-    orderNumber: order.orderNumber,
-    status: order.status,
-    recordedAt: order.createdAt,
-    lines: (order.lineItems || []).map((line) => ({ title: line.title, sku: line.sku || "", quantity: line.quantity, unitPriceAmount: line.unitPriceAmount, lineTotalAmount: line.lineTotalAmount })),
-    subtotalAmount: order.subtotalAmount,
-    taxAmount: order.taxAmount,
-    totalAmount: order.totalAmount,
-    currencyCode: order.currencyCode,
-    paymentId: payment.id,
-    paymentStatus: payment.status,
-    cashReceivedAmount: payment.cashReceivedAmount,
-    changeDueAmount: payment.changeDueAmount
-  };
+  return { ...input, provider: projectedProvider };
 }
-async function pharmacyPosCustomers(_root, args, context) {
-  requirePermission(context, "canManageOrders");
-  const location = await context.sudo().query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id organization { id }" });
-  if (!location) throw new DomainError("Location not found");
-  await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id });
-  const carts = await context.sudo().query.Cart.findMany({ where: { organization: { id: { equals: location.organization.id } }, location: { id: { equals: location.id } }, status: { equals: "active" }, expiresAt: { gt: (/* @__PURE__ */ new Date()).toISOString() }, customer: { role: null }, items: { some: { quantity: { gt: 0 } } } }, orderBy: { createdAt: "desc" }, take: 100, query: "id customer { id name }" });
-  const seen = /* @__PURE__ */ new Set();
-  return carts.filter((cart) => {
-    if (!cart.customer?.id || seen.has(cart.customer.id)) return false;
-    seen.add(cart.customer.id);
-    return true;
-  }).map((cart) => ({ id: cart.id, label: `${cart.customer.name} \xB7 ${cart.id.slice(-6)}`, scopeId: location.id }));
+async function executeAdapterFunction({ provider, functionName, args }) {
+  if (!ADAPTER_OPERATIONS.has(functionName)) throw new Error("Unknown payment adapter operation");
+  const functionPath = provider?.[functionName];
+  if (typeof functionPath !== "string" || !functionPath) throw new Error("Payment adapter is not configured");
+  const payload = paymentAdapterPayload(provider, args);
+  if (/^https:\/\//i.test(functionPath)) {
+    try {
+      const response = await fetch(functionPath, {
+        method: "POST",
+        redirect: "error",
+        signal: AbortSignal.timeout(3e4),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      if (!response.ok) throw new Error(`status ${response.status}`);
+      return await response.json();
+    } catch {
+      throw new Error("External payment adapter request failed; reconcile the original attempt before retrying");
+    }
+  }
+  if (/^[a-z]+:/i.test(functionPath)) throw new Error("External payment adapters must use HTTPS");
+  const loader = paymentProviderAdapters[functionPath];
+  if (!loader) throw new Error("Unknown registered payment adapter");
+  const adapter = await loader();
+  const fn = adapter[functionName];
+  if (typeof fn !== "function") throw new Error(`Function ${functionName} not found in adapter ${functionPath}`);
+  try {
+    return await fn(payload);
+  } catch (error) {
+    throw new Error(
+      `Error executing ${functionName} for provider ${functionPath}: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
 }
-async function submitPharmacyPosCashOrder(_root, args, context) {
-  requirePermission(context, "canManageOrders");
-  requirePermission(context, "canManagePayments");
-  requirePermission(context, "canManageInventory");
-  const method = args.fulfillmentMethod || "pos";
-  if (!["pos", "pickup"].includes(method)) throw new DomainError("Cash fulfillment method is invalid");
-  const items = (args.items || []).filter((entry) => entry?.productId && Number.isInteger(entry.quantity) && entry.quantity > 0 && entry.quantity <= 99);
-  if (!items.length || items.length > 50 || items.length !== args.items.length) throw new DomainError("POS order must contain 1-50 valid line items");
-  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError("A request key is required");
-  const requestFingerprint = (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify({ locationId: args.locationId, ...args.customerCartId ? { customerCartId: args.customerCartId } : {}, ...method === "pickup" ? { fulfillmentMethod: method } : {}, items: [...items].sort((left, right) => left.productId.localeCompare(right.productId)), cashReceivedAmount: args.cashReceivedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
-  return withDomainTransaction(context, [`pos-cash:${args.idempotencyKey}`, ...args.customerCartId ? [`cart:${args.customerCartId}`] : [], ...items.map((entry) => `product:${entry.productId}`)], async (transactionContext) => {
-    const sudo = transactionContext.sudo();
-    const existing = await sudo.query.Order.findOne({ where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` }, query: "id orderNumber status totalAmount currencyCode checkoutEvidence payments { id status } organization { id } location { id }" });
-    if (existing) {
-      if (!existing.organization?.id || !existing.location?.id) throw new DomainError("POS replay scope is incomplete; operator reconciliation is required");
-      await requireTenantMembership(transactionContext, { organizationId: existing.organization.id, locationId: existing.location.id });
-      if (existing.checkoutEvidence?.requestFingerprint !== requestFingerprint) throw new DomainError("POS idempotency key was reused with different input");
-      return readCommittedPosReceipt(sudo, existing.id, true);
-    }
-    const location = await sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id name status pickupEnabled organization { id cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt }" });
-    if (!location || location.status !== "active") throw new DomainError("POS location not found");
-    const { userId } = await requireTenantMembership(transactionContext, { organizationId: location.organization.id, locationId: location.id });
-    if (method === "pickup" && location.pickupEnabled !== true) throw new DomainError("Pickup is unavailable at this location");
-    let customerId;
-    if (args.customerCartId) {
-      const cart = await sudo.query.Cart.findOne({ where: { id: args.customerCartId }, query: "id status expiresAt organization { id } location { id } customer { id role { id } } items(take: 1) { id }" });
-      if (!cart || cart.organization?.id !== location.organization.id || cart.location?.id !== location.id || cart.status !== "active" || !cart.expiresAt || new Date(cart.expiresAt).getTime() <= Date.now() || !cart.customer?.id || cart.customer.role || !cart.items.length) throw new DomainError("Customer cart is not available in this tenant location");
-      customerId = cart.customer.id;
-    }
-    if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new DomainError("Operator-attested cash and tax policy must be configured before POS sales");
-    const productIds = [...new Set(items.map((entry) => entry.productId))];
-    if (productIds.length !== items.length) throw new DomainError("Combine duplicate POS product lines before submission");
-    let products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }" });
-    if (products.length !== items.length || products.some((product) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== "published" || product.posAvailable !== true || product.prescriptionRequirement !== "none")) throw new DomainError("Every POS item must be an available OTC product in this tenant location");
-    await acquireTransactionLocks(transactionContext, products.flatMap((product) => product.inventoryLots.map((lot) => `lot:${lot.id}`)));
-    products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }" });
-    const currencies = [...new Set(products.map((product) => product.currencyCode))];
-    if (currencies.length !== 1) throw new DomainError("POS order currency mismatch");
-    const pricedItems = items.map((entry) => ({ ...entry, product: products.find((product) => product.id === entry.productId) }));
-    const subtotalAmount = pricedItems.reduce((sum, entry) => sum + entry.product.priceAmount * entry.quantity, 0);
-    const taxableSubtotalAmount = calculateTaxableSubtotal(pricedItems.map((entry) => ({ unitPriceAmount: entry.product.priceAmount, quantity: entry.quantity, taxable: entry.product.taxable })));
-    const taxAmount = calculateTaxAmount(taxableSubtotalAmount, location.organization.cashTaxRateBps || 0);
-    const totalAmount = subtotalAmount + taxAmount;
-    const tender = assertCashTender(totalAmount, args.cashReceivedAmount);
-    const approval = await createHumanApproval(transactionContext, { organizationId: location.organization.id, locationId: location.id, actorId: userId, actionType: "cash_tender", reason: args.reason, attested: args.attested, evidence: { workflow: "operator_attested_otc_pos_cash", subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, taxRateBps: location.organization.cashTaxRateBps || 0, providerSettlementClaimed: false } });
-    const suffix = (0, import_node_crypto3.createHash)("sha256").update(args.idempotencyKey).digest("hex").slice(0, 12).toUpperCase();
-    const order = await sudo.query.Order.createOne({ data: { orderNumber: `POS-${suffix}`, idempotencyKey: `pos-cash:${args.idempotencyKey}`, checkoutEvidence: { workflow: "operator_attested_otc_pos_cash", customerCartId: args.customerCartId || null, customerId: customerId || null, approvalId: approval.id, requestFingerprint, taxRateBps: location.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: false }, status: method === "pickup" ? "processing" : "completed", fulfillmentMethod: method, subtotalAmount, taxAmount, deliveryAmount: 0, totalAmount, currencyCode: currencies[0], customer: customerId ? { connect: { id: customerId } } : void 0, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, approval: { connect: { id: approval.id } } }, query: "id orderNumber status" });
-    for (const entry of items) {
-      const product = products.find((candidate) => candidate.id === entry.productId);
-      let remaining = entry.quantity;
-      const allocations = [];
-      for (const lot of product.inventoryLots.filter((candidate) => candidate.location?.id === location.id && isLotEligible(candidate))) {
-        if (remaining === 0) break;
-        const quantity = Math.min(remaining, eligibleLotQuantity(lot));
-        if (quantity < 1) continue;
-        allocations.push({ lotId: lot.id, lotNumber: lot.lotNumber, quantity, expirationDate: lot.expirationDate });
-        remaining -= quantity;
-      }
-      if (remaining > 0) throw new DomainError(`Insufficient eligible inventory for ${product.title}`);
-      await sudo.query.OrderLineItem.createOne({ data: { title: product.title, sku: product.sku, ndc11Snapshot: product.drugReference?.ndc11 || void 0, quantity: entry.quantity, unitPriceAmount: product.priceAmount, lineTotalAmount: product.priceAmount * entry.quantity, imageUrl: product.imageUrl || void 0, prescriptionRequirementSnapshot: "none", metadata: { taxable: product.taxable !== false, taxableAmount: product.taxable === false ? 0 : product.priceAmount * entry.quantity }, lotAllocationSnapshot: allocations, order: { connect: { id: order.id } }, product: { connect: { id: product.id } } } });
-      for (const allocation of allocations) {
-        const lot = product.inventoryLots.find((candidate) => candidate.id === allocation.lotId);
-        const nextQuantity = lot.quantityAvailable - allocation.quantity;
-        await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: nextQuantity, ...nextQuantity === 0 ? { status: "depleted" } : {} } });
-        await sudo.query.InventoryMovement.createOne({ data: { movementType: "sale", quantityDelta: -allocation.quantity, reason: args.reason, idempotencyKey: `pos:${args.idempotencyKey}:${product.id}:${lot.id}`, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, product: { connect: { id: product.id } }, lot: { connect: { id: lot.id } }, actor: { connect: { id: userId } }, order: { connect: { id: order.id } }, approval: { connect: { id: approval.id } } } });
-      }
-    }
-    const payment = await sudo.query.Payment.createOne({ data: { amount: totalAmount, currencyCode: currencies[0], status: "captured", tenderMethod: "cash", cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, processedAt: (/* @__PURE__ */ new Date()).toISOString(), data: { evidenceType: "operator_attested_cash_received", approvalId: approval.id, providerSettlementClaimed: false }, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: "id status" });
-    await sudo.query.Fulfillment.createOne({ data: { method, status: method === "pickup" ? "preparing" : "handed_off", ...method === "pos" ? { readyAt: (/* @__PURE__ */ new Date()).toISOString(), handedOffAt: (/* @__PURE__ */ new Date()).toISOString() } : {}, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, assignedTo: { connect: { id: userId } } } });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `pos.cash_sale:${args.idempotencyKey}`, organizationId: location.organization.id, locationId: location.id, actorId: userId, eventType: "pos.cash_sale_recorded", resourceType: "Order", resourceId: order.id, metadata: { paymentId: payment.id, lineCount: items.length, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, approvalId: approval.id, providerSettlementClaimed: false } });
-    return readCommittedPosReceipt(sudo, order.id, false);
+async function createPayment({ provider, cart, amount, currency }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "createPaymentFunction",
+    args: { cart, amount, currency }
   });
 }
-async function pharmacyPosCashReceipt(_root, args, context) {
-  requirePermission(context, "canManageOrders");
-  requirePermission(context, "canManagePayments");
-  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError("A request key is required");
-  const sudo = context.sudo();
-  const order = await sudo.query.Order.findOne({
-    where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` },
-    query: "id organization { id } location { id }"
+async function refundPayment({ provider, paymentId, amount, currency, idempotencyKey }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "refundPaymentFunction",
+    args: { paymentId, amount, currency, idempotencyKey }
   });
-  if (!order) return null;
-  if (!order.organization?.id || !order.location?.id) throw new DomainError("POS receipt scope is incomplete; operator reconciliation is required");
-  await requireTenantMembership(context, { organizationId: order.organization.id, locationId: order.location.id });
-  return readCommittedPosReceipt(sudo, order.id, true);
 }
-async function refundPharmacyCashPayment(_root, args, context) {
-  requirePermission(context, "canManagePayments");
-  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
-  const requestFingerprint = (0, import_node_crypto3.createHash)("sha256").update(JSON.stringify({ paymentId: args.paymentId, cashReturnedAmount: args.cashReturnedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
-  return withDomainTransaction(context, [`payment:${args.paymentId}`, `cash-refund:${args.idempotencyKey}`], async (transactionContext) => {
-    const sudo = transactionContext.sudo();
-    const payment = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: "id amount status tenderMethod data organization { id } location { id } order { id patient { id } } approval { id }" });
-    if (!payment || payment.tenderMethod !== "cash") throw new DomainError("Cash payment not found");
-    const { userId } = await requireTenantMembership(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id });
-    const eventKey = `payment.cash_refunded:${args.idempotencyKey}`;
-    const existing = await sudo.query.AuditEvent.findOne({ where: { eventKey }, query: "id resourceId metadata" });
-    if (existing) {
-      if (existing.resourceId !== payment.id || existing.metadata?.requestFingerprint !== requestFingerprint) throw new DomainError("Cash refund idempotency key was reused with different input");
-      return { success: true, reused: true, paymentId: payment.id, status: "refunded", amount: payment.amount };
-    }
-    if (payment.status === "refunded") throw new DomainError("Cash payment was already refunded under a different request");
-    if (payment.status !== "captured" || args.cashReturnedAmount !== payment.amount) throw new DomainError("Bounded cash refunds must return the exact captured amount");
-    const approval = await createHumanApproval(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, actionType: "cash_refund", reason: args.reason, attested: args.attested, evidence: { paymentId: payment.id, cashReturnedAmount: args.cashReturnedAmount, inventoryRestocked: false, custodyClaim: false } });
-    await transactionContext.prisma.payment.update({ where: { id: payment.id }, data: { status: "refunded", data: { ...payment.data || {}, cashRefund: { returnedAmount: args.cashReturnedAmount, returnedAt: (/* @__PURE__ */ new Date()).toISOString(), actorId: userId, approvalId: approval.id, inventoryRestocked: false } }, approvalId: approval.id } });
-    await recordAuditAndOutbox(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: "payment.cash_refunded", resourceType: "Payment", resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } });
-    return { success: true, reused: false, paymentId: payment.id, status: "refunded", amount: payment.amount };
+async function getPaymentStatus({ provider, paymentId }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "getPaymentStatusFunction",
+    args: { paymentId }
+  });
+}
+async function handleWebhook({ provider, event, headers }) {
+  return executeAdapterFunction({
+    provider,
+    functionName: "handleWebhookFunction",
+    args: { event, headers }
   });
 }
 
-// features/keystone/security/order-token.ts
+// features/keystone/mutations/paymentOperations.ts
 var import_node_crypto4 = require("node:crypto");
+
+// features/keystone/security/order-token.ts
+var import_node_crypto3 = require("node:crypto");
 function sessionSecret() {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) throw new Error("A strong session secret is required for guest checkout");
   return secret;
 }
 function createGuestOrderToken(cartId, idempotencyKey) {
-  return (0, import_node_crypto4.createHmac)("sha256", sessionSecret()).update(`pharmacy-order:${cartId}:${idempotencyKey}`).digest("base64url");
+  return (0, import_node_crypto3.createHmac)("sha256", sessionSecret()).update(`pharmacy-order:${cartId}:${idempotencyKey}`).digest("base64url");
 }
 function verifyGuestOrderToken(cartId, idempotencyKey, token) {
   try {
     const actual = Buffer.from(token);
     const expected = Buffer.from(createGuestOrderToken(cartId, idempotencyKey));
-    return actual.length === expected.length && (0, import_node_crypto4.timingSafeEqual)(actual, expected);
+    return actual.length === expected.length && (0, import_node_crypto3.timingSafeEqual)(actual, expected);
   } catch {
     return false;
   }
@@ -4797,8 +5159,417 @@ async function loadAndAssertCartAccess(context, cartId, guestToken, options = {}
   return cart;
 }
 
+// features/keystone/mutations/paymentOperations.ts
+var PAYMENT_PROVIDER_ADAPTER_FIELDS = "id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction";
+function isManualPaymentProvider(provider) {
+  return provider.createPaymentFunction === "manual";
+}
+function paymentProviderOption(provider) {
+  return { code: provider.code, name: provider.name, payAtPickup: isManualPaymentProvider(provider) };
+}
+function paymentSessionResult(session) {
+  return {
+    id: session.id,
+    amount: session.amount,
+    currencyCode: session.currencyCode,
+    status: session.status,
+    providerCode: session.provider?.code || "",
+    providerName: session.provider?.name || "Payment provider",
+    clientSecret: typeof session.data?.clientSecret === "string" ? session.data.clientSecret : null
+  };
+}
+function normalizeStatus(status) {
+  if (["succeeded", "captured"].includes(status || "")) return "captured";
+  if (["requires_action", "requires_payment_method", "requires_confirmation"].includes(status || "")) return "requires_action";
+  if (status === "failed") return "failed";
+  return "pending";
+}
+async function activePharmacyPaymentProviders(_root, args, context) {
+  const location = await context.sudo().query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id organization { id } onlineOrderingEnabled" });
+  if (!location) return [];
+  if (!location.onlineOrderingEnabled) {
+    if (!permissions.canManageOrders({ session: context.session })) return [];
+    await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id });
+  }
+  const providers = await context.sudo().query.PaymentProvider.findMany({
+    where: { organization: { id: { equals: location.organization.id } }, isInstalled: { equals: true } },
+    query: "name code createPaymentFunction"
+  });
+  return providers.map(paymentProviderOption);
+}
+async function refundPharmacyPayment(_root, args, context) {
+  if (!permissions.canManagePayments({ session: context.session })) throw new DomainError("Permission required: canManagePayments");
+  if (!args.attested || args.reason.trim().length < 3) throw new DomainError("A refund reason and human confirmation are required");
+  const prepared = await withDomainTransaction(context, [`payment:${args.paymentId}`], async (transactionContext) => {
+    const sudo = transactionContext.sudo();
+    const payment = await sudo.query.Payment.findOne({
+      where: { id: args.paymentId },
+      query: `id status amount currencyCode externalPaymentId data order { id orderNumber organization { id } location { id } } provider { ${PAYMENT_PROVIDER_ADAPTER_FIELDS} }`
+    });
+    if (!payment?.order || !payment.provider) throw new DomainError("Payment not found");
+    const { userId } = await requireTenantMembership(transactionContext, { organizationId: payment.order.organization.id, locationId: payment.order.location.id });
+    if (payment.status === "refunded") return { reused: true, payment, userId };
+    if (!["captured", "refund_pending"].includes(payment.status) || !payment.externalPaymentId) throw new DomainError("Only captured payments can be refunded");
+    if (payment.status === "captured") {
+      await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: "refund_pending", data: { ...payment.data || {}, refundReason: args.reason.trim() } } });
+    }
+    return { reused: false, payment, userId };
+  });
+  if (prepared.reused) return { success: true, reused: true, paymentId: prepared.payment.id, status: "refunded", amount: prepared.payment.amount };
+  const providerResult = await refundPayment({
+    provider: prepared.payment.provider,
+    paymentId: prepared.payment.externalPaymentId,
+    amount: prepared.payment.amount,
+    currency: prepared.payment.currencyCode,
+    idempotencyKey: `refund:${prepared.payment.id}`
+  });
+  if (!["refunded", "succeeded"].includes(providerResult.status)) throw new DomainError(`Refund remains pending: ${providerResult.status || "unknown"}`);
+  return withDomainTransaction(context, [`payment:${args.paymentId}`], async (transactionContext) => {
+    const sudo = transactionContext.sudo();
+    const current = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: "id status amount order { id organization { id } location { id } }" });
+    if (!current?.order) throw new DomainError("Payment not found");
+    if (current.status === "refunded") return { success: true, reused: true, paymentId: current.id, status: current.status, amount: current.amount };
+    await sudo.query.Payment.updateOne({ where: { id: current.id }, data: { status: "refunded", data: { refund: providerResult, reason: args.reason.trim() } } });
+    await recordAuditAndOutbox(transactionContext, {
+      eventKey: `payment.refunded:${current.id}`,
+      organizationId: current.order.organization.id,
+      locationId: current.order.location.id,
+      actorId: prepared.userId,
+      eventType: "payment.refunded",
+      resourceType: "Payment",
+      resourceId: current.id,
+      metadata: { orderId: current.order.id, amount: current.amount, reason: args.reason.trim() }
+    });
+    return { success: true, reused: false, paymentId: current.id, status: "refunded", amount: current.amount };
+  });
+}
+async function initiatePharmacyPaymentSession(_root, args, context) {
+  const cart = await loadAndAssertCartAccess(context, args.cartId, args.guestToken);
+  if (!cart.items.length || cart.totalAmount < 1) throw new DomainError("Cart is empty");
+  const provider = (await context.sudo().query.PaymentProvider.findMany({
+    where: { code: { equals: args.providerCode }, organization: { id: { equals: cart.organization.id } } },
+    take: 1,
+    query: `${PAYMENT_PROVIDER_ADAPTER_FIELDS} organization { id }`
+  }))[0];
+  if (!provider?.isInstalled) throw new DomainError("Payment provider is not available for this cart");
+  const idempotencyKey = (0, import_node_crypto4.createHash)("sha256").update(`${cart.id}:${provider.id}:${cart.totalAmount}`).digest("hex");
+  const prepared = await withDomainTransaction(context, [`cart:${cart.id}`, `payment-session:${idempotencyKey}`], async (transactionContext) => {
+    const sudo = transactionContext.sudo();
+    const existing = await sudo.query.PaymentSession.findOne({ where: { idempotencyKey }, query: "id amount currencyCode status externalPaymentId data provider { code name }" });
+    if (existing?.externalPaymentId) return existing;
+    const current = await loadAndAssertCartAccess(transactionContext, cart.id, args.guestToken);
+    for (const session of current.paymentSessions.filter((entry) => entry.isSelected)) {
+      await sudo.query.PaymentSession.updateOne({ where: { id: session.id }, data: { isSelected: false } });
+    }
+    if (existing) {
+      await sudo.query.PaymentSession.updateOne({ where: { id: existing.id }, data: { isSelected: true } });
+      return existing;
+    }
+    return sudo.query.PaymentSession.createOne({
+      data: {
+        amount: current.totalAmount,
+        currencyCode: current.items[0]?.product?.currencyCode || "USD",
+        status: "pending",
+        reconciliationStatus: "pending",
+        isSelected: true,
+        idempotencyKey,
+        organization: { connect: { id: current.organization.id } },
+        location: { connect: { id: current.location.id } },
+        cart: { connect: { id: current.id } },
+        provider: { connect: { id: provider.id } }
+      },
+      query: "id amount currencyCode status externalPaymentId data provider { code name }"
+    });
+  });
+  if (prepared.externalPaymentId) return paymentSessionResult(prepared);
+  let providerData;
+  try {
+    providerData = await createPayment({ provider, cart: { id: cart.id }, amount: cart.totalAmount, currency: prepared.currencyCode });
+  } catch (error) {
+    await withDomainTransaction(context, [`payment-session:${prepared.id}`], async (transactionContext) => {
+      await transactionContext.sudo().query.PaymentSession.updateOne({
+        where: { id: prepared.id },
+        data: { status: "failed", reconciliationStatus: "manual_review", failureReason: error instanceof Error ? error.message.slice(0, 1e3) : "Provider initiation failed" }
+      });
+    });
+    throw error;
+  }
+  const externalPaymentId = providerData?.paymentIntentId || providerData?.orderId || (isManualPaymentProvider(provider) ? `manual:${prepared.id}` : null);
+  if (!externalPaymentId) throw new DomainError("Payment provider did not return a payment reference");
+  return withDomainTransaction(context, [`payment-session:${prepared.id}`], async (transactionContext) => {
+    const session = await transactionContext.sudo().query.PaymentSession.updateOne({
+      where: { id: prepared.id },
+      data: {
+        status: normalizeStatus(providerData.status),
+        externalPaymentId,
+        data: providerData,
+        reconciliationStatus: "pending",
+        lastReconciledAt: (/* @__PURE__ */ new Date()).toISOString()
+      },
+      query: "id amount currencyCode status externalPaymentId data provider { code name }"
+    });
+    return paymentSessionResult(session);
+  });
+}
+
+// features/keystone/mutations/counterCard.ts
+function counterCardReference(scope, idempotencyKey) {
+  return `${scope}:${idempotencyKey}`;
+}
+async function counterCardProvider(context, organizationId) {
+  const [provider] = await context.sudo().query.PaymentProvider.findMany({
+    where: { organization: { id: { equals: organizationId } }, isInstalled: { equals: true }, createPaymentFunction: { equals: "stripe" } },
+    take: 1,
+    query: `${PAYMENT_PROVIDER_ADAPTER_FIELDS} name`
+  });
+  if (!provider) throw new DomainError("Card payments need Stripe installed under Payment providers");
+  return provider;
+}
+async function openCounterCardIntent(context, input) {
+  if (!Number.isInteger(input.amount) || input.amount < 50) throw new DomainError("Card payments must be at least $0.50");
+  const provider = await counterCardProvider(context, input.organizationId);
+  const result = await createPayment({ provider, cart: { id: counterCardReference(input.scope, input.idempotencyKey) }, amount: input.amount, currency: input.currencyCode });
+  if (!result?.clientSecret || !result?.paymentIntentId) throw new DomainError("Stripe did not open a card payment");
+  return { clientSecret: result.clientSecret, paymentIntentId: result.paymentIntentId, amount: input.amount, currencyCode: input.currencyCode };
+}
+async function verifyCounterCardIntent(context, input) {
+  if (!/^pi_[A-Za-z0-9]+$/.test(input.paymentIntentId || "")) throw new DomainError("Card payment reference is invalid");
+  const provider = await counterCardProvider(context, input.organizationId);
+  const status = await getPaymentStatus({ provider, paymentId: input.paymentIntentId });
+  const intent = status?.data || {};
+  if (intent.metadata?.cartId !== counterCardReference(input.scope, input.idempotencyKey)) throw new DomainError("Card payment belongs to a different sale");
+  if (status.status !== "succeeded") throw new DomainError(status.status === "processing" ? "The card payment is still processing. Retry in a moment." : "The card has not been charged yet");
+  const card = intent.payment_method_details?.card || intent.latest_charge?.payment_method_details?.card || null;
+  return { providerId: provider.id, paymentIntentId: input.paymentIntentId, amount: Number(status.amount), currencyCode: String(status.currency || "").toUpperCase(), last4: card?.last4 || null, brand: card?.brand || null };
+}
+function assertCounterCardCovers(card, totalAmount, currencyCode) {
+  if (card.amount !== totalAmount || card.currencyCode !== currencyCode.toUpperCase()) {
+    throw new DomainError("The card was charged a different amount than this sale. The charge will be refunded; start the sale again.");
+  }
+}
+async function refundRefusedCounterCard(context, card, error, committed) {
+  if (!card || error instanceof DomainConflictError) return error;
+  if (await committed().catch(() => true)) return error;
+  const message = error instanceof Error ? error.message : "The sale could not be recorded";
+  try {
+    const provider = await context.sudo().query.PaymentProvider.findOne({ where: { id: card.providerId }, query: PAYMENT_PROVIDER_ADAPTER_FIELDS });
+    await refundPayment({ provider, paymentId: card.paymentIntentId, amount: card.amount, currency: card.currencyCode, idempotencyKey: `counter-card-void:${card.paymentIntentId}` });
+    return new DomainError(`${message}. The card charge was refunded.`);
+  } catch {
+    return new DomainError(`${message}. The card was charged and the automatic refund failed: refund ${card.paymentIntentId} in Stripe.`);
+  }
+}
+
+// features/keystone/mutations/cashWorkflows.ts
+async function recordPharmacyCashPolicy(_root, args, context) {
+  requirePermission(context, "canManagePayments");
+  requirePermission(context, "canApproveConsequentialActions");
+  if (!Number.isInteger(args.taxRateBps) || args.taxRateBps < 0 || args.taxRateBps > 1e4) throw new DomainError("Tax rate must be integer basis points between 0 and 10000");
+  if (!args.policyReference?.trim()) throw new DomainError("Cash/tax policy source reference is required");
+  return withDomainTransaction(context, [`cash-policy:${args.organizationId}`], async (transactionContext) => {
+    const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId });
+    const approval = await createHumanApproval(transactionContext, { organizationId: args.organizationId, actorId: userId, actionType: "cash_policy", reason: args.reason, attested: args.attested, evidence: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), scope: "operator_attested_cash_direct_pay" } });
+    await transactionContext.sudo().query.Organization.updateOne({ where: { id: args.organizationId }, data: { cashSalesEnabled: true, cashTaxRateBps: args.taxRateBps, cashTaxPolicyReference: args.policyReference.trim(), cashPolicyReviewedAt: (/* @__PURE__ */ new Date()).toISOString(), cashPolicyReviewedBy: { connect: { id: userId } } }, query: "id" });
+    await recordAuditAndOutbox(transactionContext, { eventKey: `cash_policy.recorded:${args.organizationId}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: "cash_policy.recorded", resourceType: "Organization", resourceId: args.organizationId, metadata: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), approvalId: approval.id } });
+    return { success: true, organizationId: args.organizationId, status: "enabled", taxRateBps: args.taxRateBps, approvalId: approval.id };
+  });
+}
+async function readCommittedPosReceipt(sudo, orderId, reused) {
+  const order = await sudo.query.Order.findOne({
+    where: { id: orderId },
+    query: "id orderNumber status createdAt subtotalAmount taxAmount totalAmount currencyCode lineItems(orderBy: { createdAt: asc }) { title sku quantity unitPriceAmount lineTotalAmount } payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount externalPaymentId }"
+  });
+  const payment = order?.payments?.find((entry) => entry.tenderMethod === "cash" || entry.tenderMethod === "provider");
+  const card = payment?.tenderMethod === "provider";
+  const lineSubtotal = (order?.lineItems || []).reduce((sum, line) => sum + line.lineTotalAmount, 0);
+  const tenderEvidenceOk = card ? !!payment.externalPaymentId : payment && payment.cashReceivedAmount != null && payment.changeDueAmount != null && payment.cashReceivedAmount >= payment.amount && payment.changeDueAmount === payment.cashReceivedAmount - payment.amount;
+  if (!order || !payment || !["captured", "refunded"].includes(payment.status) || payment.amount !== order.totalAmount || payment.currencyCode !== order.currencyCode || !tenderEvidenceOk || lineSubtotal !== order.subtotalAmount || order.subtotalAmount + order.taxAmount !== order.totalAmount) {
+    throw new DomainError("Committed POS receipt evidence is incomplete or inconsistent; do not submit a new sale");
+  }
+  return {
+    success: true,
+    reused,
+    orderId: order.id,
+    orderNumber: order.orderNumber,
+    status: order.status,
+    recordedAt: order.createdAt,
+    lines: (order.lineItems || []).map((line) => ({ title: line.title, sku: line.sku || "", quantity: line.quantity, unitPriceAmount: line.unitPriceAmount, lineTotalAmount: line.lineTotalAmount })),
+    subtotalAmount: order.subtotalAmount,
+    taxAmount: order.taxAmount,
+    totalAmount: order.totalAmount,
+    currencyCode: order.currencyCode,
+    paymentId: payment.id,
+    paymentStatus: payment.status,
+    tenderMethod: card ? "card" : "cash",
+    cashReceivedAmount: card ? payment.amount : payment.cashReceivedAmount,
+    changeDueAmount: card ? 0 : payment.changeDueAmount
+  };
+}
+function posSaleTotals(pricedItems, taxRateBps) {
+  const subtotalAmount = pricedItems.reduce((sum, entry) => sum + entry.product.priceAmount * entry.quantity, 0);
+  const taxableSubtotalAmount = calculateTaxableSubtotal(pricedItems.map((entry) => ({ unitPriceAmount: entry.product.priceAmount, quantity: entry.quantity, taxable: entry.product.taxable })));
+  const taxAmount = calculateTaxAmount(taxableSubtotalAmount, taxRateBps);
+  return { subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount: subtotalAmount + taxAmount };
+}
+async function openPharmacyPosCardPayment(_root, args, context) {
+  requirePermission(context, "canManageOrders");
+  requirePermission(context, "canManagePayments");
+  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError("A request key is required");
+  const items = (args.items || []).filter((entry) => entry?.productId && Number.isInteger(entry.quantity) && entry.quantity > 0 && entry.quantity <= 99);
+  if (!items.length || items.length > 50 || items.length !== args.items.length) throw new DomainError("POS order must contain 1-50 valid line items");
+  const sudo = context.sudo();
+  const location = await sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id status organization { id cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt }" });
+  if (!location || location.status !== "active") throw new DomainError("POS location not found");
+  await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id });
+  if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new DomainError("Operator-attested cash and tax policy must be configured before POS sales");
+  const products = await sudo.query.Product.findMany({ where: { id: { in: items.map((entry) => entry.productId) } }, take: 50, query: "id priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id }" });
+  if (products.length !== items.length || products.some((product) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== "published" || product.posAvailable !== true || product.prescriptionRequirement !== "none")) throw new DomainError("Every POS item must be an available OTC product in this tenant location");
+  const currencies = [...new Set(products.map((product) => product.currencyCode))];
+  if (currencies.length !== 1) throw new DomainError("POS order currency mismatch");
+  const { totalAmount } = posSaleTotals(items.map((entry) => ({ ...entry, product: products.find((product) => product.id === entry.productId) })), location.organization.cashTaxRateBps || 0);
+  return openCounterCardIntent(context, { organizationId: location.organization.id, scope: "pos", idempotencyKey: args.idempotencyKey, amount: totalAmount, currencyCode: currencies[0] });
+}
+async function pharmacyPosCustomers(_root, args, context) {
+  requirePermission(context, "canManageOrders");
+  const location = await context.sudo().query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id organization { id }" });
+  if (!location) throw new DomainError("Location not found");
+  await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id });
+  const carts = await context.sudo().query.Cart.findMany({ where: { organization: { id: { equals: location.organization.id } }, location: { id: { equals: location.id } }, status: { equals: "active" }, expiresAt: { gt: (/* @__PURE__ */ new Date()).toISOString() }, customer: { role: null }, items: { some: { quantity: { gt: 0 } } } }, orderBy: { createdAt: "desc" }, take: 100, query: "id customer { id name }" });
+  const seen = /* @__PURE__ */ new Set();
+  return carts.filter((cart) => {
+    if (!cart.customer?.id || seen.has(cart.customer.id)) return false;
+    seen.add(cart.customer.id);
+    return true;
+  }).map((cart) => ({ id: cart.id, label: `${cart.customer.name} \xB7 ${cart.id.slice(-6)}`, scopeId: location.id }));
+}
+async function submitPharmacyPosCashOrder(_root, args, context) {
+  requirePermission(context, "canManageOrders");
+  requirePermission(context, "canManagePayments");
+  requirePermission(context, "canManageInventory");
+  if (args.tenderMethod && !["cash", "card"].includes(args.tenderMethod)) throw new DomainError("Tender must be cash or card");
+  let card = null;
+  if (args.tenderMethod === "card") {
+    if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError("A request key is required");
+    const scope = await context.sudo().query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id organization { id }" });
+    if (!scope) throw new DomainError("POS location not found");
+    await requireTenantMembership(context, { organizationId: scope.organization.id, locationId: scope.id });
+    card = await verifyCounterCardIntent(context, { organizationId: scope.organization.id, scope: "pos", idempotencyKey: args.idempotencyKey, paymentIntentId: args.paymentIntentId || "" });
+  }
+  try {
+    return await recordPosSale(args, context, card);
+  } catch (error) {
+    throw await refundRefusedCounterCard(context, card, error, async () => !!await context.sudo().query.Order.findOne({ where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` }, query: "id" }));
+  }
+}
+async function recordPosSale(args, context, card) {
+  const method = args.fulfillmentMethod || "pos";
+  if (!["pos", "pickup"].includes(method)) throw new DomainError("Cash fulfillment method is invalid");
+  const items = (args.items || []).filter((entry) => entry?.productId && Number.isInteger(entry.quantity) && entry.quantity > 0 && entry.quantity <= 99);
+  if (!items.length || items.length > 50 || items.length !== args.items.length) throw new DomainError("POS order must contain 1-50 valid line items");
+  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError("A request key is required");
+  const requestFingerprint = (0, import_node_crypto5.createHash)("sha256").update(JSON.stringify({ locationId: args.locationId, ...args.customerCartId ? { customerCartId: args.customerCartId } : {}, ...method === "pickup" ? { fulfillmentMethod: method } : {}, items: [...items].sort((left, right) => left.productId.localeCompare(right.productId)), ...card ? { tender: "card", paymentIntentId: card.paymentIntentId } : { cashReceivedAmount: args.cashReceivedAmount }, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  return withDomainTransaction(context, [`pos-cash:${args.idempotencyKey}`, ...args.customerCartId ? [`cart:${args.customerCartId}`] : [], ...items.map((entry) => `product:${entry.productId}`)], async (transactionContext) => {
+    const sudo = transactionContext.sudo();
+    const existing = await sudo.query.Order.findOne({ where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` }, query: "id orderNumber status totalAmount currencyCode checkoutEvidence payments { id status } organization { id } location { id }" });
+    if (existing) {
+      if (!existing.organization?.id || !existing.location?.id) throw new DomainError("POS replay scope is incomplete; operator reconciliation is required");
+      await requireTenantMembership(transactionContext, { organizationId: existing.organization.id, locationId: existing.location.id });
+      if (existing.checkoutEvidence?.requestFingerprint !== requestFingerprint) throw new DomainError("POS idempotency key was reused with different input");
+      return readCommittedPosReceipt(sudo, existing.id, true);
+    }
+    const location = await sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id name status pickupEnabled organization { id cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt }" });
+    if (!location || location.status !== "active") throw new DomainError("POS location not found");
+    const { userId } = await requireTenantMembership(transactionContext, { organizationId: location.organization.id, locationId: location.id });
+    if (method === "pickup" && location.pickupEnabled !== true) throw new DomainError("Pickup is unavailable at this location");
+    let customerId;
+    if (args.customerCartId) {
+      const cart = await sudo.query.Cart.findOne({ where: { id: args.customerCartId }, query: "id status expiresAt organization { id } location { id } customer { id role { id } } items(take: 1) { id }" });
+      if (!cart || cart.organization?.id !== location.organization.id || cart.location?.id !== location.id || cart.status !== "active" || !cart.expiresAt || new Date(cart.expiresAt).getTime() <= Date.now() || !cart.customer?.id || cart.customer.role || !cart.items.length) throw new DomainError("Customer cart is not available in this tenant location");
+      customerId = cart.customer.id;
+    }
+    if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new DomainError("Operator-attested cash and tax policy must be configured before POS sales");
+    const productIds = [...new Set(items.map((entry) => entry.productId))];
+    if (productIds.length !== items.length) throw new DomainError("Combine duplicate POS product lines before submission");
+    let products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl image { id extension } priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }" });
+    if (products.length !== items.length || products.some((product) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== "published" || product.posAvailable !== true || product.prescriptionRequirement !== "none")) throw new DomainError("Every POS item must be an available OTC product in this tenant location");
+    await acquireTransactionLocks(transactionContext, products.flatMap((product) => product.inventoryLots.map((lot) => `lot:${lot.id}`)));
+    products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl image { id extension } priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }" });
+    const currencies = [...new Set(products.map((product) => product.currencyCode))];
+    if (currencies.length !== 1) throw new DomainError("POS order currency mismatch");
+    const pricedItems = items.map((entry) => ({ ...entry, product: products.find((product) => product.id === entry.productId) }));
+    const { subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount } = posSaleTotals(pricedItems, location.organization.cashTaxRateBps || 0);
+    if (card) assertCounterCardCovers(card, totalAmount, currencies[0]);
+    const tender = card ? { cashReceivedAmount: totalAmount, changeDueAmount: 0 } : assertCashTender(totalAmount, args.cashReceivedAmount);
+    const workflow = card ? "otc_pos_card" : "operator_attested_otc_pos_cash";
+    const approval = await createHumanApproval(transactionContext, { organizationId: location.organization.id, locationId: location.id, actorId: userId, actionType: card ? "card_tender" : "cash_tender", reason: args.reason, attested: args.attested, evidence: { workflow, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, ...card ? { paymentIntentId: card.paymentIntentId } : { cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount }, taxRateBps: location.organization.cashTaxRateBps || 0, providerSettlementClaimed: !!card } });
+    const suffix = (0, import_node_crypto5.createHash)("sha256").update(args.idempotencyKey).digest("hex").slice(0, 12).toUpperCase();
+    const order = await sudo.query.Order.createOne({ data: { orderNumber: `POS-${suffix}`, idempotencyKey: `pos-cash:${args.idempotencyKey}`, checkoutEvidence: { workflow, customerCartId: args.customerCartId || null, customerId: customerId || null, approvalId: approval.id, requestFingerprint, taxRateBps: location.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: !!card }, status: method === "pickup" ? "processing" : "completed", fulfillmentMethod: method, subtotalAmount, taxAmount, deliveryAmount: 0, totalAmount, currencyCode: currencies[0], customer: customerId ? { connect: { id: customerId } } : void 0, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, approval: { connect: { id: approval.id } } }, query: "id orderNumber status" });
+    for (const entry of items) {
+      const product = products.find((candidate) => candidate.id === entry.productId);
+      let remaining = entry.quantity;
+      const allocations = [];
+      for (const lot of product.inventoryLots.filter((candidate) => candidate.location?.id === location.id && isLotEligible(candidate))) {
+        if (remaining === 0) break;
+        const quantity = Math.min(remaining, eligibleLotQuantity(lot));
+        if (quantity < 1) continue;
+        allocations.push({ lotId: lot.id, lotNumber: lot.lotNumber, quantity, expirationDate: lot.expirationDate });
+        remaining -= quantity;
+      }
+      if (remaining > 0) throw new DomainError(`Insufficient eligible inventory for ${product.title}`);
+      await sudo.query.OrderLineItem.createOne({ data: { title: product.title, sku: product.sku, ndc11Snapshot: product.drugReference?.ndc11 || void 0, quantity: entry.quantity, unitPriceAmount: product.priceAmount, lineTotalAmount: product.priceAmount * entry.quantity, imageUrl: productPhotoSnapshot(product), prescriptionRequirementSnapshot: "none", metadata: { taxable: product.taxable !== false, taxableAmount: product.taxable === false ? 0 : product.priceAmount * entry.quantity }, lotAllocationSnapshot: allocations, order: { connect: { id: order.id } }, product: { connect: { id: product.id } } } });
+      for (const allocation of allocations) {
+        const lot = product.inventoryLots.find((candidate) => candidate.id === allocation.lotId);
+        const nextQuantity = lot.quantityAvailable - allocation.quantity;
+        await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: nextQuantity, ...nextQuantity === 0 ? { status: "depleted" } : {} } });
+        await sudo.query.InventoryMovement.createOne({ data: { movementType: "sale", quantityDelta: -allocation.quantity, reason: args.reason, idempotencyKey: `pos:${args.idempotencyKey}:${product.id}:${lot.id}`, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, product: { connect: { id: product.id } }, lot: { connect: { id: lot.id } }, actor: { connect: { id: userId } }, order: { connect: { id: order.id } }, approval: { connect: { id: approval.id } } } });
+      }
+    }
+    const payment = await sudo.query.Payment.createOne({ data: { amount: totalAmount, currencyCode: currencies[0], status: "captured", ...card ? { tenderMethod: "provider", externalPaymentId: card.paymentIntentId, provider: { connect: { id: card.providerId } }, data: { evidenceType: "stripe_payment_intent_succeeded", approvalId: approval.id, providerSettlementClaimed: true, brand: card.brand, last4: card.last4 } } : { tenderMethod: "cash", cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, data: { evidenceType: "operator_attested_cash_received", approvalId: approval.id, providerSettlementClaimed: false } }, processedAt: (/* @__PURE__ */ new Date()).toISOString(), organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: "id status" });
+    await sudo.query.Fulfillment.createOne({ data: { method, status: method === "pickup" ? "preparing" : "handed_off", ...method === "pos" ? { readyAt: (/* @__PURE__ */ new Date()).toISOString(), handedOffAt: (/* @__PURE__ */ new Date()).toISOString() } : {}, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, assignedTo: { connect: { id: userId } } } });
+    await recordAuditAndOutbox(transactionContext, { eventKey: `pos.${card ? "card" : "cash"}_sale:${args.idempotencyKey}`, organizationId: location.organization.id, locationId: location.id, actorId: userId, eventType: card ? "pos.card_sale_recorded" : "pos.cash_sale_recorded", resourceType: "Order", resourceId: order.id, metadata: { paymentId: payment.id, lineCount: items.length, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, approvalId: approval.id, providerSettlementClaimed: !!card } });
+    return readCommittedPosReceipt(sudo, order.id, false);
+  });
+}
+async function pharmacyPosCashReceipt(_root, args, context) {
+  requirePermission(context, "canManageOrders");
+  requirePermission(context, "canManagePayments");
+  if (!args.idempotencyKey?.trim() || args.idempotencyKey.length > 200) throw new DomainError("A request key is required");
+  const sudo = context.sudo();
+  const order = await sudo.query.Order.findOne({
+    where: { idempotencyKey: `pos-cash:${args.idempotencyKey}` },
+    query: "id organization { id } location { id }"
+  });
+  if (!order) return null;
+  if (!order.organization?.id || !order.location?.id) throw new DomainError("POS receipt scope is incomplete; operator reconciliation is required");
+  await requireTenantMembership(context, { organizationId: order.organization.id, locationId: order.location.id });
+  return readCommittedPosReceipt(sudo, order.id, true);
+}
+async function refundPharmacyCashPayment(_root, args, context) {
+  requirePermission(context, "canManagePayments");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
+  const requestFingerprint = (0, import_node_crypto5.createHash)("sha256").update(JSON.stringify({ paymentId: args.paymentId, cashReturnedAmount: args.cashReturnedAmount, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
+  return withDomainTransaction(context, [`payment:${args.paymentId}`, `cash-refund:${args.idempotencyKey}`], async (transactionContext) => {
+    const sudo = transactionContext.sudo();
+    const payment = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: "id amount status tenderMethod data organization { id } location { id } order { id patient { id } } approval { id }" });
+    if (!payment || payment.tenderMethod !== "cash") throw new DomainError("Cash payment not found");
+    const { userId } = await requireTenantMembership(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id });
+    const eventKey = `payment.cash_refunded:${args.idempotencyKey}`;
+    const existing = await sudo.query.AuditEvent.findOne({ where: { eventKey }, query: "id resourceId metadata" });
+    if (existing) {
+      if (existing.resourceId !== payment.id || existing.metadata?.requestFingerprint !== requestFingerprint) throw new DomainError("Cash refund idempotency key was reused with different input");
+      return { success: true, reused: true, paymentId: payment.id, status: "refunded", amount: payment.amount };
+    }
+    if (payment.status === "refunded") throw new DomainError("Cash payment was already refunded under a different request");
+    if (payment.status !== "captured" || args.cashReturnedAmount !== payment.amount) throw new DomainError("Bounded cash refunds must return the exact captured amount");
+    const approval = await createHumanApproval(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, actionType: "cash_refund", reason: args.reason, attested: args.attested, evidence: { paymentId: payment.id, cashReturnedAmount: args.cashReturnedAmount, inventoryRestocked: false, custodyClaim: false } });
+    await transactionContext.prisma.payment.update({ where: { id: payment.id }, data: { status: "refunded", data: { ...payment.data || {}, cashRefund: { returnedAmount: args.cashReturnedAmount, returnedAt: (/* @__PURE__ */ new Date()).toISOString(), actorId: userId, approvalId: approval.id, inventoryRestocked: false } }, approvalId: approval.id } });
+    await recordAuditAndOutbox(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: "payment.cash_refunded", resourceType: "Payment", resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } });
+    return { success: true, reused: false, paymentId: payment.id, status: "refunded", amount: payment.amount };
+  });
+}
+
 // features/keystone/mutations/publicQueries.ts
-var import_node_crypto5 = require("node:crypto");
+var import_node_crypto6 = require("node:crypto");
 var PUBLIC_CATALOG_SEARCH_LIMIT = 100;
 var PUBLIC_CATALOG_CURSOR_LIMIT = 2048;
 function normalizePublicCatalogSearch(search) {
@@ -4881,7 +5652,7 @@ function publicLocationCursorWhere(where, cursor) {
     }]
   };
 }
-var PUBLIC_TENANT_QUERY = "id storefrontKey storefrontHost operatorDisplayName operatorTagline brandPrimaryColor brandAccentColor brandLogoUrl logoIcon logoColor supportEmail supportPhone privacyNotice";
+var PUBLIC_TENANT_QUERY = "id storefrontKey storefrontHost operatorDisplayName operatorTagline brandPrimaryColor brandAccentColor brandLogoUrl logoIcon logoColor storefrontHeroUrl supportEmail supportPhone privacyNotice";
 function optionalTenantKey(tenantKey) {
   if (!tenantKey?.trim()) return null;
   try {
@@ -4932,7 +5703,7 @@ async function publicPharmacyTenant(_root, args, context) {
       { code: { contains: search, mode: "insensitive" } }
     ] }];
   }
-  const cursorScope = (0, import_node_crypto5.createHash)("sha256").update(JSON.stringify({
+  const cursorScope = (0, import_node_crypto6.createHash)("sha256").update(JSON.stringify({
     locations: "public-pharmacy",
     organizationId: organization.id,
     search,
@@ -5025,7 +5796,7 @@ async function publicPharmacyCatalog(_root, args, context) {
       { category: { equals: search.toLowerCase().replaceAll(" ", "_") } }
     ];
   }
-  const cursorScope = (0, import_node_crypto5.createHash)("sha256").update(JSON.stringify({
+  const cursorScope = (0, import_node_crypto6.createHash)("sha256").update(JSON.stringify({
     catalog: "public-pharmacy",
     organizationId: organization.id,
     locationId: args.locationId,
@@ -5043,7 +5814,7 @@ async function publicPharmacyCatalog(_root, args, context) {
       where: publicCatalogCursorWhere(baseWhere, cursor),
       orderBy: [{ title: "asc" }, { id: "asc" }],
       take: pageSize + 1,
-      query: "id title handle sku description category priceAmount currencyCode taxable imageUrl prescriptionRequirement inventoryLots(where: { quantityAvailable: { gt: 0 } }, orderBy: { expirationDate: asc }, take: 101) { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }"
+      query: "id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots(where: { quantityAvailable: { gt: 0 } }, orderBy: { expirationDate: asc }, take: 101) { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }"
     })
   ]);
   const hasMore = records.length > pageSize;
@@ -5104,7 +5875,7 @@ var CART_QUERY = `
   customer { id }
   items {
     id quantity unitPriceAmount
-    product { id title handle sku description category priceAmount currencyCode imageUrl prescriptionRequirement }
+    product { id title handle sku description category priceAmount currencyCode imageUrl: photoUrl prescriptionRequirement }
   }
 `;
 async function cartResponse(context, cartId) {
@@ -5193,7 +5964,7 @@ async function removePharmacyCartItem(root, args, context) {
 }
 
 // features/keystone/mutations/clinicalWorkflows.ts
-var import_node_crypto7 = require("node:crypto");
+var import_node_crypto8 = require("node:crypto");
 
 // features/keystone/workflows/clinical-safety.ts
 function assertDrugReferenceEligibleForBoundedDispensing(input) {
@@ -5242,7 +6013,7 @@ function currentFillNumber(item) {
 }
 
 // features/keystone/workflows/fill-entitlement.ts
-var import_node_crypto6 = require("node:crypto");
+var import_node_crypto7 = require("node:crypto");
 
 // features/keystone/workflows/fill-price.ts
 function fillPricePortion(price, authorized, alreadyDispensed, quantity) {
@@ -5254,7 +6025,7 @@ function fillPricePortion(price, authorized, alreadyDispensed, quantity) {
 var FILL_LINEAGE = "per_fill_v1";
 function fillHash(value) {
   const canonical = (v) => Array.isArray(v) ? v.map(canonical) : v && typeof v === "object" ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical(v[k])])) : v ?? null;
-  return (0, import_node_crypto6.createHash)("sha256").update(JSON.stringify(canonical(value))).digest("hex");
+  return (0, import_node_crypto7.createHash)("sha256").update(JSON.stringify(canonical(value))).digest("hex");
 }
 function parseFillPolicy(value) {
   if (!value || typeof value.version !== "string" || !value.version.trim() || value.version.length > 100 || typeof value.reference !== "string" || !value.reference.trim() || value.reference.length > 1e3 || value.consumeOn !== "first_dispense" || typeof value.allowPartial !== "boolean" || !Number.isSafeInteger(value.reservationMinutes) || value.reservationMinutes < 1 || value.reservationMinutes > 525600 || !Array.isArray(value.releaseReasons) || !value.releaseReasons.length || value.releaseReasons.some((r) => !["cancelled", "no_pickup", "expired"].includes(r))) {
@@ -5309,13 +6080,13 @@ function assertFillConservation(f) {
   if (f.authorizedQuantity < 1 || f.version < 1 || f.version >= 2147483647 || f.quantityDispensed + f.quantityReleased > f.authorizedQuantity) throw new Error("Fill quantity conservation violated");
   if (!["original", "refill"].includes(f.kind) || !["reserved", "consumed", "released"].includes(f.creditState)) throw new Error("Fill entitlement evidence is invalid");
   if (f.quantityDispensed > 0 !== (f.creditState === "consumed")) throw new Error("Dispensed quantity must retain exactly one consumed entitlement");
-  if (!["requested", "approved", "partially_dispensed", "dispensed", "released"].includes(f.status) || f.creditState === "released" && f.status !== "released") throw new Error("Fill lifecycle evidence is invalid");
+  if (!["requested", "approved", "partially_dispensed", "ready", "dispensed", "released"].includes(f.status) || f.creditState === "released" && f.status !== "released") throw new Error("Fill lifecycle evidence is invalid");
   if (["requested", "approved"].includes(f.status) && (f.quantityDispensed !== 0 || f.quantityReleased !== 0 || f.creditState !== "reserved")) throw new Error("Unconsumed reservation evidence is invalid");
   if (f.status === "partially_dispensed" && (f.quantityDispensed < 1 || f.quantityDispensed >= f.authorizedQuantity || f.quantityReleased !== 0)) throw new Error("Partial fill evidence is invalid");
-  if (f.status === "dispensed" && (f.quantityDispensed !== f.authorizedQuantity || f.quantityReleased !== 0)) throw new Error("Completed fill evidence is invalid");
-  if (["dispensed", "released"].includes(f.status) && f.quantityDispensed + f.quantityReleased !== f.authorizedQuantity) throw new Error("Closed fill must account for every authorized unit");
+  if (["ready", "dispensed"].includes(f.status) && (f.quantityDispensed !== f.authorizedQuantity || f.quantityReleased !== 0)) throw new Error("Completed fill evidence is invalid");
+  if (["ready", "dispensed", "released"].includes(f.status) && f.quantityDispensed + f.quantityReleased !== f.authorizedQuantity) throw new Error("Closed fill must account for every authorized unit");
 }
-function dispenseFillPlan(f, expectedVersion, quantity, now = Date.now()) {
+function dispenseFillPlan(f, expectedVersion, quantity, now = Date.now(), hold = false) {
   assertFillConservation(f);
   if (f.version !== expectedVersion) throw new Error("Fill version changed; refresh the workbench");
   if (!["approved", "partially_dispensed"].includes(f.status)) throw new Error("Fill is not approved for dispensing");
@@ -5325,17 +6096,19 @@ function dispenseFillPlan(f, expectedVersion, quantity, now = Date.now()) {
   const policy = parseFillPolicy(f.policySnapshot);
   if (!policy.allowPartial && quantity !== f.authorizedQuantity - f.quantityDispensed) throw new Error("Partial dispensing is not admitted by the recorded fill policy");
   const quantityDispensed = f.quantityDispensed + quantity;
+  if (hold && (f.quantityDispensed !== 0 || quantityDispensed !== f.authorizedQuantity)) throw new Error("Will-call holds one complete fill; partial fills are handed off directly");
   return {
     quantityDispensed,
     creditState: "consumed",
     version: f.version + 1,
-    status: quantityDispensed === f.authorizedQuantity ? "dispensed" : "partially_dispensed",
+    status: hold ? "ready" : quantityDispensed === f.authorizedQuantity ? "dispensed" : "partially_dispensed",
     debitRefill: f.kind === "refill" && f.creditState === "reserved"
   };
 }
 function releaseFillPlan(f, expectedVersion, cause, now = Date.now()) {
   assertFillConservation(f);
   if (f.version !== expectedVersion) throw new Error("Fill version changed; refresh the workbench");
+  if (f.status === "ready") throw new Error("A filled will-call fill is returned to stock, not released");
   if (!["requested", "approved", "partially_dispensed"].includes(f.status)) throw new Error("Fill is already closed");
   if (!parseFillPolicy(f.policySnapshot).releaseReasons.includes(cause)) throw new Error("Release reason is not admitted by the recorded fill policy");
   if (cause === "expired" && (!Number.isFinite(new Date(f.expiresAt).getTime()) || new Date(f.expiresAt).getTime() > now)) throw new Error("Reservation has not expired");
@@ -5346,6 +6119,22 @@ function releaseFillPlan(f, expectedVersion, cause, now = Date.now()) {
     creditState: f.creditState === "consumed" ? "consumed" : "released",
     releaseRefill: f.kind === "refill" && f.creditState === "reserved"
   };
+}
+function pickupFillPlan(f, expectedVersion) {
+  assertFillConservation(f);
+  if (f.version !== expectedVersion) throw new Error("Fill version changed; refresh the workbench");
+  if (f.status !== "ready") throw new Error("Only a filled will-call fill can be picked up");
+  return { status: "dispensed", version: f.version + 1 };
+}
+function returnToStockPlan(f, expectedVersion, cause, alreadyReturned = false, now = Date.now()) {
+  assertFillConservation(f);
+  if (alreadyReturned && f.status === "released") return { noop: true };
+  if (f.status === "dispensed") throw new Error("Picked-up fills cannot be returned to stock");
+  if (f.status !== "ready") throw new Error("Only a filled will-call fill can be returned to stock");
+  if (f.version !== expectedVersion) throw new Error("Fill version changed; refresh the workbench");
+  const unconsumed = { ...f, status: "approved", quantityDispensed: 0, creditState: "reserved" };
+  const release = releaseFillPlan(unconsumed, f.version, cause, now);
+  return { noop: false, unitsRestocked: f.quantityDispensed, restoreRefill: f.kind === "refill", release, data: { quantityDispensed: 0 } };
 }
 
 // features/keystone/workflows/prescription-eligibility.ts
@@ -5362,13 +6151,13 @@ function isValidNpi(value) {
   return (10 - sum % 10) % 10 === check;
 }
 function assertPrescriptionClinicallyEligible(input, now = Date.now()) {
-  if (input.sourceVerificationStatus !== "human_verified") throw new Error("Prescription source must be verified by an authorized human");
-  if (!input.writtenAt || new Date(input.writtenAt).getTime() > now) throw new Error("Prescription written date is invalid");
-  if (!input.expiresAt || new Date(input.expiresAt).getTime() <= now) throw new Error("Prescription is expired");
+  if (input.sourceVerificationStatus !== "human_verified") throw new DomainError("Prescription source must be verified by an authorized human");
+  if (!input.writtenAt || new Date(input.writtenAt).getTime() > now) throw new DomainError("Prescription written date is invalid");
+  if (!input.expiresAt || new Date(input.expiresAt).getTime() <= now) throw new DomainError("Prescription is expired");
   const prescriber = input.prescriber;
   const credentialExpiry = prescriber?.credentialExpiresAt ? new Date(prescriber.credentialExpiresAt).getTime() : Number.NaN;
   if (prescriber?.verificationStatus !== "validated" || prescriber.externalValidationComplete !== true || !["organization_recorded", "external_provider"].includes(prescriber.verificationMethod || "") || !isValidNpi(prescriber.npi) || !prescriber.credentialType?.trim() || !prescriber.credentialJurisdiction?.trim() || !prescriber.credentialIdentifier?.trim() || !prescriber.validationReference?.trim() || !prescriber.verifiedBy?.id || !Number.isFinite(credentialExpiry) || credentialExpiry <= now) {
-    throw new Error("Current organization-recorded prescriber identity and credential review evidence is required");
+    throw new DomainError("Current organization-recorded prescriber identity and credential review evidence is required");
   }
 }
 
@@ -5598,14 +6387,7 @@ async function releasePharmacyPrescriptionFill(_root, args, context) {
       attested: args.attested,
       evidence: { stage: "fill_release", fillId: fill.id, cause: args.cause, entitlementRestored: false, inventoryRestocked: false }
     });
-    if (plan.releaseRefill) {
-      if (item.refillsReserved < 1) throw new DomainError("Refill reservation counter requires reconciliation");
-      await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1 } });
-    }
-    const { releaseRefill, ...data } = plan;
-    const updated = await casFill(tx, fill, { ...data, openKey: null });
-    if (fill.refillRequest?.id) await tx.sudo().query.RefillRequest.updateOne({ where: { id: fill.refillRequest.id }, data: { status: "cancelled", openRequestKey: null, resolutionNote: args.reason, resolvedAt: (/* @__PURE__ */ new Date()).toISOString() } });
-    if (fill.status !== "requested") await tx.sudo().query.Prescription.updateOne({ where: { id: p.id }, data: { status: "fill_closed" } });
+    const updated = await applyFillReleaseInTransaction(tx, p, item, fill, plan, args.reason);
     const result = { success: true, reused: false, fillId: fill.id, status: "released", version: updated.version };
     await appendFillEvent(tx, updated, {
       eventKey,
@@ -5620,8 +6402,19 @@ async function releasePharmacyPrescriptionFill(_root, args, context) {
     return result;
   });
 }
+async function applyFillReleaseInTransaction(tx, p, item, fill, plan, reason, extra = {}) {
+  if (plan.releaseRefill) {
+    if (item.refillsReserved < 1) throw new DomainError("Refill reservation counter requires reconciliation");
+    await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1 } });
+  }
+  const { releaseRefill, ...data } = plan;
+  const updated = await casFill(tx, fill, { ...data, ...extra, openKey: null });
+  if (fill.refillRequest?.id) await tx.sudo().query.RefillRequest.updateOne({ where: { id: fill.refillRequest.id }, data: { status: "cancelled", openRequestKey: null, resolutionNote: reason, resolvedAt: (/* @__PURE__ */ new Date()).toISOString() } });
+  if (fill.status !== "requested") await tx.sudo().query.Prescription.updateOne({ where: { id: p.id }, data: { status: "fill_closed" } });
+  return updated;
+}
 async function consumeFillInTransaction(tx, fill, item, expectedVersion, quantity, input) {
-  const plan = dispenseFillPlan(fill, expectedVersion, quantity);
+  const plan = dispenseFillPlan(fill, expectedVersion, quantity, Date.now(), input.hold === true);
   if (plan.debitRefill) {
     if (item.refillsReserved < 1 || item.refillsRemaining < 1) throw new DomainError("Refill reservation evidence requires reconciliation");
     await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1, refillsRemaining: item.refillsRemaining - 1 } });
@@ -5631,7 +6424,7 @@ async function consumeFillInTransaction(tx, fill, item, expectedVersion, quantit
   await appendFillEvent(tx, updated, {
     eventKey: `fill.dispense:${input.key}`,
     fingerprint: input.fingerprint,
-    action: "dispensed",
+    action: plan.status === "ready" ? "filled" : "dispensed",
     actorId: input.actorId,
     approvalId: input.approvalId,
     quantity,
@@ -5715,7 +6508,7 @@ async function recordPharmacyDrugReferenceReview(_root, args, context) {
   });
 }
 function clinicalSafetyReviewRequestFingerprint(input) {
-  return (0, import_node_crypto7.createHash)("sha256").update(JSON.stringify({
+  return (0, import_node_crypto8.createHash)("sha256").update(JSON.stringify({
     ...input,
     reviewReference: input.reviewReference?.trim(),
     notes: input.notes?.trim() || null,
@@ -5844,7 +6637,7 @@ async function holdPrescriptionForClinicalReReview(_root, args, context) {
     });
     const evidenceChanges = [prescription.patient?.identityVerifiedAt, ...(prescription.patient?.allergies || []).map((entry) => entry.updatedAt), ...(prescription.patient?.medications || []).map((entry) => entry.updatedAt), ...drugReviews.map((entry) => entry.reviewedAt)].filter(Boolean);
     const latestEvidenceChange = evidenceChanges.sort((a, b) => new Date(a).getTime() - new Date(b).getTime()).at(-1);
-    const requestFingerprint = (0, import_node_crypto7.createHash)("sha256").update(JSON.stringify({ prescriptionId: prescription.id, organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, reason: args.reason.trim(), attested: args.attested, safetyReviewId: latestReview?.id || null, latestEvidenceChange: latestEvidenceChange || null })).digest("hex");
+    const requestFingerprint = (0, import_node_crypto8.createHash)("sha256").update(JSON.stringify({ prescriptionId: prescription.id, organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, reason: args.reason.trim(), attested: args.attested, safetyReviewId: latestReview?.id || null, latestEvidenceChange: latestEvidenceChange || null })).digest("hex");
     if (prescription.status === "approved" && prescription.approval?.actionType === "clinical_safety_hold") {
       if (prescription.approval.evidence?.requestFingerprint !== requestFingerprint) throw new DomainError("Clinical safety hold replay does not match the recorded action");
       return { success: true, reused: true, prescriptionId: prescription.id, status: "approved", approvalId: prescription.approval.id };
@@ -6022,7 +6815,7 @@ function scopedFill(value, scope, expectedId) {
   if (expectedId && id !== expectedId || linkedId(record(f.prescriptionItem).prescription) !== scope.prescriptionId || linkedId(f.prescription) !== scope.prescriptionId || linkedId(f.organization) !== scope.organizationId || linkedId(f.location) !== scope.locationId || linkedId(f.patient) !== scope.patientId || !scope.itemIds.includes(itemId)) throw readScopeError();
   const version = integer21(f.version, 1), fillNumber = integer21(f.fillNumber, 1);
   const authorizedQuantity = integer21(f.authorizedQuantity, 1), quantityDispensed = integer21(f.quantityDispensed), quantityReleased = integer21(f.quantityReleased);
-  if (quantityDispensed + quantityReleased > authorizedQuantity || !["original", "refill"].includes(String(f.kind)) || !["requested", "approved", "partially_dispensed", "dispensed", "released"].includes(String(f.status)) || !["reserved", "consumed", "released"].includes(String(f.creditState))) throw readScopeError();
+  if (quantityDispensed + quantityReleased > authorizedQuantity || !["original", "refill"].includes(String(f.kind)) || !["requested", "approved", "partially_dispensed", "ready", "dispensed", "released"].includes(String(f.status)) || !["reserved", "consumed", "released"].includes(String(f.creditState))) throw readScopeError();
   return {
     id,
     itemId,
@@ -6052,9 +6845,9 @@ function scopedEvent(value, scope, fill, expectedId) {
   const e = record(value), id = readId(e.id), linked = scopedFill(e.fill, scope, fill.id);
   if (expectedId && id !== expectedId || linkedId(e.prescription) !== scope.prescriptionId || linked.itemId !== fill.itemId || linked.version !== fill.version || linked.itemVersion !== fill.itemVersion || linked.authorityVersion !== fill.authorityVersion) throw readScopeError();
   const version = integer21(e.version, 1);
-  if (version > fill.version || !["reserved", "approved", "rejected", "released", "dispensed", "clinical_reviewed"].includes(String(e.action))) throw readScopeError();
+  if (version > fill.version || !["reserved", "approved", "rejected", "released", "dispensed", "clinical_reviewed", "filled", "picked_up", "returned_to_stock"].includes(String(e.action))) throw readScopeError();
   const quantity = integer21(e.quantity);
-  if (e.action === "dispensed" ? quantity < 1 || quantity > fill.quantityDispensed : e.action === "released" ? quantity > fill.quantityReleased : quantity !== 0) throw readScopeError();
+  if (e.action === "dispensed" ? quantity < 1 || quantity > fill.quantityDispensed : e.action === "filled" ? quantity < 1 || quantity > fill.authorizedQuantity : ["released", "returned_to_stock"].includes(String(e.action)) ? quantity > fill.quantityReleased : quantity !== 0) throw readScopeError();
   const commandFingerprint = hash(e.commandFingerprint);
   if (e.action === "reserved" && (commandFingerprint !== fill.requestFingerprint || linkedId(e.actor) !== fill.reservedById)) throw readScopeError();
   return { id, action: String(e.action), version, commandFingerprint, quantity, createdAt: timestamp38(e.createdAt), actorId: linkedId(e.actor), approvalId: e.approval ? linkedId(e.approval) : null };
@@ -6102,10 +6895,12 @@ async function readFillProjection(context, scope, fill) {
     const request = record(await q.RefillRequest.findOne({ where: { id: fill.refillRequestId }, query: "id prescription { id } prescriptionItem { id } patient { id } location { id }" }));
     if (request.id !== fill.refillRequestId || linkedId(request.prescription) !== scope.prescriptionId || linkedId(request.prescriptionItem) !== fill.itemId || linkedId(request.patient) !== scope.patientId || linkedId(request.location) !== scope.locationId) throw readScopeError();
   }
+  const attempt = 1 + await q.PrescriptionFill.count({ where: { AND: [fillReadWhere(scope), { prescriptionItem: { id: { equals: fill.itemId } } }, { fillNumber: { equals: fill.fillNumber } }, { OR: [{ createdAt: { lt: fill.createdAt } }, { createdAt: { equals: fill.createdAt }, id: { lt: fill.id } }] }] } });
   return {
     id: fill.id,
     prescriptionItemId: fill.itemId,
     refillRequestId: fill.refillRequestId,
+    attempt,
     kind: fill.kind,
     status: fill.status,
     version: fill.version,
@@ -6145,7 +6940,7 @@ async function readEventProjection(context, scope, fill, metadata, policyVersion
   let reason = null;
   if (event.approvalId) {
     const approval = record(await q.HumanApproval.findOne({ where: { id: event.approvalId }, query: "id organization { id } location { id } actor { id } actionType attested" }));
-    const actionType = event.action === "dispensed" ? "dispense" : event.action === "clinical_reviewed" ? "clinical_safety_review" : "prescription_review";
+    const actionType = ["dispensed", "filled"].includes(event.action) ? "dispense" : event.action === "picked_up" ? "dispense" : event.action === "clinical_reviewed" ? "clinical_safety_review" : "prescription_review";
     if (approval.id !== event.approvalId || linkedId(approval.organization) !== scope.organizationId || linkedId(approval.location) !== scope.locationId || linkedId(approval.actor) !== event.actorId || approval.attested !== true || approval.actionType !== actionType) throw readScopeError();
     const bound = record(await q.HumanApproval.findOne({ where: { id: event.approvalId }, query: "id evidence" }));
     const binding = record(bound.evidence);
@@ -6158,10 +6953,12 @@ async function readEventProjection(context, scope, fill, metadata, policyVersion
   }
   let orderId = null, orderNumber2 = null;
   if (result.orderId != null) {
-    if (event.action !== "dispensed") throw readScopeError();
-    const movementId = readId(evidence.movementId);
-    const movement = tuple(await q.InventoryMovement.findOne({ where: { id: movementId }, query: "id requestFingerprint movementType quantityDelta organization { id } location { id } patient { id } prescription { id } prescriptionItem { id } order { id } actor { id } approval { id }" }), scope);
-    if (movement.id !== movementId || movement.requestFingerprint !== event.commandFingerprint || movement.movementType !== "dispense" || movement.quantityDelta !== -event.quantity || linkedId(movement.prescriptionItem) !== fill.itemId || linkedId(movement.actor) !== event.actorId || linkedId(movement.approval) !== event.approvalId || linkedId(movement.order) !== result.orderId) throw readScopeError();
+    if (!["dispensed", "picked_up"].includes(event.action)) throw readScopeError();
+    if (event.action === "dispensed") {
+      const movementId = readId(evidence.movementId);
+      const movement = tuple(await q.InventoryMovement.findOne({ where: { id: movementId }, query: "id requestFingerprint movementType quantityDelta organization { id } location { id } patient { id } prescription { id } prescriptionItem { id } order { id } actor { id } approval { id }" }), scope);
+      if (movement.id !== movementId || movement.requestFingerprint !== event.commandFingerprint || movement.movementType !== "dispense" || movement.quantityDelta !== -event.quantity || linkedId(movement.prescriptionItem) !== fill.itemId || linkedId(movement.actor) !== event.actorId || linkedId(movement.approval) !== event.approvalId || linkedId(movement.order) !== result.orderId) throw readScopeError();
+    }
     const id = readId(result.orderId);
     const order = tuple(await q.Order.findOne({ where: { id }, query: "id organization { id } location { id } patient { id } prescription { id }" }), scope);
     if (order.id !== id) throw readScopeError();
@@ -6279,226 +7076,124 @@ async function pharmacyFillHistory(_root, args, context) {
   };
 }
 
-// features/keystone/mutations/paymentOperations.ts
-var import_node_crypto8 = require("node:crypto");
+// features/keystone/mutations/lib/fulfillment-cancel.ts
+var SETTLED_PAYMENT_STATUSES = /* @__PURE__ */ new Set(["refunded", "failed", "cancelled"]);
+var OPEN_FULFILLMENT_STATUSES = /* @__PURE__ */ new Set(["pending", "preparing", "ready", "out_for_delivery"]);
+function isUnpaidPickupPayment(payment) {
+  return typeof payment === "object" && payment !== null && payment.status === "pending" && payment.provider?.createPaymentFunction === "manual";
+}
+function canCancelFulfillment(fulfillmentStatus, payments) {
+  if (!fulfillmentStatus || !OPEN_FULFILLMENT_STATUSES.has(fulfillmentStatus)) return false;
+  return payments.every((payment) => isUnpaidPickupPayment(payment) || SETTLED_PAYMENT_STATUSES.has(String(typeof payment === "object" ? payment?.status || "" : payment || "")));
+}
+var FORWARD_TRANSITIONS = {
+  pending: ["preparing"],
+  preparing: ["ready"],
+  ready: ["handed_off"]
+};
+function availableFulfillmentTransitions(fulfillmentStatus, payments) {
+  const forward = FORWARD_TRANSITIONS[fulfillmentStatus || ""] || [];
+  return canCancelFulfillment(fulfillmentStatus, payments) ? [...forward, "cancelled"] : forward;
+}
 
-// import("../../integrations/payment/**/*.ts") in features/keystone/utils/paymentProviderAdapter.ts
-var globImport_integrations_payment_ts = __glob({
-  "../../integrations/payment/index.ts": () => Promise.resolve().then(() => (init_payment(), payment_exports)),
-  "../../integrations/payment/manual.ts": () => Promise.resolve().then(() => (init_manual(), manual_exports)),
-  "../../integrations/payment/paypal.ts": () => Promise.resolve().then(() => (init_paypal(), paypal_exports)),
-  "../../integrations/payment/stripe.ts": () => Promise.resolve().then(() => (init_stripe(), stripe_exports))
-});
-
-// features/keystone/utils/paymentProviderAdapter.ts
-async function executeAdapterFunction({ provider, functionName, args }) {
-  const functionPath = provider[functionName];
-  if (functionPath.startsWith("http")) {
-    const response = await fetch(functionPath, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ provider, ...args })
+// features/keystone/mutations/pickupNotice.ts
+async function deliver(context, notice) {
+  const sudo = context.sudo();
+  const record2 = (suffix, eventType, metadata) => sudo.prisma.auditEvent.create({ data: {
+    eventKey: `notice.pickup_ready:${notice.noticeKey}${suffix}`,
+    eventType,
+    actorType: "system",
+    organizationId: notice.organizationId,
+    locationId: notice.locationId,
+    patientId: notice.patientId || null,
+    resourceType: notice.resourceType,
+    resourceId: notice.resourceId,
+    metadata: { channel: "email", kind: notice.kind, ...metadata }
+  } });
+  const to = notice.to?.trim();
+  if (!to || !notice.consented) {
+    await record2("", "notice.pickup_ready.skipped", { reason: !to ? "no_email" : "patient_preference" }).catch(() => {
     });
-    if (!response.ok) {
-      throw new Error(`HTTP request failed: ${response.statusText}`);
-    }
-    return response.json();
-  }
-  const adapter = await globImport_integrations_payment_ts(`../../integrations/payment/${functionPath}.ts`);
-  const fn = adapter[functionName];
-  if (!fn) {
-    throw new Error(
-      `Function ${functionName} not found in adapter ${functionPath}`
-    );
+    return;
   }
   try {
-    return await fn({ provider, ...args });
-  } catch (error) {
-    throw new Error(
-      `Error executing ${functionName} for provider ${functionPath}: ${error instanceof Error ? error.message : String(error)}`
-    );
+    await record2("", "notice.pickup_ready.claimed", {});
+  } catch {
+    return;
   }
-}
-async function createPayment({ provider, cart, amount, currency }) {
-  return executeAdapterFunction({
-    provider,
-    functionName: "createPaymentFunction",
-    args: { cart, amount, currency }
-  });
-}
-async function refundPayment({ provider, paymentId, amount, currency, idempotencyKey }) {
-  return executeAdapterFunction({
-    provider,
-    functionName: "refundPaymentFunction",
-    args: { paymentId, amount, currency, idempotencyKey }
-  });
-}
-async function getPaymentStatus({ provider, paymentId }) {
-  return executeAdapterFunction({
-    provider,
-    functionName: "getPaymentStatusFunction",
-    args: { paymentId }
-  });
-}
-async function handleWebhook({ provider, event, headers }) {
-  return executeAdapterFunction({
-    provider,
-    functionName: "handleWebhookFunction",
-    args: { event, headers }
-  });
-}
-
-// features/keystone/mutations/paymentOperations.ts
-var PAYMENT_PROVIDER_ADAPTER_FIELDS = "id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction";
-function isManualPaymentProvider(provider) {
-  return provider.createPaymentFunction === "manual";
-}
-function paymentProviderOption(provider) {
-  return { code: provider.code, name: provider.name, payAtPickup: isManualPaymentProvider(provider) };
-}
-function paymentSessionResult(session) {
-  return {
-    id: session.id,
-    amount: session.amount,
-    currencyCode: session.currencyCode,
-    status: session.status,
-    providerCode: session.provider?.code || "",
-    providerName: session.provider?.name || "Payment provider",
-    clientSecret: typeof session.data?.clientSecret === "string" ? session.data.clientSecret : null
-  };
-}
-function normalizeStatus(status) {
-  if (["succeeded", "captured"].includes(status || "")) return "captured";
-  if (["requires_action", "requires_payment_method", "requires_confirmation"].includes(status || "")) return "requires_action";
-  if (status === "failed") return "failed";
-  return "pending";
-}
-async function activePharmacyPaymentProviders(_root, args, context) {
-  const location = await context.sudo().query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id organization { id } onlineOrderingEnabled" });
-  if (!location) return [];
-  if (!location.onlineOrderingEnabled) {
-    if (!permissions.canManageOrders({ session: context.session })) return [];
-    await requireTenantMembership(context, { organizationId: location.organization.id, locationId: location.id });
-  }
-  const providers = await context.sudo().query.PaymentProvider.findMany({
-    where: { organization: { id: { equals: location.organization.id } }, isInstalled: { equals: true } },
-    query: "name code createPaymentFunction"
-  });
-  return providers.map(paymentProviderOption);
-}
-async function refundPharmacyPayment(_root, args, context) {
-  if (!permissions.canManagePayments({ session: context.session })) throw new DomainError("Permission required: canManagePayments");
-  if (!args.attested || args.reason.trim().length < 3) throw new DomainError("A refund reason and human confirmation are required");
-  const prepared = await withDomainTransaction(context, [`payment:${args.paymentId}`], async (transactionContext) => {
-    const sudo = transactionContext.sudo();
-    const payment = await sudo.query.Payment.findOne({
-      where: { id: args.paymentId },
-      query: `id status amount currencyCode externalPaymentId data order { id orderNumber organization { id } location { id } } provider { ${PAYMENT_PROVIDER_ADAPTER_FIELDS} }`
-    });
-    if (!payment?.order || !payment.provider) throw new DomainError("Payment not found");
-    const { userId } = await requireTenantMembership(transactionContext, { organizationId: payment.order.organization.id, locationId: payment.order.location.id });
-    if (payment.status === "refunded") return { reused: true, payment, userId };
-    if (!["captured", "refund_pending"].includes(payment.status) || !payment.externalPaymentId) throw new DomainError("Only captured payments can be refunded");
-    if (payment.status === "captured") {
-      await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: "refund_pending", data: { ...payment.data || {}, refundReason: args.reason.trim() } } });
-    }
-    return { reused: false, payment, userId };
-  });
-  if (prepared.reused) return { success: true, reused: true, paymentId: prepared.payment.id, status: "refunded", amount: prepared.payment.amount };
-  const providerResult = await refundPayment({
-    provider: prepared.payment.provider,
-    paymentId: prepared.payment.externalPaymentId,
-    amount: prepared.payment.amount,
-    currency: prepared.payment.currencyCode,
-    idempotencyKey: `refund:${prepared.payment.id}`
-  });
-  if (!["refunded", "succeeded"].includes(providerResult.status)) throw new DomainError(`Refund remains pending: ${providerResult.status || "unknown"}`);
-  return withDomainTransaction(context, [`payment:${args.paymentId}`], async (transactionContext) => {
-    const sudo = transactionContext.sudo();
-    const current = await sudo.query.Payment.findOne({ where: { id: args.paymentId }, query: "id status amount order { id organization { id } location { id } }" });
-    if (!current?.order) throw new DomainError("Payment not found");
-    if (current.status === "refunded") return { success: true, reused: true, paymentId: current.id, status: current.status, amount: current.amount };
-    await sudo.query.Payment.updateOne({ where: { id: current.id }, data: { status: "refunded", data: { refund: providerResult, reason: args.reason.trim() } } });
-    await recordAuditAndOutbox(transactionContext, {
-      eventKey: `payment.refunded:${current.id}`,
-      organizationId: current.order.organization.id,
-      locationId: current.order.location.id,
-      actorId: prepared.userId,
-      eventType: "payment.refunded",
-      resourceType: "Payment",
-      resourceId: current.id,
-      metadata: { orderId: current.order.id, amount: current.amount, reason: args.reason.trim() }
-    });
-    return { success: true, reused: false, paymentId: current.id, status: "refunded", amount: current.amount };
-  });
-}
-async function initiatePharmacyPaymentSession(_root, args, context) {
-  const cart = await loadAndAssertCartAccess(context, args.cartId, args.guestToken);
-  if (!cart.items.length || cart.totalAmount < 1) throw new DomainError("Cart is empty");
-  const provider = (await context.sudo().query.PaymentProvider.findMany({
-    where: { code: { equals: args.providerCode }, organization: { id: { equals: cart.organization.id } } },
-    take: 1,
-    query: `${PAYMENT_PROVIDER_ADAPTER_FIELDS} organization { id }`
-  }))[0];
-  if (!provider?.isInstalled) throw new DomainError("Payment provider is not available for this cart");
-  const idempotencyKey = (0, import_node_crypto8.createHash)("sha256").update(`${cart.id}:${provider.id}:${cart.totalAmount}`).digest("hex");
-  const prepared = await withDomainTransaction(context, [`cart:${cart.id}`, `payment-session:${idempotencyKey}`], async (transactionContext) => {
-    const sudo = transactionContext.sudo();
-    const existing = await sudo.query.PaymentSession.findOne({ where: { idempotencyKey }, query: "id amount currencyCode status externalPaymentId data provider { code name }" });
-    if (existing?.externalPaymentId) return existing;
-    const current = await loadAndAssertCartAccess(transactionContext, cart.id, args.guestToken);
-    for (const session of current.paymentSessions.filter((entry) => entry.isSelected)) {
-      await sudo.query.PaymentSession.updateOne({ where: { id: session.id }, data: { isSelected: false } });
-    }
-    if (existing) {
-      await sudo.query.PaymentSession.updateOne({ where: { id: existing.id }, data: { isSelected: true } });
-      return existing;
-    }
-    return sudo.query.PaymentSession.createOne({
-      data: {
-        amount: current.totalAmount,
-        currencyCode: current.items[0]?.product?.currencyCode || "USD",
-        status: "pending",
-        reconciliationStatus: "pending",
-        isSelected: true,
-        idempotencyKey,
-        organization: { connect: { id: current.organization.id } },
-        location: { connect: { id: current.location.id } },
-        cart: { connect: { id: current.id } },
-        provider: { connect: { id: provider.id } }
-      },
-      query: "id amount currencyCode status externalPaymentId data provider { code name }"
-    });
-  });
-  if (prepared.externalPaymentId) return paymentSessionResult(prepared);
-  let providerData;
   try {
-    providerData = await createPayment({ provider, cart: { id: cart.id }, amount: cart.totalAmount, currency: prepared.currencyCode });
+    const { requestOrigin: requestOrigin2, sendPickupReadyEmail: sendPickupReadyEmail2 } = await Promise.resolve().then(() => (init_mail(), mail_exports));
+    const [organization, location] = await Promise.all([
+      sudo.query.Organization.findOne({ where: { id: notice.organizationId }, query: "name operatorDisplayName supportPhone" }),
+      sudo.query.PharmacyLocation.findOne({ where: { id: notice.locationId }, query: "name phone" })
+    ]);
+    const origin = requestOrigin2(context.req);
+    const result = await sendPickupReadyEmail2({
+      to,
+      storeName: organization?.operatorDisplayName || organization?.name || "Pharmacy",
+      kind: notice.kind,
+      reference: notice.reference,
+      locationName: location?.name || "the pharmacy",
+      phone: location?.phone || organization?.supportPhone,
+      url: origin ? `${origin}${notice.path}` : ""
+    });
+    await record2(":result", result.sent ? "notice.pickup_ready.sent" : "notice.pickup_ready.skipped", result.sent ? { messageId: result.messageId || null } : { reason: "email_not_configured" });
   } catch (error) {
-    await withDomainTransaction(context, [`payment-session:${prepared.id}`], async (transactionContext) => {
-      await transactionContext.sudo().query.PaymentSession.updateOne({
-        where: { id: prepared.id },
-        data: { status: "failed", reconciliationStatus: "manual_review", failureReason: error instanceof Error ? error.message.slice(0, 1e3) : "Provider initiation failed" }
-      });
+    await record2(":result", "notice.pickup_ready.failed", { error: error instanceof Error ? error.message.slice(0, 300) : "send_failed" }).catch(() => {
     });
-    throw error;
   }
-  const externalPaymentId = providerData?.paymentIntentId || providerData?.orderId || (isManualPaymentProvider(provider) ? `manual:${prepared.id}` : null);
-  if (!externalPaymentId) throw new DomainError("Payment provider did not return a payment reference");
-  return withDomainTransaction(context, [`payment-session:${prepared.id}`], async (transactionContext) => {
-    const session = await transactionContext.sudo().query.PaymentSession.updateOne({
-      where: { id: prepared.id },
-      data: {
-        status: normalizeStatus(providerData.status),
-        externalPaymentId,
-        data: providerData,
-        reconciliationStatus: "pending",
-        lastReconciledAt: (/* @__PURE__ */ new Date()).toISOString()
-      },
-      query: "id amount currencyCode status externalPaymentId data provider { code name }"
+}
+async function notifyPrescriptionReady(context, input) {
+  try {
+    const prescription = await context.sudo().query.Prescription.findOne({
+      where: { id: input.prescriptionId },
+      query: "id prescriptionNumber status organization { id } location { id } patient { id email preferredContactMethod user { email } }"
     });
-    return paymentSessionResult(session);
-  });
+    if (!prescription || prescription.status !== "ready_for_pickup") return;
+    const patient = prescription.patient;
+    const preference = patient?.preferredContactMethod || "none";
+    await deliver(context, {
+      kind: "prescription",
+      noticeKey: `fill:${input.fillId}`,
+      organizationId: prescription.organization.id,
+      locationId: prescription.location.id,
+      patientId: patient?.id,
+      resourceType: "PrescriptionFill",
+      resourceId: input.fillId,
+      reference: prescription.prescriptionNumber || "",
+      to: patient?.email || patient?.user?.email,
+      // Phone/SMS-only patients are called from will-call; email/portal/none (no stated preference) get email.
+      consented: !["phone", "sms"].includes(preference),
+      path: "/prescriptions"
+    });
+  } catch (error) {
+    console.error("Prescription ready notice failed:", error instanceof Error ? error.message : "unknown");
+  }
+}
+async function notifyOrderReady(context, input) {
+  try {
+    const fulfillment = await context.sudo().query.Fulfillment.findOne({
+      where: { id: input.fulfillmentId },
+      query: "id method status organization { id } location { id } order { id orderNumber email customer { email } patient { id } }"
+    });
+    if (!fulfillment?.order || fulfillment.method !== "pickup" || fulfillment.status !== "ready") return;
+    const order = fulfillment.order;
+    await deliver(context, {
+      kind: "order",
+      noticeKey: `fulfillment:${fulfillment.id}`,
+      organizationId: fulfillment.organization.id,
+      locationId: fulfillment.location.id,
+      patientId: order.patient?.id,
+      resourceType: "Fulfillment",
+      resourceId: fulfillment.id,
+      reference: order.orderNumber,
+      to: order.email || order.customer?.email,
+      consented: true,
+      path: `/order-status?${new URLSearchParams({ orderId: order.id })}`
+    });
+  } catch (error) {
+    console.error("Order ready notice failed:", error instanceof Error ? error.message : "unknown");
+  }
 }
 
 // features/keystone/mutations/fulfillmentWorkflows.ts
@@ -6512,11 +7207,16 @@ var ORDER_STATUS = {
 async function transitionOrderFulfillment(_root, args, context) {
   requirePermission(context, "canManageOrders");
   if (!ORDER_STATUS[args.status]) throw new DomainError("Unsupported fulfillment status");
+  const result = await transitionInTransaction(args, context);
+  if (args.status === "ready") await notifyOrderReady(context, { fulfillmentId: args.fulfillmentId });
+  return result;
+}
+async function transitionInTransaction(args, context) {
   return withDomainTransaction(context, [`fulfillment:${args.fulfillmentId}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const fulfillment = await sudo.query.Fulfillment.findOne({
       where: { id: args.fulfillmentId },
-      query: "id method status organization { id } location { id } assignedTo { id } order { id status patient { id } approval { id } payments { id status provider { createPaymentFunction } } }"
+      query: "id method status organization { id } location { id } assignedTo { id } order { id status lineItems { id prescriptionRequirementSnapshot lotAllocationSnapshot product { id } } patient { id } approval { id } payments { id status provider { createPaymentFunction } } }"
     });
     if (!fulfillment?.order) throw new DomainError("Fulfillment not found");
     const { userId } = await requireTenantMembership(transactionContext, {
@@ -6524,7 +7224,9 @@ async function transitionOrderFulfillment(_root, args, context) {
       locationId: fulfillment.location.id
     });
     if (args.status === "out_for_delivery" && fulfillment.method !== "delivery") throw new DomainError("Only delivery orders can go out for delivery");
-    if (args.status === "cancelled") throw new DomainError("Cancelling a paid order requires a refund; use the refund action instead");
+    if (args.status === "cancelled" && fulfillment.status !== "cancelled" && !canCancelFulfillment(fulfillment.status, fulfillment.order.payments || [])) {
+      throw new DomainError("Cancelling a paid order requires a refund; use the refund action instead");
+    }
     const assigneeId = fulfillment.assignedTo?.id || userId;
     if (args.status === "handed_off" && assigneeId !== userId) throw new DomainError("Only the assigned staff member can record the handoff");
     const payments = fulfillment.order.payments || [];
@@ -6543,6 +7245,38 @@ async function transitionOrderFulfillment(_root, args, context) {
       attested: args.attested,
       evidence: { fulfillmentId: fulfillment.id, previousStatus: fulfillment.status, status: args.status }
     }) : null;
+    if (args.status === "cancelled" && pickupPayments.length) {
+      if (fulfillment.method !== "pickup" || !["pending", "preparing", "ready"].includes(fulfillment.status)) throw new DomainError("Unpaid cancellation requires an uncollected pickup order");
+      const lines = fulfillment.order.lineItems || [];
+      if (lines.some((line) => line.prescriptionRequirementSnapshot !== "none")) throw new DomainError("Prescription orders require the pharmacist return-to-stock workflow");
+      const allocations = lines.flatMap((line) => {
+        if (!Array.isArray(line.lotAllocationSnapshot) || !line.product?.id) throw new DomainError("Missing original inventory allocation");
+        return line.lotAllocationSnapshot.map((allocation) => ({ ...allocation, productId: line.product.id, lineId: line.id }));
+      });
+      if (allocations.some((a) => !a.lotId || !Number.isSafeInteger(a.quantity) || a.quantity <= 0)) throw new DomainError("Invalid original inventory allocation");
+      await acquireTransactionLocks(transactionContext, allocations.map((a) => `lot:${a.lotId}`));
+      for (const allocation of allocations) {
+        const lot = await sudo.query.InventoryLot.findOne({ where: { id: allocation.lotId }, query: "id quantityAvailable product { id organization { id } } location { id }" });
+        if (!lot || lot.product?.id !== allocation.productId || lot.product.organization?.id !== fulfillment.organization.id || lot.location?.id !== fulfillment.location.id) throw new DomainError("Allocation does not match this tenant lot");
+        await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable + allocation.quantity } });
+        await sudo.query.InventoryMovement.createOne({ data: {
+          movementType: "release",
+          quantityDelta: allocation.quantity,
+          reason: args.reason,
+          idempotencyKey: `cancel:${fulfillment.id}:${allocation.lineId}:${lot.id}`,
+          organization: { connect: { id: fulfillment.organization.id } },
+          location: { connect: { id: fulfillment.location.id } },
+          product: { connect: { id: allocation.productId } },
+          lot: { connect: { id: lot.id } },
+          order: { connect: { id: fulfillment.order.id } },
+          actor: { connect: { id: userId } },
+          approval: { connect: { id: approval.id } }
+        } });
+      }
+      for (const payment of payments.filter(isUnpaidPickupPayment)) {
+        await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: "cancelled", processedAt: (/* @__PURE__ */ new Date()).toISOString(), recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } } });
+      }
+    }
     if (args.status === "handed_off") {
       for (const payment of pickupPayments) {
         await sudo.query.Payment.updateOne({
@@ -6575,7 +7309,7 @@ async function transitionOrderFulfillment(_root, args, context) {
 // features/keystone/mutations/prescriptionRequests.ts
 var import_node_crypto9 = require("node:crypto");
 var import_graphql3 = require("graphql");
-var KINDS = ["registration", "transfer", "new_prescription"];
+var KINDS = ["registration", "transfer", "new_prescription", "refill"];
 var RESOLUTIONS = ["in_review", "completed", "declined"];
 var REQUEST_FIELDS = "id kind status createdAt resolvedAt resolutionNote firstName lastName dateOfBirth phone email allergies insurance counterpartyName counterpartyPhone prescriberName prescriberPhone medications note organization { id } location { id name } user { id name email } patient { id }";
 function userInputError2(message) {
@@ -6651,6 +7385,7 @@ async function submitPharmacyPrescriptionRequest(_root, args, context) {
   }
   if (kind === "transfer" && (!data.counterpartyName || !data.medications)) throw userInputError2("Enter the pharmacy to transfer from and the medications.");
   if (kind === "new_prescription" && (!data.prescriberName || !data.medications)) throw userInputError2("Enter the prescriber and the medications.");
+  if (kind === "refill" && !data.medications) throw userInputError2("Enter the Rx number from your label.");
   const user = await sudo.query.User.findOne({ where: { id: userId }, query: "id email patientProfile { id }" });
   const request = await sudo.query.PrescriptionRequest.createOne({
     data: {
@@ -6774,7 +7509,10 @@ async function receiveInventoryLot(_root, args, context) {
   if (!args.idempotencyKey?.trim() || !args.lotNumber?.trim()) throw new DomainError("Lot number and idempotency key are required");
   const expirationDate = new Date(args.expirationDate);
   if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new DomainError("Expiration date must be in the future");
-  if (args.coldChainRequired) throw new DomainError("Cold-chain receiving is not supported yet");
+  if (args.coldChainRequired) {
+    if (typeof args.minimumTemperatureC !== "number" || typeof args.maximumTemperatureC !== "number" || args.minimumTemperatureC >= args.maximumTemperatureC) throw new DomainError("Cold-chain receipt needs a storage range with the minimum below the maximum");
+    if (!args.coldChainEvidenceComplete) throw new DomainError("Review the shipment temperature log before receiving cold-chain stock");
+  }
   const requestFingerprint = (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify({ productId: args.productId, locationId: args.locationId, supplierId: args.supplierId || null, lotNumber: args.lotNumber.trim(), serialNumber: args.serialNumber?.trim() || null, expirationDate: expirationDate.toISOString(), quantity: args.quantity, coldChainRequired: args.coldChainRequired, minimumTemperatureC: args.minimumTemperatureC ?? null, maximumTemperatureC: args.maximumTemperatureC ?? null, coldChainEvidenceComplete: args.coldChainEvidenceComplete, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
   return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${args.lotNumber}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
@@ -6795,6 +7533,7 @@ async function receiveInventoryLot(_root, args, context) {
     if (!isProductAtActiveTenantLocation(product, location)) {
       throw new DomainError("This product cannot be received at this location");
     }
+    if (product.coldChainRequired && !args.coldChainRequired) throw new DomainError("This product is cold-chain; receive it with its storage range and temperature log");
     if (args.supplierId && (!supplier || supplier.organization?.id !== location.organization.id || supplier.status !== "active")) {
       throw new DomainError("Supplier must be active in the receiving organization");
     }
@@ -6817,9 +7556,9 @@ async function receiveInventoryLot(_root, args, context) {
         quantityAvailable: args.quantity,
         quantityQuarantined: 0,
         status: "available",
-        coldChainRequired: false,
-        minimumTemperatureC: null,
-        maximumTemperatureC: null,
+        coldChainRequired: args.coldChainRequired,
+        minimumTemperatureC: args.coldChainRequired ? args.minimumTemperatureC : null,
+        maximumTemperatureC: args.coldChainRequired ? args.maximumTemperatureC : null,
         coldChainEvidenceComplete: true,
         product: { connect: { id: product.id } },
         location: { connect: { id: location.id } },
@@ -6884,6 +7623,7 @@ async function adjustInventoryLot(_root, args, context) {
       organizationId: lot.product.organization.id,
       locationId: lot.location.id
     });
+    if (["recalled", "expired"].includes(lot.status)) throw new DomainError(`A ${lot.status} lot cannot be adjusted; use its recall or disposal workflow`);
     if (args.targetQuantity < lot.quantityQuarantined) throw new DomainError("Available quantity cannot be lower than quarantined quantity");
     const approval = await createHumanApproval(transactionContext, {
       organizationId: lot.product.organization.id,
@@ -6897,7 +7637,8 @@ async function adjustInventoryLot(_root, args, context) {
     const quantityDelta = args.targetQuantity - lot.quantityAvailable;
     await sudo.query.InventoryLot.updateOne({
       where: { id: lot.id },
-      data: { quantityAvailable: args.targetQuantity, status: args.targetQuantity === 0 ? "depleted" : lot.status }
+      // Counting stock back in revives a depleted lot; counting a quarantined lot to zero keeps it quarantined.
+      data: { quantityAvailable: args.targetQuantity, ...lotStatusAfterAdjustment(lot.status, args.targetQuantity) ? { status: lotStatusAfterAdjustment(lot.status, args.targetQuantity) } : {} }
     });
     const movement = await sudo.query.InventoryMovement.createOne({
       data: {
@@ -7935,6 +8676,14 @@ function assessRecallExposureReconciliation(input) {
   };
 }
 
+// features/pharmacy/will-call.ts
+var DAY = 864e5;
+function willCallWhere(filter, stores, now = Date.now()) {
+  const agedBefore = (days) => ({ status: { equals: "ready_for_pickup" }, dispensingLabels: { some: { voidedAt: null, order: null, dispensedAt: { lte: new Date(now - days * DAY).toISOString() } } } });
+  if (filter === "7") return agedBefore(7);
+  return { OR: stores.map((store) => ({ organization: { id: { equals: store.id } }, ...agedBefore(store.willCallReturnDays ?? 10) })) };
+}
+
 // features/keystone/mutations/operationalQueries.ts
 function decodeStableCursor(cursor, expectedScope) {
   if (!cursor) return null;
@@ -7975,15 +8724,11 @@ function requirePatientPrivateData(context) {
     throw new DomainError("Patient private-data permission is required for this projection");
   }
 }
-var fulfillmentTransitions = {
-  pending: ["preparing"],
-  preparing: ["ready"],
-  ready: ["handed_off"]
-};
 function prescriptionActions(status) {
   if (["pending_review", "needs_information"].includes(status)) return ["clinical_safety_review", "review"];
   if (status === "approved") return ["clinical_safety_review", "authorize_dispensing"];
   if (["ready_to_dispense", "partially_dispensed"].includes(status)) return ["record_dispensing"];
+  if (status === "ready_for_pickup") return ["pickup", "return_to_stock"];
   return [];
 }
 async function tenantScope(context) {
@@ -8256,14 +9001,22 @@ async function pharmacyPrescriptionWorklist(_root, args, context) {
   const pharmacistScope = await validatedPharmacistScope(context);
   const pageSize = boundedPageSize(args.first);
   const cursor = decodeStableCursor(args.after);
+  let willCallFilterWhere = null;
+  if (args.willCall === "7") willCallFilterWhere = willCallWhere("7", []);
+  else if (args.willCall === "due") {
+    const stores = await context.sudo().query.Organization.findMany({ where: { id: { in: pharmacistScope.organizationIds } }, take: 100, query: "id willCallReturnDays" });
+    willCallFilterWhere = willCallWhere("due", stores);
+  } else if (args.willCall) throw new DomainError("Unknown will-call filter");
   const baseWhere = {
     organization: { id: { in: pharmacistScope.organizationIds } },
     location: { id: { in: pharmacistScope.locationIds } },
-    OR: [
-      { status: { in: ["draft", "pending_review", "needs_information", "approved", "ready_to_dispense", "partially_dispensed"] } },
-      { refillRequests: { some: { status: { in: ["requested", "under_review", "prescriber_contacted"] } } } },
-      { transfers: { some: { status: { in: ["requested", "consent_recorded", "under_review"] } } } }
-    ]
+    ...willCallFilterWhere ? willCallFilterWhere : {
+      OR: [
+        { status: { in: ["draft", "pending_review", "needs_information", "approved", "ready_to_dispense", "partially_dispensed", "ready_for_pickup"] } },
+        { refillRequests: { some: { status: { in: ["requested", "under_review", "prescriber_contacted"] } } } },
+        { transfers: { some: { status: { in: ["requested", "consent_recorded", "under_review"] } } } }
+      ]
+    }
   };
   const [totalCount, records] = await Promise.all([
     context.sudo().query.Prescription.count({ where: baseWhere }),
@@ -8271,7 +9024,7 @@ async function pharmacyPrescriptionWorklist(_root, args, context) {
       where: stableCursorWhere(baseWhere, cursor),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: pageSize + 1,
-      query: 'id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patient { displayName } prescriber { name verificationStatus } location { name } items(take: 1) { medicationNameSnapshot quantityPrescribed refillsRemaining } refillRequests(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }, take: 50) { id } transfers(where: { status: { in: ["requested", "consent_recorded", "under_review"] } }, take: 50) { id }'
+      query: 'id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patient { displayName } prescriber { name verificationStatus } location { name } items(take: 1) { medicationNameSnapshot quantityPrescribed refillsRemaining } refillRequests(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }, take: 50) { id } transfers(where: { status: { in: ["requested", "consent_recorded", "under_review"] } }, take: 50) { id } organization { willCallReturnDays } dispensingLabels(where: { voidedAt: null, order: null }, orderBy: { dispensedAt: desc }, take: 1) { dispensedAt }'
     })
   ]);
   const hasMore = records.length > pageSize;
@@ -8292,7 +9045,9 @@ async function pharmacyPrescriptionWorklist(_root, args, context) {
     quantityPrescribed: record2.items?.[0]?.quantityPrescribed ?? null,
     refillsRemaining: record2.items?.[0]?.refillsRemaining ?? null,
     openRefillCount: record2.refillRequests?.length || 0,
-    openTransferCount: record2.transfers?.length || 0
+    openTransferCount: record2.transfers?.length || 0,
+    readyAt: record2.status === "ready_for_pickup" ? record2.dispensingLabels?.[0]?.dispensedAt || null : null,
+    willCallReturnDays: record2.organization?.willCallReturnDays ?? 10
   }));
   return { items, totalCount, hasMore, nextCursor: hasMore && pageRecords.length ? encodeStableCursor({ createdAt: pageRecords[pageRecords.length - 1].createdAt, id: pageRecords[pageRecords.length - 1].id }) : null };
 }
@@ -8305,7 +9060,7 @@ async function pharmacyPrescriptionTask(_root, args, context) {
     where: { id: args.prescriptionId },
     query: `
       id prescriptionNumber status source sourceVerificationStatus writtenAt expiresAt
-      organization { id operatorDisplayName supportPhone cashSalesEnabled cashTaxRateBps cashTaxPolicyReference } location { id name }
+      organization { id operatorDisplayName supportPhone cashSalesEnabled cashTaxRateBps cashTaxPolicyReference willCallReturnDays } location { id name }
       patient { id displayName identityVerificationStatus identityReference identityVerifiedAt allergies(where: { status: { in: ["active", "none_known"] } }) { id allergen reaction severity updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id medicationName directions updatedAt } } prescriber { id name verificationStatus }
       approval { id approvedAt }
       items {
@@ -8321,7 +9076,7 @@ async function pharmacyPrescriptionTask(_root, args, context) {
       }
       reviews(orderBy: { reviewedAt: desc }) { id decision reason reviewedAt pharmacist { name } }
       safetyReviews(orderBy: { reviewedAt: desc }, take: 10) { id fillNumber outcome reviewReference notes overrideReason reviewedAt pharmacist { name } }
-      dispensingLabels(orderBy: { dispensedAt: desc }, take: 10) { id labelNumber fillNumber operatorNameSnapshot operatorPhoneSnapshot locationNameSnapshot locationAddressSnapshot patientNameSnapshot prescriberNameSnapshot medicationNameSnapshot sigSnapshot quantityDispensed lotNumberSnapshot ndc11Snapshot expirationDateSnapshot auxiliaryWarnings counselingOutcome dispensedAt }
+      dispensingLabels(orderBy: { dispensedAt: desc }, take: 10) { id labelNumber fillNumber operatorNameSnapshot operatorPhoneSnapshot locationNameSnapshot locationAddressSnapshot patientNameSnapshot prescriberNameSnapshot medicationNameSnapshot sigSnapshot quantityDispensed lotNumberSnapshot ndc11Snapshot expirationDateSnapshot auxiliaryWarnings counselingOutcome dispensedAt voidedAt voidReason }
       refillRequests(orderBy: { requestedAt: desc }, take: 50) { id status requestNote resolutionNote requestedAt resolvedAt prescriptionItem { id medicationNameSnapshot } }
       transfers(orderBy: { requestedAt: desc }, take: 50) { id direction status counterpartyName counterpartyPhone requestedAt completedAt consent { id accepted } }
     `
@@ -8365,6 +9120,7 @@ async function pharmacyPrescriptionTask(_root, args, context) {
     operatorPhone: prescription.organization.supportPhone || null,
     cashSalesEnabled: prescription.organization.cashSalesEnabled === true && Boolean(prescription.organization.cashTaxPolicyReference),
     cashTaxRateBps: prescription.organization.cashTaxRateBps || 0,
+    willCallReturnDays: prescription.organization.willCallReturnDays ?? 10,
     approvalRecorded: Boolean(prescription.approval?.id),
     approvedAt: prescription.approval?.approvedAt || null,
     availableActions: pharmacistScope.locationIds.includes(prescription.location.id) ? availableActions.filter((action) => ["review", "clinical_safety_review", "hold_for_clinical_review"].includes(action) ? permissions.canReviewPrescriptions({ session: context.session }) : permissions.canDispenseMedications({ session: context.session })) : [],
@@ -8395,7 +9151,7 @@ async function pharmacyPrescriptionTask(_root, args, context) {
     patientAllergies: (prescription.patient?.allergies || []).map((entry) => ({ id: entry.id, allergen: entry.allergen, reaction: entry.reaction, severity: entry.severity })),
     patientMedications: (prescription.patient?.medications || []).map((entry) => ({ id: entry.id, medicationName: entry.medicationName, directions: entry.directions })),
     safetyReviews: (prescription.safetyReviews || []).map((review) => ({ id: review.id, fillNumber: review.fillNumber, outcome: review.outcome, reviewReference: review.reviewReference, notes: review.notes, overrideReason: review.overrideReason, reviewedAt: review.reviewedAt, pharmacistName: review.pharmacist?.name || "Authorized reviewer" })),
-    dispensingLabels: (prescription.dispensingLabels || []).map((label) => ({ id: label.id, labelNumber: label.labelNumber, fillNumber: label.fillNumber, operatorName: label.operatorNameSnapshot, operatorPhone: label.operatorPhoneSnapshot, locationName: label.locationNameSnapshot, locationAddress: label.locationAddressSnapshot, patientName: label.patientNameSnapshot, prescriberName: label.prescriberNameSnapshot, medicationName: label.medicationNameSnapshot, sig: label.sigSnapshot, quantityDispensed: label.quantityDispensed, lotNumber: label.lotNumberSnapshot, ndc11: label.ndc11Snapshot, expirationDate: label.expirationDateSnapshot, auxiliaryWarnings: Array.isArray(label.auxiliaryWarnings) ? label.auxiliaryWarnings : [], counselingOutcome: label.counselingOutcome, dispensedAt: label.dispensedAt })),
+    dispensingLabels: (prescription.dispensingLabels || []).map((label) => ({ id: label.id, labelNumber: label.labelNumber, fillNumber: label.fillNumber, operatorName: label.operatorNameSnapshot, operatorPhone: label.operatorPhoneSnapshot, locationName: label.locationNameSnapshot, locationAddress: label.locationAddressSnapshot, patientName: label.patientNameSnapshot, prescriberName: label.prescriberNameSnapshot, medicationName: label.medicationNameSnapshot, sig: label.sigSnapshot, quantityDispensed: label.quantityDispensed, lotNumber: label.lotNumberSnapshot, ndc11: label.ndc11Snapshot, expirationDate: label.expirationDateSnapshot, auxiliaryWarnings: Array.isArray(label.auxiliaryWarnings) ? label.auxiliaryWarnings : [], counselingOutcome: label.counselingOutcome, dispensedAt: label.dispensedAt, voidedAt: label.voidedAt || null, voidReason: label.voidReason || null })),
     refillRequests: (prescription.refillRequests || []).map((entry) => ({ id: entry.id, status: entry.status, requestNote: entry.requestNote, resolutionNote: entry.resolutionNote, requestedAt: entry.requestedAt, resolvedAt: entry.resolvedAt, prescriptionItemId: entry.prescriptionItem?.id, medicationName: entry.prescriptionItem?.medicationNameSnapshot || "Prescription item" })),
     transfers: (prescription.transfers || []).map((entry) => ({ id: entry.id, direction: entry.direction, status: entry.status, counterpartyName: entry.counterpartyName, counterpartyPhone: entry.counterpartyPhone, requestedAt: entry.requestedAt, completedAt: entry.completedAt, consentRecorded: entry.consent?.accepted === true })),
     reviews: (prescription.reviews || []).map((review) => ({
@@ -8476,7 +9232,7 @@ async function pharmacyInventoryLotTask(_root, args, context) {
       storageBin coldChainRequired minimumTemperatureC maximumTemperatureC coldChainEvidenceComplete
       product { id title sku } location { id name }
       recalls { id recallNumber status classification }
-      temperatureExcursions(orderBy: { startedAt: desc }) { id status observedMinimumC observedMaximumC startedAt endedAt }
+      temperatureExcursions(orderBy: { startedAt: desc }) { id status observedMinimumC observedMaximumC startedAt endedAt dispositionReason resolutionNote resolvedAt }
       movements(orderBy: { occurredAt: desc }, take: 50) { id movementType quantityDelta reason occurredAt actor { name } }
     `
   });
@@ -8510,7 +9266,10 @@ async function pharmacyInventoryLotTask(_root, args, context) {
       observedMinimumC: excursion.observedMinimumC,
       observedMaximumC: excursion.observedMaximumC,
       startedAt: excursion.startedAt,
-      endedAt: excursion.endedAt
+      endedAt: excursion.endedAt,
+      dispositionReason: excursion.dispositionReason || null,
+      resolutionNote: excursion.resolutionNote || null,
+      resolvedAt: excursion.resolvedAt || null
     })),
     movements: (lot.movements || []).map((movement) => ({
       id: movement.id,
@@ -8761,9 +9520,9 @@ async function pharmacyOrderTask(_root, args, context) {
       id orderNumber status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode createdAt pickupAt deliveryWindow
       customerName email phone
       organization { id } location { id name }
-      lineItems { id title sku ndc11Snapshot quantity unitPriceAmount lineTotalAmount prescriptionRequirementSnapshot }
+      lineItems { id title sku ndc11Snapshot quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
       fulfillment { id method status readyAt handedOffAt assignedTo { name } }
-      payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount processedAt provider { name code } }
+      payments { id status amount currencyCode tenderMethod cashReceivedAmount changeDueAmount processedAt provider { name code createPaymentFunction } }
     `
   });
   if (!order || !scope.organizationIds.includes(order.organization?.id) || !scope.locationIds.includes(order.location?.id)) throw new DomainError("Order not found");
@@ -8786,17 +9545,18 @@ async function pharmacyOrderTask(_root, args, context) {
     deliveryWindow: order.deliveryWindow,
     locationId: order.location.id,
     locationName: order.location.name,
-    availableFulfillmentStatuses: fulfillmentTransitions[order.fulfillment?.status || ""] || [],
-    lines: (order.lineItems || []).map((line) => ({
+    availableFulfillmentStatuses: availableFulfillmentTransitions(order.fulfillment?.status, order.payments || []),
+    lines: await Promise.all((order.lineItems || []).map(async (line) => ({
       id: line.id,
       title: line.title,
       sku: line.sku,
       ndc11: line.ndc11Snapshot,
+      imageUrl: await resolveLinePhoto(line.imageUrl, context),
       quantity: line.quantity,
       unitPriceAmount: line.unitPriceAmount,
       lineTotalAmount: line.lineTotalAmount,
       prescriptionRequirement: line.prescriptionRequirementSnapshot
-    })),
+    }))),
     fulfillment: order.fulfillment ? {
       id: order.fulfillment.id,
       method: order.fulfillment.method,
@@ -9029,7 +9789,7 @@ async function pharmacyPosCatalog(_root, args, context) {
     },
     orderBy: { title: "asc" },
     take: 100,
-    query: "id title handle sku description category priceAmount currencyCode taxable imageUrl prescriptionRequirement inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }"
+    query: "id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }"
   });
   return records.map((record2) => {
     const availableQuantity = (record2.inventoryLots || []).filter((lot) => lot.location?.id === args.locationId).reduce((sum, lot) => sum + eligibleLotQuantity(lot), 0);
@@ -9129,6 +9889,7 @@ async function handlePaymentProviderWebhook(_root, { providerId, event, headers 
     where: { id: providerId },
     query: "id code isInstalled handleWebhookFunction organization { id }"
   });
+  if (!provider && providerId.includes(":")) return ingestPharmacyIntegrationWebhook(null, { providerKey: providerId, event, headers }, context);
   if (!provider?.isInstalled) throw new DomainError("Payment provider not found");
   const verified = await handleWebhook({ provider, event, headers: normalizedHeaders(headers) });
   const type = String(verified?.type || "");
@@ -9160,15 +9921,17 @@ async function handlePaymentProviderWebhook(_root, { providerId, event, headers 
     if (paymentId) {
       const sessions = await sudo.query.PaymentSession.findMany({
         where: { externalPaymentId: { equals: paymentId }, provider: { id: { equals: provider.id } } },
-        query: "id amount currencyCode payment { id }"
+        query: "id status amount currencyCode payment { id }"
       });
       if (succeeded) {
         for (const session of sessions) {
           assertProviderAmount(provider.code, resource, { amount: session.amount, currencyCode: session.currencyCode });
+          const next = session.payment ? "captured" : "settled_unordered";
+          if (!canMovePaymentSession(session.status, next)) continue;
           await sudo.query.PaymentSession.updateOne({
             where: { id: session.id },
             data: {
-              status: session.payment ? "captured" : "settled_unordered",
+              status: next,
               reconciliationStatus: session.payment ? "ordered" : "settled_unordered",
               lastReconciledAt: (/* @__PURE__ */ new Date()).toISOString(),
               failureReason: null
@@ -9178,13 +9941,14 @@ async function handlePaymentProviderWebhook(_root, { providerId, event, headers 
         handled = sessions.length > 0;
       } else if (failed) {
         for (const session of sessions) {
+          if (!canMovePaymentSession(session.status, "failed")) continue;
           await sudo.query.PaymentSession.updateOne({ where: { id: session.id }, data: { status: "failed", reconciliationStatus: "manual_review", lastReconciledAt: (/* @__PURE__ */ new Date()).toISOString() } });
         }
         handled = sessions.length > 0;
       } else if (refunded) {
         const payments = await sudo.query.Payment.findMany({ where: { externalPaymentId: { equals: paymentId }, provider: { id: { equals: provider.id } } }, query: "id status" });
         if (resource?.status === "succeeded" || resource?.status === "COMPLETED") {
-          for (const payment of payments) await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: "refunded" } });
+          for (const payment of payments) if (canMovePayment(payment.status, "refunded")) await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: "refunded" } });
         }
         handled = payments.length > 0;
       }
@@ -9207,7 +9971,7 @@ async function reconcilePharmacyPaymentSession(_root, args, context) {
   });
   if (!session?.cart || !session.provider || !session.externalPaymentId) throw new DomainError("Payment session not found");
   const { userId } = await requireTenantMembership(context, { organizationId: session.cart.organization.id, locationId: session.cart.location.id });
-  if (session.cart.order?.id) {
+  if (session.cart.order?.id && canMovePaymentSession(session.status, "captured")) {
     return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
       await transactionContext.sudo().query.PaymentSession.updateOne({ where: { id: session.id }, data: { status: "captured", reconciliationStatus: "ordered", lastReconciledAt: (/* @__PURE__ */ new Date()).toISOString(), failureReason: null } });
       return { success: true, status: "ordered", paymentSessionId: session.id };
@@ -9231,6 +9995,7 @@ async function reconcilePharmacyPaymentSession(_root, args, context) {
       return { success: true, status: "compensated", paymentSessionId: session.id };
     });
   }
+  if (["captured", "compensated"].includes(session.status)) return { success: true, status: session.status, paymentSessionId: session.id };
   const providerStatus = await getPaymentStatus({ provider: session.provider, paymentId: session.externalPaymentId });
   const settled = ["captured", "succeeded"].includes(providerStatus?.status);
   return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
@@ -9414,13 +10179,96 @@ async function authorizePrescriptionDispensing(_root, args, context) {
     return { success: true, reused: false, prescriptionId: prescription.id, status: "ready_to_dispense", approvalId: approval.id };
   });
 }
+async function createCashPickupSale(tx, s) {
+  const sudo = tx.sudo();
+  const { subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, currencyCode } = s;
+  const cashApproval = await createHumanApproval(tx, {
+    organizationId: s.prescription.organization.id,
+    locationId: s.prescription.location.id,
+    actorId: s.userId,
+    actionType: s.card ? "card_tender" : "cash_tender",
+    reason: s.reason,
+    attested: s.attested,
+    evidence: { subtotalAmount, taxableSubtotalAmount, taxAmount, amountDue: totalAmount, ...s.card ? { paymentIntentId: s.card.paymentIntentId } : { cashReceivedAmount: s.tender.cashReceivedAmount, changeDueAmount: s.tender.changeDueAmount }, taxRateBps: s.prescription.organization.cashTaxRateBps || 0, taxPolicyReference: s.prescription.organization.cashTaxPolicyReference, providerSettlementClaimed: !!s.card }
+  });
+  const order = await sudo.query.Order.createOne({
+    data: {
+      orderNumber: `RX-${s.operationSuffix}`,
+      idempotencyKey: `rx-cash:${s.idempotencyKey}`,
+      checkoutEvidence: { workflow: s.card ? "prescription_pickup_card" : "operator_attested_cash_prescription_pickup", pharmacistReviewId: s.pharmacistReviewId ?? null, clinicalSafetyReviewId: s.clinicalSafetyReviewId, dispenseApprovalId: s.dispenseApprovalId, cashApprovalId: cashApproval.id, taxRateBps: s.prescription.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: !!s.card },
+      status: "completed",
+      fulfillmentMethod: "pickup",
+      subtotalAmount,
+      taxAmount,
+      deliveryAmount: 0,
+      totalAmount,
+      currencyCode,
+      organization: { connect: { id: s.prescription.organization.id } },
+      location: { connect: { id: s.prescription.location.id } },
+      patient: { connect: { id: s.prescription.patient.id } },
+      prescription: { connect: { id: s.prescription.id } },
+      approval: { connect: { id: cashApproval.id } }
+    },
+    query: "id orderNumber"
+  });
+  await sudo.query.OrderLineItem.createOne({
+    data: {
+      title: s.fill ? s.fill.priceSnapshot.title : s.item.product.title,
+      sku: s.fill ? s.fill.priceSnapshot.sku : s.item.product.sku,
+      ndc11Snapshot: s.item.product.drugReference?.ndc11 || void 0,
+      quantity: 1,
+      unitPriceAmount: subtotalAmount,
+      lineTotalAmount: subtotalAmount,
+      imageUrl: productPhotoSnapshot(s.item.product),
+      prescriptionRequirementSnapshot: s.item.product.prescriptionRequirement,
+      metadata: { dispensedUnits: s.quantity, prescriptionItemId: s.item.id, fillId: s.fill?.id || null, fillNumber: s.fillNumber, taxable: s.item.product.taxable !== false, taxableAmount: taxableSubtotalAmount },
+      lotAllocationSnapshot: [{ lotId: s.lot.id, lotNumber: s.lot.lotNumber, quantity: s.quantity, expirationDate: s.lot.expirationDate }],
+      order: { connect: { id: order.id } },
+      product: { connect: { id: s.item.product.id } }
+    }
+  });
+  const payment = await sudo.query.Payment.createOne({
+    data: {
+      amount: totalAmount,
+      currencyCode,
+      status: "captured",
+      ...s.card ? { tenderMethod: "provider", externalPaymentId: s.card.paymentIntentId, provider: { connect: { id: s.card.providerId } }, data: { evidenceType: "stripe_payment_intent_succeeded", approvalId: cashApproval.id, providerSettlementClaimed: true, brand: s.card.brand, last4: s.card.last4 } } : { tenderMethod: "cash", cashReceivedAmount: s.tender.cashReceivedAmount, changeDueAmount: s.tender.changeDueAmount, data: { evidenceType: "operator_attested_cash_received", approvalId: cashApproval.id, providerSettlementClaimed: false } },
+      processedAt: s.at,
+      organization: { connect: { id: s.prescription.organization.id } },
+      location: { connect: { id: s.prescription.location.id } },
+      order: { connect: { id: order.id } },
+      recordedBy: { connect: { id: s.userId } },
+      approval: { connect: { id: cashApproval.id } }
+    },
+    query: "id status"
+  });
+  await sudo.query.Fulfillment.createOne({
+    data: {
+      method: "pickup",
+      status: "handed_off",
+      readyAt: s.readyAt || s.at,
+      handedOffAt: s.at,
+      organization: { connect: { id: s.prescription.organization.id } },
+      location: { connect: { id: s.prescription.location.id } },
+      order: { connect: { id: order.id } },
+      assignedTo: { connect: { id: s.userId } }
+    }
+  });
+  return { order, payment, cashApproval };
+}
 async function recordPrescriptionDispensing(_root, args, context) {
   requirePermission(context, "canDispenseMedications");
+  const hold = args.hold === true;
   if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new DomainError("Dispensed quantity must be a positive integer");
   if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   if (!["offered_accepted", "offered_declined"].includes(args.counselingOutcome)) throw new DomainError("Counseling offer outcome must be recorded");
   const auxiliaryWarnings = [...new Set((args.auxiliaryWarnings || []).map((value) => value.trim()).filter(Boolean))];
   if (!auxiliaryWarnings.length || auxiliaryWarnings.length > 20 || auxiliaryWarnings.some((value) => value.length > 200)) throw new DomainError("Auxiliary warning evidence is invalid");
+  const result = await recordDispensingInTransaction(args, auxiliaryWarnings, hold, context);
+  if (hold && args.fillId && result?.status === "ready_for_pickup") await notifyPrescriptionReady(context, { prescriptionId: args.prescriptionId, fillId: args.fillId });
+  return result;
+}
+async function recordDispensingInTransaction(args, auxiliaryWarnings, hold, context) {
   return withDomainTransaction(context, [
     `dispense:${args.idempotencyKey}`,
     `lot:${args.lotId}`,
@@ -9440,7 +10288,7 @@ async function recordPrescriptionDispensing(_root, args, context) {
         location { id name address phone }
         prescriber { name npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference }
         approval { id }
-        items { id fillLineage activeFillNumber refillsReserved medicationNameSnapshot sig quantityPrescribed quantityDispensed refillsAuthorized refillsRemaining product { id title sku priceAmount currencyCode taxable imageUrl prescriptionRequirement drugReference { id ndc11 } } drugReference { id ndc11 } }
+        items { id fillLineage activeFillNumber refillsReserved medicationNameSnapshot sig quantityPrescribed quantityDispensed refillsAuthorized refillsRemaining product { id title sku priceAmount currencyCode taxable imageUrl image { id extension } prescriptionRequirement drugReference { id ndc11 } } drugReference { id ndc11 } }
         reviews(where: { decision: { equals: "approved" } }, orderBy: { reviewedAt: desc }, take: 1) { id }
       `
     });
@@ -9475,7 +10323,8 @@ async function recordPrescriptionDispensing(_root, args, context) {
       counselingOutcome: args.counselingOutcome,
       reason: args.reason.trim(),
       attested: args.attested,
-      ...fill ? { fillId: fill.id, expectedFillVersion: args.expectedFillVersion, itemVersion: fill.itemVersion } : {}
+      ...fill ? { fillId: fill.id, expectedFillVersion: args.expectedFillVersion, itemVersion: fill.itemVersion } : {},
+      ...hold ? { hold } : {}
     })).digest("hex");
     if (existingMovement) {
       if (!existingMovement.requestFingerprint || existingMovement.requestFingerprint !== requestFingerprint) {
@@ -9489,7 +10338,8 @@ async function recordPrescriptionDispensing(_root, args, context) {
     if (!["ready_to_dispense", "partially_dispensed"].includes(prescription.status) || !prescription.approval || !prescription.reviews?.length) {
       throw new DomainError("Prescription is not authorized for dispensing");
     }
-    const fillPlan = fill ? dispenseFillPlan(fill, args.expectedFillVersion, args.quantity) : null;
+    if (hold && !fill) throw new DomainError("Will-call holds require a per-fill reservation");
+    const fillPlan = fill ? dispenseFillPlan(fill, args.expectedFillVersion, args.quantity, Date.now(), hold) : null;
     const authorizedFills = 1 + item.refillsAuthorized - item.refillsRemaining;
     const authorizedQuantity = item.quantityPrescribed * authorizedFills;
     const remainingAuthorizedQuantity = fill ? fill.authorizedQuantity - fill.quantityDispensed - fill.quantityReleased : authorizedQuantity - item.quantityDispensed;
@@ -9506,7 +10356,7 @@ async function recordPrescriptionDispensing(_root, args, context) {
     const taxableSubtotalAmount = taxable ? subtotalAmount : 0;
     const taxAmount = fill ? fillPricePortion(fill.priceSnapshot.taxAmount, fill.authorizedQuantity, fill.quantityDispensed, args.quantity) : calculateTaxAmount(taxableSubtotalAmount, prescription.organization.cashTaxRateBps || 0);
     const totalAmount = subtotalAmount + taxAmount;
-    const tender = assertCashTender(totalAmount, args.cashReceivedAmount);
+    const tender = hold ? null : assertCashTender(totalAmount, args.cashReceivedAmount);
     const lot = await sudo.query.InventoryLot.findOne({
       where: { id: args.lotId },
       query: "id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } product { id } location { id }"
@@ -9522,83 +10372,31 @@ async function recordPrescriptionDispensing(_root, args, context) {
       attested: args.attested,
       evidence: { prescriptionItemId: item.id, fillId: fill?.id || null, fillVersion: fill?.version || null, itemVersion: fill?.itemVersion || null, lotId: lot.id, quantity: args.quantity, pharmacistReviewId: prescription.reviews[0].id, clinicalSafetyReviewId: safetyReview.id, idempotencyKey: args.idempotencyKey }
     });
-    const cashApproval = await createHumanApproval(transactionContext, {
-      organizationId: prescription.organization.id,
-      locationId: prescription.location.id,
-      actorId: userId,
-      actionType: "cash_tender",
-      reason: args.reason,
-      attested: args.attested,
-      evidence: { subtotalAmount, taxableSubtotalAmount, taxAmount, amountDue: totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, taxRateBps: prescription.organization.cashTaxRateBps || 0, taxPolicyReference: prescription.organization.cashTaxPolicyReference, providerSettlementClaimed: false }
-    });
     const operationSuffix = (0, import_node_crypto17.createHash)("sha256").update(args.idempotencyKey).digest("hex").slice(0, 12).toUpperCase();
     const dispensedAt = (/* @__PURE__ */ new Date()).toISOString();
-    const order = await sudo.query.Order.createOne({
-      data: {
-        orderNumber: `RX-${operationSuffix}`,
-        idempotencyKey: `rx-cash:${args.idempotencyKey}`,
-        checkoutEvidence: { workflow: "operator_attested_cash_prescription_pickup", pharmacistReviewId: prescription.reviews[0].id, clinicalSafetyReviewId: safetyReview.id, dispenseApprovalId: approval.id, cashApprovalId: cashApproval.id, taxRateBps: prescription.organization.cashTaxRateBps || 0, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: false },
-        status: "completed",
-        fulfillmentMethod: "pickup",
-        subtotalAmount,
-        taxAmount,
-        deliveryAmount: 0,
-        totalAmount,
-        currencyCode,
-        organization: { connect: { id: prescription.organization.id } },
-        location: { connect: { id: prescription.location.id } },
-        patient: { connect: { id: prescription.patient.id } },
-        prescription: { connect: { id: prescription.id } },
-        approval: { connect: { id: cashApproval.id } }
-      },
-      query: "id orderNumber"
-    });
-    await sudo.query.OrderLineItem.createOne({
-      data: {
-        title: fill ? fill.priceSnapshot.title : item.product.title,
-        sku: fill ? fill.priceSnapshot.sku : item.product.sku,
-        ndc11Snapshot: item.product.drugReference?.ndc11 || void 0,
-        quantity: 1,
-        unitPriceAmount: subtotalAmount,
-        lineTotalAmount: subtotalAmount,
-        imageUrl: item.product.imageUrl || void 0,
-        prescriptionRequirementSnapshot: item.product.prescriptionRequirement,
-        metadata: { dispensedUnits: args.quantity, prescriptionItemId: item.id, fillId: fill?.id || null, fillNumber: safetyReview.fillNumber, taxable: item.product.taxable !== false, taxableAmount: taxableSubtotalAmount },
-        lotAllocationSnapshot: [{ lotId: lot.id, lotNumber: lot.lotNumber, quantity: args.quantity, expirationDate: lot.expirationDate }],
-        order: { connect: { id: order.id } },
-        product: { connect: { id: item.product.id } }
-      }
-    });
-    const payment = await sudo.query.Payment.createOne({
-      data: {
-        amount: totalAmount,
-        currencyCode,
-        status: "captured",
-        tenderMethod: "cash",
-        cashReceivedAmount: tender.cashReceivedAmount,
-        changeDueAmount: tender.changeDueAmount,
-        processedAt: dispensedAt,
-        data: { evidenceType: "operator_attested_cash_received", approvalId: cashApproval.id, providerSettlementClaimed: false },
-        organization: { connect: { id: prescription.organization.id } },
-        location: { connect: { id: prescription.location.id } },
-        order: { connect: { id: order.id } },
-        recordedBy: { connect: { id: userId } },
-        approval: { connect: { id: cashApproval.id } }
-      },
-      query: "id status"
-    });
-    await sudo.query.Fulfillment.createOne({
-      data: {
-        method: "pickup",
-        status: "handed_off",
-        readyAt: dispensedAt,
-        handedOffAt: dispensedAt,
-        organization: { connect: { id: prescription.organization.id } },
-        location: { connect: { id: prescription.location.id } },
-        order: { connect: { id: order.id } },
-        assignedTo: { connect: { id: userId } }
-      }
-    });
+    const sale = tender ? await createCashPickupSale(transactionContext, {
+      prescription,
+      item,
+      fill,
+      userId,
+      reason: args.reason,
+      attested: args.attested,
+      idempotencyKey: args.idempotencyKey,
+      operationSuffix,
+      at: dispensedAt,
+      dispenseApprovalId: approval.id,
+      clinicalSafetyReviewId: safetyReview.id,
+      pharmacistReviewId: prescription.reviews[0].id,
+      fillNumber: safetyReview.fillNumber,
+      quantity: args.quantity,
+      lot,
+      subtotalAmount,
+      taxableSubtotalAmount,
+      taxAmount,
+      totalAmount,
+      currencyCode,
+      tender
+    }) : null;
     const label = await sudo.query.DispensingLabel.createOne({
       data: {
         labelNumber: `LBL-${operationSuffix}`,
@@ -9623,7 +10421,8 @@ async function recordPrescriptionDispensing(_root, args, context) {
         patient: { connect: { id: prescription.patient.id } },
         prescription: { connect: { id: prescription.id } },
         prescriptionItem: { connect: { id: item.id } },
-        order: { connect: { id: order.id } },
+        ...sale ? { order: { connect: { id: sale.order.id } } } : {},
+        ...fill ? { fill: { connect: { id: fill.id } } } : {},
         pharmacist: { connect: { id: userId } },
         approval: { connect: { id: approval.id } }
       },
@@ -9652,14 +10451,15 @@ async function recordPrescriptionDispensing(_root, args, context) {
         patient: { connect: { id: prescription.patient.id } },
         prescription: { connect: { id: prescription.id } },
         prescriptionItem: { connect: { id: item.id } },
-        order: { connect: { id: order.id } },
+        ...sale ? { order: { connect: { id: sale.order.id } } } : {},
         approval: { connect: { id: approval.id } }
       },
       query: "id"
     });
+    const order = sale?.order, payment = sale?.payment, cashApproval = sale?.cashApproval;
     if (fill) {
-      const result = { success: true, reused: false, prescriptionId: prescription.id, status: fillPlan.status, approvalId: approval.id, orderId: order.id, orderNumber: order.orderNumber, receiptItemTitle: item.product.title, paymentId: payment.id, labelId: label.id, totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, currencyCode };
-      await consumeFillInTransaction(transactionContext, fill, item, args.expectedFillVersion, args.quantity, { key: args.idempotencyKey, fingerprint: requestFingerprint, actorId: userId, approvalId: approval.id, result, movementId: movement.id, safetyReviewId: safetyReview.id });
+      const result = { success: true, reused: false, prescriptionId: prescription.id, status: fillPlan.status, approvalId: approval.id, orderId: order?.id ?? null, orderNumber: order?.orderNumber ?? null, receiptItemTitle: item.product.title, paymentId: payment?.id ?? null, labelId: label.id, totalAmount, cashReceivedAmount: tender?.cashReceivedAmount ?? null, changeDueAmount: tender?.changeDueAmount ?? null, currencyCode };
+      await consumeFillInTransaction(transactionContext, fill, item, args.expectedFillVersion, args.quantity, { key: args.idempotencyKey, fingerprint: requestFingerprint, actorId: userId, approvalId: approval.id, result, movementId: movement.id, safetyReviewId: safetyReview.id, hold });
       if (fillPlan.status === "dispensed" && fill.refillRequest?.id) await sudo.query.RefillRequest.updateOne({ where: { id: fill.refillRequest.id }, data: { status: "fulfilled", openRequestKey: null } });
     }
     const allCurrentFillsComplete = fill ? fillPlan.status === "dispensed" : prescription.items.every((entry) => {
@@ -9667,10 +10467,10 @@ async function recordPrescriptionDispensing(_root, args, context) {
       const entryAuthorizedQuantity = entry.quantityPrescribed * (1 + entry.refillsAuthorized - entry.refillsRemaining);
       return nextDispensed >= entryAuthorizedQuantity;
     });
-    const nextStatus = allCurrentFillsComplete ? "dispensed" : "partially_dispensed";
+    const nextStatus = hold ? "ready_for_pickup" : allCurrentFillsComplete ? "dispensed" : "partially_dispensed";
     await sudo.query.Prescription.updateOne({
       where: { id: prescription.id },
-      data: { status: nextStatus, ...allCurrentFillsComplete ? { dispensedAt: (/* @__PURE__ */ new Date()).toISOString() } : {}, approval: { connect: { id: approval.id } } }
+      data: { status: nextStatus, ...allCurrentFillsComplete && !hold ? { dispensedAt: (/* @__PURE__ */ new Date()).toISOString() } : {}, approval: { connect: { id: approval.id } } }
     });
     await recordAuditAndOutbox(transactionContext, {
       eventKey: `prescription.dispensed:${args.idempotencyKey}`,
@@ -9678,12 +10478,355 @@ async function recordPrescriptionDispensing(_root, args, context) {
       locationId: prescription.location.id,
       actorId: userId,
       patientId: prescription.patient.id,
-      eventType: allCurrentFillsComplete ? "prescription.dispensed" : "prescription.partially_dispensed",
+      eventType: hold ? "prescription.filled_for_pickup" : allCurrentFillsComplete ? "prescription.dispensed" : "prescription.partially_dispensed",
       resourceType: "Prescription",
       resourceId: prescription.id,
-      metadata: { prescriptionItemId: item.id, fillId: fill?.id || null, fillVersion: fill ? fill.version + 1 : null, lotId: lot.id, quantity: args.quantity, quantityDispensed: item.quantityDispensed + args.quantity, movementId: movement.id, orderId: order.id, paymentId: payment.id, labelId: label.id, approvalId: approval.id, cashApprovalId: cashApproval.id, clinicalSafetyReviewId: safetyReview.id, subtotalAmount, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: false }
+      metadata: { prescriptionItemId: item.id, fillId: fill?.id || null, fillVersion: fill ? fill.version + 1 : null, lotId: lot.id, quantity: args.quantity, quantityDispensed: item.quantityDispensed + args.quantity, movementId: movement.id, orderId: order?.id ?? null, paymentId: payment?.id ?? null, labelId: label.id, approvalId: approval.id, cashApprovalId: cashApproval?.id ?? null, willCall: hold, clinicalSafetyReviewId: safetyReview.id, subtotalAmount, taxableSubtotalAmount, taxAmount, providerSettlementClaimed: false }
     });
-    return { success: true, reused: false, prescriptionId: prescription.id, status: nextStatus, approvalId: approval.id, orderId: order.id, orderNumber: order.orderNumber, receiptItemTitle: item.product.title, paymentId: payment.id, labelId: label.id, totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, currencyCode };
+    return { success: true, reused: false, prescriptionId: prescription.id, status: nextStatus, approvalId: approval.id, orderId: order?.id ?? null, orderNumber: order?.orderNumber ?? null, receiptItemTitle: item.product.title, paymentId: payment?.id ?? null, labelId: label.id, totalAmount, cashReceivedAmount: tender?.cashReceivedAmount ?? null, changeDueAmount: tender?.changeDueAmount ?? null, currencyCode };
+  });
+}
+async function loadWillCallEvidence(tx, fill) {
+  const sudo = tx.sudo();
+  const [label] = await sudo.query.DispensingLabel.findMany({ where: { fill: { id: { equals: fill.id } }, voidedAt: { equals: null } }, take: 1, query: "id labelNumber dispensedAt" });
+  const [filled] = await fillStore(tx).PrescriptionFillEvent.findMany({ where: { fill: { id: { equals: fill.id } }, action: { equals: "filled" } }, orderBy: [{ createdAt: "desc" }], take: 1, query: "id evidence" });
+  const movementId = filled?.evidence?.movementId;
+  const movement = movementId ? await sudo.query.InventoryMovement.findOne({ where: { id: movementId }, query: "id movementType quantityDelta lot { id lotNumber expirationDate status quantityAvailable } product { id }" }) : null;
+  if (!label || !movement || movement.movementType !== "dispense" || -movement.quantityDelta !== fill.quantityDispensed) throw new DomainError("Will-call label and stock evidence require reconciliation");
+  return { label, movement, lot: movement.lot };
+}
+function willCallAmountDue(fill) {
+  const subtotalAmount = fillPricePortion(fill.priceSnapshot.amount, fill.authorizedQuantity, 0, fill.authorizedQuantity);
+  const taxAmount = fillPricePortion(fill.priceSnapshot.taxAmount, fill.authorizedQuantity, 0, fill.authorizedQuantity);
+  return { subtotalAmount, taxAmount, totalAmount: subtotalAmount + taxAmount, currencyCode: fill.priceSnapshot.currencyCode };
+}
+async function openPrescriptionPickupCardPayment(_root, args, context) {
+  requirePermission(context, "canDispenseMedications");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
+  const sudo = context.sudo();
+  const prescription = await sudo.query.Prescription.findOne({ where: { id: args.prescriptionId }, query: "id status organization { id } location { id }" });
+  if (!prescription) throw new DomainError("Prescription not found");
+  await requireTenantMembership(context, { organizationId: prescription.organization.id, locationId: prescription.location.id, pharmacist: true });
+  if (prescription.status !== "ready_for_pickup") throw new DomainError("Prescription is not waiting for pickup");
+  const fill = await fillStore(context).PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY });
+  if (!fill || fill.prescription?.id !== prescription.id || fill.status !== "ready") throw new DomainError("Fill is not in will-call");
+  const due = willCallAmountDue(fill);
+  return openCounterCardIntent(context, { organizationId: prescription.organization.id, scope: "rx", idempotencyKey: args.idempotencyKey, amount: due.totalAmount, currencyCode: due.currencyCode });
+}
+async function pickupPrescriptionFill(_root, args, context) {
+  requirePermission(context, "canDispenseMedications");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
+  if (args.tenderMethod && !["cash", "card"].includes(args.tenderMethod)) throw new DomainError("Tender must be cash or card");
+  let card = null;
+  if (args.tenderMethod === "card") {
+    const scope = await context.sudo().query.Prescription.findOne({ where: { id: args.prescriptionId }, query: "id organization { id } location { id }" });
+    if (!scope) throw new DomainError("Prescription not found");
+    await requireTenantMembership(context, { organizationId: scope.organization.id, locationId: scope.location.id, pharmacist: true });
+    card = await verifyCounterCardIntent(context, { organizationId: scope.organization.id, scope: "rx", idempotencyKey: args.idempotencyKey, paymentIntentId: args.paymentIntentId || "" });
+  }
+  try {
+    return await recordWillCallPickup(args, context, card);
+  } catch (error) {
+    throw await refundRefusedCounterCard(context, card, error, async () => !!await fillStore(context).PrescriptionFillEvent.findOne({ where: { eventKey: `fill.pickup:${args.idempotencyKey}` }, query: "id" }));
+  }
+}
+async function recordWillCallPickup(args, context, card) {
+  return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `fill:${args.fillId}`, `fill-command:${args.idempotencyKey}`], async (tx) => {
+    const sudo = tx.sudo();
+    const prescription = await sudo.query.Prescription.findOne({ where: { id: args.prescriptionId }, query: `id status ${SAFETY_QUERY}
+      organization { id cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt } location { id }
+      items { id product { id title sku taxable imageUrl image { id extension } prescriptionRequirement drugReference { ndc11 } } }
+      reviews(where: { decision: { equals: "approved" } }, orderBy: { reviewedAt: desc }, take: 1) { id }` });
+    if (!prescription) throw new DomainError("Prescription not found");
+    const { userId } = await requireTenantMembership(tx, { organizationId: prescription.organization.id, locationId: prescription.location.id, pharmacist: true });
+    await currentFillPermission(tx, "canDispenseMedications");
+    const current = await loadFillPrescription(tx, prescription.id);
+    const fill = await fillStore(tx).PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY });
+    const currentItem = current.items.find((entry) => entry.id === fill?.prescriptionItem?.id);
+    const item = prescription.items.find((entry) => entry.id === currentItem?.id);
+    if (!fill || !currentItem || !item) throw new DomainError("Fill not found");
+    assertFillBinding(fill, current, currentItem, false);
+    const fingerprint2 = fillHash({ ...args, actorId: userId }), eventKey = `fill.pickup:${args.idempotencyKey}`;
+    const prior = await fillStore(tx).PrescriptionFillEvent.findOne({ where: { eventKey }, query: "id commandFingerprint result" });
+    if (prior) {
+      if (prior.commandFingerprint !== fingerprint2) throw new DomainError("Pickup key is already bound to another request");
+      return { ...prior.result, reused: true };
+    }
+    await assertItemFillLedger(tx, current, currentItem);
+    const plan = pickupFillPlan(fill, args.expectedFillVersion);
+    if (prescription.status !== "ready_for_pickup") throw new DomainError("Prescription is not waiting for pickup");
+    if (prescription.organization.cashSalesEnabled !== true || !prescription.organization.cashTaxPolicyReference?.trim() || !prescription.organization.cashPolicyReviewedAt) throw new DomainError("Operator-attested cash and tax policy must be configured before pickup");
+    const { label, lot } = await loadWillCallEvidence(tx, fill);
+    const { subtotalAmount, taxAmount, totalAmount, currencyCode } = willCallAmountDue(fill);
+    if (card) assertCounterCardCovers(card, totalAmount, currencyCode);
+    const tender = card ? { cashReceivedAmount: totalAmount, changeDueAmount: 0 } : assertCashTender(totalAmount, args.cashReceivedAmount);
+    const approval = await createHumanApproval(tx, {
+      organizationId: prescription.organization.id,
+      locationId: prescription.location.id,
+      actorId: userId,
+      actionType: "dispense",
+      reason: args.reason,
+      attested: args.attested,
+      evidence: { stage: "will_call_pickup", fillId: fill.id, fillVersion: fill.version, itemVersion: fill.itemVersion, labelId: label.id, idempotencyKey: args.idempotencyKey }
+    });
+    const at = (/* @__PURE__ */ new Date()).toISOString();
+    const sale = await createCashPickupSale(tx, {
+      prescription,
+      item,
+      fill,
+      userId,
+      reason: args.reason,
+      attested: args.attested,
+      idempotencyKey: args.idempotencyKey,
+      operationSuffix: (0, import_node_crypto17.createHash)("sha256").update(args.idempotencyKey).digest("hex").slice(0, 12).toUpperCase(),
+      at,
+      readyAt: label.dispensedAt,
+      dispenseApprovalId: approval.id,
+      clinicalSafetyReviewId: prescription.safetyReviews?.[0]?.id,
+      pharmacistReviewId: prescription.reviews?.[0]?.id,
+      fillNumber: fill.fillNumber,
+      quantity: fill.quantityDispensed,
+      lot,
+      subtotalAmount,
+      taxableSubtotalAmount: fill.priceSnapshot.taxable ? subtotalAmount : 0,
+      taxAmount,
+      totalAmount,
+      currencyCode,
+      tender,
+      card
+    });
+    await sudo.query.DispensingLabel.updateOne({ where: { id: label.id }, data: { order: { connect: { id: sale.order.id } } } });
+    const updated = await casFill(tx, fill, { ...plan, openKey: null });
+    if (fill.refillRequest?.id) await sudo.query.RefillRequest.updateOne({ where: { id: fill.refillRequest.id }, data: { status: "fulfilled", openRequestKey: null } });
+    await sudo.query.Prescription.updateOne({ where: { id: prescription.id }, data: { status: "dispensed", dispensedAt: at, approval: { connect: { id: approval.id } } } });
+    const result = { success: true, reused: false, prescriptionId: prescription.id, status: "dispensed", approvalId: approval.id, orderId: sale.order.id, orderNumber: sale.order.orderNumber, receiptItemTitle: item.product.title, paymentId: sale.payment.id, labelId: label.id, totalAmount, cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, currencyCode, tenderMethod: card ? "card" : "cash" };
+    await appendFillEvent(tx, updated, { eventKey, fingerprint: fingerprint2, action: "picked_up", actorId: userId, approvalId: approval.id, result, evidence: { labelId: label.id, orderId: sale.order.id, paymentId: sale.payment.id, cashApprovalId: sale.cashApproval.id } });
+    return result;
+  });
+}
+async function returnPrescriptionFillToStock(_root, args, context) {
+  await currentFillPermission(context, "canReviewPrescriptions");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
+  return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `fill:${args.fillId}`, `fill-command:${args.idempotencyKey}`], async (tx) => {
+    const sudo = tx.sudo(), q = fillStore(tx);
+    const p = await loadFillPrescription(tx, args.prescriptionId);
+    const { userId } = await requireTenantMembership(tx, { organizationId: p.organization.id, locationId: p.location.id, pharmacist: true });
+    await currentFillPermission(tx, "canReviewPrescriptions");
+    const fill = await q.PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY });
+    const item = p.items.find((entry) => entry.id === fill?.prescriptionItem?.id);
+    if (!fill || !item) throw new DomainError("Fill not found");
+    assertFillBinding(fill, p, item, false);
+    const fingerprint2 = fillHash({ ...args, actorId: userId }), eventKey = `fill.return:${args.idempotencyKey}`;
+    const prior = await q.PrescriptionFillEvent.findOne({ where: { eventKey }, query: "id commandFingerprint result" });
+    if (prior) {
+      if (prior.commandFingerprint !== fingerprint2) throw new DomainError("Return key is already bound to another request");
+      return { ...prior.result, reused: true };
+    }
+    const returned = await q.PrescriptionFillEvent.count({ where: { fill: { id: { equals: fill.id } }, action: { equals: "returned_to_stock" } } });
+    const plan = returnToStockPlan(fill, args.expectedFillVersion, args.cause, returned > 0);
+    if (plan.noop) return { success: true, reused: true, fillId: fill.id, status: fill.status, version: fill.version };
+    await assertItemFillLedger(tx, p, item);
+    const { label, movement, lot } = await loadWillCallEvidence(tx, fill);
+    await acquireTransactionLocks(tx, [`lot:${lot.id}`, `prescription-item:${item.id}`]);
+    const approval = await createHumanApproval(tx, {
+      organizationId: p.organization.id,
+      locationId: p.location.id,
+      actorId: userId,
+      actionType: "prescription_review",
+      reason: args.reason,
+      attested: args.attested,
+      evidence: { stage: "return_to_stock", fillId: fill.id, cause: args.cause, entitlementRestored: plan.restoreRefill, inventoryRestocked: plan.unitsRestocked, labelId: label.id, reversedMovementId: movement.id }
+    });
+    await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable + plan.unitsRestocked, ...lot.status === "depleted" ? { status: "available" } : {} } });
+    const returnMovement = await sudo.query.InventoryMovement.createOne({ data: {
+      movementType: "return",
+      quantityDelta: plan.unitsRestocked,
+      reason: args.reason,
+      idempotencyKey: `return-to-stock:${args.idempotencyKey}`,
+      requestFingerprint: fingerprint2,
+      organization: { connect: { id: p.organization.id } },
+      location: { connect: { id: p.location.id } },
+      product: { connect: { id: movement.product.id } },
+      lot: { connect: { id: lot.id } },
+      actor: { connect: { id: userId } },
+      patient: { connect: { id: p.patient.id } },
+      prescription: { connect: { id: p.id } },
+      prescriptionItem: { connect: { id: item.id } },
+      approval: { connect: { id: approval.id } }
+    }, query: "id" });
+    const unconsumed = {
+      ...item,
+      quantityDispensed: item.quantityDispensed - plan.unitsRestocked,
+      refillsRemaining: item.refillsRemaining + (plan.restoreRefill ? 1 : 0),
+      refillsReserved: item.refillsReserved + (plan.restoreRefill ? 1 : 0)
+    };
+    await sudo.query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { quantityDispensed: unconsumed.quantityDispensed, refillsRemaining: unconsumed.refillsRemaining, refillsReserved: unconsumed.refillsReserved } });
+    const updated = await applyFillReleaseInTransaction(tx, p, unconsumed, fill, plan.release, args.reason, plan.data);
+    await sudo.query.DispensingLabel.updateOne({ where: { id: label.id }, data: { voidedAt: (/* @__PURE__ */ new Date()).toISOString(), voidReason: args.reason } });
+    const result = { success: true, reused: false, fillId: fill.id, status: "released", version: updated.version };
+    await appendFillEvent(tx, updated, {
+      eventKey,
+      fingerprint: fingerprint2,
+      action: "returned_to_stock",
+      actorId: userId,
+      approvalId: approval.id,
+      quantity: plan.unitsRestocked,
+      result,
+      evidence: { cause: args.cause, inventoryRestocked: true, entitlementRestored: plan.restoreRefill, labelId: label.id, reversedMovementId: movement.id, movementId: returnMovement.id }
+    });
+    return result;
+  });
+}
+
+// features/keystone/mutations/coldChainWorkflows.ts
+async function recordTemperatureExcursion(_root, args, context) {
+  requirePermission(context, "canManageInventory");
+  if (!args.idempotencyKey?.trim() || !args.reason?.trim()) throw new DomainError("Idempotency key and reason are required");
+  if (!Number.isFinite(args.observedMinimumC) || !Number.isFinite(args.observedMaximumC) || args.observedMinimumC > args.observedMaximumC) {
+    throw new DomainError("Observed temperature range is invalid");
+  }
+  return withDomainTransaction(context, [`excursion-idempotency:${args.idempotencyKey}`, `lot:${args.lotId}`], async (transactionContext) => {
+    const sudo = transactionContext.sudo();
+    const existing = await sudo.query.TemperatureExcursion.findOne({ where: { idempotencyKey: args.idempotencyKey }, query: "id status lot { id } approval { id }" });
+    if (existing) {
+      if (existing.lot?.id !== args.lotId) throw new DomainError("Excursion idempotency key belongs to another lot");
+      return { success: true, reused: true, excursionId: existing.id, lotId: existing.lot.id, status: existing.status, approvalId: existing.approval?.id };
+    }
+    const lot = await sudo.query.InventoryLot.findOne({
+      where: { id: args.lotId },
+      query: "id status quantityAvailable product { id organization { id } } location { id } coldChainRequired"
+    });
+    if (!lot?.coldChainRequired) throw new DomainError("Cold-chain inventory lot not found");
+    if (!QUARANTINABLE_LOT_STATUSES.includes(lot.status)) throw new DomainError(`A ${lot.status} lot cannot be quarantined for a temperature excursion`);
+    const { userId } = await requireTenantMembership(transactionContext, { organizationId: lot.product.organization.id, locationId: lot.location.id });
+    const approval = await createHumanApproval(transactionContext, {
+      organizationId: lot.product.organization.id,
+      locationId: lot.location.id,
+      actorId: userId,
+      actionType: "cold_chain_disposition",
+      reason: args.reason,
+      attested: args.attested,
+      evidence: { action: "quarantine_excursion", lotId: lot.id, observedMinimumC: args.observedMinimumC, observedMaximumC: args.observedMaximumC }
+    });
+    const excursion = await sudo.query.TemperatureExcursion.createOne({
+      data: {
+        idempotencyKey: args.idempotencyKey,
+        observedMinimumC: args.observedMinimumC,
+        observedMaximumC: args.observedMaximumC,
+        startedAt: new Date(args.startedAt).toISOString(),
+        endedAt: args.endedAt ? new Date(args.endedAt).toISOString() : void 0,
+        status: "open",
+        dispositionReason: args.reason,
+        organization: { connect: { id: lot.product.organization.id } },
+        location: { connect: { id: lot.location.id } },
+        lot: { connect: { id: lot.id } },
+        reviewedBy: { connect: { id: userId } },
+        approval: { connect: { id: approval.id } }
+      },
+      query: "id status"
+    });
+    await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { status: "quarantined", quantityQuarantined: lot.quantityAvailable, coldChainEvidenceComplete: false } });
+    await sudo.query.InventoryMovement.createOne({
+      data: {
+        movementType: "quarantine",
+        quantityDelta: 0,
+        reason: args.reason,
+        idempotencyKey: `cold-chain:${args.idempotencyKey}`,
+        organization: { connect: { id: lot.product.organization.id } },
+        location: { connect: { id: lot.location.id } },
+        product: { connect: { id: lot.product.id } },
+        lot: { connect: { id: lot.id } },
+        actor: { connect: { id: userId } },
+        approval: { connect: { id: approval.id } }
+      }
+    });
+    await recordAuditAndOutbox(transactionContext, {
+      eventKey: `cold_chain.excursion:${args.idempotencyKey}`,
+      organizationId: lot.product.organization.id,
+      locationId: lot.location.id,
+      actorId: userId,
+      eventType: "cold_chain.excursion_recorded",
+      resourceType: "TemperatureExcursion",
+      resourceId: excursion.id,
+      metadata: { lotId: lot.id, status: "quarantined", approvalId: approval.id }
+    });
+    return { success: true, reused: false, excursionId: excursion.id, lotId: lot.id, status: excursion.status, approvalId: approval.id };
+  });
+}
+async function resolveTemperatureExcursion(_root, args, context) {
+  requirePermission(context, "canManageInventory");
+  if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
+  const candidate = await context.sudo().query.TemperatureExcursion.findOne({ where: { id: args.excursionId }, query: "id lot { id }" });
+  if (!candidate?.lot?.id) throw new DomainError("Temperature excursion not found");
+  return withDomainTransaction(context, [`excursion:${args.excursionId}`, `lot:${candidate.lot.id}`, `excursion-disposition:${args.idempotencyKey}`], async (transactionContext) => {
+    const sudo = transactionContext.sudo();
+    const excursion = await sudo.query.TemperatureExcursion.findOne({
+      where: { id: args.excursionId },
+      query: "id status resolutionNote organization { id } location { id } lot { id status expirationDate quantityAvailable quantityQuarantined product { id } location { id } }"
+    });
+    if (!excursion?.lot) throw new DomainError("Temperature excursion not found");
+    const lot = excursion.lot;
+    const { userId } = await requireTenantMembership(transactionContext, { organizationId: excursion.organization.id, locationId: excursion.location.id });
+    const replay = await sudo.query.InventoryMovement.findOne({ where: { idempotencyKey: `excursion-disposition:${args.idempotencyKey}` }, query: "id lot { id }" });
+    if (replay) {
+      if (replay.lot?.id !== lot.id || excursion.status !== args.disposition) throw new DomainError("Disposition idempotency key was reused with different input");
+      return { success: true, reused: true, excursionId: excursion.id, lotId: lot.id, status: excursion.status, lotStatus: lot.status, quantityAvailable: lot.quantityAvailable, movementId: replay.id };
+    }
+    const refusal = excursionDispositionError({ excursionStatus: excursion.status, disposition: args.disposition, note: args.note, lotStatus: lot.status, lotExpiresAt: lot.expirationDate });
+    if (refusal) throw new DomainError(refusal, "TRANSITION_REFUSED");
+    const disposition = args.disposition;
+    const otherOpen = await sudo.query.TemperatureExcursion.count({ where: { lot: { id: { equals: lot.id } }, id: { not: { equals: excursion.id } }, status: { in: ["open", "under_review"] } } });
+    const next = lotAfterExcursionDisposition(disposition, lot, disposition === "destroyed" ? 0 : otherOpen);
+    const note = args.note.trim();
+    const approval = await createHumanApproval(transactionContext, {
+      organizationId: excursion.organization.id,
+      locationId: excursion.location.id,
+      actorId: userId,
+      actionType: "cold_chain_disposition",
+      reason: note,
+      attested: args.attested,
+      evidence: { action: `excursion_${disposition}`, excursionId: excursion.id, lotId: lot.id, writeOff: next.writeOff, idempotencyKey: args.idempotencyKey }
+    });
+    const closed = await transactionContext.prisma.temperatureExcursion.updateMany({
+      where: { id: excursion.id, status: { in: ["open", "under_review"] } },
+      data: { status: disposition, resolutionNote: note, resolvedAt: /* @__PURE__ */ new Date(), reviewedById: userId, approvalId: approval.id }
+    });
+    if (closed.count !== 1) throw new DomainError("This excursion was resolved by someone else; reload it", "TRANSITION_REFUSED");
+    await sudo.query.InventoryLot.updateOne({
+      where: { id: lot.id },
+      data: {
+        status: next.status,
+        quantityAvailable: next.quantityAvailable,
+        quantityQuarantined: next.quantityQuarantined,
+        ...disposition === "released" && next.status !== "quarantined" ? { coldChainEvidenceComplete: true } : {}
+      }
+    });
+    const movement = await sudo.query.InventoryMovement.createOne({
+      data: {
+        movementType: disposition === "destroyed" ? "destroy" : "release",
+        quantityDelta: -next.writeOff,
+        reason: disposition === "destroyed" ? `Write-off after temperature excursion: ${note}` : `Released after temperature excursion: ${note}`,
+        idempotencyKey: `excursion-disposition:${args.idempotencyKey}`,
+        organization: { connect: { id: excursion.organization.id } },
+        location: { connect: { id: lot.location.id } },
+        product: { connect: { id: lot.product.id } },
+        lot: { connect: { id: lot.id } },
+        actor: { connect: { id: userId } },
+        approval: { connect: { id: approval.id } }
+      },
+      query: "id"
+    });
+    await recordAuditAndOutbox(transactionContext, {
+      eventKey: `cold_chain.excursion_${disposition}:${excursion.id}`,
+      organizationId: excursion.organization.id,
+      locationId: excursion.location.id,
+      actorId: userId,
+      eventType: `cold_chain.excursion_${disposition}`,
+      resourceType: "TemperatureExcursion",
+      resourceId: excursion.id,
+      metadata: { lotId: lot.id, movementId: movement.id, lotStatus: next.status, writeOff: next.writeOff, approvalId: approval.id }
+    });
+    return { success: true, reused: false, excursionId: excursion.id, lotId: lot.id, status: disposition, lotStatus: next.status, quantityAvailable: next.quantityAvailable, movementId: movement.id, approvalId: approval.id };
   });
 }
 
@@ -9971,7 +11114,7 @@ var seed_default = {
     brandAccentColor: "#8ec9ad",
     logoIcon: '<svg fill="none" height="100%" viewBox="0 0 40 48" width="100%" xmlns="http://www.w3.org/2000/svg"><circle cx="14" cy="18" fill="#1570ef" r="14"/><circle cx="26" cy="30" fill="#53b1fd" r="14"/></svg>',
     logoColor: "295",
-    supportEmail: "care@cedarelmpharmacy.com",
+    supportEmail: "hello@pharmacy.openship.org",
     supportPhone: "(212) 555-0142"
   },
   cashPolicy: {
@@ -9979,16 +11122,72 @@ var seed_default = {
     policyReference: "Standard cash policy"
   },
   location: {
-    name: "Cedar & Elm \u2014 Main Street",
+    name: "Cedar & Elm \u2014 Upper West Side",
     code: "CEDAR-ELM-MAIN-001",
     timezone: "America/New_York",
     phone: "(212) 555-0142",
     address: {
-      line1: "100 Main Street",
+      line1: "247 West 72nd Street",
       city: "New York",
       region: "NY",
-      postalCode: "10001",
+      postalCode: "10023",
       countryCode: "US"
+    },
+    hours: {
+      store: [
+        null,
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "17:00"
+        }
+      ],
+      pharmacy: [
+        null,
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "19:00"
+        },
+        {
+          open: "09:00",
+          close: "17:00"
+        }
+      ]
     }
   },
   paymentProviders: [
@@ -10600,7 +11799,7 @@ async function submitPharmacyOrder(_root, args, context) {
         items {
           id quantity unitPriceAmount
           product {
-            id title sku handle status onlineAvailable prescriptionRequirement priceAmount currencyCode imageUrl taxable
+            id title sku handle status onlineAvailable prescriptionRequirement priceAmount currencyCode imageUrl image { id extension } taxable
             drugReference { ndc11 }
             inventoryLots(orderBy: { expirationDate: asc }) {
               id lotNumber expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete status
@@ -10689,7 +11888,7 @@ async function submitPharmacyOrder(_root, args, context) {
             quantity: item.quantity,
             unitPriceAmount: item.unitPriceAmount,
             lineTotalAmount: item.unitPriceAmount * item.quantity,
-            imageUrl: item.product.imageUrl || void 0,
+            imageUrl: productPhotoSnapshot(item.product),
             prescriptionRequirementSnapshot: item.product.prescriptionRequirement,
             metadata: { productId: item.product.id, handle: item.product.handle },
             lotAllocationSnapshot: allocations
@@ -10823,11 +12022,11 @@ async function submitPharmacyOrder(_root, args, context) {
 }
 
 // features/keystone/mutations/index.ts
-var graphql2 = String.raw;
+var graphql4 = String.raw;
 function extendGraphqlSchema(baseSchema) {
   return (0, import_schema.mergeSchemas)({
     schemas: [baseSchema],
-    typeDefs: graphql2`
+    typeDefs: graphql4`
       type PharmacyCatalogProduct {
         id: ID!
         title: String!
@@ -10938,6 +12137,7 @@ function extendGraphqlSchema(baseSchema) {
         logoUrl: String
         logoIcon: String
         logoColor: String
+        heroUrl: String
         supportEmail: String
         supportPhone: String
         privacyNotice: String
@@ -11051,6 +12251,8 @@ function extendGraphqlSchema(baseSchema) {
         refillsRemaining: Int
         openRefillCount: Int
         openTransferCount: Int
+        readyAt: String
+        willCallReturnDays: Int!
       }
       type PharmacyPrescriptionWorklist { items: [PharmacyPrescriptionQueueItem!]!, totalCount: Int!, hasMore: Boolean!, nextCursor: String }
       type PharmacyEligibleLot {
@@ -11081,7 +12283,7 @@ function extendGraphqlSchema(baseSchema) {
       type PharmacyPrescriptionPatientAllergy { id: ID!, allergen: String!, reaction: String!, severity: String! }
       type PharmacyPrescriptionPatientMedication { id: ID!, medicationName: String!, directions: String }
       type PharmacyClinicalSafetyReviewProjection { id: ID!, fillNumber: Int!, outcome: String!, reviewReference: String!, notes: String, overrideReason: String, reviewedAt: String!, pharmacistName: String! }
-      type PharmacyDispensingLabelProjection { id: ID!, labelNumber: String!, fillNumber: Int!, operatorName: String!, operatorPhone: String, locationName: String!, locationAddress: JSON, patientName: String!, prescriberName: String!, medicationName: String!, sig: String!, quantityDispensed: Int!, lotNumber: String!, ndc11: String, expirationDate: String!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, dispensedAt: String! }
+      type PharmacyDispensingLabelProjection { id: ID!, labelNumber: String!, fillNumber: Int!, operatorName: String!, operatorPhone: String, locationName: String!, locationAddress: JSON, patientName: String!, prescriberName: String!, medicationName: String!, sig: String!, quantityDispensed: Int!, lotNumber: String!, ndc11: String, expirationDate: String!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, dispensedAt: String!, voidedAt: String, voidReason: String }
       type PharmacyRefillTaskProjection { id: ID!, status: String!, requestNote: String, resolutionNote: String, requestedAt: String!, resolvedAt: String, prescriptionItemId: ID!, medicationName: String! }
       type PharmacyTransferTaskProjection { id: ID!, direction: String!, status: String!, counterpartyName: String!, counterpartyPhone: String, requestedAt: String!, completedAt: String, consentRecorded: Boolean! }
       type PharmacyPrescriptionReviewProjection {
@@ -11112,6 +12314,7 @@ function extendGraphqlSchema(baseSchema) {
         operatorPhone: String
         cashSalesEnabled: Boolean!
         cashTaxRateBps: Int!
+        willCallReturnDays: Int!
         approvalRecorded: Boolean!
         approvedAt: String
         availableActions: [String!]!
@@ -11157,7 +12360,11 @@ function extendGraphqlSchema(baseSchema) {
         observedMaximumC: Float!
         startedAt: String!
         endedAt: String
+        dispositionReason: String
+        resolutionNote: String
+        resolvedAt: String
       }
+      type PharmacyExcursionResult { success: Boolean!, reused: Boolean, excursionId: ID!, lotId: ID!, status: String!, lotStatus: String, quantityAvailable: Int, movementId: ID, approvalId: ID }
       type PharmacyRecallReference { id: ID!, recallNumber: String!, status: String!, classification: String! }
       type PharmacyInventoryLotTask {
         id: ID!
@@ -11257,6 +12464,7 @@ function extendGraphqlSchema(baseSchema) {
         title: String!
         sku: String
         ndc11: String
+        imageUrl: String
         quantity: Int!
         unitPriceAmount: Int!
         lineTotalAmount: Int!
@@ -11404,21 +12612,22 @@ function extendGraphqlSchema(baseSchema) {
       type PharmacyRefundResult { success: Boolean!, reused: Boolean, paymentId: ID!, status: String!, amount: Int! }
       type PharmacyCashPolicyResult { success: Boolean!, organizationId: ID!, status: String!, taxRateBps: Int!, approvalId: ID! }
       type PharmacyPosCashReceiptLine { title: String!, sku: String!, quantity: Int!, unitPriceAmount: Int!, lineTotalAmount: Int! }
-      type PharmacyPosCashOrderResult { success: Boolean!, reused: Boolean!, orderId: ID!, orderNumber: String!, status: String!, recordedAt: String!, lines: [PharmacyPosCashReceiptLine!]!, subtotalAmount: Int!, taxAmount: Int!, totalAmount: Int!, currencyCode: String!, paymentId: ID!, paymentStatus: String!, cashReceivedAmount: Int!, changeDueAmount: Int! }
+      type PharmacyPosCashOrderResult { success: Boolean!, reused: Boolean!, orderId: ID!, orderNumber: String!, status: String!, recordedAt: String!, lines: [PharmacyPosCashReceiptLine!]!, subtotalAmount: Int!, taxAmount: Int!, totalAmount: Int!, currencyCode: String!, paymentId: ID!, paymentStatus: String!, tenderMethod: String, cashReceivedAmount: Int!, changeDueAmount: Int! }
+      type PharmacyCounterCardPayment { clientSecret: String!, paymentIntentId: String!, amount: Int!, currencyCode: String! }
       type PharmacyPaymentReconciliationResult { success: Boolean!, paymentSessionId: ID!, status: String! }
       type PharmacyPaymentWebhookResult { accepted: Boolean!, reused: Boolean!, eventId: String!, status: String! }
       type PharmacyIntegrationConfigurationResult { success: Boolean!, providerId: ID!, status: String! }
       type PharmacyPrescriberValidationResult { success: Boolean!, prescriberId: ID!, status: String!, validationReference: String! }
       type PharmacyExternalWorkflowResult { success: Boolean!, reused: Boolean!, workflowId: ID!, status: String!, externalReference: String }
       type PharmacyIntegrationWebhookResult { accepted: Boolean!, reused: Boolean!, eventId: String!, status: String! }
-      type PharmacyPrescriptionActionResult { success: Boolean!, reused: Boolean, prescriptionId: ID, reviewId: ID, approvalId: ID, orderId: ID, orderNumber: String, receiptItemTitle: String, paymentId: ID, labelId: ID, status: String, totalAmount: Int, cashReceivedAmount: Int, changeDueAmount: Int, currencyCode: String }
+      type PharmacyPrescriptionActionResult { success: Boolean!, reused: Boolean, prescriptionId: ID, reviewId: ID, approvalId: ID, orderId: ID, orderNumber: String, receiptItemTitle: String, paymentId: ID, labelId: ID, status: String, totalAmount: Int, cashReceivedAmount: Int, changeDueAmount: Int, currencyCode: String, tenderMethod: String }
       type PharmacyTransferResult { success: Boolean!, reused: Boolean, transferId: ID!, approvalId: ID, status: String! }
       type PharmacyRefillResult { success: Boolean!, reused: Boolean, refillRequestId: ID!, status: String!, approvalId: ID }
       type PharmacyFillCommandResult { success: Boolean!, reused: Boolean!, fillId: ID, status: String!, version: Int }
       type PharmacyFillEventProjection { id: ID!, action: String!, version: Int!, quantity: Int!, occurredAt: String!, actorName: String!, reason: String, orderId: ID, orderNumber: String }
       type PharmacyFillProjection {
         id: ID!, prescriptionItemId: ID!, refillRequestId: ID, kind: String!, status: String!, version: Int!, fillNumber: Int!,
-        creditState: String!, authorizedQuantity: Int!, quantityDispensed: Int!, quantityReleased: Int!, quantityRemaining: Int!,
+        attempt: Int!, creditState: String!, authorizedQuantity: Int!, quantityDispensed: Int!, quantityReleased: Int!, quantityRemaining: Int!,
         expiresAt: String!, policyVersion: String!, policyReference: String!, allowPartial: Boolean!, releaseReasons: [String!]!,
         priceAmount: Int!, taxAmount: Int!, currencyCode: String!, taxable: Boolean!, itemVersion: String!,
         events: [PharmacyFillEventProjection!]!, hasMoreEvents: Boolean!
@@ -11556,7 +12765,7 @@ function extendGraphqlSchema(baseSchema) {
         pharmacyPosCashReceipt(idempotencyKey: String!): PharmacyPosCashOrderResult
         pharmacyPrescriberDirectory: [PharmacyPrescriberDirectoryItem!]!
         pharmacyPrescriptionQueue: [PharmacyPrescriptionQueueItem!]!
-        pharmacyPrescriptionWorklist(first: Int, after: String): PharmacyPrescriptionWorklist!
+        pharmacyPrescriptionWorklist(first: Int, after: String, willCall: String): PharmacyPrescriptionWorklist!
         pharmacyPrescriptionTask(prescriptionId: ID!): PharmacyPrescriptionTask!
         pharmacyInventoryQueue(first: Int, after: String, locationId: ID, status: String): PharmacyInventoryWorklist!
         pharmacyInventoryLotTask(lotId: ID!): PharmacyInventoryLotTask!
@@ -11593,7 +12802,9 @@ function extendGraphqlSchema(baseSchema) {
         refundPharmacyPayment(paymentId: ID!, reason: String!, attested: Boolean!): PharmacyRefundResult!
         refundPharmacyCashPayment(paymentId: ID!, cashReturnedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyRefundResult!
         recordPharmacyCashPolicy(organizationId: ID!, taxRateBps: Int!, policyReference: String!, reason: String!, attested: Boolean!): PharmacyCashPolicyResult!
-        submitPharmacyPosCashOrder(locationId: ID!, customerCartId: ID, fulfillmentMethod: String, items: [PharmacyPosCashItemInput!]!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPosCashOrderResult!
+        submitPharmacyPosCashOrder(locationId: ID!, customerCartId: ID, fulfillmentMethod: String, items: [PharmacyPosCashItemInput!]!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!, tenderMethod: String, paymentIntentId: String): PharmacyPosCashOrderResult!
+        openPharmacyPosCardPayment(locationId: ID!, items: [PharmacyPosCashItemInput!]!, idempotencyKey: String!): PharmacyCounterCardPayment!
+        openPrescriptionPickupCardPayment(prescriptionId: ID!, fillId: ID!, idempotencyKey: String!): PharmacyCounterCardPayment!
         reconcilePharmacyPaymentSession(paymentSessionId: ID!): PharmacyPaymentReconciliationResult!
         handlePaymentProviderWebhook(providerId: ID!, event: JSON!, headers: JSON!): PharmacyPaymentWebhookResult!
         configurePharmacyIntegrationProvider(providerId: ID!, baseUrl: String!, validationPath: String!, submitPath: String!, statusPath: String!, prescriberValidationPath: String, bearerToken: String!, webhookSecret: String!): PharmacyIntegrationConfigurationResult!
@@ -11605,7 +12816,9 @@ function extendGraphqlSchema(baseSchema) {
         intakePharmacyPrescription(organizationId: ID!, locationId: ID!, patientId: ID!, prescriberId: ID!, prescriptionNumber: String!, source: String!, externalReference: String, writtenAt: String!, expiresAt: String!, items: [PharmacyPrescriptionIntakeItemInput!]!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
         recordPrescriptionReview(prescriptionId: ID!, decision: String!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
         authorizePrescriptionDispensing(prescriptionId: ID!, reason: String!, attested: Boolean!): PharmacyPrescriptionActionResult!
-        recordPrescriptionDispensing(prescriptionId: ID!, prescriptionItemId: ID!, lotId: ID!, quantity: Int!, cashReceivedAmount: Int!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, idempotencyKey: String!, reason: String!, attested: Boolean!, fillId: ID, expectedFillVersion: Int): PharmacyPrescriptionActionResult!
+        recordPrescriptionDispensing(prescriptionId: ID!, prescriptionItemId: ID!, lotId: ID!, quantity: Int!, cashReceivedAmount: Int!, auxiliaryWarnings: [String!]!, counselingOutcome: String!, idempotencyKey: String!, reason: String!, attested: Boolean!, fillId: ID, expectedFillVersion: Int, hold: Boolean): PharmacyPrescriptionActionResult!
+        pickupPrescriptionFill(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cashReceivedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!, tenderMethod: String, paymentIntentId: String): PharmacyPrescriptionActionResult!
+        returnPrescriptionFillToStock(prescriptionId: ID!, fillId: ID!, expectedFillVersion: Int!, cause: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyFillCommandResult!
         createPharmacyPatient(organizationId: ID!, patientNumber: String!, firstName: String!, lastName: String!, dateOfBirth: String!, email: String, phone: String, preferredContactMethod: String!, address: JSON, identityMethod: String!, identityReference: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
         updatePharmacyPatientContact(patientId: ID!, email: String, phone: String, preferredContactMethod: String!, address: JSON, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientRecordResult!
         recordPharmacyPatientAllergy(patientId: ID!, allergen: String!, reaction: String!, severity: String!, source: String!, sourceReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyPatientHistoryResult!
@@ -11624,6 +12837,8 @@ function extendGraphqlSchema(baseSchema) {
 
         receivePharmacyInventoryLot(productId: ID!, locationId: ID!, supplierId: ID, lotNumber: String!, serialNumber: String, expirationDate: String!, quantity: Int!, coldChainRequired: Boolean!, minimumTemperatureC: Float, maximumTemperatureC: Float, coldChainEvidenceComplete: Boolean!, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyInventoryActionResult!
         adjustPharmacyInventoryLot(lotId: ID!, targetQuantity: Int!, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyInventoryActionResult!
+        recordPharmacyTemperatureExcursion(lotId: ID!, observedMinimumC: Float!, observedMaximumC: Float!, startedAt: String!, endedAt: String, reason: String!, idempotencyKey: String!, attested: Boolean!): PharmacyExcursionResult!
+        resolvePharmacyTemperatureExcursion(excursionId: ID!, disposition: String!, note: String!, idempotencyKey: String!, attested: Boolean!): PharmacyExcursionResult!
         openPharmacyRecall(organizationId: ID!, locationId: ID, recallNumber: String!, classification: String!, reason: String!, source: String!, sourceReference: String!, lotIds: [ID!]!, attested: Boolean!): PharmacyInventoryActionResult!
         quarantineRecallLots(recallId: ID!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
         recordRecallExposureAction(exposureId: ID!, status: String!, contactMethod: String!, outcome: String!, notes: String, reason: String!, attested: Boolean!): PharmacyRecallExposureActionResult!
@@ -11705,6 +12920,8 @@ function extendGraphqlSchema(baseSchema) {
         refundPharmacyCashPayment,
         recordPharmacyCashPolicy,
         submitPharmacyPosCashOrder,
+        openPharmacyPosCardPayment,
+        openPrescriptionPickupCardPayment,
         reconcilePharmacyPaymentSession,
         handlePaymentProviderWebhook: handlePaymentProviderWebhook_default,
         configurePharmacyIntegrationProvider,
@@ -11716,6 +12933,8 @@ function extendGraphqlSchema(baseSchema) {
         recordPrescriptionReview,
         authorizePrescriptionDispensing,
         recordPrescriptionDispensing,
+        pickupPrescriptionFill,
+        returnPrescriptionFillToStock,
         createPharmacyPatient,
         updatePharmacyPatientContact,
         recordPharmacyPatientAllergy,
@@ -11733,6 +12952,8 @@ function extendGraphqlSchema(baseSchema) {
         holdPrescriptionForClinicalReReview,
         receivePharmacyInventoryLot: receiveInventoryLot,
         adjustPharmacyInventoryLot: adjustInventoryLot,
+        recordPharmacyTemperatureExcursion: recordTemperatureExcursion,
+        resolvePharmacyTemperatureExcursion: resolveTemperatureExcursion,
         openPharmacyRecall,
         quarantineRecallLots,
         recordRecallExposureAction,

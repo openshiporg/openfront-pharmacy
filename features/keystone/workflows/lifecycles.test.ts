@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { canMovePayment, canMovePaymentSession, lotStatusAfterAdjustment, QUARANTINABLE_LOT_STATUSES } from './pharmacy-state'
+import { canMovePayment, canMovePaymentSession, excursionDispositionError, lotAfterExcursionDisposition, lotStatusAfterAdjustment, QUARANTINABLE_LOT_STATUSES } from './pharmacy-state'
 
 test('a late webhook cannot revive a compensated session or step back from captured', () => {
   assert.equal(canMovePaymentSession('compensated', 'settled_unordered'), false)
@@ -40,4 +40,20 @@ test('a stock count revives a depleted lot and never downgrades a held one', () 
 
 test('only available or already quarantined lots can be quarantined by an excursion', () => {
   assert.deepEqual([...QUARANTINABLE_LOT_STATUSES], ['available', 'quarantined'])
+})
+
+test('excursion disposition: released returns stock unless recalled or expired, destroyed writes it off', () => {
+  const future = new Date(Date.now() + 90 * 86_400_000)
+  const base = { excursionStatus: 'open', note: 'Data logger reviewed; within stability data', lotStatus: 'quarantined', lotExpiresAt: future }
+  assert.equal(excursionDispositionError({ ...base, disposition: 'released' }), null)
+  assert.equal(excursionDispositionError({ ...base, disposition: 'destroyed' }), null)
+  assert.match(excursionDispositionError({ ...base, disposition: 'released', lotStatus: 'recalled' })!, /recalled lot cannot be released/)
+  assert.match(excursionDispositionError({ ...base, disposition: 'released', lotExpiresAt: new Date(Date.now() - 1000) })!, /expired lot cannot be released/)
+  assert.match(excursionDispositionError({ ...base, disposition: 'released', lotStatus: 'expired' })!, /expired lot/)
+  assert.match(excursionDispositionError({ ...base, disposition: 'released', note: ' ' })!, /note/)
+  assert.match(excursionDispositionError({ ...base, disposition: 'destroyed', excursionStatus: 'released' })!, /already closed/)
+  assert.match(excursionDispositionError({ ...base, disposition: 'quarantine' })!, /released or destroyed/)
+  assert.deepEqual(lotAfterExcursionDisposition('destroyed', { quantityAvailable: 12 }, 0), { status: 'depleted', quantityAvailable: 0, quantityQuarantined: 0, writeOff: 12 })
+  assert.deepEqual(lotAfterExcursionDisposition('released', { quantityAvailable: 12 }, 0), { status: 'available', quantityAvailable: 12, quantityQuarantined: 0, writeOff: 0 })
+  assert.equal(lotAfterExcursionDisposition('released', { quantityAvailable: 12 }, 1).status, 'quarantined')
 })

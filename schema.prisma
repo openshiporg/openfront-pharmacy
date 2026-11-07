@@ -1433,6 +1433,8 @@ model TemperatureExcursion {
   endedAt           DateTime?
   status            String?          @default("open")
   dispositionReason String           @default("")
+  resolutionNote    String           @default("")
+  resolvedAt        DateTime?
   organization      Organization     @relation("TemperatureExcursion_organization", fields: [organizationId], references: [id])
   organizationId    String           @map("organization")
   location          PharmacyLocation @relation("TemperatureExcursion_location", fields: [locationId], references: [id])

@@ -117,3 +117,43 @@ export function lotStatusAfterAdjustment(current: string, targetQuantity: number
   if (targetQuantity === 0) return ['available', 'depleted'].includes(current) ? 'depleted' : null
   return current === 'depleted' ? 'available' : null
 }
+
+export type ExcursionDisposition = 'released' | 'destroyed'
+export const EXCURSION_DISPOSITIONS: readonly ExcursionDisposition[] = ['released', 'destroyed']
+const OPEN_EXCURSION_STATUSES = ['open', 'under_review']
+
+/**
+ * Why a pharmacist's excursion disposition is refused, or null when it may proceed.
+ * Released stock goes back on the shelf, so a recalled or expired lot can never be released.
+ * Destroyed stock is written off, which only makes sense for a lot still held in quarantine.
+ */
+export function excursionDispositionError(input: {
+  excursionStatus: string
+  disposition: string
+  note?: string | null
+  lotStatus: string
+  lotExpiresAt: string | Date
+  now?: Date
+}): string | null {
+  if (!EXCURSION_DISPOSITIONS.includes(input.disposition as ExcursionDisposition)) return 'Disposition must be released or destroyed'
+  if (!OPEN_EXCURSION_STATUSES.includes(input.excursionStatus)) return `This excursion is already closed (${input.excursionStatus.replace(/_/g, ' ')})`
+  if (!input.note?.trim() || input.note.trim().length < 8) return 'A disposition note of at least 8 characters is required'
+  const expired = input.lotStatus === 'expired' || new Date(input.lotExpiresAt).getTime() <= (input.now ?? new Date()).getTime()
+  if (input.disposition === 'released') {
+    if (input.lotStatus === 'recalled') return 'A recalled lot cannot be released; dispose of it through the recall'
+    if (expired) return 'An expired lot cannot be released back to stock'
+    if (input.lotStatus !== 'quarantined') return `A ${input.lotStatus} lot cannot be released`
+  }
+  if (input.disposition === 'destroyed' && input.lotStatus !== 'quarantined') {
+    return input.lotStatus === 'recalled' ? 'A recalled lot is destroyed through its recall disposition' : `A ${input.lotStatus} lot cannot be written off from an excursion`
+  }
+  return null
+}
+
+/** Lot fields after a disposition. Released returns the held stock; destroyed writes it all off. */
+export function lotAfterExcursionDisposition(disposition: ExcursionDisposition, lot: { quantityAvailable: number }, otherOpenExcursions: number) {
+  if (disposition === 'destroyed') return { status: 'depleted', quantityAvailable: 0, quantityQuarantined: 0, writeOff: lot.quantityAvailable }
+  // Another open excursion still holds the lot; this one closes but the stock stays in quarantine.
+  if (otherOpenExcursions > 0) return { status: 'quarantined', quantityAvailable: lot.quantityAvailable, quantityQuarantined: lot.quantityAvailable, writeOff: 0 }
+  return { status: lot.quantityAvailable > 0 ? 'available' : 'depleted', quantityAvailable: lot.quantityAvailable, quantityQuarantined: 0, writeOff: 0 }
+}
