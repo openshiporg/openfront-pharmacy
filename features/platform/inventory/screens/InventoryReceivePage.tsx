@@ -14,7 +14,7 @@ export async function InventoryReceivePage() {
   let initialProductWorklist = emptyProductWorklist
   if (initialLocationId) {
     const productsResponse = await platformRequest<{ pharmacyInventoryReceiptProductWorklist: PharmacyProductOptionWorklistProjection }>(
-      `query ReceiptProducts($locationId: ID!, $first: Int, $after: String, $status: String) { pharmacyInventoryReceiptProductWorklist(locationId: $locationId, first: $first, after: $after, status: $status) { items { id label scopeId detail } totalCount hasMore nextCursor } }`,
+      `query ReceiptProducts($locationId: ID!, $first: Int, $after: String, $status: String) { pharmacyInventoryReceiptProductWorklist(locationId: $locationId, first: $first, after: $after, status: $status) { items { id label scopeId detail coldChainRequired } totalCount hasMore nextCursor } }`,
       { locationId: initialLocationId, first: 50, after: null, status: null },
     )
     if (!productsResponse.success) return <TaskPage parent={{ label: 'Inventory', href: '/platform/inventory' }} title="Receive lot" description={productsResponse.error} />
