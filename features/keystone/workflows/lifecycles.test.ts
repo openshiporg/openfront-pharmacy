@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { canMovePayment, canMovePaymentSession, excursionDispositionError, lotAfterExcursionDisposition, lotStatusAfterAdjustment, QUARANTINABLE_LOT_STATUSES } from './pharmacy-state'
+import { validateMovementSign } from '../hooks/inventory-movement'
 
 test('a late webhook cannot revive a compensated session or step back from captured', () => {
   assert.equal(canMovePaymentSession('compensated', 'settled_unordered'), false)
@@ -56,4 +57,12 @@ test('excursion disposition: released returns stock unless recalled or expired, 
   assert.deepEqual(lotAfterExcursionDisposition('destroyed', { quantityAvailable: 12 }, 0), { status: 'depleted', quantityAvailable: 0, quantityQuarantined: 0, writeOff: 12 })
   assert.deepEqual(lotAfterExcursionDisposition('released', { quantityAvailable: 12 }, 0), { status: 'available', quantityAvailable: 12, quantityQuarantined: 0, writeOff: 0 })
   assert.equal(lotAfterExcursionDisposition('released', { quantityAvailable: 12 }, 1).status, 'quarantined')
+})
+
+test('releasing a quarantine hold is a zero-quantity release; other releases still add stock', () => {
+  assert.doesNotThrow(() => validateMovementSign('release', 0))
+  assert.doesNotThrow(() => validateMovementSign('release', 3))
+  assert.throws(() => validateMovementSign('release', -1), /must increase quantity/)
+  assert.throws(() => validateMovementSign('receive', 0), /must increase quantity/)
+  assert.throws(() => validateMovementSign('destroy', 0), /must reduce quantity/)
 })

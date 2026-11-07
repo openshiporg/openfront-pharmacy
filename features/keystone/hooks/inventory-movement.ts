@@ -4,6 +4,8 @@ const POSITIVE_MOVEMENTS = new Set(['receive', 'return', 'release'])
 export function validateMovementSign(type: string, quantityDelta: number) {
   if (!Number.isInteger(quantityDelta)) throw new Error('Inventory movement quantity must be an integer')
   if (NEGATIVE_MOVEMENTS.has(type) && quantityDelta >= 0) throw new Error(`${type} inventory movements must reduce quantity`)
+  // Releasing a quarantine hold mirrors the zero-quantity quarantine movement: status changes, stock doesn't.
+  if (type === 'release' && quantityDelta === 0) return
   if (POSITIVE_MOVEMENTS.has(type) && quantityDelta <= 0) throw new Error(`${type} inventory movements must increase quantity`)
 }
 
