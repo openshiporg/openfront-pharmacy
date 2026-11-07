@@ -10,14 +10,14 @@ export type ActivePharmacyLocationIdentity = {
   organization?: { id?: string | null; status?: string | null } | null
 }
 
-// Receiving requires exact active tenant/location identity and explicit support in the bounded room-temperature scope.
+// Receiving requires exact active tenant/location identity. Cold-chain products are allowed; the receiving
+// workflow then demands their storage range and temperature-log evidence.
 export function isProductAtActiveTenantLocation(
   product: ProductLocationIdentity | null | undefined,
   location: ActivePharmacyLocationIdentity | null | undefined,
 ) {
   return Boolean(
     product &&
-    product.coldChainRequired === false &&
     location &&
     location.status === 'active' &&
     location.organization?.status === 'active' &&
