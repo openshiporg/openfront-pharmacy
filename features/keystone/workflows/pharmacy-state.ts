@@ -74,3 +74,46 @@ export function assertDispensingEvidence(input: {
     throw new Error('Pharmacist review and authorized-human approval are required')
   }
 }
+
+/** Checkout payment session. A late provider event may only move it forward along these edges. */
+export const PAYMENT_SESSION_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
+  pending: ['requires_action', 'authorized', 'captured', 'settled_unordered', 'failed', 'cancelled'],
+  requires_action: ['pending', 'authorized', 'captured', 'settled_unordered', 'failed', 'cancelled'],
+  authorized: ['captured', 'settled_unordered', 'failed', 'cancelled'],
+  // Money arrived but no order exists yet: it becomes an order payment, or is refunded.
+  settled_unordered: ['captured', 'compensation_pending', 'compensated'],
+  captured: [],
+  compensation_pending: ['compensated'],
+  compensated: [],
+  // A success that arrives after a failure or cancel is real money and must surface for reconciliation.
+  failed: ['settled_unordered'],
+  cancelled: ['settled_unordered'],
+}
+
+export function canMovePaymentSession(from: string, to: string) {
+  return from === to || Boolean(PAYMENT_SESSION_TRANSITIONS[from]?.includes(to))
+}
+
+/** Order payment. Refund is the only way out of captured. */
+export const PAYMENT_TRANSITIONS: Readonly<Record<string, readonly string[]>> = {
+  pending: ['authorized', 'captured', 'failed', 'cancelled'],
+  authorized: ['captured', 'failed', 'cancelled'],
+  captured: ['refund_pending', 'refunded'],
+  refund_pending: ['refunded'],
+  refunded: [],
+  failed: [],
+  cancelled: [],
+}
+
+export function canMovePayment(from: string, to: string) {
+  return from === to || Boolean(PAYMENT_TRANSITIONS[from]?.includes(to))
+}
+
+/** Lot statuses a cold-chain excursion may quarantine. A recalled, expired or empty lot keeps its stronger status. */
+export const QUARANTINABLE_LOT_STATUSES: readonly string[] = ['available', 'quarantined']
+
+/** Status a lot takes after an inventory count sets its quantity. Returns null to leave it unchanged. */
+export function lotStatusAfterAdjustment(current: string, targetQuantity: number): string | null {
+  if (targetQuantity === 0) return ['available', 'depleted'].includes(current) ? 'depleted' : null
+  return current === 'depleted' ? 'available' : null
+}

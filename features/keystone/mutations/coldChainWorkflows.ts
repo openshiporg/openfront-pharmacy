@@ -2,6 +2,7 @@ import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
+import { QUARANTINABLE_LOT_STATUSES } from '../workflows/pharmacy-state'
 import { DomainError } from './lib/errors'
 
 export async function recordTemperatureExcursion(
@@ -32,9 +33,11 @@ export async function recordTemperatureExcursion(
     }
     const lot = await sudo.query.InventoryLot.findOne({
       where: { id: args.lotId },
-      query: 'id quantityAvailable product { id organization { id } } location { id } coldChainRequired',
+      query: 'id status quantityAvailable product { id organization { id } } location { id } coldChainRequired',
     })
     if (!lot?.coldChainRequired) throw new DomainError('Cold-chain inventory lot not found')
+    // A recalled, expired or empty lot already has a stronger status; an excursion must not downgrade it to quarantined.
+    if (!QUARANTINABLE_LOT_STATUSES.includes(lot.status)) throw new DomainError(`A ${lot.status} lot cannot be quarantined for a temperature excursion`)
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: lot.product.organization.id, locationId: lot.location.id })
     const approval = await createHumanApproval(transactionContext, {
       organizationId: lot.product.organization.id,

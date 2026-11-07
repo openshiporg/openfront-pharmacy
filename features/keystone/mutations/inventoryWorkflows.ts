@@ -5,6 +5,7 @@ import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { isProductAtActiveTenantLocation } from '../workflows/product-location'
 import { DomainError } from './lib/errors'
+import { lotStatusAfterAdjustment } from '../workflows/pharmacy-state'
 
 export async function receiveInventoryLot(
   _root: unknown,
@@ -149,6 +150,7 @@ export async function adjustInventoryLot(
       organizationId: lot.product.organization.id,
       locationId: lot.location.id,
     })
+    if (['recalled', 'expired'].includes(lot.status)) throw new DomainError(`A ${lot.status} lot cannot be adjusted; use its recall or disposal workflow`)
     if (args.targetQuantity < lot.quantityQuarantined) throw new DomainError('Available quantity cannot be lower than quarantined quantity')
     const approval = await createHumanApproval(transactionContext, {
       organizationId: lot.product.organization.id,
@@ -162,7 +164,8 @@ export async function adjustInventoryLot(
     const quantityDelta = args.targetQuantity - lot.quantityAvailable
     await sudo.query.InventoryLot.updateOne({
       where: { id: lot.id },
-      data: { quantityAvailable: args.targetQuantity, status: args.targetQuantity === 0 ? 'depleted' : lot.status },
+      // Counting stock back in revives a depleted lot; counting a quarantined lot to zero keeps it quarantined.
+      data: { quantityAvailable: args.targetQuantity, ...(lotStatusAfterAdjustment(lot.status, args.targetQuantity) ? { status: lotStatusAfterAdjustment(lot.status, args.targetQuantity) } : {}) },
     })
     const movement = await sudo.query.InventoryMovement.createOne({
       data: {

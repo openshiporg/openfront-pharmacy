@@ -2,6 +2,7 @@ import type { Context } from '.keystone/types'
 import { handleWebhook } from '../utils/paymentProviderAdapter'
 import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
+import { canMovePayment, canMovePaymentSession } from '../workflows/pharmacy-state'
 import { ingestPharmacyIntegrationWebhook } from './integrationWorkflows'
 
 const NO_DIVISION_CURRENCIES = new Set([
@@ -95,15 +96,18 @@ async function handlePaymentProviderWebhook(
     if (paymentId) {
       const sessions = await sudo.query.PaymentSession.findMany({
         where: { externalPaymentId: { equals: paymentId }, provider: { id: { equals: provider.id } } },
-        query: 'id amount currencyCode payment { id }',
+        query: 'id status amount currencyCode payment { id }',
       })
       if (succeeded) {
         for (const session of sessions) {
           assertProviderAmount(provider.code, resource, { amount: session.amount, currencyCode: session.currencyCode })
+          const next = session.payment ? 'captured' : 'settled_unordered'
+          // Providers repeat and reorder events: never revive a compensated session or step back from captured.
+          if (!canMovePaymentSession(session.status, next)) continue
           await sudo.query.PaymentSession.updateOne({
             where: { id: session.id },
             data: {
-              status: session.payment ? 'captured' : 'settled_unordered',
+              status: next,
               reconciliationStatus: session.payment ? 'ordered' : 'settled_unordered',
               lastReconciledAt: new Date().toISOString(),
               failureReason: null,
@@ -113,13 +117,15 @@ async function handlePaymentProviderWebhook(
         handled = sessions.length > 0
       } else if (failed) {
         for (const session of sessions) {
+          // A cancel or decline that arrives after the money was captured or refunded is stale.
+          if (!canMovePaymentSession(session.status, 'failed')) continue
           await sudo.query.PaymentSession.updateOne({ where: { id: session.id }, data: { status: 'failed', reconciliationStatus: 'manual_review', lastReconciledAt: new Date().toISOString() } })
         }
         handled = sessions.length > 0
       } else if (refunded) {
         const payments = await sudo.query.Payment.findMany({ where: { externalPaymentId: { equals: paymentId }, provider: { id: { equals: provider.id } } }, query: 'id status' })
         if (resource?.status === 'succeeded' || resource?.status === 'COMPLETED') {
-          for (const payment of payments) await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: 'refunded' } })
+          for (const payment of payments) if (canMovePayment(payment.status, 'refunded')) await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: 'refunded' } })
         }
         handled = payments.length > 0
       }

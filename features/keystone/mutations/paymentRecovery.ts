@@ -6,6 +6,7 @@ import { recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { PAYMENT_PROVIDER_ADAPTER_FIELDS } from './paymentOperations'
 import { DomainError } from './lib/errors'
+import { canMovePaymentSession } from '../workflows/pharmacy-state'
 
 export async function reconcilePharmacyPaymentSession(
   _root: unknown,
@@ -19,7 +20,7 @@ export async function reconcilePharmacyPaymentSession(
   })
   if (!session?.cart || !session.provider || !session.externalPaymentId) throw new DomainError('Payment session not found')
   const { userId } = await requireTenantMembership(context, { organizationId: session.cart.organization.id, locationId: session.cart.location.id })
-  if (session.cart.order?.id) {
+  if (session.cart.order?.id && canMovePaymentSession(session.status, 'captured')) {
     return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
       await transactionContext.sudo().query.PaymentSession.updateOne({ where: { id: session.id }, data: { status: 'captured', reconciliationStatus: 'ordered', lastReconciledAt: new Date().toISOString(), failureReason: null } })
       return { success: true, status: 'ordered', paymentSessionId: session.id }
@@ -45,6 +46,8 @@ export async function reconcilePharmacyPaymentSession(
     })
   }
 
+  // A captured or compensated session is final: asking the provider again must not rewind it.
+  if (['captured', 'compensated'].includes(session.status)) return { success: true, status: session.status, paymentSessionId: session.id }
   const providerStatus = await getPaymentStatus({ provider: session.provider, paymentId: session.externalPaymentId })
   const settled = ['captured', 'succeeded'].includes(providerStatus?.status)
   return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
