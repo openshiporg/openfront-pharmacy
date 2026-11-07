@@ -1,5 +1,6 @@
 // Server-only mail helpers. Not a 'use server' module: these must never be callable as server actions.
 import { createTransport, getTestMessageUrl } from "nodemailer";
+import { emailButton, emailLayout, emailMuted, emailParagraph } from "./email-layout";
 
 // Utility function to get base URL for emails
 function getBaseUrlForEmails(): string {
@@ -23,38 +24,13 @@ const transport = createTransport({
 });
 
 function passwordResetEmail({ url }: { url: string }): string {
-  const backgroundColor = "#f9f9f9";
-  const textColor = "#444444";
-  const mainBackgroundColor = "#ffffff";
-  const buttonBackgroundColor = "#346df1";
-  const buttonBorderColor = "#346df1";
-  const buttonTextColor = "#ffffff";
-
-  return `
-    <body style="background: ${backgroundColor};">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: ${mainBackgroundColor}; max-width: 600px; margin: auto; border-radius: 10px;">
-        <tr>
-          <td align="center" style="padding: 10px 0px 0px 0px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            Please click below to reset your password
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 20px 0;">
-            <table border="0" cellspacing="0" cellpadding="0">
-              <tr>
-                <td align="center" style="border-radius: 5px;" bgcolor="${buttonBackgroundColor}"><a href="${url}" target="_blank" style="font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${buttonTextColor}; text-decoration: none; border-radius: 5px; padding: 10px 20px; border: 1px solid ${buttonBorderColor}; display: inline-block; font-weight: bold;">Reset Password</a></td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 0px 0px 10px 0px; font-size: 16px; line-height: 22px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            If you did not request this email you can safely ignore it.
-          </td>
-        </tr>
-      </table>
-    </body>
-  `;
+  return emailLayout({
+    preheader: "Use this link to choose a new password.",
+    title: "Reset your password",
+    body: `${emailParagraph("We received a request to reset the password for your account. Use the button below to choose a new one.")}
+${emailButton("Reset password", url)}
+${emailMuted("If you did not request this, you can safely ignore this email. Your password will not change.")}`,
+  });
 }
 
 /** Whether outgoing email is set up for this store (the existing SMTP_* settings). */
@@ -103,14 +79,13 @@ export async function sendOrderConfirmationEmail({ to, orderNumber, storeName, u
     to,
     from: process.env.SMTP_FROM,
     subject: `${storeName}: order ${orderNumber}`,
-    html: `
-    <body style="background: #f9f9f9;">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: #ffffff; max-width: 600px; margin: auto; border-radius: 10px; font-family: Helvetica, Arial, sans-serif; color: #444444;">
-        <tr><td align="center" style="font-size: 18px;">${escapeHtml(storeName)}</td></tr>
-        <tr><td align="center" style="font-size: 16px;">Order <strong>${escapeHtml(orderNumber)}</strong> received</td></tr>
-        <tr><td align="center" style="padding: 10px 0 20px;"><a href="${escapeHtml(url)}" target="_blank" style="font-size: 16px; color: #ffffff; background: #1f6f5c; text-decoration: none; border-radius: 999px; padding: 12px 22px; display: inline-block; font-weight: bold;">Track order</a></td></tr>
-      </table>
-    </body>`,
+    html: emailLayout({
+      storeName,
+      preheader: `Order ${orderNumber} received`,
+      title: 'Order received',
+      body: `${emailParagraph(`Order <strong>${escapeHtml(orderNumber)}</strong> received.`)}
+${emailButton('Track order', url)}`,
+    }),
   })
   if (process.env.MAIL_USER?.includes("ethereal.email")) {
     console.log(`📧 Message Sent!  Preview it at ${getTestMessageUrl(info as any)}`);
@@ -149,15 +124,14 @@ export async function sendPickupReadyEmail({ to, storeName, kind, reference, loc
     to,
     from: process.env.SMTP_FROM,
     subject: `${storeName}: ${kind === 'prescription' ? 'prescription ready for pickup' : `order ${reference} is ready for pickup`}`,
-    html: `
-    <body style="background: #f9f9f9;">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: #ffffff; max-width: 600px; margin: auto; border-radius: 10px; font-family: Helvetica, Arial, sans-serif; color: #444444;">
-        <tr><td align="center" style="font-size: 18px;">${escapeHtml(storeName)}</td></tr>
-        <tr><td align="center" style="font-size: 16px;"><strong>${escapeHtml(headline)}</strong></td></tr>
-        <tr><td align="center" style="font-size: 15px; line-height: 22px;">${escapeHtml(detail)}${phone ? `<br />Questions? Call ${escapeHtml(phone)}.` : ''}</td></tr>
-        ${url ? `<tr><td align="center" style="padding: 10px 0 20px;"><a href="${escapeHtml(url)}" target="_blank" style="font-size: 16px; color: #ffffff; background: #1f6f5c; text-decoration: none; border-radius: 999px; padding: 12px 22px; display: inline-block; font-weight: bold;">${kind === 'prescription' ? 'View in your account' : 'View order'}</a></td></tr>` : ''}
-      </table>
-    </body>`,
+    html: emailLayout({
+      storeName,
+      preheader: headline,
+      title: headline,
+      body: `${emailParagraph(escapeHtml(detail))}
+${phone ? emailMuted(`Questions? Call ${escapeHtml(phone)}.`) : ''}
+${url ? emailButton(kind === 'prescription' ? 'View in your account' : 'View order', url) : ''}`,
+    }),
   })
   return { sent: true, messageId: (info as any)?.messageId }
 }
