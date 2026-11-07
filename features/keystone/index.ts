@@ -11,6 +11,7 @@ import { models } from './models'
 import { permissionsList } from './models/fields'
 import { isSessionTokenVersionCurrent } from './session-revocation'
 import { extendGraphqlSchema } from './mutations'
+import { pooledDatabaseUrl } from './database-url';
 
 function requiredEnv(name: string): string {
   const value = process.env[name]
@@ -173,7 +174,7 @@ const { withAuth } = createAuth({
 })
 
 export default withAuth(config({
-  db: { provider: 'postgresql', url: databaseURL },
+  db: { provider: 'postgresql', url: pooledDatabaseUrl(databaseURL) },
   lists: models,
   storage: {
     my_images: {
