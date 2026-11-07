@@ -12,6 +12,7 @@ import { permissionsList } from './models/fields'
 import { isSessionTokenVersionCurrent } from './session-revocation'
 import { extendGraphqlSchema } from './mutations'
 import { pooledDatabaseUrl } from './database-url';
+import { throwKeystonePrismaErrors } from './lib/keystonePrismaErrors';
 
 function requiredEnv(name: string): string {
   const value = process.env[name]
@@ -174,7 +175,7 @@ const { withAuth } = createAuth({
 })
 
 export default withAuth(config({
-  db: { provider: 'postgresql', url: pooledDatabaseUrl(databaseURL) },
+  db: { provider: 'postgresql', url: pooledDatabaseUrl(databaseURL), extendPrismaClient: throwKeystonePrismaErrors },
   lists: models,
   storage: {
     my_images: {
