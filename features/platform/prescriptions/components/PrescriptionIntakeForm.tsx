@@ -9,8 +9,10 @@ import { unwrapAction } from '@/features/platform/lib/action-result'
 import { OptionSelect } from '@/features/platform/components/OptionSelect'
 import { PlatformDateInput } from '@/features/platform/components/PlatformDateTime'
 
-function relativeDateInput(days: number) {
-  return new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
+// Days are counted from the pharmacy's own calendar day (the location option's detail), not the browser's or UTC.
+function relativeDateInput(days: number, today?: string | null) {
+  const base = today && /^\d{4}-\d{2}-\d{2}$/.test(today) ? Date.parse(`${today}T12:00:00.000Z`) : Date.now()
+  return new Date(base + days * 86_400_000).toISOString().slice(0, 10)
 }
 
 export function PrescriptionIntakeForm({ options }: { options: PharmacyPrescriptionIntakeOptions }) {
@@ -23,8 +25,9 @@ export function PrescriptionIntakeForm({ options }: { options: PharmacyPrescript
   const [productId, setProductId] = useState(products[0]?.id || '')
   const [prescriptionNumber, setPrescriptionNumber] = useState('')
   const [source, setSource] = useState('paper')
-  const [writtenAt, setWrittenAt] = useState(relativeDateInput(0))
-  const [expiresAt, setExpiresAt] = useState(relativeDateInput(180))
+  const pharmacyDay = options.locations.find((entry) => entry.id === locationId)?.detail || locations[0]?.detail
+  const [writtenAt, setWrittenAt] = useState(relativeDateInput(0, pharmacyDay))
+  const [expiresAt, setExpiresAt] = useState(relativeDateInput(180, pharmacyDay))
   const [medicationName, setMedicationName] = useState('')
   const [sig, setSig] = useState('')
   const [quantity, setQuantity] = useState(1)
@@ -52,8 +55,8 @@ export function PrescriptionIntakeForm({ options }: { options: PharmacyPrescript
     <label className="text-sm">Prescriber<OptionSelect value={prescriberId} onValueChange={(value) => setPrescriberId(value)} className="mt-2"><option value="">Select</option>{options.prescribers.filter((entry) => entry.scopeId === organizationId).map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.detail}</option>)}</OptionSelect></label>
     <label className="text-sm">Prescription number<Input value={prescriptionNumber} onChange={(event) => setPrescriptionNumber(event.target.value)} className="mt-2" /></label>
     <label className="text-sm">Source<OptionSelect value={source} onValueChange={(value) => setSource(value)} className="mt-2"><option value="paper">Paper</option><option value="phone">Phone</option></OptionSelect><span className="mt-1 block text-xs text-muted-foreground">Transfers use the consent and pharmacist-acceptance workflow. eRx remains provider- and certification-blocked.</span></label>
-    <label className="text-sm">Written date<PlatformDateInput value={writtenAt} max={relativeDateInput(0)} onChange={(value) => setWrittenAt(value)} className="mt-2" /></label>
-    <label className="text-sm">Expiration date<PlatformDateInput value={expiresAt} min={writtenAt || relativeDateInput(0)} onChange={(value) => setExpiresAt(value)} className="mt-2" /></label>
+    <label className="text-sm">Written date<PlatformDateInput value={writtenAt} max={relativeDateInput(0, pharmacyDay)} onChange={(value) => setWrittenAt(value)} className="mt-2" /></label>
+    <label className="text-sm">Expiration date<PlatformDateInput value={expiresAt} min={writtenAt || relativeDateInput(0, pharmacyDay)} onChange={(value) => setExpiresAt(value)} className="mt-2" /></label>
     <label className="text-sm">Product<OptionSelect value={productId} onValueChange={(value) => { setProductId(value); const selected = products.find((entry) => entry.id === value); if (selected) setMedicationName(selected.label) }} className="mt-2"><option value="">Select</option>{products.map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.detail}</option>)}</OptionSelect></label>
     <label className="text-sm">Medication snapshot<Input value={medicationName} onChange={(event) => setMedicationName(event.target.value)} className="mt-2" /></label>
     <label className="text-sm">Directions<Input value={sig} onChange={(event) => setSig(event.target.value)} className="mt-2" /></label>

@@ -76,7 +76,7 @@ export async function addPharmacyCartItem(
     const cart = await loadAndAssertCartAccess(transactionContext, args.cartId, args.guestToken)
     const product = await transactionContext.sudo().query.Product.findOne({
       where: { id: args.productId },
-      query: 'id status onlineAvailable prescriptionRequirement priceAmount location { id } inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }',
+      query: 'id status onlineAvailable prescriptionRequirement priceAmount location { id } inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } }',
     })
     if (!product || product.location?.id !== cart.location.id) throw new DomainError('Product is not available at this location')
     assertProductCanEnterPublicCart(product)
@@ -114,7 +114,7 @@ export async function updatePharmacyCartItem(
   if (!Number.isInteger(args.quantity) || args.quantity < 0 || args.quantity > 99) throw new DomainError('Quantity must be between 0 and 99')
   return withDomainTransaction(context, [`cart:${item.cart.id}`], async (transactionContext) => {
     const cart = await loadAndAssertCartAccess(transactionContext, item.cart.id, args.guestToken)
-    const current = await transactionContext.sudo().query.CartItem.findOne({ where: { id: args.cartItemId }, query: 'id cart { id } product { inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } } }' })
+    const current = await transactionContext.sudo().query.CartItem.findOne({ where: { id: args.cartItemId }, query: 'id cart { id } product { inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } } }' })
     if (!current || current.cart?.id !== cart.id) throw new DomainError('Cart item not found')
     if (args.quantity > 0) {
       const availableQuantity = (current.product?.inventoryLots || [])

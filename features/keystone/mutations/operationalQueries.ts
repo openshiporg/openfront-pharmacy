@@ -4,6 +4,7 @@ import { permissions } from '../access'
 import { prescriptionItemVersion } from '../workflows/fill-entitlement'
 import { currentFillNumber, isHumanSafetyReviewStale } from '../workflows/clinical-safety'
 import { eligibleLotQuantity, isLotEligible } from '../workflows/lot-eligibility'
+import { pharmacyToday } from '../workflows/calendar-dates'
 import { assessRecallExposureReconciliation, recallExposureMovementWhere } from '../workflows/recall-exposure'
 import type { PharmacyCatalogQueueProjection } from '../../pharmacy/contracts'
 import { DomainError } from './lib/errors'
@@ -158,14 +159,15 @@ export async function pharmacyPrescriptionIntakeOptions(_root: unknown, _args: u
   const sudo = context.sudo()
   const [organizations, locations, patients, prescribers, products] = await Promise.all([
     sudo.query.Organization.findMany({ where: { id: { in: scope.organizationIds } }, orderBy: { name: 'asc' }, query: 'id name' }),
-    sudo.query.PharmacyLocation.findMany({ where: { id: { in: scope.locationIds } }, orderBy: { name: 'asc' }, query: 'id name organization { id }' }),
+    sudo.query.PharmacyLocation.findMany({ where: { id: { in: scope.locationIds } }, orderBy: { name: 'asc' }, query: 'id name timezone organization { id }' }),
     sudo.query.PatientProfile.findMany({ where: { organizations: { some: { id: { in: scope.organizationIds } } }, status: { equals: 'active' } }, orderBy: { createdAt: 'desc' }, take: 200, query: 'id displayName patientNumber organizations { id }' }),
     sudo.query.Prescriber.findMany({ where: { organization: { id: { in: scope.organizationIds } } }, orderBy: { name: 'asc' }, take: 200, query: 'id name verificationStatus organization { id }' }),
     sudo.query.Product.findMany({ where: { organization: { id: { in: scope.organizationIds } }, location: { id: { in: scope.locationIds } }, status: { equals: 'published' }, prescriptionRequirement: { in: ['prescription_required', 'pharmacist_review_required'] } }, orderBy: { title: 'asc' }, take: 200, query: 'id title sku organization { id } location { id }' }),
   ])
   return {
     organizations: organizations.map((entry: any) => ({ id: entry.id, label: entry.name, scopeId: entry.id, detail: null })),
-    locations: locations.map((entry: any) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id, detail: null })),
+    // detail carries the pharmacy's current calendar day, so date pickers default to and bound by the store's today.
+    locations: locations.map((entry: any) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id, detail: pharmacyToday(entry.timezone) })),
     patients: patients.flatMap((entry: any) => (entry.organizations || [])
       .filter((organization: any) => scope.organizationIds.includes(organization.id))
       .map((organization: any) => ({ id: entry.id, label: entry.displayName, scopeId: organization.id, detail: entry.patientNumber }))),
@@ -238,11 +240,11 @@ export async function pharmacyInventoryReceiptOptions(_root: unknown, _args: unk
   const scope = await tenantScope(context)
   const sudo = context.sudo()
   const [locations, suppliers] = await Promise.all([
-    sudo.query.PharmacyLocation.findMany({ where: { id: { in: scope.locationIds } }, orderBy: { name: 'asc' }, query: 'id name organization { id }' }),
+    sudo.query.PharmacyLocation.findMany({ where: { id: { in: scope.locationIds } }, orderBy: { name: 'asc' }, query: 'id name timezone organization { id }' }),
     sudo.query.Supplier.findMany({ where: { organization: { id: { in: scope.organizationIds } } }, orderBy: { name: 'asc' }, take: 200, query: 'id name organization { id }' }),
   ])
   return {
-    locations: locations.map((entry: any) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id || '', detail: null })),
+    locations: locations.map((entry: any) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id || '', detail: pharmacyToday(entry.timezone) })),
     suppliers: suppliers.map((entry: any) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id || '', detail: null })),
   }
 }
@@ -431,7 +433,7 @@ export async function pharmacyPrescriptionTask(_root: unknown, args: { prescript
           inventoryLots(orderBy: { expirationDate: asc }) {
             id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete
             recalls { status }
-            location { id }
+            location { id timezone }
           }
         }
       }
@@ -610,7 +612,7 @@ export async function pharmacyInventoryLotTask(_root: unknown, args: { lotId: st
     query: `
       id lotNumber serialNumber status expirationDate receivedAt quantityReceived quantityAvailable quantityQuarantined
       storageBin coldChainRequired minimumTemperatureC maximumTemperatureC coldChainEvidenceComplete
-      product { id title sku } location { id name }
+      product { id title sku } location { id name timezone }
       recalls { id recallNumber status classification }
       temperatureExcursions(orderBy: { startedAt: desc }) { id status observedMinimumC observedMaximumC startedAt endedAt dispositionReason resolutionNote resolvedAt }
       movements(orderBy: { occurredAt: desc }, take: 50) { id movementType quantityDelta reason occurredAt actor { name } }
@@ -1194,7 +1196,7 @@ export async function pharmacyPosCatalog(_root: unknown, args: { locationId: str
     },
     orderBy: { title: 'asc' },
     take: 100,
-    query: 'id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }',
+    query: 'id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } }',
   })
   return records.map((record: any) => {
     const availableQuantity = (record.inventoryLots || [])

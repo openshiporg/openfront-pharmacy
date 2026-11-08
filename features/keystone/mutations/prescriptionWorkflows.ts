@@ -17,7 +17,7 @@ import { productPhotoSnapshot } from '../lib/product-photo'
 import { notifyPrescriptionReady } from './pickupNotice'
 import { assertCounterCardCovers, openCounterCardIntent, refundRefusedCounterCard, verifyCounterCardIntent, type VerifiedCounterCard } from './counterCard'
 
-const CLINICAL_QUERY = 'sourceVerificationStatus writtenAt expiresAt prescriber { npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }'
+const CLINICAL_QUERY = 'sourceVerificationStatus writtenAt expiresAt location { timezone } prescriber { npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }'
 const SAFETY_QUERY = `
   patient { id displayName identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } allergies(where: { status: { in: ["active", "none_known"] } }) { id updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id updatedAt } }
   safetyReviews(orderBy: { reviewedAt: desc }, take: 1) {
@@ -403,7 +403,7 @@ async function recordDispensingInTransaction(
 
     const lot = await sudo.query.InventoryLot.findOne({
       where: { id: args.lotId },
-      query: 'id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } product { id } location { id }',
+      query: 'id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } product { id } location { id timezone }',
     })
     if (!lot || lot.location.id !== prescription.location.id || lot.product.id !== item.product?.id) throw new DomainError('Inventory lot does not match this prescription item and location')
     if (!isLotEligible(lot) || lot.quantityAvailable - lot.quantityQuarantined < args.quantity) throw new DomainError('Inventory lot is not eligible for dispensing')

@@ -3,13 +3,14 @@ import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { assertPrescriptionClinicallyEligible } from '../workflows/prescription-eligibility'
+import { endOfPharmacyDay } from '../workflows/calendar-dates'
 import { calculateTaxAmount } from '../workflows/commerce-policy'
 import { assertPrescriptionItemProductIdentity } from '../workflows/clinical-safety'
 import { FILL_LINEAGE, fillHash, parseFillPolicy, prescriptionItemVersion, prescriptionAuthorityVersion, releaseFillPlan, dispenseFillPlan } from '../workflows/fill-entitlement'
 import { DomainError } from './lib/errors'
 
 export const FILL_PRESCRIPTION_QUERY = `id status sourceVerificationStatus writtenAt expiresAt
-  organization { id prescriptionFillPolicy cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt } location { id }
+  organization { id prescriptionFillPolicy cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt } location { id timezone }
   patient { id status organizations { id } user { id } identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } }
   prescriber { id organization { id } npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }
   items { id prescription { id } fillLineage activeFillNumber medicationNameSnapshot sig quantityPrescribed quantityDispensed daysSupply refillsAuthorized refillsRemaining refillsReserved substitutionAllowed drugReference { id } product { id title sku priceAmount currencyCode taxable drugReference { id } } }`
@@ -119,7 +120,7 @@ export async function reserveFillInTransaction(context: Context, p: any, item: a
     creditState: 'reserved', authorizedQuantity: item.quantityPrescribed, itemVersion: prescriptionItemVersion(p, item),
     authorityVersion: prescriptionAuthorityVersion(p), policySnapshot,
     priceSnapshot: { amount: item.product.priceAmount, currencyCode: item.product.currencyCode, taxable: item.product.taxable !== false, taxAmount: calculateTaxAmount(item.product.taxable !== false ? item.product.priceAmount : 0, cashPolicy.taxRateBps), taxRateBps: cashPolicy.taxRateBps, taxPolicyReference: cashPolicy.policyReference, title: item.product.title, sku: item.product.sku },
-    expiresAt: new Date(Math.min(new Date(p.expiresAt).getTime(), Date.now() + policySnapshot.reservationMinutes * 60_000)).toISOString(),
+    expiresAt: new Date(Math.min(endOfPharmacyDay(p.expiresAt, p.location?.timezone)?.getTime() ?? 0, Date.now() + policySnapshot.reservationMinutes * 60_000)).toISOString(),
     organization: connect(p.organization.id), location: connect(p.location.id), patient: connect(p.patient.id),
     prescription: connect(p.id), prescriptionItem: connect(item.id), reservedBy: connect(input.actorId),
     refillRequest: input.refillRequestId ? connect(input.refillRequestId) : undefined, approval: input.approvalId ? connect(input.approvalId) : undefined }, query: FILL_QUERY })

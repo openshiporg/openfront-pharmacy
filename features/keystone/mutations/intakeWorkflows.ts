@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import type { Context } from '.keystone/types'
 import { assertDrugReferenceEligibleForBoundedDispensing } from '../workflows/clinical-safety'
 import { assertPrescriptionClinicallyEligible } from '../workflows/prescription-eligibility'
+import { parseCalendarDateInput } from '../workflows/calendar-dates'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
@@ -42,11 +43,14 @@ export async function intakePharmacyPrescription(
   }
   if (!args.prescriptionNumber?.trim() || !args.items.length) throw new DomainError('Prescription number and at least one item are required')
   if (args.items.length !== 1) throw new DomainError('Enter one prescription item per prescription')
-  const writtenAt = new Date(args.writtenAt)
-  const expiresAt = new Date(args.expiresAt)
-  if (Number.isNaN(writtenAt.getTime()) || Number.isNaN(expiresAt.getTime()) || writtenAt.getTime() > Date.now() || expiresAt.getTime() <= writtenAt.getTime()) {
+  // Written and expiry are calendar dates, stored at UTC midnight of that day; "today" is the pharmacy's day.
+  const writtenDay = parseCalendarDateInput(args.writtenAt)
+  const expiryDay = parseCalendarDateInput(args.expiresAt)
+  if (!writtenDay || !expiryDay || expiryDay <= writtenDay) {
     throw new DomainError('Prescription written and expiration dates are invalid')
   }
+  const writtenAt = new Date(`${writtenDay}T00:00:00.000Z`)
+  const expiresAt = new Date(`${expiryDay}T00:00:00.000Z`)
   for (const item of args.items) {
     if (!item.productId || !item.medicationName?.trim() || !item.sig?.trim() || !Number.isInteger(item.quantity) || item.quantity < 1 || !Number.isInteger(item.refillsAuthorized) || item.refillsAuthorized < 0) {
       throw new DomainError('Prescription item is invalid')
@@ -80,7 +84,9 @@ export async function intakePharmacyPrescription(
     ])
     if (!patient || patient.status !== 'active' || !patient.organizations?.some((organization: any) => organization.id === args.organizationId)) throw new DomainError('Active patient is not in the prescription organization')
     if (!prescriber || prescriber.organization?.id !== args.organizationId) throw new DomainError('Prescriber is not in the prescription organization')
-    assertPrescriptionClinicallyEligible({ sourceVerificationStatus: 'human_verified', writtenAt, expiresAt, prescriber })
+    const location = await sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: 'id timezone organization { id }' })
+    if (location?.organization?.id !== args.organizationId) throw new DomainError('Location is not in the prescription organization')
+    assertPrescriptionClinicallyEligible({ sourceVerificationStatus: 'human_verified', writtenAt, expiresAt, location, prescriber })
     if (products.length !== new Set(args.items.map((item) => item.productId)).size || products.some((product: any) => product.organization?.id !== args.organizationId || product.location?.id !== args.locationId || !product.drugReference?.id)) {
       throw new DomainError('Every prescription item must use an NDC-linked product from this pharmacy')
     }

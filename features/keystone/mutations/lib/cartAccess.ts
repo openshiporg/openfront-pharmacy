@@ -3,11 +3,15 @@ import { verifyGuestCartToken } from '../../security/cart-token'
 import { verifyGuestOrderToken } from '../../security/order-token'
 import { DomainError } from './errors'
 
+export function isCartExpired(cart: { expiresAt?: string | null }, now = Date.now()) {
+  return Boolean(cart.expiresAt && new Date(cart.expiresAt).getTime() <= now)
+}
+
 export async function loadAndAssertCartAccess(
   context: Context,
   cartId: string,
   guestToken?: string | null,
-  options: { allowSubmitted?: boolean } = {},
+  options: { allowSubmitted?: boolean; allowExpired?: boolean } = {},
 ) {
   const cart = await context.sudo().query.Cart.findOne({
     where: { id: cartId },
@@ -30,7 +34,9 @@ export async function loadAndAssertCartAccess(
     `,
   })
   if (!cart || (cart.status !== 'active' && !(options.allowSubmitted && cart.status === 'submitted'))) throw new DomainError('Active cart not found')
-  if (cart.expiresAt && new Date(cart.expiresAt).getTime() <= Date.now()) throw new DomainError('Cart has expired')
+  // allowExpired is only for checkout completing a payment the provider already settled: carts hold no stock,
+  // so honouring it is safe, while refusing would leave captured money with no order and no refund.
+  if (!options.allowExpired && isCartExpired(cart)) throw new DomainError('Cart has expired')
 
   const userId = context.session?.itemId
   if (userId) {

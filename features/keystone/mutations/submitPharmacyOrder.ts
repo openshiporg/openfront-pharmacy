@@ -6,7 +6,7 @@ import { getPaymentStatus, refundPayment } from '../utils/paymentProviderAdapter
 import { calculateCartTotals } from '../workflows/commerce-policy'
 import { eligibleLotQuantity, isLotEligible } from '../workflows/lot-eligibility'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { loadAndAssertCartAccess } from './lib/cartAccess'
+import { isCartExpired, loadAndAssertCartAccess } from './lib/cartAccess'
 import { recordAuditAndOutbox } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { isManualPaymentProvider, PAYMENT_PROVIDER_ADAPTER_FIELDS } from './paymentOperations'
@@ -85,8 +85,18 @@ export async function submitPharmacyOrder(
   const customerName = input.customerName?.trim().replace(/\s+/g, ' ') || ''
   if (customerName.length > 120 || (!customerName && input.fulfillmentMethod !== 'pos')) throw new DomainError(input.fulfillmentMethod === 'delivery' ? 'Enter the name for delivery' : 'Enter the name for pickup')
   const shippingAddress = input.fulfillmentMethod === 'delivery' ? input.shippingAddress || null : null
+  // A requested pickup time is a real instant in the near future, for pickup orders only; anything else would be
+  // stored on the order and shown to staff and the customer as the promised pickup.
+  let pickupAt: string | undefined
+  if (input.pickupAt) {
+    const requested = new Date(input.pickupAt)
+    if (input.fulfillmentMethod !== 'pickup' || Number.isNaN(requested.getTime())) throw new DomainError('A pickup time is only accepted for pickup orders')
+    if (requested.getTime() < Date.now() - 5 * 60_000 || requested.getTime() > Date.now() + 14 * 86_400_000) throw new DomainError('Pickup time must be within the next 14 days')
+    pickupAt = requested.toISOString()
+  }
+  if (input.deliveryWindow && (input.fulfillmentMethod !== 'delivery' || input.deliveryWindow.trim().length > 120)) throw new DomainError('A delivery window is only accepted for delivery orders')
   if (input.fulfillmentMethod === 'delivery' && !shippingAddress) throw new DomainError('A delivery address is required')
-  const cart = await loadAndAssertCartAccess(context, input.cartId, input.guestToken, { allowSubmitted: true })
+  const cart = await loadAndAssertCartAccess(context, input.cartId, input.guestToken, { allowSubmitted: true, allowExpired: true })
   const replayToken = context.session?.itemId ? null : createGuestOrderToken(cart.id, idempotencyKey)
   if (cart.status === 'submitted') return checkoutReplay(cart, idempotencyKey, replayToken)
 
@@ -112,6 +122,10 @@ export async function submitPharmacyOrder(
   if (manualTender && input.fulfillmentMethod === 'delivery') throw new DomainError('Delivery orders are paid online. Choose card payment.')
   const paymentStatus = manualTender ? { status: 'pending' } : await getPaymentStatus({ provider, paymentId })
   if (!manualTender && !['captured', 'succeeded'].includes(paymentStatus.status)) throw new DomainError(`Payment is not settled: ${paymentStatus.status || 'unknown'}`)
+  // Past this point a card payment has settled, so the cart is completed even if it expired meanwhile (refusing
+  // would capture money with no order). An unpaid manual-tender cart that expired starts again.
+  const completingSettledPayment = !manualTender
+  if (manualTender && isCartExpired(cart)) throw new DomainError('Cart has expired')
   await withDomainTransaction(context, [`payment-session:${paymentSession.id}`], async (transactionContext) => {
     await transactionContext.sudo().query.PaymentSession.updateOne({
       where: { id: paymentSession.id },
@@ -135,7 +149,7 @@ export async function submitPharmacyOrder(
       query: 'id',
     })
     await acquireTransactionLocks(transactionContext, transactionLots.map((lot: any) => `lot:${lot.id}`))
-    const accessCart = await loadAndAssertCartAccess(transactionContext, input.cartId, input.guestToken, { allowSubmitted: true })
+    const accessCart = await loadAndAssertCartAccess(transactionContext, input.cartId, input.guestToken, { allowSubmitted: true, allowExpired: completingSettledPayment })
     if (accessCart.status === 'submitted') return checkoutReplay(accessCart, idempotencyKey, replayToken)
     const current = await sudo.query.Cart.findOne({
       where: { id: cart.id },
@@ -151,7 +165,7 @@ export async function submitPharmacyOrder(
             inventoryLots(orderBy: { expirationDate: asc }) {
               id lotNumber expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete status
               recalls { status }
-              location { id }
+              location { id timezone }
             }
           }
         }
@@ -188,8 +202,8 @@ export async function submitPharmacyOrder(
         deliveryAmount: totals.deliveryAmount,
         totalAmount: totals.totalAmount,
         currencyCode: current.items[0].product.currencyCode,
-        pickupAt: input.pickupAt || undefined,
-        deliveryWindow: input.deliveryWindow || undefined,
+        pickupAt,
+        deliveryWindow: input.deliveryWindow?.trim() || undefined,
         shippingAddressSnapshot: (shippingAddress || undefined) as any,
         organization: { connect: { id: current.organization.id } },
         location: { connect: { id: current.location.id } },

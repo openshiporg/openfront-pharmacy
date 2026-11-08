@@ -1,9 +1,12 @@
 import { DomainError } from '../mutations/lib/errors'
+import { calendarDateNotFuture, calendarDateStillValid } from './calendar-dates'
 
 export type PrescriptionClinicalEligibility = {
   sourceVerificationStatus?: string | null
   writtenAt?: string | Date | null
   expiresAt?: string | Date | null
+  /** Written and expiry are calendar dates, judged on the dispensing pharmacy's calendar. */
+  location?: { timezone?: string | null } | null
   prescriber?: {
     npi?: string | null
     verificationStatus?: string | null
@@ -33,8 +36,10 @@ export function isValidNpi(value: string | null | undefined) {
 
 export function assertPrescriptionClinicallyEligible(input: PrescriptionClinicalEligibility, now = Date.now()) {
   if (input.sourceVerificationStatus !== 'human_verified') throw new DomainError('Prescription source must be verified by an authorized human')
-  if (!input.writtenAt || new Date(input.writtenAt).getTime() > now) throw new DomainError('Prescription written date is invalid')
-  if (!input.expiresAt || new Date(input.expiresAt).getTime() <= now) throw new DomainError('Prescription is expired')
+  const timeZone = input.location?.timezone
+  if (!calendarDateNotFuture(input.writtenAt, timeZone, now)) throw new DomainError('Prescription written date is invalid')
+  // A prescription that expires on May 5 can still be filled on May 5 at the pharmacy.
+  if (!calendarDateStillValid(input.expiresAt, timeZone, now)) throw new DomainError('Prescription is expired')
   const prescriber = input.prescriber
   const credentialExpiry = prescriber?.credentialExpiresAt ? new Date(prescriber.credentialExpiresAt).getTime() : Number.NaN
   if (

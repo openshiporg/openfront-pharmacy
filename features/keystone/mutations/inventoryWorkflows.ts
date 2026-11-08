@@ -6,6 +6,7 @@ import { withDomainTransaction } from './lib/transaction'
 import { isProductAtActiveTenantLocation } from '../workflows/product-location'
 import { DomainError } from './lib/errors'
 import { lotStatusAfterAdjustment } from '../workflows/pharmacy-state'
+import { lotNumberKey, parseCalendarDateInput, pharmacyToday } from '../workflows/calendar-dates'
 
 export async function receiveInventoryLot(
   _root: unknown,
@@ -30,15 +31,18 @@ export async function receiveInventoryLot(
   requirePermission(context, 'canManageInventory')
   if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new DomainError('Received quantity must be a positive integer')
   if (!args.idempotencyKey?.trim() || !args.lotNumber?.trim()) throw new DomainError('Lot number and idempotency key are required')
-  const expirationDate = new Date(args.expirationDate)
-  if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new DomainError('Expiration date must be in the future')
+  // Lot expiry is a calendar date stored at noon UTC of that day (what the receive form sends), whatever the
+  // caller supplied, so every reader sees the same day. Whether it has passed is decided at the pharmacy below.
+  const expirationDay = parseCalendarDateInput(args.expirationDate)
+  if (!expirationDay) throw new DomainError('Expiration date must be a real calendar date')
+  const expirationDate = new Date(`${expirationDay}T12:00:00.000Z`)
   if (args.coldChainRequired) {
     if (typeof args.minimumTemperatureC !== 'number' || typeof args.maximumTemperatureC !== 'number' || args.minimumTemperatureC >= args.maximumTemperatureC) throw new DomainError('Cold-chain receipt needs a storage range with the minimum below the maximum')
     if (!args.coldChainEvidenceComplete) throw new DomainError('Review the shipment temperature log before receiving cold-chain stock')
   }
   const requestFingerprint = createHash('sha256').update(JSON.stringify({ productId: args.productId, locationId: args.locationId, supplierId: args.supplierId || null, lotNumber: args.lotNumber.trim(), serialNumber: args.serialNumber?.trim() || null, expirationDate: expirationDate.toISOString(), quantity: args.quantity, coldChainRequired: args.coldChainRequired, minimumTemperatureC: args.minimumTemperatureC ?? null, maximumTemperatureC: args.maximumTemperatureC ?? null, coldChainEvidenceComplete: args.coldChainEvidenceComplete, reason: args.reason?.trim(), attested: args.attested })).digest('hex')
 
-  return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${args.lotNumber}`], async (transactionContext) => {
+  return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${lotNumberKey(args.lotNumber)}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const existing = await sudo.query.InventoryMovement.findOne({ where: { idempotencyKey: args.idempotencyKey }, query: 'id requestFingerprint lot { id quantityAvailable location { id } product { organization { id } } }' })
     if (existing) {
@@ -51,7 +55,7 @@ export async function receiveInventoryLot(
     }
     const [product, location, supplier] = await Promise.all([
       sudo.query.Product.findOne({ where: { id: args.productId }, query: 'id organization { id } location { id } coldChainRequired' }),
-      sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: 'id status organization { id status }' }),
+      sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: 'id status timezone organization { id status }' }),
       args.supplierId ? sudo.query.Supplier.findOne({ where: { id: args.supplierId }, query: 'id organization { id } status' }) : null,
     ])
     if (!isProductAtActiveTenantLocation(product, location)) {
@@ -63,6 +67,15 @@ export async function receiveInventoryLot(
       throw new DomainError('Supplier must be active in the receiving organization')
     }
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: location.organization.id, locationId: location.id })
+    if (expirationDay <= pharmacyToday(location.timezone)) throw new DomainError('Expiration date must be after today at this pharmacy')
+    // One lot record per product, location and manufacturer lot number: a second receipt of the same lot would
+    // split its stock, so a recall or count would only find part of it. Further stock is a count adjustment.
+    const sameLot = await (sudo.prisma as any).$queryRaw`
+      SELECT "lotNumber" FROM "InventoryLot"
+      WHERE "product" = ${product.id} AND "location" = ${location.id}
+        AND upper(regexp_replace(btrim("lotNumber"), '[[:space:]]+', ' ', 'g')) = ${lotNumberKey(args.lotNumber)}
+      LIMIT 1`
+    if (sameLot.length) throw new DomainError(`Lot ${sameLot[0].lotNumber} is already received for this product here; adjust its count instead of receiving it again`)
     const approval = await createHumanApproval(transactionContext, {
       organizationId: location.organization.id,
       locationId: location.id,

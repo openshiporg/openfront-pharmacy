@@ -1,3 +1,5 @@
+import { calendarDateStillValid } from './calendar-dates'
+
 export const BLOCKING_RECALL_STATUSES = new Set(['active', 'quarantined'])
 
 export type LotEligibilityInput = {
@@ -8,6 +10,8 @@ export type LotEligibilityInput = {
   coldChainRequired?: boolean | null
   coldChainEvidenceComplete?: boolean | null
   recalls?: Array<{ status?: string | null }> | null
+  /** The lot's pharmacy; its time zone decides when the expiration date has passed. */
+  location?: { timezone?: string | null } | null
 }
 
 export function lotHasBlockingRecall(lot: LotEligibilityInput) {
@@ -16,7 +20,8 @@ export function lotHasBlockingRecall(lot: LotEligibilityInput) {
 
 export function eligibleLotQuantity(lot: LotEligibilityInput, now = Date.now()) {
   if (lot.status !== 'available') return 0
-  if (!lot.expirationDate || new Date(lot.expirationDate).getTime() <= now) return 0
+  // The expiration date is a calendar date: the lot is usable through that day at the pharmacy.
+  if (!calendarDateStillValid(lot.expirationDate, lot.location?.timezone, now)) return 0
   if (lot.coldChainRequired && !lot.coldChainEvidenceComplete) return 0
   if (lotHasBlockingRecall(lot)) return 0
   return Math.max(0, Number(lot.quantityAvailable || 0) - Number(lot.quantityQuarantined || 0))

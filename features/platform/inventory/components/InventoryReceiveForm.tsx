@@ -99,7 +99,7 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
     setMessage(''); setError('')
     startTransition(() => unwrapAction(receiveInventoryAction({
       productId, locationId, supplierId: supplierId || undefined, lotNumber, serialNumber: serialNumber.trim() || undefined,
-      expirationDate: new Date(`${expirationDate}T12:00:00.000Z`).toISOString(), quantity,
+      expirationDate, quantity,
       coldChainRequired: coldChain,
       ...(coldChain ? { minimumTemperatureC: Number(minimumTemperatureC), maximumTemperatureC: Number(maximumTemperatureC) } : {}),
       coldChainEvidenceComplete: coldChain ? temperatureLogReviewed : true,
@@ -107,7 +107,9 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
     })).then((result) => { idempotencyKey.current = null; setMessage(`Lot ${lotNumber.trim()} recorded with ${result.quantityAvailable} available.`) }).catch((cause) => setError(cause instanceof Error ? cause.message : 'Receipt failed')))
   }
 
-  const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10)
+  // The location option's detail is the pharmacy's current calendar day; expiry must be after it.
+  const pharmacyDay = options.locations.find((entry) => entry.id === locationId)?.detail || new Date().toISOString().slice(0, 10)
+  const tomorrow = new Date(Date.parse(`${pharmacyDay}T12:00:00.000Z`) + 86_400_000).toISOString().slice(0, 10)
   const coldChainReady = !coldChain || (minimumTemperatureC.trim() !== '' && maximumTemperatureC.trim() !== '' && Number(minimumTemperatureC) < Number(maximumTemperatureC) && temperatureLogReviewed)
   const ready = coldChainReady && locationId && productId && products.some((entry) => entry.id === productId && entry.scopeId === locationId) && lotNumber.trim() && expirationDate >= tomorrow && quantity > 0 && reason.trim().length >= 8 && attested
   return <div className="grid gap-4 sm:grid-cols-2">
