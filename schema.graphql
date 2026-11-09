@@ -1554,82 +1554,6 @@ input OrderLineItemOrderByInput {
   updatedAt: OrderDirection
 }
 
-type OutboxEvent {
-  id: ID!
-  eventKey: String
-  eventType: String
-  aggregateType: String
-  aggregateId: String
-  payload: JSON
-  payloadHash: String
-  status: String
-  attempts: Int
-  maxAttempts: Int
-  replayCount: Int
-  lastError: String
-  nextAttemptAt: DateTime
-  lockedAt: DateTime
-  lockToken: String
-  occurredAt: DateTime
-  processedAt: DateTime
-  createdAt: DateTime
-  updatedAt: DateTime
-  organization: Organization
-  location: PharmacyLocation
-}
-
-input OutboxEventWhereUniqueInput {
-  id: ID
-  eventKey: String
-}
-
-input OutboxEventWhereInput {
-  AND: [OutboxEventWhereInput!]
-  OR: [OutboxEventWhereInput!]
-  NOT: [OutboxEventWhereInput!]
-  id: IDFilter
-  eventKey: StringFilter
-  eventType: StringFilter
-  aggregateType: StringFilter
-  aggregateId: StringFilter
-  payloadHash: StringFilter
-  status: StringFilter
-  attempts: IntFilter
-  maxAttempts: IntFilter
-  replayCount: IntFilter
-  lastError: StringNullableFilter
-  nextAttemptAt: DateTimeNullableFilter
-  lockedAt: DateTimeNullableFilter
-  lockToken: StringNullableFilter
-  occurredAt: DateTimeFilter
-  processedAt: DateTimeNullableFilter
-  createdAt: DateTimeFilter
-  updatedAt: DateTimeFilter
-  organization: OrganizationWhereInput
-  location: PharmacyLocationWhereInput
-}
-
-input OutboxEventOrderByInput {
-  id: OrderDirection
-  eventKey: OrderDirection
-  eventType: OrderDirection
-  aggregateType: OrderDirection
-  aggregateId: OrderDirection
-  payloadHash: OrderDirection
-  status: OrderDirection
-  attempts: OrderDirection
-  maxAttempts: OrderDirection
-  replayCount: OrderDirection
-  lastError: OrderDirection
-  nextAttemptAt: OrderDirection
-  lockedAt: OrderDirection
-  lockToken: OrderDirection
-  occurredAt: OrderDirection
-  processedAt: OrderDirection
-  createdAt: OrderDirection
-  updatedAt: OrderDirection
-}
-
 type Organization {
   id: ID!
   name: String
@@ -1675,8 +1599,6 @@ type Organization {
   ordersCount(where: OrderWhereInput! = {}): Int
   integrationProviders(where: IntegrationProviderWhereInput! = {}, orderBy: [IntegrationProviderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: IntegrationProviderWhereUniqueInput): [IntegrationProvider!]
   integrationProvidersCount(where: IntegrationProviderWhereInput! = {}): Int
-  outboxEvents(where: OutboxEventWhereInput! = {}, orderBy: [OutboxEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OutboxEventWhereUniqueInput): [OutboxEvent!]
-  outboxEventsCount(where: OutboxEventWhereInput! = {}): Int
   paymentWebhookEvents(where: PaymentWebhookEventWhereInput! = {}, orderBy: [PaymentWebhookEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: PaymentWebhookEventWhereUniqueInput): [PaymentWebhookEvent!]
   paymentWebhookEventsCount(where: PaymentWebhookEventWhereInput! = {}): Int
   machineCredentials(where: MachineCredentialWhereInput! = {}, orderBy: [MachineCredentialOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MachineCredentialWhereUniqueInput): [MachineCredential!]
@@ -1748,7 +1670,6 @@ input OrganizationWhereInput {
   recalls: RecallManyRelationFilter
   orders: OrderManyRelationFilter
   integrationProviders: IntegrationProviderManyRelationFilter
-  outboxEvents: OutboxEventManyRelationFilter
   paymentWebhookEvents: PaymentWebhookEventManyRelationFilter
   machineCredentials: MachineCredentialManyRelationFilter
   externalIntegrationWorkflows: ExternalIntegrationWorkflowManyRelationFilter
@@ -1779,12 +1700,6 @@ input IntegrationProviderManyRelationFilter {
   every: IntegrationProviderWhereInput
   some: IntegrationProviderWhereInput
   none: IntegrationProviderWhereInput
-}
-
-input OutboxEventManyRelationFilter {
-  every: OutboxEventWhereInput
-  some: OutboxEventWhereInput
-  none: OutboxEventWhereInput
 }
 
 input PaymentWebhookEventManyRelationFilter {
@@ -1860,7 +1775,6 @@ input OrganizationUpdateInput {
   recalls: RecallRelateToManyForUpdateInput
   orders: OrderRelateToManyForUpdateInput
   integrationProviders: IntegrationProviderRelateToManyForUpdateInput
-  outboxEvents: OutboxEventRelateToManyForUpdateInput
   paymentWebhookEvents: PaymentWebhookEventRelateToManyForUpdateInput
   machineCredentials: MachineCredentialRelateToManyForUpdateInput
   externalIntegrationWorkflows: ExternalIntegrationWorkflowRelateToManyForUpdateInput
@@ -1918,12 +1832,6 @@ input IntegrationProviderRelateToManyForUpdateInput {
   disconnect: [IntegrationProviderWhereUniqueInput!]
   set: [IntegrationProviderWhereUniqueInput!]
   connect: [IntegrationProviderWhereUniqueInput!]
-}
-
-input OutboxEventRelateToManyForUpdateInput {
-  disconnect: [OutboxEventWhereUniqueInput!]
-  set: [OutboxEventWhereUniqueInput!]
-  connect: [OutboxEventWhereUniqueInput!]
 }
 
 input PaymentWebhookEventRelateToManyForUpdateInput {
@@ -2715,8 +2623,6 @@ type PharmacyLocation {
   recallsCount(where: RecallWhereInput! = {}): Int
   orders(where: OrderWhereInput! = {}, orderBy: [OrderOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderWhereUniqueInput): [Order!]
   ordersCount(where: OrderWhereInput! = {}): Int
-  outboxEvents(where: OutboxEventWhereInput! = {}, orderBy: [OutboxEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OutboxEventWhereUniqueInput): [OutboxEvent!]
-  outboxEventsCount(where: OutboxEventWhereInput! = {}): Int
   machineCredentials(where: MachineCredentialWhereInput! = {}, orderBy: [MachineCredentialOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: MachineCredentialWhereUniqueInput): [MachineCredential!]
   machineCredentialsCount(where: MachineCredentialWhereInput! = {}): Int
   externalIntegrationWorkflows(where: ExternalIntegrationWorkflowWhereInput! = {}, orderBy: [ExternalIntegrationWorkflowOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: ExternalIntegrationWorkflowWhereUniqueInput): [ExternalIntegrationWorkflow!]
@@ -2750,7 +2656,6 @@ input PharmacyLocationWhereInput {
   prescriptions: PrescriptionManyRelationFilter
   recalls: RecallManyRelationFilter
   orders: OrderManyRelationFilter
-  outboxEvents: OutboxEventManyRelationFilter
   machineCredentials: MachineCredentialManyRelationFilter
   externalIntegrationWorkflows: ExternalIntegrationWorkflowManyRelationFilter
   createdAt: DateTimeFilter
@@ -2795,7 +2700,6 @@ input PharmacyLocationUpdateInput {
   prescriptions: PrescriptionRelateToManyForUpdateInput
   recalls: RecallRelateToManyForUpdateInput
   orders: OrderRelateToManyForUpdateInput
-  outboxEvents: OutboxEventRelateToManyForUpdateInput
   machineCredentials: MachineCredentialRelateToManyForUpdateInput
   externalIntegrationWorkflows: ExternalIntegrationWorkflowRelateToManyForUpdateInput
   createdAt: DateTime
@@ -2831,7 +2735,6 @@ input PharmacyLocationCreateInput {
   prescriptions: PrescriptionRelateToManyForCreateInput
   recalls: RecallRelateToManyForCreateInput
   orders: OrderRelateToManyForCreateInput
-  outboxEvents: OutboxEventRelateToManyForCreateInput
   machineCredentials: MachineCredentialRelateToManyForCreateInput
   externalIntegrationWorkflows: ExternalIntegrationWorkflowRelateToManyForCreateInput
   createdAt: DateTime
@@ -2857,10 +2760,6 @@ input RecallRelateToManyForCreateInput {
 
 input OrderRelateToManyForCreateInput {
   connect: [OrderWhereUniqueInput!]
-}
-
-input OutboxEventRelateToManyForCreateInput {
-  connect: [OutboxEventWhereUniqueInput!]
 }
 
 input MachineCredentialRelateToManyForCreateInput {
@@ -4484,7 +4383,6 @@ type Mutation {
   disposeRecallLot(recallId: ID!, lotId: ID!, quantity: Int!, dispositionReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
   closePharmacyRecall(recallId: ID!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
   transitionOrderFulfillment(fulfillmentId: ID!, status: String!, reason: String!, attested: Boolean!): PharmacyFulfillmentResult!
-  replayPharmacyOutboxEvent(eventId: ID!): PharmacyOutboxReplayResult!
   setPharmacyOnboardingStatus(status: String!): PharmacyOnboardingStatusResult!
   runPharmacyOnboarding(template: String): PharmacyOnboardingResult!
 }
@@ -4572,9 +4470,6 @@ type Query {
   orderLineItem(where: OrderLineItemWhereUniqueInput!): OrderLineItem
   orderLineItems(where: OrderLineItemWhereInput! = {}, orderBy: [OrderLineItemOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrderLineItemWhereUniqueInput): [OrderLineItem!]
   orderLineItemsCount(where: OrderLineItemWhereInput! = {}): Int
-  outboxEvent(where: OutboxEventWhereUniqueInput!): OutboxEvent
-  outboxEvents(where: OutboxEventWhereInput! = {}, orderBy: [OutboxEventOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OutboxEventWhereUniqueInput): [OutboxEvent!]
-  outboxEventsCount(where: OutboxEventWhereInput! = {}): Int
   organization(where: OrganizationWhereUniqueInput!): Organization
   organizations(where: OrganizationWhereInput! = {}, orderBy: [OrganizationOrderByInput!]! = [], take: Int, skip: Int! = 0, cursor: OrganizationWhereUniqueInput): [Organization!]
   organizationsCount(where: OrganizationWhereInput! = {}): Int
@@ -4703,8 +4598,6 @@ type Query {
   pharmacyPatientSafeView(patientId: ID!): PatientSafeProjection!
   pharmacyIntegrationStatus: [PharmacyIntegrationStatus!]!
   pharmacyAuditTimeline(take: Int): [PharmacyAuditTimelineEvent!]!
-  pharmacyOutboxTimeline(take: Int): [PharmacyOutboxTimelineEvent!]!
-  pharmacyOutboxQueue(take: Int): [PharmacyOutboxTimelineEvent!]!
 }
 
 union AuthenticatedItem = User
@@ -5649,20 +5542,6 @@ type PharmacyAuditTimelineEvent {
   locationName: String
 }
 
-type PharmacyOutboxTimelineEvent {
-  id: ID!
-  eventKey: String!
-  eventType: String!
-  aggregateType: String!
-  aggregateId: String!
-  status: String!
-  attempts: Int!
-  replayCount: Int!
-  occurredAt: String!
-  processedAt: String
-  hasError: Boolean!
-}
-
 type PharmacyPatientAccountLinkResult {
   success: Boolean!
   reused: Boolean
@@ -5955,13 +5834,6 @@ type PharmacyFulfillmentResult {
   orderId: ID!
   approvalId: ID
   status: String!
-}
-
-type PharmacyOutboxReplayResult {
-  id: ID!
-  status: String!
-  replayCount: Int!
-  reused: Boolean!
 }
 
 type PharmacyOnboardingCounts {

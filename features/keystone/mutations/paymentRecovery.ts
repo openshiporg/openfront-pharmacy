@@ -2,7 +2,7 @@ import type { Context } from '.keystone/types'
 import { permissions } from '../access'
 import { getPaymentStatus, refundPayment } from '../utils/paymentProviderAdapter'
 import { requireTenantMembership } from './lib/authorization'
-import { recordAuditAndOutbox } from './lib/evidence'
+import { recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { PAYMENT_PROVIDER_ADAPTER_FIELDS } from './paymentOperations'
 import { DomainError } from './lib/errors'
@@ -32,7 +32,7 @@ export async function reconcilePharmacyPaymentSession(
     if (!['refunded', 'succeeded'].includes(compensation?.status)) throw new DomainError('Payment compensation is still pending')
     return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
       await transactionContext.sudo().query.PaymentSession.updateOne({ where: { id: session.id }, data: { status: 'compensated', reconciliationStatus: 'compensated', reconciliationAttempts: session.reconciliationAttempts + 1, lastReconciledAt: new Date().toISOString(), failureReason: null, data: { ...(session.data || {}), compensation } } })
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `payment.compensated:${session.id}`,
         organizationId: session.cart.organization.id,
         locationId: session.cart.location.id,

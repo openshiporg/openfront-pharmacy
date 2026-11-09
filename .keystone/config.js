@@ -35,6 +35,99 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
+// features/keystone/lib/email-layout.ts
+function storeNameFromEnv(fallback = "Pharmacy") {
+  const match = /^\s*"?([^"<]+?)"?\s*</.exec(process.env.SMTP_FROM || "");
+  return match?.[1]?.trim() || fallback;
+}
+function emailButton(label, href) {
+  return `<table role="presentation" border="0" cellspacing="0" cellpadding="0" style="margin:8px 0 24px;">
+<tr><td class="em-btn" align="center" bgcolor="${C.button}" style="border-radius:8px;background:${C.button};">
+<a class="em-btn-a" href="${escapeHtml(href)}" target="_blank" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:16px;font-weight:600;line-height:20px;color:${C.buttonText};text-decoration:none;border-radius:8px;">${escapeHtml(label)}</a>
+</td></tr></table>`;
+}
+function emailLayout(input) {
+  const store = escapeHtml(input.storeName || storeNameFromEnv());
+  const support = escapeHtml(input.supportEmail || SUPPORT_EMAIL);
+  return `<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="x-apple-disable-message-reformatting">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>${escapeHtml(input.title)}</title>
+<style>
+:root { color-scheme: light dark; supported-color-schemes: light dark; }
+body { margin:0; padding:0; -webkit-text-size-adjust:100%; }
+a { color:${C.link}; }
+@media (max-width: 620px) { .em-pad { padding-left:20px !important; padding-right:20px !important; } }
+@media (prefers-color-scheme: dark) {
+  .em-canvas { background:#09090b !important; }
+  .em-card { background:#18181b !important; border-color:#27272a !important; }
+  .em-text { color:#fafafa !important; }
+  .em-muted { color:#a1a1aa !important; }
+  .em-line { border-color:#3f3f46 !important; }
+  .em-panel { background:#27272a !important; border-color:#3f3f46 !important; color:#fafafa !important; }
+  .em-btn { background:#fafafa !important; }
+  .em-btn-a { color:#18181b !important; }
+  .em-link { color:#fafafa !important; }
+}
+[data-ogsc] .em-text { color:#fafafa !important; }
+[data-ogsc] .em-muted { color:#a1a1aa !important; }
+[data-ogsb] .em-canvas { background:#09090b !important; }
+[data-ogsb] .em-card { background:#18181b !important; }
+</style>
+</head>
+<body class="em-canvas" style="margin:0;padding:0;background:${C.canvas};">
+${input.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;mso-hide:all;">${escapeHtml(input.preheader)}</div>` : ""}
+<table role="presentation" class="em-canvas" width="100%" border="0" cellspacing="0" cellpadding="0" bgcolor="${C.canvas}" style="background:${C.canvas};">
+<tr><td align="center" style="padding:24px 12px;">
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width:600px;">
+<tr><td class="em-pad" style="padding:8px 32px 20px;font-family:${FONT};font-size:18px;line-height:24px;font-weight:700;letter-spacing:-0.01em;"><span class="em-text" style="color:${C.text};">${store}</span></td></tr>
+<tr><td class="em-card" bgcolor="${C.card}" style="background:${C.card};border:1px solid ${C.line};border-radius:12px;">
+<table role="presentation" width="100%" border="0" cellspacing="0" cellpadding="0">
+<tr><td class="em-pad" style="padding:32px 32px 16px;">
+<h1 class="em-text" style="margin:0 0 16px;font-family:${FONT};font-size:24px;line-height:32px;font-weight:700;letter-spacing:-0.02em;color:${C.text};">${escapeHtml(input.title)}</h1>
+${input.body}
+</td></tr>
+</table>
+</td></tr>
+<tr><td class="em-pad" style="padding:20px 32px 8px;font-family:${FONT};font-size:13px;line-height:20px;color:${C.subtle};">
+<span class="em-muted" style="color:${C.subtle};">${input.footerNote ? `${input.footerNote}<br>` : ""}Questions? Email <a class="em-link" href="mailto:${support}" style="color:${C.muted};text-decoration:underline;">${support}</a>.<br>${store}</span>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+var SUPPORT_EMAIL, FONT, C, escapeHtml, p, emailParagraph, emailMuted;
+var init_email_layout = __esm({
+  "features/keystone/lib/email-layout.ts"() {
+    "use strict";
+    SUPPORT_EMAIL = "hello@pharmacy.openship.org";
+    FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif";
+    C = {
+      canvas: "#f4f4f5",
+      card: "#ffffff",
+      text: "#18181b",
+      muted: "#52525b",
+      subtle: "#71717a",
+      line: "#e4e4e7",
+      panel: "#fafafa",
+      button: "#18181b",
+      buttonText: "#ffffff",
+      link: "#18181b"
+    };
+    escapeHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+    p = (html, style = "") => `<p class="em-text" style="margin:0 0 16px;font-family:${FONT};font-size:16px;line-height:24px;color:${C.text};${style}">${html}</p>`;
+    emailParagraph = p;
+    emailMuted = (html) => `<p class="em-muted" style="margin:0 0 16px;font-family:${FONT};font-size:14px;line-height:22px;color:${C.muted};">${html}</p>`;
+  }
+});
+
 // features/keystone/lib/mail.ts
 var mail_exports = {};
 __export(mail_exports, {
@@ -53,42 +146,18 @@ function getBaseUrlForEmails() {
   return "";
 }
 function passwordResetEmail({ url }) {
-  const backgroundColor = "#f9f9f9";
-  const textColor = "#444444";
-  const mainBackgroundColor = "#ffffff";
-  const buttonBackgroundColor = "#346df1";
-  const buttonBorderColor = "#346df1";
-  const buttonTextColor = "#ffffff";
-  return `
-    <body style="background: ${backgroundColor};">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: ${mainBackgroundColor}; max-width: 600px; margin: auto; border-radius: 10px;">
-        <tr>
-          <td align="center" style="padding: 10px 0px 0px 0px; font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            Please click below to reset your password
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 20px 0;">
-            <table border="0" cellspacing="0" cellpadding="0">
-              <tr>
-                <td align="center" style="border-radius: 5px;" bgcolor="${buttonBackgroundColor}"><a href="${url}" target="_blank" style="font-size: 18px; font-family: Helvetica, Arial, sans-serif; color: ${buttonTextColor}; text-decoration: none; border-radius: 5px; padding: 10px 20px; border: 1px solid ${buttonBorderColor}; display: inline-block; font-weight: bold;">Reset Password</a></td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-        <tr>
-          <td align="center" style="padding: 0px 0px 10px 0px; font-size: 16px; line-height: 22px; font-family: Helvetica, Arial, sans-serif; color: ${textColor};">
-            If you did not request this email you can safely ignore it.
-          </td>
-        </tr>
-      </table>
-    </body>
-  `;
+  return emailLayout({
+    preheader: "Use this link to choose a new password.",
+    title: "Reset your password",
+    body: `${emailParagraph("We received a request to reset the password for your account. Use the button below to choose a new one.")}
+${emailButton("Reset password", url)}
+${emailMuted("If you did not request this, you can safely ignore this email. Your password will not change.")}`
+  });
 }
 async function isEmailConfigured() {
   return Boolean(process.env.SMTP_HOST);
 }
-function escapeHtml(value) {
+function escapeHtml2(value) {
   return value.replace(/[&<>"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[character]);
 }
 function requestOrigin(request) {
@@ -119,14 +188,13 @@ async function sendOrderConfirmationEmail({ to, orderNumber: orderNumber2, store
     to,
     from: process.env.SMTP_FROM,
     subject: `${storeName}: order ${orderNumber2}`,
-    html: `
-    <body style="background: #f9f9f9;">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: #ffffff; max-width: 600px; margin: auto; border-radius: 10px; font-family: Helvetica, Arial, sans-serif; color: #444444;">
-        <tr><td align="center" style="font-size: 18px;">${escapeHtml(storeName)}</td></tr>
-        <tr><td align="center" style="font-size: 16px;">Order <strong>${escapeHtml(orderNumber2)}</strong> received</td></tr>
-        <tr><td align="center" style="padding: 10px 0 20px;"><a href="${escapeHtml(url)}" target="_blank" style="font-size: 16px; color: #ffffff; background: #1f6f5c; text-decoration: none; border-radius: 999px; padding: 12px 22px; display: inline-block; font-weight: bold;">Track order</a></td></tr>
-      </table>
-    </body>`
+    html: emailLayout({
+      storeName,
+      preheader: `Order ${orderNumber2} received`,
+      title: "Order received",
+      body: `${emailParagraph(`Order <strong>${escapeHtml2(orderNumber2)}</strong> received.`)}
+${emailButton("Track order", url)}`
+    })
   });
   if (process.env.MAIL_USER?.includes("ethereal.email")) {
     console.log(`\u{1F4E7} Message Sent!  Preview it at ${(0, import_nodemailer.getTestMessageUrl)(info)}`);
@@ -155,15 +223,14 @@ async function sendPickupReadyEmail({ to, storeName, kind, reference, locationNa
     to,
     from: process.env.SMTP_FROM,
     subject: `${storeName}: ${kind === "prescription" ? "prescription ready for pickup" : `order ${reference} is ready for pickup`}`,
-    html: `
-    <body style="background: #f9f9f9;">
-      <table width="100%" border="0" cellspacing="20" cellpadding="0" style="background: #ffffff; max-width: 600px; margin: auto; border-radius: 10px; font-family: Helvetica, Arial, sans-serif; color: #444444;">
-        <tr><td align="center" style="font-size: 18px;">${escapeHtml(storeName)}</td></tr>
-        <tr><td align="center" style="font-size: 16px;"><strong>${escapeHtml(headline)}</strong></td></tr>
-        <tr><td align="center" style="font-size: 15px; line-height: 22px;">${escapeHtml(detail)}${phone ? `<br />Questions? Call ${escapeHtml(phone)}.` : ""}</td></tr>
-        ${url ? `<tr><td align="center" style="padding: 10px 0 20px;"><a href="${escapeHtml(url)}" target="_blank" style="font-size: 16px; color: #ffffff; background: #1f6f5c; text-decoration: none; border-radius: 999px; padding: 12px 22px; display: inline-block; font-weight: bold;">${kind === "prescription" ? "View in your account" : "View order"}</a></td></tr>` : ""}
-      </table>
-    </body>`
+    html: emailLayout({
+      storeName,
+      preheader: headline,
+      title: headline,
+      body: `${emailParagraph(escapeHtml2(detail))}
+${phone ? emailMuted(`Questions? Call ${escapeHtml2(phone)}.`) : ""}
+${url ? emailButton(kind === "prescription" ? "View in your account" : "View order", url) : ""}`
+    })
   });
   return { sent: true, messageId: info?.messageId };
 }
@@ -172,6 +239,7 @@ var init_mail = __esm({
   "features/keystone/lib/mail.ts"() {
     "use strict";
     import_nodemailer = require("nodemailer");
+    init_email_layout();
     transport = (0, import_nodemailer.createTransport)({
       // @ts-ignore
       host: process.env.SMTP_HOST,
@@ -624,7 +692,7 @@ async function readBoundedExternalResponse(response, maxBytes = MAX_EXTERNAL_RES
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let bytesRead = 0;
-  let text45 = "";
+  let text44 = "";
   try {
     while (true) {
       const { done, value } = await reader.read();
@@ -634,9 +702,9 @@ async function readBoundedExternalResponse(response, maxBytes = MAX_EXTERNAL_RES
         await reader.cancel().catch(() => void 0);
         throw new Error("External response exceeds the configured size limit");
       }
-      text45 += decoder.decode(value, { stream: true });
+      text44 += decoder.decode(value, { stream: true });
     }
-    return text45 + decoder.decode();
+    return text44 + decoder.decode();
   } finally {
     reader.releaseLock();
   }
@@ -701,12 +769,12 @@ async function providerRequest(provider, path, init) {
       signal: AbortSignal.timeout(2e4)
     })
   );
-  const text45 = await readBoundedExternalResponse(response);
+  const text44 = await readBoundedExternalResponse(response);
   let body = null;
   try {
-    body = text45 ? JSON.parse(text45) : {};
+    body = text44 ? JSON.parse(text44) : {};
   } catch {
-    body = { message: text45.slice(0, 1e3) };
+    body = { message: text44.slice(0, 1e3) };
   }
   if (!response.ok) throw new Error(`Integration provider returned HTTP ${response.status}`);
   return body;
@@ -828,7 +896,7 @@ function s3ForcePathStyle(endpoint2) {
 
 // features/keystone/index.ts
 var import_auth = require("@keystone-6/auth");
-var import_core46 = require("@keystone-6/core");
+var import_core45 = require("@keystone-6/core");
 var import_config = require("dotenv/config");
 var import_iron = __toESM(require("@hapi/iron"));
 var cookie = __toESM(require("cookie"));
@@ -2000,6 +2068,7 @@ var POSITIVE_MOVEMENTS = /* @__PURE__ */ new Set(["receive", "return", "release"
 function validateMovementSign(type, quantityDelta) {
   if (!Number.isInteger(quantityDelta)) throw new Error("Inventory movement quantity must be an integer");
   if (NEGATIVE_MOVEMENTS.has(type) && quantityDelta >= 0) throw new Error(`${type} inventory movements must reduce quantity`);
+  if (type === "release" && quantityDelta === 0) return;
   if (POSITIVE_MOVEMENTS.has(type) && quantityDelta <= 0) throw new Error(`${type} inventory movements must increase quantity`);
 }
 var inventoryMovementHooks = {
@@ -2304,65 +2373,10 @@ var OrderLineItem = (0, import_core18.list)({
   }
 });
 
-// features/keystone/models/OutboxEvent.ts
+// features/keystone/models/Organization.ts
 var import_core19 = require("@keystone-6/core");
 var import_access30 = require("@keystone-6/core/access");
 var import_fields20 = require("@keystone-6/core/fields");
-var OutboxEvent = (0, import_core19.list)({
-  access: {
-    operation: {
-      query: import_access30.denyAll,
-      create: import_access30.denyAll,
-      update: import_access30.denyAll,
-      delete: import_access30.denyAll
-    },
-    filter: { query: rules.canReadTenantRecords }
-  },
-  graphql: { omit: { create: true, update: true, delete: true } },
-  ui: {
-    isHidden: true,
-    hideCreate: true,
-    hideDelete: true,
-    listView: { initialColumns: ["eventType", "aggregateType", "aggregateId", "status", "occurredAt"] }
-  },
-  fields: {
-    eventKey: (0, import_fields20.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    eventType: (0, import_fields20.text)({ validation: { isRequired: true }, isIndexed: true }),
-    aggregateType: (0, import_fields20.text)({ validation: { isRequired: true }, isIndexed: true }),
-    aggregateId: (0, import_fields20.text)({ validation: { isRequired: true }, isIndexed: true }),
-    payload: (0, import_fields20.json)({ access: { update: import_access30.denyAll } }),
-    payloadHash: (0, import_fields20.text)({ validation: { isRequired: true }, access: { update: import_access30.denyAll } }),
-    status: (0, import_fields20.select)({
-      type: "string",
-      options: [
-        { label: "Pending", value: "pending" },
-        { label: "Processing", value: "processing" },
-        { label: "Delivered", value: "delivered" },
-        { label: "Failed", value: "failed" },
-        { label: "Dead letter", value: "dead_letter" }
-      ],
-      defaultValue: "pending",
-      validation: { isRequired: true }
-    }),
-    attempts: (0, import_fields20.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    maxAttempts: (0, import_fields20.integer)({ defaultValue: 8, validation: { isRequired: true, min: 1 } }),
-    replayCount: (0, import_fields20.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    lastError: (0, import_fields20.text)({ db: { isNullable: true } }),
-    nextAttemptAt: (0, import_fields20.timestamp)(),
-    lockedAt: (0, import_fields20.timestamp)(),
-    lockToken: (0, import_fields20.text)({ isIndexed: true, db: { isNullable: true } }),
-    occurredAt: (0, import_fields20.timestamp)({ validation: { isRequired: true }, defaultValue: { kind: "now" }, access: { update: import_access30.denyAll } }),
-    processedAt: (0, import_fields20.timestamp)(),
-    ...trackingFields,
-    organization: (0, import_fields20.relationship)({ ref: "Organization.outboxEvents", db: requiredRelationshipDb }),
-    location: (0, import_fields20.relationship)({ ref: "PharmacyLocation.outboxEvents" })
-  }
-});
-
-// features/keystone/models/Organization.ts
-var import_core20 = require("@keystone-6/core");
-var import_access32 = require("@keystone-6/core/access");
-var import_fields21 = require("@keystone-6/core/fields");
 
 // features/platform/store-settings/lib/icon-registry.ts
 var LOGO_ICONS = [
@@ -2759,13 +2773,13 @@ function operatorBrandFromOrganization(organization) {
 }
 
 // features/keystone/models/Organization.ts
-var Organization = (0, import_core20.list)({
+var Organization = (0, import_core19.list)({
   access: {
     operation: {
       query: isSignedIn,
-      create: import_access32.denyAll,
+      create: import_access30.denyAll,
       update: permissions.canManageOrganizations,
-      delete: import_access32.denyAll
+      delete: import_access30.denyAll
     },
     filter: { query: rules.canReadOrganizations, update: rules.canReadOrganizations, delete: rules.canReadOrganizations }
   },
@@ -2786,39 +2800,39 @@ var Organization = (0, import_core20.list)({
   },
   ui: { hideCreate: true, hideDelete: true, listView: { initialColumns: ["name", "slug", "status"] } },
   fields: {
-    name: (0, import_fields21.text)({ validation: { isRequired: true } }),
-    slug: (0, import_fields21.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    storefrontKey: (0, import_fields21.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    storefrontHost: (0, import_fields21.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    operatorDisplayName: (0, import_fields21.text)({ validation: { isRequired: true } }),
-    operatorTagline: (0, import_fields21.text)({ defaultValue: "Independent pharmacy care" }),
-    brandPrimaryColor: (0, import_fields21.text)({ defaultValue: "#18352b" }),
-    brandAccentColor: (0, import_fields21.text)({ defaultValue: "#8ec9ad" }),
-    brandLogoUrl: (0, import_fields21.text)(),
-    storefrontHero: (0, import_fields21.image)({ storage: "my_images", label: "Storefront hero photo" }),
-    storefrontHeroUrl: (0, import_fields21.virtual)({ field: import_core20.graphql.field({ type: import_core20.graphql.String, resolve: (item, _args, context) => item.storefrontHero_id && item.storefrontHero_extension ? context.images("my_images").getUrl(item.storefrontHero_id, item.storefrontHero_extension) : null }) }),
-    logoIcon: (0, import_fields21.text)({ defaultValue: DEFAULT_STORE_LOGO_ICON, hooks: {
+    name: (0, import_fields20.text)({ validation: { isRequired: true } }),
+    slug: (0, import_fields20.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    storefrontKey: (0, import_fields20.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    storefrontHost: (0, import_fields20.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    operatorDisplayName: (0, import_fields20.text)({ validation: { isRequired: true } }),
+    operatorTagline: (0, import_fields20.text)({ defaultValue: "Independent pharmacy care" }),
+    brandPrimaryColor: (0, import_fields20.text)({ defaultValue: "#18352b" }),
+    brandAccentColor: (0, import_fields20.text)({ defaultValue: "#8ec9ad" }),
+    brandLogoUrl: (0, import_fields20.text)(),
+    storefrontHero: (0, import_fields20.image)({ storage: "my_images", label: "Storefront hero photo" }),
+    storefrontHeroUrl: (0, import_fields20.virtual)({ field: import_core19.graphql.field({ type: import_core19.graphql.String, resolve: (item, _args, context) => item.storefrontHero_id && item.storefrontHero_extension ? context.images("my_images").getUrl(item.storefrontHero_id, item.storefrontHero_extension) : null }) }),
+    logoIcon: (0, import_fields20.text)({ defaultValue: DEFAULT_STORE_LOGO_ICON, hooks: {
       resolveInput: ({ resolvedData, fieldKey }) => resolvedData[fieldKey] === void 0 ? void 0 : sanitizeStoreLogoSvg(String(resolvedData[fieldKey] || "")),
       validateInput: ({ inputData, resolvedData, fieldKey, addValidationError }) => {
         if (typeof inputData[fieldKey] === "string" && inputData[fieldKey].trim() && !resolvedData[fieldKey]) addValidationError("Logo must be a valid, safe SVG document");
       }
     } }),
-    logoColor: (0, import_fields21.text)({ defaultValue: DEFAULT_STORE_LOGO_COLOR, hooks: {
+    logoColor: (0, import_fields20.text)({ defaultValue: DEFAULT_STORE_LOGO_COLOR, hooks: {
       resolveInput: ({ resolvedData, fieldKey }) => resolvedData[fieldKey] === void 0 ? void 0 : normalizeStoreLogoColor(resolvedData[fieldKey])
     } }),
     // Retained column; no longer read or written.
-    isDemo: (0, import_fields21.checkbox)({ defaultValue: false, access: { create: import_access32.denyAll, update: import_access32.denyAll }, ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } } }),
-    supportEmail: (0, import_fields21.text)(),
-    supportPhone: (0, import_fields21.text)(),
-    privacyNotice: (0, import_fields21.text)({ ui: { displayMode: "textarea", description: "Notice of Privacy Practices shown at /privacy and linked from checkout." } }),
-    prescriptionFillPolicy: (0, import_fields21.json)({ access: { create: import_access32.denyAll, update: import_access32.denyAll }, ui: { description: "Versioned operator-reviewed policy; only the controlled fill policy command may change it. Existing fills keep their snapshot." } }),
-    willCallReturnDays: (0, import_fields21.integer)({ defaultValue: 10, validation: { isRequired: true, min: 1, max: 60 }, ui: { description: "Days a filled prescription waits in will-call before staff should review it for return to stock. Staff still confirm each return." } }),
-    cashSalesEnabled: (0, import_fields21.checkbox)({ defaultValue: false, access: { create: import_access32.denyAll, update: import_access32.denyAll }, ui: { description: "Enabled only by the operator-attested cash/tax policy workflow." } }),
-    cashTaxRateBps: (0, import_fields21.integer)({ defaultValue: 0, validation: { min: 0, max: 1e4 }, access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
-    cashTaxPolicyReference: (0, import_fields21.text)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
-    cashPolicyReviewedAt: (0, import_fields21.timestamp)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
-    cashPolicyReviewedBy: (0, import_fields21.relationship)({ ref: "User", access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
-    status: (0, import_fields21.select)({
+    isDemo: (0, import_fields20.checkbox)({ defaultValue: false, access: { create: import_access30.denyAll, update: import_access30.denyAll }, ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } } }),
+    supportEmail: (0, import_fields20.text)(),
+    supportPhone: (0, import_fields20.text)(),
+    privacyNotice: (0, import_fields20.text)({ ui: { displayMode: "textarea", description: "Notice of Privacy Practices shown at /privacy and linked from checkout." } }),
+    prescriptionFillPolicy: (0, import_fields20.json)({ access: { create: import_access30.denyAll, update: import_access30.denyAll }, ui: { description: "Versioned operator-reviewed policy; only the controlled fill policy command may change it. Existing fills keep their snapshot." } }),
+    willCallReturnDays: (0, import_fields20.integer)({ defaultValue: 10, validation: { isRequired: true, min: 1, max: 60 }, ui: { description: "Days a filled prescription waits in will-call before staff should review it for return to stock. Staff still confirm each return." } }),
+    cashSalesEnabled: (0, import_fields20.checkbox)({ defaultValue: false, access: { create: import_access30.denyAll, update: import_access30.denyAll }, ui: { description: "Enabled only by the operator-attested cash/tax policy workflow." } }),
+    cashTaxRateBps: (0, import_fields20.integer)({ defaultValue: 0, validation: { min: 0, max: 1e4 }, access: { create: import_access30.denyAll, update: import_access30.denyAll } }),
+    cashTaxPolicyReference: (0, import_fields20.text)({ access: { create: import_access30.denyAll, update: import_access30.denyAll } }),
+    cashPolicyReviewedAt: (0, import_fields20.timestamp)({ access: { create: import_access30.denyAll, update: import_access30.denyAll } }),
+    cashPolicyReviewedBy: (0, import_fields20.relationship)({ ref: "User", access: { create: import_access30.denyAll, update: import_access30.denyAll } }),
+    status: (0, import_fields20.select)({
       type: "string",
       options: [
         { label: "Active", value: "active" },
@@ -2827,28 +2841,27 @@ var Organization = (0, import_core20.list)({
       ],
       defaultValue: "active"
     }),
-    locations: (0, import_fields21.relationship)({ ref: "PharmacyLocation.organization", many: true, access: immutableRelationship }),
-    memberships: (0, import_fields21.relationship)({ ref: "OrganizationMembership.organization", many: true, access: immutableRelationship }),
-    patients: (0, import_fields21.relationship)({ ref: "PatientProfile.organizations", many: true, access: immutableRelationship }),
-    products: (0, import_fields21.relationship)({ ref: "Product.organization", many: true, access: immutableRelationship }),
-    drugReferenceReviews: (0, import_fields21.relationship)({ ref: "DrugReferenceReview.organization", many: true, access: immutableRelationship }),
-    prescriptions: (0, import_fields21.relationship)({ ref: "Prescription.organization", many: true, access: immutableRelationship }),
-    recalls: (0, import_fields21.relationship)({ ref: "Recall.organization", many: true, access: immutableRelationship }),
-    orders: (0, import_fields21.relationship)({ ref: "Order.organization", many: true, access: immutableRelationship }),
-    integrationProviders: (0, import_fields21.relationship)({ ref: "IntegrationProvider.organization", many: true, access: immutableRelationship }),
-    outboxEvents: (0, import_fields21.relationship)({ ref: "OutboxEvent.organization", many: true, access: immutableRelationship }),
-    paymentWebhookEvents: (0, import_fields21.relationship)({ ref: "PaymentWebhookEvent.organization", many: true, access: immutableRelationship }),
-    machineCredentials: (0, import_fields21.relationship)({ ref: "MachineCredential.organization", many: true, access: immutableRelationship }),
-    externalIntegrationWorkflows: (0, import_fields21.relationship)({ ref: "ExternalIntegrationWorkflow.organization", many: true, access: immutableRelationship }),
-    integrationWebhookEvents: (0, import_fields21.relationship)({ ref: "IntegrationWebhookEvent.organization", many: true, access: immutableRelationship }),
+    locations: (0, import_fields20.relationship)({ ref: "PharmacyLocation.organization", many: true, access: immutableRelationship }),
+    memberships: (0, import_fields20.relationship)({ ref: "OrganizationMembership.organization", many: true, access: immutableRelationship }),
+    patients: (0, import_fields20.relationship)({ ref: "PatientProfile.organizations", many: true, access: immutableRelationship }),
+    products: (0, import_fields20.relationship)({ ref: "Product.organization", many: true, access: immutableRelationship }),
+    drugReferenceReviews: (0, import_fields20.relationship)({ ref: "DrugReferenceReview.organization", many: true, access: immutableRelationship }),
+    prescriptions: (0, import_fields20.relationship)({ ref: "Prescription.organization", many: true, access: immutableRelationship }),
+    recalls: (0, import_fields20.relationship)({ ref: "Recall.organization", many: true, access: immutableRelationship }),
+    orders: (0, import_fields20.relationship)({ ref: "Order.organization", many: true, access: immutableRelationship }),
+    integrationProviders: (0, import_fields20.relationship)({ ref: "IntegrationProvider.organization", many: true, access: immutableRelationship }),
+    paymentWebhookEvents: (0, import_fields20.relationship)({ ref: "PaymentWebhookEvent.organization", many: true, access: immutableRelationship }),
+    machineCredentials: (0, import_fields20.relationship)({ ref: "MachineCredential.organization", many: true, access: immutableRelationship }),
+    externalIntegrationWorkflows: (0, import_fields20.relationship)({ ref: "ExternalIntegrationWorkflow.organization", many: true, access: immutableRelationship }),
+    integrationWebhookEvents: (0, import_fields20.relationship)({ ref: "IntegrationWebhookEvent.organization", many: true, access: immutableRelationship }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/OrganizationMembership.ts
-var import_core21 = require("@keystone-6/core");
-var import_access34 = require("@keystone-6/core/access");
-var import_fields22 = require("@keystone-6/core/fields");
+var import_core20 = require("@keystone-6/core");
+var import_access32 = require("@keystone-6/core/access");
+var import_fields21 = require("@keystone-6/core/fields");
 async function hasOrganizationWideMembership(context, organizationId, membershipRole) {
   const userId = context.session?.itemId;
   if (!userId || !organizationId) return false;
@@ -2866,13 +2879,13 @@ async function hasOrganizationWideMembership(context, organizationId, membership
   return memberships.length > 0;
 }
 var notOwnMembership = ({ session, item }) => Boolean(session?.itemId) && String(item?.userId) !== session.itemId;
-var OrganizationMembership = (0, import_core21.list)({
+var OrganizationMembership = (0, import_core20.list)({
   access: {
     operation: {
       query: isSignedIn,
       create: permissions.canManageUsers,
       update: permissions.canManageUsers,
-      delete: import_access34.denyAll
+      delete: import_access32.denyAll
     },
     filter: {
       query: rules.canReadMemberships,
@@ -2918,11 +2931,11 @@ var OrganizationMembership = (0, import_core21.list)({
   },
   ui: { listView: { initialColumns: ["user", "organization", "location", "membershipRole", "status"] } },
   fields: {
-    membershipKey: (0, import_fields22.text)({ isIndexed: "unique", access: { create: import_access34.denyAll, update: import_access34.denyAll } }),
-    user: (0, import_fields22.relationship)({ ref: "User.memberships", db: requiredRelationshipDb }),
-    organization: (0, import_fields22.relationship)({ ref: "Organization.memberships", db: requiredRelationshipDb }),
-    location: (0, import_fields22.relationship)({ ref: "PharmacyLocation.memberships" }),
-    membershipRole: (0, import_fields22.select)({
+    membershipKey: (0, import_fields21.text)({ isIndexed: "unique", access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
+    user: (0, import_fields21.relationship)({ ref: "User.memberships", db: requiredRelationshipDb }),
+    organization: (0, import_fields21.relationship)({ ref: "Organization.memberships", db: requiredRelationshipDb }),
+    location: (0, import_fields21.relationship)({ ref: "PharmacyLocation.memberships" }),
+    membershipRole: (0, import_fields21.select)({
       access: { update: notOwnMembership },
       type: "string",
       options: [
@@ -2936,7 +2949,7 @@ var OrganizationMembership = (0, import_core21.list)({
       ],
       defaultValue: "read_only"
     }),
-    status: (0, import_fields22.select)({
+    status: (0, import_fields21.select)({
       access: { update: notOwnMembership },
       type: "string",
       options: [
@@ -2947,12 +2960,12 @@ var OrganizationMembership = (0, import_core21.list)({
       ],
       defaultValue: "invited"
     }),
-    externalCredentialValidated: (0, import_fields22.checkbox)({
+    externalCredentialValidated: (0, import_fields21.checkbox)({
       defaultValue: false,
-      access: { create: import_access34.denyAll, update: import_access34.denyAll },
+      access: { create: import_access32.denyAll, update: import_access32.denyAll },
       ui: { description: "Organization-recorded review evidence only; the software does not validate licensure." }
     }),
-    credentialVerificationMethod: (0, import_fields22.select)({
+    credentialVerificationMethod: (0, import_fields21.select)({
       type: "string",
       options: [
         { label: "Not recorded", value: "not_recorded" },
@@ -2960,36 +2973,36 @@ var OrganizationMembership = (0, import_core21.list)({
         { label: "Contracted external provider", value: "external_provider" }
       ],
       defaultValue: "not_recorded",
-      access: { create: import_access34.denyAll, update: import_access34.denyAll }
+      access: { create: import_access32.denyAll, update: import_access32.denyAll }
     }),
-    credentialType: (0, import_fields22.text)({ access: { create: import_access34.denyAll, update: import_access34.denyAll } }),
-    credentialJurisdiction: (0, import_fields22.text)({ access: { create: import_access34.denyAll, update: import_access34.denyAll } }),
-    credentialIdentifier: (0, import_fields22.text)({ access: { create: import_access34.denyAll, update: import_access34.denyAll } }),
-    credentialValidationReference: (0, import_fields22.text)({ access: { create: import_access34.denyAll, update: import_access34.denyAll } }),
-    credentialValidatedAt: (0, import_fields22.timestamp)({ access: { create: import_access34.denyAll, update: import_access34.denyAll } }),
-    credentialExpiresAt: (0, import_fields22.timestamp)({ access: { create: import_access34.denyAll, update: import_access34.denyAll } }),
-    credentialVerifiedBy: (0, import_fields22.relationship)({ ref: "User", access: { create: import_access34.denyAll, update: import_access34.denyAll } }),
+    credentialType: (0, import_fields21.text)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
+    credentialJurisdiction: (0, import_fields21.text)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
+    credentialIdentifier: (0, import_fields21.text)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
+    credentialValidationReference: (0, import_fields21.text)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
+    credentialValidatedAt: (0, import_fields21.timestamp)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
+    credentialExpiresAt: (0, import_fields21.timestamp)({ access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
+    credentialVerifiedBy: (0, import_fields21.relationship)({ ref: "User", access: { create: import_access32.denyAll, update: import_access32.denyAll } }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PatientAllergy.ts
-var import_core22 = require("@keystone-6/core");
-var import_access36 = require("@keystone-6/core/access");
-var import_fields23 = require("@keystone-6/core/fields");
-var PatientAllergy = (0, import_core22.list)({
+var import_core21 = require("@keystone-6/core");
+var import_access34 = require("@keystone-6/core/access");
+var import_fields22 = require("@keystone-6/core/fields");
+var PatientAllergy = (0, import_core21.list)({
   access: {
-    operation: { query: isSignedIn, create: import_access36.denyAll, update: import_access36.denyAll, delete: import_access36.denyAll },
+    operation: { query: isSignedIn, create: import_access34.denyAll, update: import_access34.denyAll, delete: import_access34.denyAll },
     filter: { query: rules.canReadPatientChildren }
   },
   graphql: { omit: { create: true, update: true, delete: true } },
   ui: { hideCreate: true, hideDelete: true },
   fields: {
-    allergyKey: (0, import_fields23.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    requestFingerprint: (0, import_fields23.text)({ validation: { isRequired: true } }),
-    allergen: (0, import_fields23.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
-    reaction: (0, import_fields23.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
-    severity: (0, import_fields23.select)({
+    allergyKey: (0, import_fields22.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    requestFingerprint: (0, import_fields22.text)({ validation: { isRequired: true } }),
+    allergen: (0, import_fields22.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
+    reaction: (0, import_fields22.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
+    severity: (0, import_fields22.select)({
       type: "string",
       options: [
         { label: "Unknown", value: "unknown" },
@@ -2999,58 +3012,58 @@ var PatientAllergy = (0, import_core22.list)({
       ],
       defaultValue: "unknown"
     }),
-    status: (0, import_fields23.select)({ type: "string", options: [{ label: "Active", value: "active" }, { label: "No known allergies", value: "none_known" }, { label: "Entered in error", value: "entered_in_error" }, { label: "Inactive", value: "inactive" }], defaultValue: "active" }),
+    status: (0, import_fields22.select)({ type: "string", options: [{ label: "Active", value: "active" }, { label: "No known allergies", value: "none_known" }, { label: "Entered in error", value: "entered_in_error" }, { label: "Inactive", value: "inactive" }], defaultValue: "active" }),
+    source: (0, import_fields22.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
+    sourceReference: (0, import_fields22.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
+    recordedAt: (0, import_fields22.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
+    organization: (0, import_fields22.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    patient: (0, import_fields22.relationship)({ ref: "PatientProfile.allergies", db: requiredRelationshipDb }),
+    recordedBy: (0, import_fields22.relationship)({ ref: "User", db: requiredRelationshipDb }),
+    approval: (0, import_fields22.relationship)({ ref: "HumanApproval" }),
+    ...trackingFields
+  }
+});
+
+// features/keystone/models/PatientMedication.ts
+var import_core22 = require("@keystone-6/core");
+var import_access36 = require("@keystone-6/core/access");
+var import_fields23 = require("@keystone-6/core/fields");
+var PatientMedication = (0, import_core22.list)({
+  access: {
+    operation: { query: isSignedIn, create: import_access36.denyAll, update: import_access36.denyAll, delete: import_access36.denyAll },
+    filter: { query: rules.canReadPatientChildren }
+  },
+  graphql: { omit: { create: true, update: true, delete: true } },
+  ui: { hideCreate: true, hideDelete: true },
+  fields: {
+    medicationKey: (0, import_fields23.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    requestFingerprint: (0, import_fields23.text)({ validation: { isRequired: true } }),
+    medicationName: (0, import_fields23.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
+    directions: (0, import_fields23.text)({ access: { read: permissions.canViewPatientPrivateData } }),
+    status: (0, import_fields23.select)({ type: "string", options: [{ label: "Current", value: "current" }, { label: "No current medications", value: "none_known" }, { label: "Discontinued", value: "discontinued" }, { label: "Entered in error", value: "entered_in_error" }], defaultValue: "current" }),
     source: (0, import_fields23.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     sourceReference: (0, import_fields23.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
     recordedAt: (0, import_fields23.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
     organization: (0, import_fields23.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    patient: (0, import_fields23.relationship)({ ref: "PatientProfile.allergies", db: requiredRelationshipDb }),
+    patient: (0, import_fields23.relationship)({ ref: "PatientProfile.medications", db: requiredRelationshipDb }),
     recordedBy: (0, import_fields23.relationship)({ ref: "User", db: requiredRelationshipDb }),
     approval: (0, import_fields23.relationship)({ ref: "HumanApproval" }),
     ...trackingFields
   }
 });
 
-// features/keystone/models/PatientMedication.ts
+// features/keystone/models/PatientProfile.ts
 var import_core23 = require("@keystone-6/core");
 var import_access38 = require("@keystone-6/core/access");
 var import_fields24 = require("@keystone-6/core/fields");
-var PatientMedication = (0, import_core23.list)({
-  access: {
-    operation: { query: isSignedIn, create: import_access38.denyAll, update: import_access38.denyAll, delete: import_access38.denyAll },
-    filter: { query: rules.canReadPatientChildren }
-  },
-  graphql: { omit: { create: true, update: true, delete: true } },
-  ui: { hideCreate: true, hideDelete: true },
-  fields: {
-    medicationKey: (0, import_fields24.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    requestFingerprint: (0, import_fields24.text)({ validation: { isRequired: true } }),
-    medicationName: (0, import_fields24.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
-    directions: (0, import_fields24.text)({ access: { read: permissions.canViewPatientPrivateData } }),
-    status: (0, import_fields24.select)({ type: "string", options: [{ label: "Current", value: "current" }, { label: "No current medications", value: "none_known" }, { label: "Discontinued", value: "discontinued" }, { label: "Entered in error", value: "entered_in_error" }], defaultValue: "current" }),
-    source: (0, import_fields24.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
-    sourceReference: (0, import_fields24.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
-    recordedAt: (0, import_fields24.timestamp)({ defaultValue: { kind: "now" }, validation: { isRequired: true } }),
-    organization: (0, import_fields24.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    patient: (0, import_fields24.relationship)({ ref: "PatientProfile.medications", db: requiredRelationshipDb }),
-    recordedBy: (0, import_fields24.relationship)({ ref: "User", db: requiredRelationshipDb }),
-    approval: (0, import_fields24.relationship)({ ref: "HumanApproval" }),
-    ...trackingFields
-  }
-});
-
-// features/keystone/models/PatientProfile.ts
-var import_core24 = require("@keystone-6/core");
-var import_access40 = require("@keystone-6/core/access");
-var import_fields25 = require("@keystone-6/core/fields");
 var privateRead = { read: permissions.canViewPatientPrivateData };
-var PatientProfile = (0, import_core24.list)({
+var PatientProfile = (0, import_core23.list)({
   access: {
     operation: {
-      query: import_access40.denyAll,
-      create: import_access40.denyAll,
-      update: import_access40.denyAll,
-      delete: import_access40.denyAll
+      query: import_access38.denyAll,
+      create: import_access38.denyAll,
+      update: import_access38.denyAll,
+      delete: import_access38.denyAll
     }
   },
   graphql: { omit: { create: true, update: true, delete: true } },
@@ -3062,21 +3075,21 @@ var PatientProfile = (0, import_core24.list)({
   },
   ui: { isHidden: true, listView: { initialColumns: ["displayName", "status", "patientNumber", "dateOfBirth"] } },
   fields: {
-    patientNumber: (0, import_fields25.text)({ validation: { isRequired: true }, isIndexed: "unique", access: privateRead }),
-    identityKey: (0, import_fields25.text)({ isIndexed: "unique", db: { isNullable: true }, access: privateRead }),
-    requestFingerprint: (0, import_fields25.text)({ db: { isNullable: true }, access: privateRead }),
-    firstName: (0, import_fields25.text)({ validation: { isRequired: true }, access: privateRead }),
-    lastName: (0, import_fields25.text)({ validation: { isRequired: true }, access: privateRead }),
-    displayName: (0, import_fields25.virtual)({
+    patientNumber: (0, import_fields24.text)({ validation: { isRequired: true }, isIndexed: "unique", access: privateRead }),
+    identityKey: (0, import_fields24.text)({ isIndexed: "unique", db: { isNullable: true }, access: privateRead }),
+    requestFingerprint: (0, import_fields24.text)({ db: { isNullable: true }, access: privateRead }),
+    firstName: (0, import_fields24.text)({ validation: { isRequired: true }, access: privateRead }),
+    lastName: (0, import_fields24.text)({ validation: { isRequired: true }, access: privateRead }),
+    displayName: (0, import_fields24.virtual)({
       access: privateRead,
-      field: import_core24.graphql.field({
-        type: import_core24.graphql.String,
+      field: import_core23.graphql.field({
+        type: import_core23.graphql.String,
         resolve(item) {
           return `${String(item.firstName || "")} ${String(item.lastName || "")}`.trim();
         }
       })
     }),
-    status: (0, import_fields25.select)({
+    status: (0, import_fields24.select)({
       type: "string",
       options: [
         { label: "Active", value: "active" },
@@ -3085,11 +3098,11 @@ var PatientProfile = (0, import_core24.list)({
       ],
       defaultValue: "active"
     }),
-    dateOfBirth: (0, import_fields25.timestamp)({ access: privateRead }),
-    email: (0, import_fields25.text)({ access: privateRead }),
-    phone: (0, import_fields25.text)({ access: privateRead }),
-    address: (0, import_fields25.json)({ access: privateRead }),
-    identityVerificationStatus: (0, import_fields25.select)({
+    dateOfBirth: (0, import_fields24.timestamp)({ access: privateRead }),
+    email: (0, import_fields24.text)({ access: privateRead }),
+    phone: (0, import_fields24.text)({ access: privateRead }),
+    address: (0, import_fields24.json)({ access: privateRead }),
+    identityVerificationStatus: (0, import_fields24.select)({
       type: "string",
       options: [
         { label: "Not recorded", value: "unverified" },
@@ -3097,13 +3110,13 @@ var PatientProfile = (0, import_core24.list)({
         { label: "Rejected mismatch", value: "rejected" }
       ],
       defaultValue: "unverified",
-      access: { ...privateRead, create: import_access40.denyAll, update: import_access40.denyAll }
+      access: { ...privateRead, create: import_access38.denyAll, update: import_access38.denyAll }
     }),
-    identityReference: (0, import_fields25.text)({ access: { ...privateRead, create: import_access40.denyAll, update: import_access40.denyAll } }),
-    identityVerifiedAt: (0, import_fields25.timestamp)({ access: { ...privateRead, create: import_access40.denyAll, update: import_access40.denyAll } }),
-    identityVerifiedBy: (0, import_fields25.relationship)({ ref: "User", access: { ...privateRead, create: import_access40.denyAll, update: import_access40.denyAll } }),
-    identityEvidence: (0, import_fields25.json)({ access: privateRead, ui: { description: "Operator-recorded identity matching evidence; not a government identity validation claim." } }),
-    preferredContactMethod: (0, import_fields25.select)({
+    identityReference: (0, import_fields24.text)({ access: { ...privateRead, create: import_access38.denyAll, update: import_access38.denyAll } }),
+    identityVerifiedAt: (0, import_fields24.timestamp)({ access: { ...privateRead, create: import_access38.denyAll, update: import_access38.denyAll } }),
+    identityVerifiedBy: (0, import_fields24.relationship)({ ref: "User", access: { ...privateRead, create: import_access38.denyAll, update: import_access38.denyAll } }),
+    identityEvidence: (0, import_fields24.json)({ access: privateRead, ui: { description: "Operator-recorded identity matching evidence; not a government identity validation claim." } }),
+    preferredContactMethod: (0, import_fields24.select)({
       access: privateRead,
       type: "string",
       options: [
@@ -3115,43 +3128,43 @@ var PatientProfile = (0, import_core24.list)({
       ],
       defaultValue: "none"
     }),
-    notes: (0, import_fields25.text)({ access: privateRead, ui: { displayMode: "textarea", description: "Minimum necessary operational note; do not use as a full medical record." } }),
-    user: (0, import_fields25.relationship)({ ref: "User.patientProfile" }),
-    organizations: (0, import_fields25.relationship)({ ref: "Organization.patients", many: true, db: requiredRelationshipDb }),
-    consents: (0, import_fields25.relationship)({ ref: "ConsentRecord.patient", many: true }),
-    allergies: (0, import_fields25.relationship)({ ref: "PatientAllergy.patient", many: true }),
-    medications: (0, import_fields25.relationship)({ ref: "PatientMedication.patient", many: true }),
-    safetyReviews: (0, import_fields25.relationship)({ ref: "ClinicalSafetyReview.patient", many: true }),
-    dispensingLabels: (0, import_fields25.relationship)({ ref: "DispensingLabel.patient", many: true }),
-    prescriptions: (0, import_fields25.relationship)({ ref: "Prescription.patient", many: true }),
-    refillRequests: (0, import_fields25.relationship)({ ref: "RefillRequest.patient", many: true }),
-    transfers: (0, import_fields25.relationship)({ ref: "PrescriptionTransfer.patient", many: true }),
-    orders: (0, import_fields25.relationship)({ ref: "Order.patient", many: true }),
-    auditEvents: (0, import_fields25.relationship)({ ref: "AuditEvent.patient", many: true }),
+    notes: (0, import_fields24.text)({ access: privateRead, ui: { displayMode: "textarea", description: "Minimum necessary operational note; do not use as a full medical record." } }),
+    user: (0, import_fields24.relationship)({ ref: "User.patientProfile" }),
+    organizations: (0, import_fields24.relationship)({ ref: "Organization.patients", many: true, db: requiredRelationshipDb }),
+    consents: (0, import_fields24.relationship)({ ref: "ConsentRecord.patient", many: true }),
+    allergies: (0, import_fields24.relationship)({ ref: "PatientAllergy.patient", many: true }),
+    medications: (0, import_fields24.relationship)({ ref: "PatientMedication.patient", many: true }),
+    safetyReviews: (0, import_fields24.relationship)({ ref: "ClinicalSafetyReview.patient", many: true }),
+    dispensingLabels: (0, import_fields24.relationship)({ ref: "DispensingLabel.patient", many: true }),
+    prescriptions: (0, import_fields24.relationship)({ ref: "Prescription.patient", many: true }),
+    refillRequests: (0, import_fields24.relationship)({ ref: "RefillRequest.patient", many: true }),
+    transfers: (0, import_fields24.relationship)({ ref: "PrescriptionTransfer.patient", many: true }),
+    orders: (0, import_fields24.relationship)({ ref: "Order.patient", many: true }),
+    auditEvents: (0, import_fields24.relationship)({ ref: "AuditEvent.patient", many: true }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Payment.ts
-var import_core25 = require("@keystone-6/core");
-var import_access42 = require("@keystone-6/core/access");
-var import_fields26 = require("@keystone-6/core/fields");
-var Payment = (0, import_core25.list)({
+var import_core24 = require("@keystone-6/core");
+var import_access40 = require("@keystone-6/core/access");
+var import_fields25 = require("@keystone-6/core/fields");
+var Payment = (0, import_core24.list)({
   access: {
     operation: {
       query: permissions.canManagePayments,
-      create: import_access42.denyAll,
-      update: import_access42.denyAll,
-      delete: import_access42.denyAll
+      create: import_access40.denyAll,
+      update: import_access40.denyAll,
+      delete: import_access40.denyAll
     },
     filter: { query: rules.canReadPayments }
   },
   graphql: { omit: { create: true, update: true, delete: true } },
   ui: { hideCreate: true, hideDelete: true },
   fields: {
-    amount: (0, import_fields26.integer)({ validation: { isRequired: true, min: 0 } }),
-    currencyCode: (0, import_fields26.text)({ validation: { isRequired: true }, defaultValue: "USD" }),
-    status: (0, import_fields26.select)({
+    amount: (0, import_fields25.integer)({ validation: { isRequired: true, min: 0 } }),
+    currencyCode: (0, import_fields25.text)({ validation: { isRequired: true }, defaultValue: "USD" }),
+    status: (0, import_fields25.select)({
       type: "string",
       options: [
         { label: "Pending", value: "pending" },
@@ -3164,28 +3177,28 @@ var Payment = (0, import_core25.list)({
       ],
       defaultValue: "pending"
     }),
-    tenderMethod: (0, import_fields26.select)({ type: "string", options: [{ label: "Provider", value: "provider" }, { label: "Operator-attested cash", value: "cash" }], defaultValue: "provider" }),
-    cashReceivedAmount: (0, import_fields26.integer)({ validation: { min: 0 } }),
-    changeDueAmount: (0, import_fields26.integer)({ validation: { min: 0 } }),
-    externalPaymentId: (0, import_fields26.text)({ isIndexed: true }),
-    processedAt: (0, import_fields26.timestamp)(),
-    data: (0, import_fields26.json)({ access: { read: permissions.canManagePayments } }),
-    organization: (0, import_fields26.relationship)({ ref: "Organization" }),
-    location: (0, import_fields26.relationship)({ ref: "PharmacyLocation" }),
-    order: (0, import_fields26.relationship)({ ref: "Order.payments", db: requiredRelationshipDb }),
-    provider: (0, import_fields26.relationship)({ ref: "PaymentProvider.payments" }),
-    session: (0, import_fields26.relationship)({ ref: "PaymentSession.payment" }),
-    recordedBy: (0, import_fields26.relationship)({ ref: "User" }),
-    approval: (0, import_fields26.relationship)({ ref: "HumanApproval" }),
+    tenderMethod: (0, import_fields25.select)({ type: "string", options: [{ label: "Provider", value: "provider" }, { label: "Operator-attested cash", value: "cash" }], defaultValue: "provider" }),
+    cashReceivedAmount: (0, import_fields25.integer)({ validation: { min: 0 } }),
+    changeDueAmount: (0, import_fields25.integer)({ validation: { min: 0 } }),
+    externalPaymentId: (0, import_fields25.text)({ isIndexed: true }),
+    processedAt: (0, import_fields25.timestamp)(),
+    data: (0, import_fields25.json)({ access: { read: permissions.canManagePayments } }),
+    organization: (0, import_fields25.relationship)({ ref: "Organization" }),
+    location: (0, import_fields25.relationship)({ ref: "PharmacyLocation" }),
+    order: (0, import_fields25.relationship)({ ref: "Order.payments", db: requiredRelationshipDb }),
+    provider: (0, import_fields25.relationship)({ ref: "PaymentProvider.payments" }),
+    session: (0, import_fields25.relationship)({ ref: "PaymentSession.payment" }),
+    recordedBy: (0, import_fields25.relationship)({ ref: "User" }),
+    approval: (0, import_fields25.relationship)({ ref: "HumanApproval" }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PaymentProvider.ts
-var import_core26 = require("@keystone-6/core");
-var import_access44 = require("@keystone-6/core/access");
-var import_fields27 = require("@keystone-6/core/fields");
-var PaymentProvider = (0, import_core26.list)({
+var import_core25 = require("@keystone-6/core");
+var import_access42 = require("@keystone-6/core/access");
+var import_fields26 = require("@keystone-6/core/fields");
+var PaymentProvider = (0, import_core25.list)({
   access: {
     operation: {
       query: permissions.canManagePayments,
@@ -3223,9 +3236,9 @@ var PaymentProvider = (0, import_core26.list)({
     }
   },
   fields: {
-    providerKey: (0, import_fields27.text)({ isIndexed: "unique", access: { update: import_access44.denyAll } }),
-    name: (0, import_fields27.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields27.text)({
+    providerKey: (0, import_fields26.text)({ isIndexed: "unique", access: { update: import_access42.denyAll } }),
+    name: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields26.text)({
       isIndexed: true,
       validation: {
         isRequired: true,
@@ -3235,44 +3248,44 @@ var PaymentProvider = (0, import_core26.list)({
         }
       }
     }),
-    isInstalled: (0, import_fields27.checkbox)({ defaultValue: false }),
-    credentials: (0, import_fields27.json)({ access: { read: import_access44.denyAll } }),
-    metadata: (0, import_fields27.json)(),
-    createPaymentFunction: (0, import_fields27.text)({ validation: { isRequired: true } }),
-    capturePaymentFunction: (0, import_fields27.text)({ validation: { isRequired: true } }),
-    refundPaymentFunction: (0, import_fields27.text)({ validation: { isRequired: true } }),
-    getPaymentStatusFunction: (0, import_fields27.text)({ validation: { isRequired: true } }),
-    generatePaymentLinkFunction: (0, import_fields27.text)({ validation: { isRequired: true } }),
-    handleWebhookFunction: (0, import_fields27.text)({ validation: { isRequired: true } }),
-    organization: (0, import_fields27.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    integrationProvider: (0, import_fields27.relationship)({ ref: "IntegrationProvider.paymentProviders" }),
-    paymentSessions: (0, import_fields27.relationship)({ ref: "PaymentSession.provider", many: true }),
-    payments: (0, import_fields27.relationship)({ ref: "Payment.provider", many: true }),
-    webhookEvents: (0, import_fields27.relationship)({ ref: "PaymentWebhookEvent.provider", many: true }),
+    isInstalled: (0, import_fields26.checkbox)({ defaultValue: false }),
+    credentials: (0, import_fields26.json)({ access: { read: import_access42.denyAll } }),
+    metadata: (0, import_fields26.json)(),
+    createPaymentFunction: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    capturePaymentFunction: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    refundPaymentFunction: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    getPaymentStatusFunction: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    generatePaymentLinkFunction: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    handleWebhookFunction: (0, import_fields26.text)({ validation: { isRequired: true } }),
+    organization: (0, import_fields26.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    integrationProvider: (0, import_fields26.relationship)({ ref: "IntegrationProvider.paymentProviders" }),
+    paymentSessions: (0, import_fields26.relationship)({ ref: "PaymentSession.provider", many: true }),
+    payments: (0, import_fields26.relationship)({ ref: "Payment.provider", many: true }),
+    webhookEvents: (0, import_fields26.relationship)({ ref: "PaymentWebhookEvent.provider", many: true }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PaymentSession.ts
-var import_core27 = require("@keystone-6/core");
-var import_access46 = require("@keystone-6/core/access");
-var import_fields28 = require("@keystone-6/core/fields");
-var PaymentSession = (0, import_core27.list)({
+var import_core26 = require("@keystone-6/core");
+var import_access44 = require("@keystone-6/core/access");
+var import_fields27 = require("@keystone-6/core/fields");
+var PaymentSession = (0, import_core26.list)({
   access: {
     operation: {
       query: permissions.canManagePayments,
-      create: import_access46.denyAll,
-      update: import_access46.denyAll,
-      delete: import_access46.denyAll
+      create: import_access44.denyAll,
+      update: import_access44.denyAll,
+      delete: import_access44.denyAll
     },
     filter: { query: rules.canReadPaymentSessions }
   },
   graphql: { omit: { create: true, update: true, delete: true } },
   ui: { hideCreate: true, hideDelete: true },
   fields: {
-    amount: (0, import_fields28.integer)({ validation: { isRequired: true, min: 0 } }),
-    currencyCode: (0, import_fields28.text)({ validation: { isRequired: true }, defaultValue: "USD" }),
-    status: (0, import_fields28.select)({
+    amount: (0, import_fields27.integer)({ validation: { isRequired: true, min: 0 } }),
+    currencyCode: (0, import_fields27.text)({ validation: { isRequired: true }, defaultValue: "USD" }),
+    status: (0, import_fields27.select)({
       type: "string",
       options: [
         { label: "Pending", value: "pending" },
@@ -3287,10 +3300,10 @@ var PaymentSession = (0, import_core27.list)({
       ],
       defaultValue: "pending"
     }),
-    isSelected: (0, import_fields28.checkbox)({ defaultValue: true }),
-    idempotencyKey: (0, import_fields28.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    externalPaymentId: (0, import_fields28.text)({ isIndexed: true, db: { isNullable: true } }),
-    reconciliationStatus: (0, import_fields28.select)({
+    isSelected: (0, import_fields27.checkbox)({ defaultValue: true }),
+    idempotencyKey: (0, import_fields27.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    externalPaymentId: (0, import_fields27.text)({ isIndexed: true, db: { isNullable: true } }),
+    reconciliationStatus: (0, import_fields27.select)({
       type: "string",
       options: [
         { label: "Pending", value: "pending" },
@@ -3302,31 +3315,31 @@ var PaymentSession = (0, import_core27.list)({
       ],
       defaultValue: "pending"
     }),
-    reconciliationAttempts: (0, import_fields28.integer)({ validation: { min: 0 }, defaultValue: 0 }),
-    lastReconciledAt: (0, import_fields28.timestamp)(),
-    failureReason: (0, import_fields28.text)({ db: { isNullable: true }, ui: { displayMode: "textarea" } }),
-    data: (0, import_fields28.json)({ access: { read: permissions.canManagePayments } }),
-    organization: (0, import_fields28.relationship)({ ref: "Organization" }),
-    location: (0, import_fields28.relationship)({ ref: "PharmacyLocation" }),
-    cart: (0, import_fields28.relationship)({ ref: "Cart.paymentSessions", db: requiredRelationshipDb }),
-    provider: (0, import_fields28.relationship)({ ref: "PaymentProvider.paymentSessions", db: requiredRelationshipDb }),
-    payment: (0, import_fields28.relationship)({ ref: "Payment.session" }),
+    reconciliationAttempts: (0, import_fields27.integer)({ validation: { min: 0 }, defaultValue: 0 }),
+    lastReconciledAt: (0, import_fields27.timestamp)(),
+    failureReason: (0, import_fields27.text)({ db: { isNullable: true }, ui: { displayMode: "textarea" } }),
+    data: (0, import_fields27.json)({ access: { read: permissions.canManagePayments } }),
+    organization: (0, import_fields27.relationship)({ ref: "Organization" }),
+    location: (0, import_fields27.relationship)({ ref: "PharmacyLocation" }),
+    cart: (0, import_fields27.relationship)({ ref: "Cart.paymentSessions", db: requiredRelationshipDb }),
+    provider: (0, import_fields27.relationship)({ ref: "PaymentProvider.paymentSessions", db: requiredRelationshipDb }),
+    payment: (0, import_fields27.relationship)({ ref: "Payment.session" }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PaymentWebhookEvent.ts
-var import_core28 = require("@keystone-6/core");
-var import_access48 = require("@keystone-6/core/access");
-var import_fields29 = require("@keystone-6/core/fields");
-var PaymentWebhookEvent = (0, import_core28.list)({
-  access: { operation: { query: import_access48.denyAll, create: import_access48.denyAll, update: import_access48.denyAll, delete: import_access48.denyAll } },
+var import_core27 = require("@keystone-6/core");
+var import_access46 = require("@keystone-6/core/access");
+var import_fields28 = require("@keystone-6/core/fields");
+var PaymentWebhookEvent = (0, import_core27.list)({
+  access: { operation: { query: import_access46.denyAll, create: import_access46.denyAll, update: import_access46.denyAll, delete: import_access46.denyAll } },
   graphql: { omit: { create: true, update: true, delete: true } },
   fields: {
-    eventKey: (0, import_fields29.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    externalEventId: (0, import_fields29.text)({ validation: { isRequired: true }, isIndexed: true }),
-    eventType: (0, import_fields29.text)({ validation: { isRequired: true } }),
-    status: (0, import_fields29.select)({
+    eventKey: (0, import_fields28.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    externalEventId: (0, import_fields28.text)({ validation: { isRequired: true }, isIndexed: true }),
+    eventType: (0, import_fields28.text)({ validation: { isRequired: true } }),
+    status: (0, import_fields28.select)({
       type: "string",
       options: [
         { label: "Received", value: "received" },
@@ -3336,20 +3349,20 @@ var PaymentWebhookEvent = (0, import_core28.list)({
       ],
       defaultValue: "received"
     }),
-    resource: (0, import_fields29.json)(),
-    error: (0, import_fields29.text)({ ui: { displayMode: "textarea" } }),
-    receivedAt: (0, import_fields29.timestamp)({ defaultValue: { kind: "now" } }),
-    processedAt: (0, import_fields29.timestamp)(),
-    organization: (0, import_fields29.relationship)({ ref: "Organization.paymentWebhookEvents", db: requiredRelationshipDb }),
-    provider: (0, import_fields29.relationship)({ ref: "PaymentProvider.webhookEvents", db: requiredRelationshipDb }),
+    resource: (0, import_fields28.json)(),
+    error: (0, import_fields28.text)({ ui: { displayMode: "textarea" } }),
+    receivedAt: (0, import_fields28.timestamp)({ defaultValue: { kind: "now" } }),
+    processedAt: (0, import_fields28.timestamp)(),
+    organization: (0, import_fields28.relationship)({ ref: "Organization.paymentWebhookEvents", db: requiredRelationshipDb }),
+    provider: (0, import_fields28.relationship)({ ref: "PaymentProvider.webhookEvents", db: requiredRelationshipDb }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PharmacyLocation.ts
-var import_core29 = require("@keystone-6/core");
-var import_access49 = require("@keystone-6/core/access");
-var import_fields30 = require("@keystone-6/core/fields");
+var import_core28 = require("@keystone-6/core");
+var import_access47 = require("@keystone-6/core/access");
+var import_fields29 = require("@keystone-6/core/fields");
 
 // features/pharmacy/hours.ts
 var TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -3378,13 +3391,13 @@ function weeklyHoursError(value) {
 var DEFAULT_WEEK = [null, ...Array.from({ length: 5 }, () => ({ open: "09:00", close: "19:00" })), { open: "09:00", close: "17:00" }];
 
 // features/keystone/models/PharmacyLocation.ts
-var PharmacyLocation = (0, import_core29.list)({
+var PharmacyLocation = (0, import_core28.list)({
   access: {
     operation: {
       query: isSignedIn,
       create: permissions.canManageLocations,
       update: permissions.canManageLocations,
-      delete: import_access49.denyAll
+      delete: import_access47.denyAll
     },
     filter: { query: rules.canReadLocations, update: rules.canReadLocations, delete: rules.canReadLocations }
   },
@@ -3415,9 +3428,9 @@ var PharmacyLocation = (0, import_core29.list)({
   graphql: { omit: { delete: true } },
   ui: { hideDelete: true, listView: { initialColumns: ["name", "code", "status", "organization"] } },
   fields: {
-    name: (0, import_fields30.text)({ validation: { isRequired: true } }),
-    code: (0, import_fields30.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    status: (0, import_fields30.select)({
+    name: (0, import_fields29.text)({ validation: { isRequired: true } }),
+    code: (0, import_fields29.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    status: (0, import_fields29.select)({
       type: "string",
       options: [
         { label: "Active", value: "active" },
@@ -3426,39 +3439,38 @@ var PharmacyLocation = (0, import_core29.list)({
       ],
       defaultValue: "active"
     }),
-    organization: (0, import_fields30.relationship)({ ref: "Organization.locations", db: requiredRelationshipDb }),
-    memberships: (0, import_fields30.relationship)({ ref: "OrganizationMembership.location", many: true, access: immutableRelationship }),
-    address: (0, import_fields30.json)({ ui: { description: "Operational address only; validate jurisdiction-specific requirements externally." } }),
-    timezone: (0, import_fields30.text)({ defaultValue: "America/New_York" }),
+    organization: (0, import_fields29.relationship)({ ref: "Organization.locations", db: requiredRelationshipDb }),
+    memberships: (0, import_fields29.relationship)({ ref: "OrganizationMembership.location", many: true, access: immutableRelationship }),
+    address: (0, import_fields29.json)({ ui: { description: "Operational address only; validate jurisdiction-specific requirements externally." } }),
+    timezone: (0, import_fields29.text)({ defaultValue: "America/New_York" }),
     // Weekly hours: { store: Day[7], pharmacy: Day[7] }, Sunday first; a Day is { open: 'HH:MM', close: 'HH:MM' } or null when closed.
-    hours: (0, import_fields30.json)({ ui: { description: "Weekly store and pharmacy counter hours, edited in Store Settings." } }),
-    phone: (0, import_fields30.text)(),
-    onlineOrderingEnabled: (0, import_fields30.checkbox)({ defaultValue: true, access: { create: permissions.canManageLocations, update: permissions.canManageLocations } }),
-    pickupEnabled: (0, import_fields30.checkbox)({ defaultValue: true }),
-    deliveryEnabled: (0, import_fields30.checkbox)({ defaultValue: false, access: { create: permissions.canManageLocations, update: permissions.canManageLocations } }),
-    products: (0, import_fields30.relationship)({ ref: "Product.location", many: true, access: immutableRelationship }),
-    inventoryLots: (0, import_fields30.relationship)({ ref: "InventoryLot.location", many: true, access: immutableRelationship }),
-    prescriptions: (0, import_fields30.relationship)({ ref: "Prescription.location", many: true, access: immutableRelationship }),
-    recalls: (0, import_fields30.relationship)({ ref: "Recall.location", many: true, access: immutableRelationship }),
-    orders: (0, import_fields30.relationship)({ ref: "Order.location", many: true, access: immutableRelationship }),
-    outboxEvents: (0, import_fields30.relationship)({ ref: "OutboxEvent.location", many: true, access: immutableRelationship }),
-    machineCredentials: (0, import_fields30.relationship)({ ref: "MachineCredential.location", many: true, access: immutableRelationship }),
-    externalIntegrationWorkflows: (0, import_fields30.relationship)({ ref: "ExternalIntegrationWorkflow.location", many: true, access: immutableRelationship }),
+    hours: (0, import_fields29.json)({ ui: { description: "Weekly store and pharmacy counter hours, edited in Store Settings." } }),
+    phone: (0, import_fields29.text)(),
+    onlineOrderingEnabled: (0, import_fields29.checkbox)({ defaultValue: true, access: { create: permissions.canManageLocations, update: permissions.canManageLocations } }),
+    pickupEnabled: (0, import_fields29.checkbox)({ defaultValue: true }),
+    deliveryEnabled: (0, import_fields29.checkbox)({ defaultValue: false, access: { create: permissions.canManageLocations, update: permissions.canManageLocations } }),
+    products: (0, import_fields29.relationship)({ ref: "Product.location", many: true, access: immutableRelationship }),
+    inventoryLots: (0, import_fields29.relationship)({ ref: "InventoryLot.location", many: true, access: immutableRelationship }),
+    prescriptions: (0, import_fields29.relationship)({ ref: "Prescription.location", many: true, access: immutableRelationship }),
+    recalls: (0, import_fields29.relationship)({ ref: "Recall.location", many: true, access: immutableRelationship }),
+    orders: (0, import_fields29.relationship)({ ref: "Order.location", many: true, access: immutableRelationship }),
+    machineCredentials: (0, import_fields29.relationship)({ ref: "MachineCredential.location", many: true, access: immutableRelationship }),
+    externalIntegrationWorkflows: (0, import_fields29.relationship)({ ref: "ExternalIntegrationWorkflow.location", many: true, access: immutableRelationship }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Prescriber.ts
-var import_core30 = require("@keystone-6/core");
-var import_access51 = require("@keystone-6/core/access");
-var import_fields31 = require("@keystone-6/core/fields");
-var Prescriber = (0, import_core30.list)({
+var import_core29 = require("@keystone-6/core");
+var import_access49 = require("@keystone-6/core/access");
+var import_fields30 = require("@keystone-6/core/fields");
+var Prescriber = (0, import_core29.list)({
   access: {
     operation: {
       query: isSignedIn,
       create: permissions.canManagePrescriptions,
       update: permissions.canManagePrescriptions,
-      delete: import_access51.denyAll
+      delete: import_access49.denyAll
     },
     filter: { query: rules.canReadOrganizationRecords, update: rules.canReadOrganizationRecords }
   },
@@ -3481,12 +3493,12 @@ var Prescriber = (0, import_core30.list)({
   graphql: { omit: { delete: true } },
   ui: { hideDelete: true, listView: { initialColumns: ["name", "npi", "verificationStatus", "credentialExpiresAt", "organization"] } },
   fields: {
-    name: (0, import_fields31.text)({ validation: { isRequired: true } }),
-    npi: (0, import_fields31.text)({ isIndexed: true }),
-    phone: (0, import_fields31.text)(),
-    fax: (0, import_fields31.text)(),
-    externalIdentifier: (0, import_fields31.text)(),
-    verificationStatus: (0, import_fields31.select)({
+    name: (0, import_fields30.text)({ validation: { isRequired: true } }),
+    npi: (0, import_fields30.text)({ isIndexed: true }),
+    phone: (0, import_fields30.text)(),
+    fax: (0, import_fields30.text)(),
+    externalIdentifier: (0, import_fields30.text)(),
+    verificationStatus: (0, import_fields30.select)({
       type: "string",
       options: [
         { label: "Unverified", value: "unverified" },
@@ -3496,8 +3508,8 @@ var Prescriber = (0, import_core30.list)({
       ],
       defaultValue: "unverified"
     }),
-    externalValidationComplete: (0, import_fields31.checkbox)({ defaultValue: false, access: { update: import_access51.denyAll }, ui: { description: "Recorded evidence flag; not a software licensure claim." } }),
-    verificationMethod: (0, import_fields31.select)({
+    externalValidationComplete: (0, import_fields30.checkbox)({ defaultValue: false, access: { update: import_access49.denyAll }, ui: { description: "Recorded evidence flag; not a software licensure claim." } }),
+    verificationMethod: (0, import_fields30.select)({
       type: "string",
       options: [
         { label: "Not recorded", value: "not_recorded" },
@@ -3505,26 +3517,26 @@ var Prescriber = (0, import_core30.list)({
         { label: "Contracted external provider", value: "external_provider" }
       ],
       defaultValue: "not_recorded",
-      access: { update: import_access51.denyAll }
+      access: { update: import_access49.denyAll }
     }),
-    credentialType: (0, import_fields31.text)({ access: { update: import_access51.denyAll } }),
-    credentialJurisdiction: (0, import_fields31.text)({ access: { update: import_access51.denyAll } }),
-    credentialIdentifier: (0, import_fields31.text)({ access: { update: import_access51.denyAll } }),
-    credentialExpiresAt: (0, import_fields31.timestamp)({ access: { update: import_access51.denyAll } }),
-    validationReference: (0, import_fields31.text)({ access: { update: import_access51.denyAll } }),
-    validatedAt: (0, import_fields31.timestamp)({ access: { update: import_access51.denyAll } }),
-    verifiedBy: (0, import_fields31.relationship)({ ref: "User", access: { update: import_access51.denyAll } }),
-    organization: (0, import_fields31.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    integrationProvider: (0, import_fields31.relationship)({ ref: "IntegrationProvider.prescribers" }),
-    prescriptions: (0, import_fields31.relationship)({ ref: "Prescription.prescriber", many: true, access: immutableRelationship }),
+    credentialType: (0, import_fields30.text)({ access: { update: import_access49.denyAll } }),
+    credentialJurisdiction: (0, import_fields30.text)({ access: { update: import_access49.denyAll } }),
+    credentialIdentifier: (0, import_fields30.text)({ access: { update: import_access49.denyAll } }),
+    credentialExpiresAt: (0, import_fields30.timestamp)({ access: { update: import_access49.denyAll } }),
+    validationReference: (0, import_fields30.text)({ access: { update: import_access49.denyAll } }),
+    validatedAt: (0, import_fields30.timestamp)({ access: { update: import_access49.denyAll } }),
+    verifiedBy: (0, import_fields30.relationship)({ ref: "User", access: { update: import_access49.denyAll } }),
+    organization: (0, import_fields30.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    integrationProvider: (0, import_fields30.relationship)({ ref: "IntegrationProvider.prescribers" }),
+    prescriptions: (0, import_fields30.relationship)({ ref: "Prescription.prescriber", many: true, access: immutableRelationship }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Prescription.ts
-var import_core31 = require("@keystone-6/core");
-var import_access53 = require("@keystone-6/core/access");
-var import_fields32 = require("@keystone-6/core/fields");
+var import_core30 = require("@keystone-6/core");
+var import_access51 = require("@keystone-6/core/access");
+var import_fields31 = require("@keystone-6/core/fields");
 
 // features/keystone/workflows/pharmacy-state.ts
 var prescriptionTransitions = {
@@ -3637,13 +3649,13 @@ function lotAfterExcursionDisposition(disposition, lot, otherOpenExcursions) {
 }
 
 // features/keystone/models/Prescription.ts
-var Prescription = (0, import_core31.list)({
+var Prescription = (0, import_core30.list)({
   access: {
     operation: {
       query: isSignedIn,
-      create: import_access53.denyAll,
-      update: import_access53.denyAll,
-      delete: import_access53.denyAll
+      create: import_access51.denyAll,
+      update: import_access51.denyAll,
+      delete: import_access51.denyAll
     },
     filter: { query: rules.canReadPrescriptionRecords, update: rules.canReadPrescriptionRecords }
   },
@@ -3685,9 +3697,9 @@ var Prescription = (0, import_core31.list)({
   },
   ui: { hideCreate: true, listView: { initialColumns: ["prescriptionNumber", "patient", "source", "status", "location"] } },
   fields: {
-    prescriptionNumber: (0, import_fields32.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    intakeRequestFingerprint: (0, import_fields32.text)({ db: { isNullable: true }, access: { read: import_access53.denyAll, create: import_access53.denyAll, update: import_access53.denyAll } }),
-    source: (0, import_fields32.select)({
+    prescriptionNumber: (0, import_fields31.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    intakeRequestFingerprint: (0, import_fields31.text)({ db: { isNullable: true }, access: { read: import_access51.denyAll, create: import_access51.denyAll, update: import_access51.denyAll } }),
+    source: (0, import_fields31.select)({
       type: "string",
       options: [
         { label: "Paper", value: "paper" },
@@ -3698,7 +3710,7 @@ var Prescription = (0, import_core31.list)({
       ],
       defaultValue: "manual"
     }),
-    sourceVerificationStatus: (0, import_fields32.select)({
+    sourceVerificationStatus: (0, import_fields31.select)({
       type: "string",
       options: [
         { label: "Unverified", value: "unverified" },
@@ -3708,8 +3720,8 @@ var Prescription = (0, import_core31.list)({
       ],
       defaultValue: "unverified"
     }),
-    externalReference: (0, import_fields32.text)({ access: { read: permissions.canViewPatientPrivateData } }),
-    status: (0, import_fields32.select)({
+    externalReference: (0, import_fields31.text)({ access: { read: permissions.canViewPatientPrivateData } }),
+    status: (0, import_fields31.select)({
       access: { update: () => false },
       type: "string",
       options: [
@@ -3727,33 +3739,33 @@ var Prescription = (0, import_core31.list)({
       ],
       defaultValue: "draft"
     }),
-    writtenAt: (0, import_fields32.timestamp)(),
-    expiresAt: (0, import_fields32.timestamp)(),
-    approvedAt: (0, import_fields32.timestamp)({ access: { update: () => false } }),
-    dispensedAt: (0, import_fields32.timestamp)({ access: { update: () => false } }),
-    organization: (0, import_fields32.relationship)({ ref: "Organization.prescriptions", db: requiredRelationshipDb }),
-    location: (0, import_fields32.relationship)({ ref: "PharmacyLocation.prescriptions", db: requiredRelationshipDb }),
-    patient: (0, import_fields32.relationship)({ ref: "PatientProfile.prescriptions", db: requiredRelationshipDb }),
-    prescriber: (0, import_fields32.relationship)({ ref: "Prescriber.prescriptions", db: requiredRelationshipDb }),
-    items: (0, import_fields32.relationship)({ ref: "PrescriptionItem.prescription", many: true }),
-    reviews: (0, import_fields32.relationship)({ ref: "PrescriptionReview.prescription", many: true }),
-    safetyReviews: (0, import_fields32.relationship)({ ref: "ClinicalSafetyReview.prescription", many: true }),
-    dispensingLabels: (0, import_fields32.relationship)({ ref: "DispensingLabel.prescription", many: true }),
-    refillRequests: (0, import_fields32.relationship)({ ref: "RefillRequest.prescription", many: true }),
-    transfers: (0, import_fields32.relationship)({ ref: "PrescriptionTransfer.prescription", many: true }),
-    approval: (0, import_fields32.relationship)({ ref: "HumanApproval.prescriptions" }),
-    orders: (0, import_fields32.relationship)({ ref: "Order.prescription", many: true }),
+    writtenAt: (0, import_fields31.timestamp)(),
+    expiresAt: (0, import_fields31.timestamp)(),
+    approvedAt: (0, import_fields31.timestamp)({ access: { update: () => false } }),
+    dispensedAt: (0, import_fields31.timestamp)({ access: { update: () => false } }),
+    organization: (0, import_fields31.relationship)({ ref: "Organization.prescriptions", db: requiredRelationshipDb }),
+    location: (0, import_fields31.relationship)({ ref: "PharmacyLocation.prescriptions", db: requiredRelationshipDb }),
+    patient: (0, import_fields31.relationship)({ ref: "PatientProfile.prescriptions", db: requiredRelationshipDb }),
+    prescriber: (0, import_fields31.relationship)({ ref: "Prescriber.prescriptions", db: requiredRelationshipDb }),
+    items: (0, import_fields31.relationship)({ ref: "PrescriptionItem.prescription", many: true }),
+    reviews: (0, import_fields31.relationship)({ ref: "PrescriptionReview.prescription", many: true }),
+    safetyReviews: (0, import_fields31.relationship)({ ref: "ClinicalSafetyReview.prescription", many: true }),
+    dispensingLabels: (0, import_fields31.relationship)({ ref: "DispensingLabel.prescription", many: true }),
+    refillRequests: (0, import_fields31.relationship)({ ref: "RefillRequest.prescription", many: true }),
+    transfers: (0, import_fields31.relationship)({ ref: "PrescriptionTransfer.prescription", many: true }),
+    approval: (0, import_fields31.relationship)({ ref: "HumanApproval.prescriptions" }),
+    orders: (0, import_fields31.relationship)({ ref: "Order.prescription", many: true }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PrescriptionFill.ts
-var import_core32 = require("@keystone-6/core");
-var import_access55 = require("@keystone-6/core/access");
-var import_fields33 = require("@keystone-6/core/fields");
-var PrescriptionFill = (0, import_core32.list)({
+var import_core31 = require("@keystone-6/core");
+var import_access53 = require("@keystone-6/core/access");
+var import_fields32 = require("@keystone-6/core/fields");
+var PrescriptionFill = (0, import_core31.list)({
   access: {
-    operation: { query: isSignedIn, create: import_access55.denyAll, update: import_access55.denyAll, delete: import_access55.denyAll },
+    operation: { query: isSignedIn, create: import_access53.denyAll, update: import_access53.denyAll, delete: import_access53.denyAll },
     filter: { query: rules.canReadPrescriptionChildren }
   },
   graphql: { omit: { create: true, update: true, delete: true } },
@@ -3764,42 +3776,42 @@ var PrescriptionFill = (0, import_core32.list)({
   } },
   ui: { hideCreate: true },
   fields: {
-    reservationKey: (0, import_fields33.text)({ isIndexed: "unique" }),
-    requestFingerprint: (0, import_fields33.text)({ access: { read: import_access55.denyAll } }),
-    openKey: (0, import_fields33.text)({ isIndexed: "unique", db: { isNullable: true } }),
-    kind: (0, import_fields33.text)(),
-    status: (0, import_fields33.text)({ defaultValue: "requested" }),
-    version: (0, import_fields33.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1 } }),
-    fillNumber: (0, import_fields33.integer)({ validation: { isRequired: true, min: 1 } }),
-    creditState: (0, import_fields33.text)({ defaultValue: "reserved" }),
-    authorizedQuantity: (0, import_fields33.integer)({ validation: { isRequired: true, min: 1 } }),
-    quantityDispensed: (0, import_fields33.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    quantityReleased: (0, import_fields33.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
-    itemVersion: (0, import_fields33.text)(),
-    authorityVersion: (0, import_fields33.text)(),
-    policySnapshot: (0, import_fields33.json)(),
-    priceSnapshot: (0, import_fields33.json)(),
-    expiresAt: (0, import_fields33.timestamp)({ validation: { isRequired: true } }),
-    organization: (0, import_fields33.relationship)({ ref: "Organization", access: immutableRelationship, db: requiredRelationshipDb }),
-    location: (0, import_fields33.relationship)({ ref: "PharmacyLocation", access: immutableRelationship, db: requiredRelationshipDb }),
-    patient: (0, import_fields33.relationship)({ ref: "PatientProfile", access: immutableRelationship, db: requiredRelationshipDb }),
-    prescription: (0, import_fields33.relationship)({ ref: "Prescription", access: immutableRelationship, db: requiredRelationshipDb }),
-    prescriptionItem: (0, import_fields33.relationship)({ ref: "PrescriptionItem", access: immutableRelationship, db: requiredRelationshipDb }),
-    refillRequest: (0, import_fields33.relationship)({ ref: "RefillRequest", access: immutableRelationship }),
-    approval: (0, import_fields33.relationship)({ ref: "HumanApproval", access: immutableRelationship }),
-    reservedBy: (0, import_fields33.relationship)({ ref: "User", access: immutableRelationship, db: requiredRelationshipDb }),
+    reservationKey: (0, import_fields32.text)({ isIndexed: "unique" }),
+    requestFingerprint: (0, import_fields32.text)({ access: { read: import_access53.denyAll } }),
+    openKey: (0, import_fields32.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    kind: (0, import_fields32.text)(),
+    status: (0, import_fields32.text)({ defaultValue: "requested" }),
+    version: (0, import_fields32.integer)({ defaultValue: 1, validation: { isRequired: true, min: 1 } }),
+    fillNumber: (0, import_fields32.integer)({ validation: { isRequired: true, min: 1 } }),
+    creditState: (0, import_fields32.text)({ defaultValue: "reserved" }),
+    authorizedQuantity: (0, import_fields32.integer)({ validation: { isRequired: true, min: 1 } }),
+    quantityDispensed: (0, import_fields32.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    quantityReleased: (0, import_fields32.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    itemVersion: (0, import_fields32.text)(),
+    authorityVersion: (0, import_fields32.text)(),
+    policySnapshot: (0, import_fields32.json)(),
+    priceSnapshot: (0, import_fields32.json)(),
+    expiresAt: (0, import_fields32.timestamp)({ validation: { isRequired: true } }),
+    organization: (0, import_fields32.relationship)({ ref: "Organization", access: immutableRelationship, db: requiredRelationshipDb }),
+    location: (0, import_fields32.relationship)({ ref: "PharmacyLocation", access: immutableRelationship, db: requiredRelationshipDb }),
+    patient: (0, import_fields32.relationship)({ ref: "PatientProfile", access: immutableRelationship, db: requiredRelationshipDb }),
+    prescription: (0, import_fields32.relationship)({ ref: "Prescription", access: immutableRelationship, db: requiredRelationshipDb }),
+    prescriptionItem: (0, import_fields32.relationship)({ ref: "PrescriptionItem", access: immutableRelationship, db: requiredRelationshipDb }),
+    refillRequest: (0, import_fields32.relationship)({ ref: "RefillRequest", access: immutableRelationship }),
+    approval: (0, import_fields32.relationship)({ ref: "HumanApproval", access: immutableRelationship }),
+    reservedBy: (0, import_fields32.relationship)({ ref: "User", access: immutableRelationship, db: requiredRelationshipDb }),
     // No inverse fields: omitted lists must not acquire parent-side write paths.
     ...trackingFields
   }
 });
 
 // features/keystone/models/PrescriptionFillEvent.ts
-var import_core33 = require("@keystone-6/core");
-var import_access57 = require("@keystone-6/core/access");
-var import_fields34 = require("@keystone-6/core/fields");
-var PrescriptionFillEvent = (0, import_core33.list)({
+var import_core32 = require("@keystone-6/core");
+var import_access55 = require("@keystone-6/core/access");
+var import_fields33 = require("@keystone-6/core/fields");
+var PrescriptionFillEvent = (0, import_core32.list)({
   access: {
-    operation: { query: isSignedIn, create: import_access57.denyAll, update: import_access57.denyAll, delete: import_access57.denyAll },
+    operation: { query: isSignedIn, create: import_access55.denyAll, update: import_access55.denyAll, delete: import_access55.denyAll },
     filter: { query: rules.canReadPrescriptionChildren }
   },
   graphql: { omit: { create: true, update: true, delete: true } },
@@ -3808,33 +3820,33 @@ var PrescriptionFillEvent = (0, import_core33.list)({
   } },
   ui: { hideCreate: true },
   fields: {
-    eventKey: (0, import_fields34.text)({ isIndexed: "unique" }),
-    commandFingerprint: (0, import_fields34.text)({ access: { read: import_access57.denyAll } }),
-    action: (0, import_fields34.text)(),
-    version: (0, import_fields34.integer)({ validation: { isRequired: true, min: 1 } }),
-    quantity: (0, import_fields34.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
+    eventKey: (0, import_fields33.text)({ isIndexed: "unique" }),
+    commandFingerprint: (0, import_fields33.text)({ access: { read: import_access55.denyAll } }),
+    action: (0, import_fields33.text)(),
+    version: (0, import_fields33.integer)({ validation: { isRequired: true, min: 1 } }),
+    quantity: (0, import_fields33.integer)({ defaultValue: 0, validation: { isRequired: true, min: 0 } }),
     // Snapshot is privileged evidence, never returned as raw patient JSON.
-    evidence: (0, import_fields34.json)({ access: { read: permissions.canViewPatientPrivateData } }),
-    result: (0, import_fields34.json)({ access: { read: permissions.canViewPatientPrivateData } }),
-    fill: (0, import_fields34.relationship)({ ref: "PrescriptionFill", access: immutableRelationship, db: requiredRelationshipDb }),
-    prescription: (0, import_fields34.relationship)({ ref: "Prescription", access: immutableRelationship, db: requiredRelationshipDb }),
-    actor: (0, import_fields34.relationship)({ ref: "User", access: immutableRelationship, db: requiredRelationshipDb }),
-    approval: (0, import_fields34.relationship)({ ref: "HumanApproval", access: immutableRelationship }),
+    evidence: (0, import_fields33.json)({ access: { read: permissions.canViewPatientPrivateData } }),
+    result: (0, import_fields33.json)({ access: { read: permissions.canViewPatientPrivateData } }),
+    fill: (0, import_fields33.relationship)({ ref: "PrescriptionFill", access: immutableRelationship, db: requiredRelationshipDb }),
+    prescription: (0, import_fields33.relationship)({ ref: "Prescription", access: immutableRelationship, db: requiredRelationshipDb }),
+    actor: (0, import_fields33.relationship)({ ref: "User", access: immutableRelationship, db: requiredRelationshipDb }),
+    approval: (0, import_fields33.relationship)({ ref: "HumanApproval", access: immutableRelationship }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PrescriptionItem.ts
-var import_core34 = require("@keystone-6/core");
-var import_access59 = require("@keystone-6/core/access");
-var import_fields35 = require("@keystone-6/core/fields");
-var PrescriptionItem = (0, import_core34.list)({
+var import_core33 = require("@keystone-6/core");
+var import_access57 = require("@keystone-6/core/access");
+var import_fields34 = require("@keystone-6/core/fields");
+var PrescriptionItem = (0, import_core33.list)({
   access: {
     operation: {
       query: isSignedIn,
-      create: import_access59.denyAll,
-      update: import_access59.denyAll,
-      delete: import_access59.denyAll
+      create: import_access57.denyAll,
+      update: import_access57.denyAll,
+      delete: import_access57.denyAll
     },
     filter: { query: rules.canReadPrescriptionChildren, update: rules.canReadPrescriptionChildren, delete: rules.canReadPrescriptionChildren }
   },
@@ -3854,31 +3866,31 @@ var PrescriptionItem = (0, import_core34.list)({
     }
   },
   fields: {
-    medicationNameSnapshot: (0, import_fields35.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
-    sig: (0, import_fields35.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData }, ui: { displayMode: "textarea" } }),
-    fillLineage: (0, import_fields35.text)({ db: { isNullable: true }, access: { update: import_access59.denyAll } }),
-    activeFillNumber: (0, import_fields35.integer)({ db: { isNullable: true }, access: { create: import_access59.denyAll, update: import_access59.denyAll } }),
-    quantityPrescribed: (0, import_fields35.integer)({ validation: { isRequired: true, min: 1 } }),
-    daysSupply: (0, import_fields35.integer)({ validation: { min: 1 } }),
-    refillsAuthorized: (0, import_fields35.integer)({ validation: { min: 0 }, defaultValue: 0 }),
-    refillsRemaining: (0, import_fields35.integer)({ validation: { min: 0 }, defaultValue: 0 }),
-    refillsReserved: (0, import_fields35.integer)({ validation: { min: 0 }, defaultValue: 0 }),
-    quantityDispensed: (0, import_fields35.integer)({ validation: { min: 0 }, defaultValue: 0 }),
-    substitutionAllowed: (0, import_fields35.checkbox)({ defaultValue: false }),
-    prescription: (0, import_fields35.relationship)({ ref: "Prescription.items", access: { create: import_access59.denyAll, update: import_access59.denyAll }, db: requiredRelationshipDb }),
-    drugReference: (0, import_fields35.relationship)({ ref: "DrugReference.prescriptionItems", db: requiredRelationshipDb }),
-    product: (0, import_fields35.relationship)({ ref: "Product.prescriptionItems", access: { create: import_access59.denyAll, update: import_access59.denyAll }, db: requiredRelationshipDb }),
-    refillRequests: (0, import_fields35.relationship)({ ref: "RefillRequest.prescriptionItem", many: true }),
-    dispensingLabels: (0, import_fields35.relationship)({ ref: "DispensingLabel.prescriptionItem", many: true }),
+    medicationNameSnapshot: (0, import_fields34.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
+    sig: (0, import_fields34.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData }, ui: { displayMode: "textarea" } }),
+    fillLineage: (0, import_fields34.text)({ db: { isNullable: true }, access: { update: import_access57.denyAll } }),
+    activeFillNumber: (0, import_fields34.integer)({ db: { isNullable: true }, access: { create: import_access57.denyAll, update: import_access57.denyAll } }),
+    quantityPrescribed: (0, import_fields34.integer)({ validation: { isRequired: true, min: 1 } }),
+    daysSupply: (0, import_fields34.integer)({ validation: { min: 1 } }),
+    refillsAuthorized: (0, import_fields34.integer)({ validation: { min: 0 }, defaultValue: 0 }),
+    refillsRemaining: (0, import_fields34.integer)({ validation: { min: 0 }, defaultValue: 0 }),
+    refillsReserved: (0, import_fields34.integer)({ validation: { min: 0 }, defaultValue: 0 }),
+    quantityDispensed: (0, import_fields34.integer)({ validation: { min: 0 }, defaultValue: 0 }),
+    substitutionAllowed: (0, import_fields34.checkbox)({ defaultValue: false }),
+    prescription: (0, import_fields34.relationship)({ ref: "Prescription.items", access: { create: import_access57.denyAll, update: import_access57.denyAll }, db: requiredRelationshipDb }),
+    drugReference: (0, import_fields34.relationship)({ ref: "DrugReference.prescriptionItems", db: requiredRelationshipDb }),
+    product: (0, import_fields34.relationship)({ ref: "Product.prescriptionItems", access: { create: import_access57.denyAll, update: import_access57.denyAll }, db: requiredRelationshipDb }),
+    refillRequests: (0, import_fields34.relationship)({ ref: "RefillRequest.prescriptionItem", many: true }),
+    dispensingLabels: (0, import_fields34.relationship)({ ref: "DispensingLabel.prescriptionItem", many: true }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PrescriptionReview.ts
-var import_core35 = require("@keystone-6/core");
-var import_fields36 = require("@keystone-6/core/fields");
+var import_core34 = require("@keystone-6/core");
+var import_fields35 = require("@keystone-6/core/fields");
 var denyMutation6 = () => false;
-var PrescriptionReview = (0, import_core35.list)({
+var PrescriptionReview = (0, import_core34.list)({
   access: {
     operation: { query: isSignedIn, create: denyMutation6, update: denyMutation6, delete: denyMutation6 },
     filter: { query: rules.canReadPrescriptionChildren }
@@ -3886,7 +3898,7 @@ var PrescriptionReview = (0, import_core35.list)({
   graphql: { omit: { create: true, update: true, delete: true } },
   ui: { hideCreate: true, hideDelete: true },
   fields: {
-    decision: (0, import_fields36.select)({
+    decision: (0, import_fields35.select)({
       type: "string",
       options: [
         { label: "Approved", value: "approved" },
@@ -3895,21 +3907,21 @@ var PrescriptionReview = (0, import_core35.list)({
       ],
       validation: { isRequired: true }
     }),
-    reason: (0, import_fields36.text)({ validation: { isRequired: true }, ui: { displayMode: "textarea" } }),
-    humanAttested: (0, import_fields36.checkbox)({ defaultValue: false }),
-    reviewedAt: (0, import_fields36.timestamp)({ validation: { isRequired: true }, defaultValue: { kind: "now" } }),
-    prescription: (0, import_fields36.relationship)({ ref: "Prescription.reviews", db: requiredRelationshipDb }),
-    patient: (0, import_fields36.relationship)({ ref: "PatientProfile", db: requiredRelationshipDb }),
-    pharmacist: (0, import_fields36.relationship)({ ref: "User.prescriptionReviews", db: requiredRelationshipDb }),
-    approval: (0, import_fields36.relationship)({ ref: "HumanApproval.prescriptionReviews", db: requiredRelationshipDb }),
+    reason: (0, import_fields35.text)({ validation: { isRequired: true }, ui: { displayMode: "textarea" } }),
+    humanAttested: (0, import_fields35.checkbox)({ defaultValue: false }),
+    reviewedAt: (0, import_fields35.timestamp)({ validation: { isRequired: true }, defaultValue: { kind: "now" } }),
+    prescription: (0, import_fields35.relationship)({ ref: "Prescription.reviews", db: requiredRelationshipDb }),
+    patient: (0, import_fields35.relationship)({ ref: "PatientProfile", db: requiredRelationshipDb }),
+    pharmacist: (0, import_fields35.relationship)({ ref: "User.prescriptionReviews", db: requiredRelationshipDb }),
+    approval: (0, import_fields35.relationship)({ ref: "HumanApproval.prescriptionReviews", db: requiredRelationshipDb }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PrescriptionTransfer.ts
-var import_core36 = require("@keystone-6/core");
-var import_fields37 = require("@keystone-6/core/fields");
-var PrescriptionTransfer = (0, import_core36.list)({
+var import_core35 = require("@keystone-6/core");
+var import_fields36 = require("@keystone-6/core/fields");
+var PrescriptionTransfer = (0, import_core35.list)({
   access: {
     operation: {
       query: isSignedIn,
@@ -3922,8 +3934,8 @@ var PrescriptionTransfer = (0, import_core36.list)({
   graphql: { omit: { create: true, update: true, delete: true } },
   ui: { hideCreate: true, hideDelete: true },
   fields: {
-    idempotencyKey: (0, import_fields37.text)({ isIndexed: "unique" }),
-    direction: (0, import_fields37.select)({
+    idempotencyKey: (0, import_fields36.text)({ isIndexed: "unique" }),
+    direction: (0, import_fields36.select)({
       type: "string",
       options: [
         { label: "Inbound", value: "inbound" },
@@ -3931,7 +3943,7 @@ var PrescriptionTransfer = (0, import_core36.list)({
       ],
       validation: { isRequired: true }
     }),
-    status: (0, import_fields37.select)({
+    status: (0, import_fields36.select)({
       access: { update: () => false },
       type: "string",
       options: [
@@ -3945,22 +3957,22 @@ var PrescriptionTransfer = (0, import_core36.list)({
       ],
       defaultValue: "requested"
     }),
-    counterpartyName: (0, import_fields37.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
-    counterpartyPhone: (0, import_fields37.text)({ access: { read: permissions.canViewPatientPrivateData } }),
-    requestedAt: (0, import_fields37.timestamp)({ defaultValue: { kind: "now" } }),
-    completedAt: (0, import_fields37.timestamp)({ access: { update: () => false } }),
-    patient: (0, import_fields37.relationship)({ ref: "PatientProfile.transfers", db: requiredRelationshipDb }),
-    prescription: (0, import_fields37.relationship)({ ref: "Prescription.transfers", db: requiredRelationshipDb }),
-    consent: (0, import_fields37.relationship)({ ref: "ConsentRecord.transfer" }),
-    approval: (0, import_fields37.relationship)({ ref: "HumanApproval.transfers" }),
+    counterpartyName: (0, import_fields36.text)({ validation: { isRequired: true }, access: { read: permissions.canViewPatientPrivateData } }),
+    counterpartyPhone: (0, import_fields36.text)({ access: { read: permissions.canViewPatientPrivateData } }),
+    requestedAt: (0, import_fields36.timestamp)({ defaultValue: { kind: "now" } }),
+    completedAt: (0, import_fields36.timestamp)({ access: { update: () => false } }),
+    patient: (0, import_fields36.relationship)({ ref: "PatientProfile.transfers", db: requiredRelationshipDb }),
+    prescription: (0, import_fields36.relationship)({ ref: "Prescription.transfers", db: requiredRelationshipDb }),
+    consent: (0, import_fields36.relationship)({ ref: "ConsentRecord.transfer" }),
+    approval: (0, import_fields36.relationship)({ ref: "HumanApproval.transfers" }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Product.ts
-var import_core37 = require("@keystone-6/core");
-var import_fields38 = require("@keystone-6/core/fields");
-var Product = (0, import_core37.list)({
+var import_core36 = require("@keystone-6/core");
+var import_fields37 = require("@keystone-6/core/fields");
+var Product = (0, import_core36.list)({
   access: {
     operation: {
       query: isSignedIn,
@@ -4038,11 +4050,11 @@ var Product = (0, import_core37.list)({
   },
   ui: { listView: { initialColumns: ["title", "sku", "prescriptionRequirement", "status", "onlineAvailable"] } },
   fields: {
-    title: (0, import_fields38.text)({ validation: { isRequired: true } }),
-    handle: (0, import_fields38.text)({ isIndexed: "unique", label: "Handle (optional)" }),
-    sku: (0, import_fields38.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    description: (0, import_fields38.text)({ ui: { displayMode: "textarea" } }),
-    status: (0, import_fields38.select)({
+    title: (0, import_fields37.text)({ validation: { isRequired: true } }),
+    handle: (0, import_fields37.text)({ isIndexed: "unique", label: "Handle (optional)" }),
+    sku: (0, import_fields37.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    description: (0, import_fields37.text)({ ui: { displayMode: "textarea" } }),
+    status: (0, import_fields37.select)({
       type: "string",
       options: [
         { label: "Draft", value: "draft" },
@@ -4051,7 +4063,7 @@ var Product = (0, import_core37.list)({
       ],
       defaultValue: "draft"
     }),
-    category: (0, import_fields38.select)({
+    category: (0, import_fields37.select)({
       type: "string",
       options: [
         { label: "Prescription", value: "prescription" },
@@ -4068,7 +4080,7 @@ var Product = (0, import_core37.list)({
       ],
       defaultValue: "otc_medication"
     }),
-    prescriptionRequirement: (0, import_fields38.select)({
+    prescriptionRequirement: (0, import_fields37.select)({
       type: "string",
       options: [
         { label: "None", value: "none" },
@@ -4077,18 +4089,18 @@ var Product = (0, import_core37.list)({
       ],
       defaultValue: "none"
     }),
-    priceAmount: (0, import_fields38.integer)({ validation: { isRequired: true, min: 0 }, defaultValue: 0, label: "Price (cents)" }),
-    currencyCode: (0, import_fields38.text)({ defaultValue: "USD", validation: { isRequired: true } }),
-    taxable: (0, import_fields38.checkbox)({ defaultValue: true }),
-    onlineAvailable: (0, import_fields38.checkbox)({ defaultValue: false }),
-    posAvailable: (0, import_fields38.checkbox)({ defaultValue: true }),
-    coldChainRequired: (0, import_fields38.checkbox)({ defaultValue: false }),
-    imageUrl: (0, import_fields38.text)({ label: "Image URL", ui: { description: "External photo URL. An uploaded photo takes precedence." } }),
-    image: (0, import_fields38.image)({ storage: "my_images", label: "Photo" }),
+    priceAmount: (0, import_fields37.integer)({ validation: { isRequired: true, min: 0 }, defaultValue: 0, label: "Price (cents)" }),
+    currencyCode: (0, import_fields37.text)({ defaultValue: "USD", validation: { isRequired: true } }),
+    taxable: (0, import_fields37.checkbox)({ defaultValue: true }),
+    onlineAvailable: (0, import_fields37.checkbox)({ defaultValue: false }),
+    posAvailable: (0, import_fields37.checkbox)({ defaultValue: true }),
+    coldChainRequired: (0, import_fields37.checkbox)({ defaultValue: false }),
+    imageUrl: (0, import_fields37.text)({ label: "Image URL", ui: { description: "External photo URL. An uploaded photo takes precedence." } }),
+    image: (0, import_fields37.image)({ storage: "my_images", label: "Photo" }),
     /** The photo shoppers see: the uploaded image (signed at read time) or the external URL. */
-    photoUrl: (0, import_fields38.virtual)({
-      field: import_core37.graphql.field({
-        type: import_core37.graphql.String,
+    photoUrl: (0, import_fields37.virtual)({
+      field: import_core36.graphql.field({
+        type: import_core36.graphql.String,
         async resolve(item, _args, context) {
           if (item.image_id && item.image_extension) return context.images("my_images").getUrl(item.image_id, item.image_extension);
           return item.imageUrl || null;
@@ -4096,28 +4108,28 @@ var Product = (0, import_core37.list)({
       }),
       ui: { itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } }
     }),
-    organization: (0, import_fields38.relationship)({ ref: "Organization.products", db: requiredRelationshipDb }),
-    location: (0, import_fields38.relationship)({ ref: "PharmacyLocation.products", db: requiredRelationshipDb }),
-    drugReference: (0, import_fields38.relationship)({ ref: "DrugReference.products" }),
-    inventoryLots: (0, import_fields38.relationship)({ ref: "InventoryLot.product", many: true, access: immutableRelationship }),
-    cartItems: (0, import_fields38.relationship)({ ref: "CartItem.product", many: true, access: immutableRelationship }),
-    orderLineItems: (0, import_fields38.relationship)({ ref: "OrderLineItem.product", many: true, access: immutableRelationship }),
-    prescriptionItems: (0, import_fields38.relationship)({ ref: "PrescriptionItem.product", many: true, access: immutableRelationship }),
+    organization: (0, import_fields37.relationship)({ ref: "Organization.products", db: requiredRelationshipDb }),
+    location: (0, import_fields37.relationship)({ ref: "PharmacyLocation.products", db: requiredRelationshipDb }),
+    drugReference: (0, import_fields37.relationship)({ ref: "DrugReference.products" }),
+    inventoryLots: (0, import_fields37.relationship)({ ref: "InventoryLot.product", many: true, access: immutableRelationship }),
+    cartItems: (0, import_fields37.relationship)({ ref: "CartItem.product", many: true, access: immutableRelationship }),
+    orderLineItems: (0, import_fields37.relationship)({ ref: "OrderLineItem.product", many: true, access: immutableRelationship }),
+    prescriptionItems: (0, import_fields37.relationship)({ ref: "PrescriptionItem.product", many: true, access: immutableRelationship }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Recall.ts
-var import_core38 = require("@keystone-6/core");
-var import_access64 = require("@keystone-6/core/access");
-var import_fields39 = require("@keystone-6/core/fields");
-var Recall = (0, import_core38.list)({
+var import_core37 = require("@keystone-6/core");
+var import_access62 = require("@keystone-6/core/access");
+var import_fields38 = require("@keystone-6/core/fields");
+var Recall = (0, import_core37.list)({
   access: {
     operation: {
       query: isSignedIn,
-      create: import_access64.denyAll,
-      update: import_access64.denyAll,
-      delete: import_access64.denyAll
+      create: import_access62.denyAll,
+      update: import_access62.denyAll,
+      delete: import_access62.denyAll
     },
     filter: { query: rules.canReadTenantRecords, update: rules.canReadTenantRecords }
   },
@@ -4143,8 +4155,8 @@ var Recall = (0, import_core38.list)({
   },
   ui: { hideCreate: true, listView: { initialColumns: ["recallNumber", "classification", "status", "initiatedAt"] } },
   fields: {
-    recallNumber: (0, import_fields39.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    classification: (0, import_fields39.select)({
+    recallNumber: (0, import_fields38.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    classification: (0, import_fields38.select)({
       type: "string",
       options: [
         { label: "Class I", value: "class_i" },
@@ -4155,7 +4167,7 @@ var Recall = (0, import_core38.list)({
       ],
       defaultValue: "unverified"
     }),
-    status: (0, import_fields39.select)({
+    status: (0, import_fields38.select)({
       type: "string",
       options: [
         { label: "Draft", value: "draft" },
@@ -4167,57 +4179,57 @@ var Recall = (0, import_core38.list)({
       ],
       defaultValue: "draft"
     }),
-    reason: (0, import_fields39.text)({ validation: { isRequired: true }, ui: { displayMode: "textarea" } }),
-    source: (0, import_fields39.text)(),
-    sourceValidationReference: (0, import_fields39.text)(),
-    initiatedAt: (0, import_fields39.timestamp)({ defaultValue: { kind: "now" } }),
-    closedAt: (0, import_fields39.timestamp)(),
-    organization: (0, import_fields39.relationship)({ ref: "Organization.recalls", db: requiredRelationshipDb }),
-    location: (0, import_fields39.relationship)({ ref: "PharmacyLocation.recalls" }),
-    lots: (0, import_fields39.relationship)({ ref: "InventoryLot.recalls", many: true, db: requiredRelationshipDb }),
-    exposures: (0, import_fields39.relationship)({ ref: "RecallExposure.recall", many: true }),
-    approval: (0, import_fields39.relationship)({ ref: "HumanApproval.recalls" }),
+    reason: (0, import_fields38.text)({ validation: { isRequired: true }, ui: { displayMode: "textarea" } }),
+    source: (0, import_fields38.text)(),
+    sourceValidationReference: (0, import_fields38.text)(),
+    initiatedAt: (0, import_fields38.timestamp)({ defaultValue: { kind: "now" } }),
+    closedAt: (0, import_fields38.timestamp)(),
+    organization: (0, import_fields38.relationship)({ ref: "Organization.recalls", db: requiredRelationshipDb }),
+    location: (0, import_fields38.relationship)({ ref: "PharmacyLocation.recalls" }),
+    lots: (0, import_fields38.relationship)({ ref: "InventoryLot.recalls", many: true, db: requiredRelationshipDb }),
+    exposures: (0, import_fields38.relationship)({ ref: "RecallExposure.recall", many: true }),
+    approval: (0, import_fields38.relationship)({ ref: "HumanApproval.recalls" }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/RecallExposure.ts
-var import_core39 = require("@keystone-6/core");
-var import_access66 = require("@keystone-6/core/access");
-var import_fields40 = require("@keystone-6/core/fields");
-var RecallExposure = (0, import_core39.list)({
+var import_core38 = require("@keystone-6/core");
+var import_access64 = require("@keystone-6/core/access");
+var import_fields39 = require("@keystone-6/core/fields");
+var RecallExposure = (0, import_core38.list)({
   access: {
-    operation: { query: isSignedIn, create: import_access66.denyAll, update: import_access66.denyAll, delete: import_access66.denyAll },
+    operation: { query: isSignedIn, create: import_access64.denyAll, update: import_access64.denyAll, delete: import_access64.denyAll },
     filter: { query: rules.canReadLocationScopedPatientChildren }
   },
   graphql: { omit: { create: true, update: true, delete: true } },
   ui: { hideCreate: true, hideDelete: true },
   fields: {
-    exposureKey: (0, import_fields40.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
-    status: (0, import_fields40.select)({ type: "string", options: [{ label: "Outreach required", value: "outreach_required" }, { label: "Contacted", value: "contacted" }, { label: "Returned", value: "returned" }, { label: "Resolved", value: "resolved" }, { label: "Unable to reach", value: "unable_to_reach" }], defaultValue: "outreach_required" }),
-    quantityDispensed: (0, import_fields40.integer)({ validation: { isRequired: true, min: 1 } }),
-    contactMethod: (0, import_fields40.text)({ access: { read: permissions.canViewPatientPrivateData } }),
-    outcome: (0, import_fields40.text)({ access: { read: permissions.canViewPatientPrivateData } }),
-    notes: (0, import_fields40.text)({ access: { read: permissions.canViewPatientPrivateData }, ui: { displayMode: "textarea" } }),
-    lastActionAt: (0, import_fields40.timestamp)(),
-    resolvedAt: (0, import_fields40.timestamp)(),
-    organization: (0, import_fields40.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    location: (0, import_fields40.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
-    recall: (0, import_fields40.relationship)({ ref: "Recall.exposures", db: requiredRelationshipDb }),
-    movement: (0, import_fields40.relationship)({ ref: "InventoryMovement", db: requiredRelationshipDb }),
-    patient: (0, import_fields40.relationship)({ ref: "PatientProfile", db: requiredRelationshipDb }),
-    prescription: (0, import_fields40.relationship)({ ref: "Prescription" }),
-    order: (0, import_fields40.relationship)({ ref: "Order" }),
-    lastActor: (0, import_fields40.relationship)({ ref: "User" }),
-    approval: (0, import_fields40.relationship)({ ref: "HumanApproval" }),
+    exposureKey: (0, import_fields39.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    status: (0, import_fields39.select)({ type: "string", options: [{ label: "Outreach required", value: "outreach_required" }, { label: "Contacted", value: "contacted" }, { label: "Returned", value: "returned" }, { label: "Resolved", value: "resolved" }, { label: "Unable to reach", value: "unable_to_reach" }], defaultValue: "outreach_required" }),
+    quantityDispensed: (0, import_fields39.integer)({ validation: { isRequired: true, min: 1 } }),
+    contactMethod: (0, import_fields39.text)({ access: { read: permissions.canViewPatientPrivateData } }),
+    outcome: (0, import_fields39.text)({ access: { read: permissions.canViewPatientPrivateData } }),
+    notes: (0, import_fields39.text)({ access: { read: permissions.canViewPatientPrivateData }, ui: { displayMode: "textarea" } }),
+    lastActionAt: (0, import_fields39.timestamp)(),
+    resolvedAt: (0, import_fields39.timestamp)(),
+    organization: (0, import_fields39.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    location: (0, import_fields39.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
+    recall: (0, import_fields39.relationship)({ ref: "Recall.exposures", db: requiredRelationshipDb }),
+    movement: (0, import_fields39.relationship)({ ref: "InventoryMovement", db: requiredRelationshipDb }),
+    patient: (0, import_fields39.relationship)({ ref: "PatientProfile", db: requiredRelationshipDb }),
+    prescription: (0, import_fields39.relationship)({ ref: "Prescription" }),
+    order: (0, import_fields39.relationship)({ ref: "Order" }),
+    lastActor: (0, import_fields39.relationship)({ ref: "User" }),
+    approval: (0, import_fields39.relationship)({ ref: "HumanApproval" }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/RefillRequest.ts
-var import_core40 = require("@keystone-6/core");
-var import_fields41 = require("@keystone-6/core/fields");
-var RefillRequest = (0, import_core40.list)({
+var import_core39 = require("@keystone-6/core");
+var import_fields40 = require("@keystone-6/core/fields");
+var RefillRequest = (0, import_core39.list)({
   access: {
     operation: {
       query: isSignedIn,
@@ -4230,10 +4242,10 @@ var RefillRequest = (0, import_core40.list)({
   graphql: { omit: { create: true, update: true, delete: true } },
   ui: { hideCreate: true, hideDelete: true },
   fields: {
-    idempotencyKey: (0, import_fields41.text)({ isIndexed: "unique" }),
-    requestFingerprint: (0, import_fields41.text)({ db: { isNullable: true } }),
-    openRequestKey: (0, import_fields41.text)({ isIndexed: "unique", db: { isNullable: true } }),
-    status: (0, import_fields41.select)({
+    idempotencyKey: (0, import_fields40.text)({ isIndexed: "unique" }),
+    requestFingerprint: (0, import_fields40.text)({ db: { isNullable: true } }),
+    openRequestKey: (0, import_fields40.text)({ isIndexed: "unique", db: { isNullable: true } }),
+    status: (0, import_fields40.select)({
       access: { update: () => false },
       type: "string",
       options: [
@@ -4247,30 +4259,30 @@ var RefillRequest = (0, import_core40.list)({
       ],
       defaultValue: "requested"
     }),
-    requestNote: (0, import_fields41.text)({ access: { read: permissions.canViewPatientPrivateData }, ui: { displayMode: "textarea" } }),
-    resolutionNote: (0, import_fields41.text)({ db: { isNullable: true }, access: { read: permissions.canViewPatientPrivateData }, ui: { displayMode: "textarea" } }),
-    requestedAt: (0, import_fields41.timestamp)({ defaultValue: { kind: "now" } }),
-    resolvedAt: (0, import_fields41.timestamp)({ access: { update: () => false } }),
-    patient: (0, import_fields41.relationship)({ ref: "PatientProfile.refillRequests", db: requiredRelationshipDb }),
-    prescription: (0, import_fields41.relationship)({ ref: "Prescription.refillRequests", db: requiredRelationshipDb }),
-    prescriptionItem: (0, import_fields41.relationship)({ ref: "PrescriptionItem.refillRequests" }),
-    location: (0, import_fields41.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
-    approval: (0, import_fields41.relationship)({ ref: "HumanApproval.refillRequests" }),
+    requestNote: (0, import_fields40.text)({ access: { read: permissions.canViewPatientPrivateData }, ui: { displayMode: "textarea" } }),
+    resolutionNote: (0, import_fields40.text)({ db: { isNullable: true }, access: { read: permissions.canViewPatientPrivateData }, ui: { displayMode: "textarea" } }),
+    requestedAt: (0, import_fields40.timestamp)({ defaultValue: { kind: "now" } }),
+    resolvedAt: (0, import_fields40.timestamp)({ access: { update: () => false } }),
+    patient: (0, import_fields40.relationship)({ ref: "PatientProfile.refillRequests", db: requiredRelationshipDb }),
+    prescription: (0, import_fields40.relationship)({ ref: "Prescription.refillRequests", db: requiredRelationshipDb }),
+    prescriptionItem: (0, import_fields40.relationship)({ ref: "PrescriptionItem.refillRequests" }),
+    location: (0, import_fields40.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
+    approval: (0, import_fields40.relationship)({ ref: "HumanApproval.refillRequests" }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/PrescriptionRequest.ts
-var import_core41 = require("@keystone-6/core");
-var import_access69 = require("@keystone-6/core/access");
-var import_fields42 = require("@keystone-6/core/fields");
-var PrescriptionRequest = (0, import_core41.list)({
-  access: { operation: { query: import_access69.denyAll, create: import_access69.denyAll, update: import_access69.denyAll, delete: import_access69.denyAll } },
+var import_core40 = require("@keystone-6/core");
+var import_access67 = require("@keystone-6/core/access");
+var import_fields41 = require("@keystone-6/core/fields");
+var PrescriptionRequest = (0, import_core40.list)({
+  access: { operation: { query: import_access67.denyAll, create: import_access67.denyAll, update: import_access67.denyAll, delete: import_access67.denyAll } },
   graphql: { omit: { create: true, update: true, delete: true } },
   ui: { isHidden: true },
   fields: {
-    idempotencyKey: (0, import_fields42.text)({ isIndexed: "unique" }),
-    kind: (0, import_fields42.select)({
+    idempotencyKey: (0, import_fields41.text)({ isIndexed: "unique" }),
+    kind: (0, import_fields41.select)({
       type: "string",
       options: [
         { label: "Patient registration", value: "registration" },
@@ -4280,7 +4292,7 @@ var PrescriptionRequest = (0, import_core41.list)({
       ],
       validation: { isRequired: true }
     }),
-    status: (0, import_fields42.select)({
+    status: (0, import_fields41.select)({
       type: "string",
       options: [
         { label: "Requested", value: "requested" },
@@ -4290,37 +4302,37 @@ var PrescriptionRequest = (0, import_core41.list)({
       ],
       defaultValue: "requested"
     }),
-    organization: (0, import_fields42.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    location: (0, import_fields42.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
-    user: (0, import_fields42.relationship)({ ref: "User", db: requiredRelationshipDb }),
-    patient: (0, import_fields42.relationship)({ ref: "PatientProfile" }),
-    firstName: (0, import_fields42.text)(),
-    lastName: (0, import_fields42.text)(),
-    dateOfBirth: (0, import_fields42.timestamp)(),
-    phone: (0, import_fields42.text)(),
-    email: (0, import_fields42.text)(),
-    allergies: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
-    insurance: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
-    counterpartyName: (0, import_fields42.text)(),
-    counterpartyPhone: (0, import_fields42.text)(),
-    prescriberName: (0, import_fields42.text)(),
-    prescriberPhone: (0, import_fields42.text)(),
-    medications: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
-    note: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
-    resolutionNote: (0, import_fields42.text)({ ui: { displayMode: "textarea" } }),
-    resolvedAt: (0, import_fields42.timestamp)(),
-    resolvedBy: (0, import_fields42.relationship)({ ref: "User" }),
+    organization: (0, import_fields41.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    location: (0, import_fields41.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
+    user: (0, import_fields41.relationship)({ ref: "User", db: requiredRelationshipDb }),
+    patient: (0, import_fields41.relationship)({ ref: "PatientProfile" }),
+    firstName: (0, import_fields41.text)(),
+    lastName: (0, import_fields41.text)(),
+    dateOfBirth: (0, import_fields41.timestamp)(),
+    phone: (0, import_fields41.text)(),
+    email: (0, import_fields41.text)(),
+    allergies: (0, import_fields41.text)({ ui: { displayMode: "textarea" } }),
+    insurance: (0, import_fields41.text)({ ui: { displayMode: "textarea" } }),
+    counterpartyName: (0, import_fields41.text)(),
+    counterpartyPhone: (0, import_fields41.text)(),
+    prescriberName: (0, import_fields41.text)(),
+    prescriberPhone: (0, import_fields41.text)(),
+    medications: (0, import_fields41.text)({ ui: { displayMode: "textarea" } }),
+    note: (0, import_fields41.text)({ ui: { displayMode: "textarea" } }),
+    resolutionNote: (0, import_fields41.text)({ ui: { displayMode: "textarea" } }),
+    resolvedAt: (0, import_fields41.timestamp)(),
+    resolvedBy: (0, import_fields41.relationship)({ ref: "User" }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Role.ts
-var import_core42 = require("@keystone-6/core");
-var import_fields44 = require("@keystone-6/core/fields");
+var import_core41 = require("@keystone-6/core");
+var import_fields43 = require("@keystone-6/core/fields");
 
 // features/keystone/models/fields.ts
-var import_fields43 = require("@keystone-6/core/fields");
-var permission = (label) => (0, import_fields43.checkbox)({ defaultValue: false, label });
+var import_fields42 = require("@keystone-6/core/fields");
+var permission = (label) => (0, import_fields42.checkbox)({ defaultValue: false, label });
 var permissionFields = {
   canAccessDashboard: permission("Access dashboard"),
   canManageOrganizations: permission("Manage organizations"),
@@ -4345,7 +4357,7 @@ var permissionFields = {
 var permissionsList = Object.keys(permissionFields);
 
 // features/keystone/models/Role.ts
-var Role = (0, import_core42.list)({
+var Role = (0, import_core41.list)({
   access: {
     operation: {
       query: ({ session }) => permissions.canManageRoles({ session }) || permissions.canManageUsers({ session }) || permissions.canAccessDashboard({ session }),
@@ -4361,24 +4373,24 @@ var Role = (0, import_core42.list)({
     listView: { initialColumns: ["name", "canAccessDashboard", "canReviewPrescriptions", "canDispenseMedications"] }
   },
   fields: {
-    name: (0, import_fields44.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
+    name: (0, import_fields43.text)({ validation: { isRequired: true }, isIndexed: "unique" }),
     ...permissionFields,
-    assignedTo: (0, import_fields44.relationship)({ ref: "User.role", many: true }),
+    assignedTo: (0, import_fields43.relationship)({ ref: "User.role", many: true }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/Supplier.ts
-var import_core43 = require("@keystone-6/core");
-var import_access71 = require("@keystone-6/core/access");
-var import_fields46 = require("@keystone-6/core/fields");
-var Supplier = (0, import_core43.list)({
+var import_core42 = require("@keystone-6/core");
+var import_access69 = require("@keystone-6/core/access");
+var import_fields45 = require("@keystone-6/core/fields");
+var Supplier = (0, import_core42.list)({
   access: {
     operation: {
       query: isSignedIn,
       create: permissions.canManageInventory,
       update: permissions.canManageInventory,
-      delete: import_access71.denyAll
+      delete: import_access69.denyAll
     },
     filter: { query: rules.canReadOrganizationRecords, update: rules.canReadOrganizationRecords }
   },
@@ -4395,9 +4407,9 @@ var Supplier = (0, import_core43.list)({
   graphql: { omit: { delete: true } },
   ui: { hideDelete: true, listView: { initialColumns: ["name", "status", "organization"] } },
   fields: {
-    name: (0, import_fields46.text)({ validation: { isRequired: true } }),
-    accountReference: (0, import_fields46.text)(),
-    status: (0, import_fields46.select)({
+    name: (0, import_fields45.text)({ validation: { isRequired: true } }),
+    accountReference: (0, import_fields45.text)(),
+    status: (0, import_fields45.select)({
       type: "string",
       options: [
         { label: "Pending validation", value: "pending_validation" },
@@ -4406,24 +4418,24 @@ var Supplier = (0, import_core43.list)({
       ],
       defaultValue: "pending_validation"
     }),
-    organization: (0, import_fields46.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    integrationProvider: (0, import_fields46.relationship)({ ref: "IntegrationProvider.suppliers" }),
-    inventoryLots: (0, import_fields46.relationship)({ ref: "InventoryLot.supplier", many: true, access: immutableRelationship }),
+    organization: (0, import_fields45.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    integrationProvider: (0, import_fields45.relationship)({ ref: "IntegrationProvider.suppliers" }),
+    inventoryLots: (0, import_fields45.relationship)({ ref: "InventoryLot.supplier", many: true, access: immutableRelationship }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/TemperatureExcursion.ts
-var import_core44 = require("@keystone-6/core");
-var import_access73 = require("@keystone-6/core/access");
-var import_fields47 = require("@keystone-6/core/fields");
-var TemperatureExcursion = (0, import_core44.list)({
+var import_core43 = require("@keystone-6/core");
+var import_access71 = require("@keystone-6/core/access");
+var import_fields46 = require("@keystone-6/core/fields");
+var TemperatureExcursion = (0, import_core43.list)({
   access: {
     operation: {
       query: isSignedIn,
-      create: import_access73.denyAll,
-      update: import_access73.denyAll,
-      delete: import_access73.denyAll
+      create: import_access71.denyAll,
+      update: import_access71.denyAll,
+      delete: import_access71.denyAll
     },
     filter: { query: rules.canReadTenantRecords, update: rules.canReadTenantRecords, delete: rules.canReadTenantRecords }
   },
@@ -4442,12 +4454,12 @@ var TemperatureExcursion = (0, import_core44.list)({
     }
   },
   fields: {
-    idempotencyKey: (0, import_fields47.text)({ isIndexed: "unique" }),
-    observedMinimumC: (0, import_fields47.float)({ validation: { isRequired: true } }),
-    observedMaximumC: (0, import_fields47.float)({ validation: { isRequired: true } }),
-    startedAt: (0, import_fields47.timestamp)({ validation: { isRequired: true } }),
-    endedAt: (0, import_fields47.timestamp)(),
-    status: (0, import_fields47.select)({
+    idempotencyKey: (0, import_fields46.text)({ isIndexed: "unique" }),
+    observedMinimumC: (0, import_fields46.float)({ validation: { isRequired: true } }),
+    observedMaximumC: (0, import_fields46.float)({ validation: { isRequired: true } }),
+    startedAt: (0, import_fields46.timestamp)({ validation: { isRequired: true } }),
+    endedAt: (0, import_fields46.timestamp)(),
+    status: (0, import_fields46.select)({
       type: "string",
       options: [
         { label: "Open", value: "open" },
@@ -4457,23 +4469,23 @@ var TemperatureExcursion = (0, import_core44.list)({
       ],
       defaultValue: "open"
     }),
-    dispositionReason: (0, import_fields47.text)({ ui: { displayMode: "textarea" } }),
+    dispositionReason: (0, import_fields46.text)({ ui: { displayMode: "textarea" } }),
     // Written once by resolvePharmacyTemperatureExcursion: the pharmacist's note and when the excursion closed.
-    resolutionNote: (0, import_fields47.text)({ ui: { displayMode: "textarea" } }),
-    resolvedAt: (0, import_fields47.timestamp)(),
-    organization: (0, import_fields47.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
-    location: (0, import_fields47.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
-    lot: (0, import_fields47.relationship)({ ref: "InventoryLot.temperatureExcursions", db: requiredRelationshipDb }),
-    reviewedBy: (0, import_fields47.relationship)({ ref: "User", db: requiredRelationshipDb }),
-    approval: (0, import_fields47.relationship)({ ref: "HumanApproval.temperatureExcursions", db: requiredRelationshipDb }),
+    resolutionNote: (0, import_fields46.text)({ ui: { displayMode: "textarea" } }),
+    resolvedAt: (0, import_fields46.timestamp)(),
+    organization: (0, import_fields46.relationship)({ ref: "Organization", db: requiredRelationshipDb }),
+    location: (0, import_fields46.relationship)({ ref: "PharmacyLocation", db: requiredRelationshipDb }),
+    lot: (0, import_fields46.relationship)({ ref: "InventoryLot.temperatureExcursions", db: requiredRelationshipDb }),
+    reviewedBy: (0, import_fields46.relationship)({ ref: "User", db: requiredRelationshipDb }),
+    approval: (0, import_fields46.relationship)({ ref: "HumanApproval.temperatureExcursions", db: requiredRelationshipDb }),
     ...trackingFields
   }
 });
 
 // features/keystone/models/User.ts
-var import_core45 = require("@keystone-6/core");
-var import_access76 = require("@keystone-6/core/access");
-var import_fields49 = require("@keystone-6/core/fields");
+var import_core44 = require("@keystone-6/core");
+var import_access74 = require("@keystone-6/core/access");
+var import_fields48 = require("@keystone-6/core/fields");
 
 // features/keystone/session-revocation.ts
 function nextSessionTokenVersion(operation, resolvedPassword, currentTokenVersion) {
@@ -4518,13 +4530,13 @@ async function firstUserAdminRoleId(context) {
 }
 
 // features/keystone/models/User.ts
-var User = (0, import_core45.list)({
+var User = (0, import_core44.list)({
   access: {
     operation: {
       query: isSignedIn,
       create: () => true,
       update: isSignedIn,
-      delete: import_access76.denyAll
+      delete: import_access74.denyAll
     },
     filter: { query: rules.canReadPeople, update: rules.canUpdatePeople }
   },
@@ -4548,16 +4560,16 @@ var User = (0, import_core45.list)({
     listView: { initialColumns: ["name", "email", "role", "onboardingStatus"] }
   },
   fields: {
-    name: (0, import_fields49.text)({ validation: { isRequired: true } }),
-    email: (0, import_fields49.text)({ validation: { isRequired: true }, isIndexed: "unique", access: { update: canChangeSignInEmail } }),
-    password: (0, import_fields49.password)({
+    name: (0, import_fields48.text)({ validation: { isRequired: true } }),
+    email: (0, import_fields48.text)({ validation: { isRequired: true }, isIndexed: "unique", access: { update: canChangeSignInEmail } }),
+    password: (0, import_fields48.password)({
       validation: { isRequired: true, length: { min: 12, max: 1e3 }, rejectCommon: true },
       access: {
-        read: import_access76.denyAll,
+        read: import_access74.denyAll,
         update: canChangeOwnPassword
       }
     }),
-    role: (0, import_fields49.relationship)({
+    role: (0, import_fields48.relationship)({
       ref: "Role.assignedTo",
       access: {
         create: canCreateUserRole,
@@ -4568,8 +4580,8 @@ var User = (0, import_core45.list)({
         itemView: { fieldMode: (args) => permissions.canManageUsers(args) ? "edit" : "read" }
       }
     }),
-    tokenVersion: (0, import_fields49.integer)({ defaultValue: 0, access: { create: import_access76.denyAll, update: import_access76.denyAll }, ui: { itemView: { fieldMode: "hidden" }, createView: { fieldMode: "hidden" } } }),
-    onboardingStatus: (0, import_fields49.select)({
+    tokenVersion: (0, import_fields48.integer)({ defaultValue: 0, access: { create: import_access74.denyAll, update: import_access74.denyAll }, ui: { itemView: { fieldMode: "hidden" }, createView: { fieldMode: "hidden" } } }),
+    onboardingStatus: (0, import_fields48.select)({
       type: "string",
       options: [
         { label: "Not started", value: "not_started" },
@@ -4579,14 +4591,14 @@ var User = (0, import_core45.list)({
       ],
       defaultValue: "not_started"
     }),
-    memberships: (0, import_fields49.relationship)({ ref: "OrganizationMembership.user", many: true, access: immutableRelationship }),
-    patientProfile: (0, import_fields49.relationship)({ ref: "PatientProfile.user", access: immutableRelationship }),
-    carts: (0, import_fields49.relationship)({ ref: "Cart.customer", many: true, access: immutableRelationship }),
-    orders: (0, import_fields49.relationship)({ ref: "Order.customer", many: true, access: immutableRelationship }),
-    prescriptionReviews: (0, import_fields49.relationship)({ ref: "PrescriptionReview.pharmacist", many: true, access: immutableRelationship }),
-    humanApprovals: (0, import_fields49.relationship)({ ref: "HumanApproval.actor", many: true, access: immutableRelationship }),
-    auditEvents: (0, import_fields49.relationship)({ ref: "AuditEvent.actor", many: true, access: immutableRelationship }),
-    createdMachineCredentials: (0, import_fields49.relationship)({ ref: "MachineCredential.createdBy", many: true, access: immutableRelationship }),
+    memberships: (0, import_fields48.relationship)({ ref: "OrganizationMembership.user", many: true, access: immutableRelationship }),
+    patientProfile: (0, import_fields48.relationship)({ ref: "PatientProfile.user", access: immutableRelationship }),
+    carts: (0, import_fields48.relationship)({ ref: "Cart.customer", many: true, access: immutableRelationship }),
+    orders: (0, import_fields48.relationship)({ ref: "Order.customer", many: true, access: immutableRelationship }),
+    prescriptionReviews: (0, import_fields48.relationship)({ ref: "PrescriptionReview.pharmacist", many: true, access: immutableRelationship }),
+    humanApprovals: (0, import_fields48.relationship)({ ref: "HumanApproval.actor", many: true, access: immutableRelationship }),
+    auditEvents: (0, import_fields48.relationship)({ ref: "AuditEvent.actor", many: true, access: immutableRelationship }),
+    createdMachineCredentials: (0, import_fields48.relationship)({ ref: "MachineCredential.createdBy", many: true, access: immutableRelationship }),
     ...trackingFields
   }
 });
@@ -4611,7 +4623,6 @@ var models = {
   MachineCredential,
   Order,
   OrderLineItem,
-  OutboxEvent,
   Organization,
   OrganizationMembership,
   PatientAllergy,
@@ -4914,49 +4925,38 @@ async function recordAuditEvent(context, input) {
     query: "id eventKey"
   });
 }
-async function recordAuditAndOutbox(context, input) {
-  const payload = canonicalize({
-    eventKey: input.eventKey,
+async function recordAudit(context, input) {
+  const snapshotHash = evidencePayloadHash({
     eventType: input.eventType,
-    occurredAt: (/* @__PURE__ */ new Date()).toISOString(),
-    aggregate: { type: input.resourceType, id: input.resourceId },
-    tenant: { organizationId: input.organizationId, locationId: input.locationId || null },
+    resourceType: input.resourceType,
+    resourceId: input.resourceId,
+    organizationId: input.organizationId,
+    locationId: input.locationId || null,
     actorId: input.actorId || null,
     patientId: input.patientId || null,
     data: input.metadata || {}
   });
-  const payloadHash = evidencePayloadHash(payload);
   const sudo = context.sudo();
-  const existing = await sudo.query.OutboxEvent.findOne({
+  const existing = await sudo.query.AuditEvent.findOne({
     where: { eventKey: input.eventKey },
-    query: "id eventKey eventType payloadHash status"
+    query: "id eventType resourceType resourceId metadata organization { id } location { id } actor { id } patient { id }"
   });
   if (existing) {
-    if (existing.eventType !== input.eventType || existing.payloadHash !== payloadHash) {
-      const comparable = { ...payload, occurredAt: void 0 };
-      const existingEvent = await sudo.query.OutboxEvent.findOne({ where: { id: existing.id }, query: "payload" });
-      const existingComparable = { ...existingEvent?.payload, occurredAt: void 0 };
-      if (evidencePayloadHash(comparable) !== evidencePayloadHash(existingComparable)) {
-        throw new DomainError("Evidence idempotency key was reused with a different snapshot");
-      }
-    }
-    return { created: false, auditEventId: null, outboxEventId: existing.id, status: existing.status };
+    const existingHash = evidencePayloadHash({
+      eventType: existing.eventType,
+      resourceType: existing.resourceType,
+      resourceId: existing.resourceId,
+      organizationId: existing.organization?.id ?? input.organizationId,
+      locationId: existing.location?.id || null,
+      actorId: existing.actor?.id || null,
+      patientId: existing.patient?.id || null,
+      data: existing.metadata || {}
+    });
+    if (existingHash !== snapshotHash) throw new DomainError("Evidence idempotency key was reused with a different snapshot");
+    return { created: false, auditEventId: existing.id };
   }
   const audit = await recordAuditEvent(context, input);
-  const outbox = await sudo.query.OutboxEvent.createOne({
-    data: {
-      eventKey: input.eventKey,
-      eventType: input.eventType,
-      aggregateType: input.resourceType,
-      aggregateId: input.resourceId,
-      payload,
-      payloadHash,
-      organization: { connect: { id: input.organizationId } },
-      location: input.locationId ? { connect: { id: input.locationId } } : void 0
-    },
-    query: "id status"
-  });
-  return { created: true, auditEventId: audit.id, outboxEventId: outbox.id, status: outbox.status };
+  return { created: true, auditEventId: audit.id };
 }
 
 // features/keystone/mutations/lib/current-authority.ts
@@ -5230,7 +5230,7 @@ async function refundPharmacyPayment(_root, args, context) {
     if (!current?.order) throw new DomainError("Payment not found");
     if (current.status === "refunded") return { success: true, reused: true, paymentId: current.id, status: current.status, amount: current.amount };
     await sudo.query.Payment.updateOne({ where: { id: current.id }, data: { status: "refunded", data: { refund: providerResult, reason: args.reason.trim() } } });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `payment.refunded:${current.id}`,
       organizationId: current.order.organization.id,
       locationId: current.order.location.id,
@@ -5370,7 +5370,7 @@ async function recordPharmacyCashPolicy(_root, args, context) {
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId });
     const approval = await createHumanApproval(transactionContext, { organizationId: args.organizationId, actorId: userId, actionType: "cash_policy", reason: args.reason, attested: args.attested, evidence: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), scope: "operator_attested_cash_direct_pay" } });
     await transactionContext.sudo().query.Organization.updateOne({ where: { id: args.organizationId }, data: { cashSalesEnabled: true, cashTaxRateBps: args.taxRateBps, cashTaxPolicyReference: args.policyReference.trim(), cashPolicyReviewedAt: (/* @__PURE__ */ new Date()).toISOString(), cashPolicyReviewedBy: { connect: { id: userId } } }, query: "id" });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `cash_policy.recorded:${args.organizationId}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: "cash_policy.recorded", resourceType: "Organization", resourceId: args.organizationId, metadata: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), approvalId: approval.id } });
+    await recordAudit(transactionContext, { eventKey: `cash_policy.recorded:${args.organizationId}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: "cash_policy.recorded", resourceType: "Organization", resourceId: args.organizationId, metadata: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), approvalId: approval.id } });
     return { success: true, organizationId: args.organizationId, status: "enabled", taxRateBps: args.taxRateBps, approvalId: approval.id };
   });
 }
@@ -5526,7 +5526,7 @@ async function recordPosSale(args, context, card) {
     }
     const payment = await sudo.query.Payment.createOne({ data: { amount: totalAmount, currencyCode: currencies[0], status: "captured", ...card ? { tenderMethod: "provider", externalPaymentId: card.paymentIntentId, provider: { connect: { id: card.providerId } }, data: { evidenceType: "stripe_payment_intent_succeeded", approvalId: approval.id, providerSettlementClaimed: true, brand: card.brand, last4: card.last4 } } : { tenderMethod: "cash", cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, data: { evidenceType: "operator_attested_cash_received", approvalId: approval.id, providerSettlementClaimed: false } }, processedAt: (/* @__PURE__ */ new Date()).toISOString(), organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: "id status" });
     await sudo.query.Fulfillment.createOne({ data: { method, status: method === "pickup" ? "preparing" : "handed_off", ...method === "pos" ? { readyAt: (/* @__PURE__ */ new Date()).toISOString(), handedOffAt: (/* @__PURE__ */ new Date()).toISOString() } : {}, organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, assignedTo: { connect: { id: userId } } } });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `pos.${card ? "card" : "cash"}_sale:${args.idempotencyKey}`, organizationId: location.organization.id, locationId: location.id, actorId: userId, eventType: card ? "pos.card_sale_recorded" : "pos.cash_sale_recorded", resourceType: "Order", resourceId: order.id, metadata: { paymentId: payment.id, lineCount: items.length, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, approvalId: approval.id, providerSettlementClaimed: !!card } });
+    await recordAudit(transactionContext, { eventKey: `pos.${card ? "card" : "cash"}_sale:${args.idempotencyKey}`, organizationId: location.organization.id, locationId: location.id, actorId: userId, eventType: card ? "pos.card_sale_recorded" : "pos.cash_sale_recorded", resourceType: "Order", resourceId: order.id, metadata: { paymentId: payment.id, lineCount: items.length, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, approvalId: approval.id, providerSettlementClaimed: !!card } });
     return readCommittedPosReceipt(sudo, order.id, false);
   });
 }
@@ -5563,7 +5563,7 @@ async function refundPharmacyCashPayment(_root, args, context) {
     if (payment.status !== "captured" || args.cashReturnedAmount !== payment.amount) throw new DomainError("Bounded cash refunds must return the exact captured amount");
     const approval = await createHumanApproval(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, actionType: "cash_refund", reason: args.reason, attested: args.attested, evidence: { paymentId: payment.id, cashReturnedAmount: args.cashReturnedAmount, inventoryRestocked: false, custodyClaim: false } });
     await transactionContext.prisma.payment.update({ where: { id: payment.id }, data: { status: "refunded", data: { ...payment.data || {}, cashRefund: { returnedAmount: args.cashReturnedAmount, returnedAt: (/* @__PURE__ */ new Date()).toISOString(), actorId: userId, approvalId: approval.id, inventoryRestocked: false } }, approvalId: approval.id } });
-    await recordAuditAndOutbox(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: "payment.cash_refunded", resourceType: "Payment", resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } });
+    await recordAudit(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: "payment.cash_refunded", resourceType: "Payment", resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } });
     return { success: true, reused: false, paymentId: payment.id, status: "refunded", amount: payment.amount };
   });
 }
@@ -6040,13 +6040,13 @@ function parseFillPolicy(value) {
     releaseReasons: [...new Set(value.releaseReasons)]
   };
 }
-function prescriptionItemVersion(p, item) {
+function prescriptionItemVersion(p2, item) {
   return fillHash({
-    prescriptionId: p.id,
-    organizationId: p.organization?.id,
-    locationId: p.location?.id,
-    patientId: p.patient?.id,
-    prescriberId: p.prescriber?.id,
+    prescriptionId: p2.id,
+    organizationId: p2.organization?.id,
+    locationId: p2.location?.id,
+    patientId: p2.patient?.id,
+    prescriberId: p2.prescriber?.id,
     itemId: item.id,
     productId: item.product?.id,
     drugReferenceId: item.drugReference?.id,
@@ -6058,18 +6058,18 @@ function prescriptionItemVersion(p, item) {
     substitutionAllowed: item.substitutionAllowed
   });
 }
-function prescriptionAuthorityVersion(p) {
+function prescriptionAuthorityVersion(p2) {
   return fillHash({
-    sourceVerificationStatus: p.sourceVerificationStatus,
-    writtenAt: p.writtenAt,
-    expiresAt: p.expiresAt,
-    prescriber: p.prescriber,
+    sourceVerificationStatus: p2.sourceVerificationStatus,
+    writtenAt: p2.writtenAt,
+    expiresAt: p2.expiresAt,
+    prescriber: p2.prescriber,
     patient: {
-      id: p.patient?.id,
-      identityVerificationStatus: p.patient?.identityVerificationStatus,
-      identityReference: p.patient?.identityReference,
-      identityVerifiedAt: p.patient?.identityVerifiedAt,
-      identityVerifiedBy: p.patient?.identityVerifiedBy
+      id: p2.patient?.id,
+      identityVerificationStatus: p2.patient?.identityVerificationStatus,
+      identityReference: p2.patient?.identityReference,
+      identityVerifiedAt: p2.patient?.identityVerifiedAt,
+      identityVerifiedBy: p2.patient?.identityVerifiedBy
     }
   });
 }
@@ -6180,15 +6180,15 @@ async function currentFillPermission(context, permission2) {
   if (!actor?.role?.[permission2]) throw new DomainError("Current operator permission was revoked");
 }
 async function loadFillPrescription(context, prescriptionId) {
-  const p = await context.sudo().query.Prescription.findOne({ where: { id: prescriptionId }, query: FILL_PRESCRIPTION_QUERY });
-  if (!p?.organization?.id || !p.location?.id || !p.patient?.id || p.patient.status !== "active" || !p.patient.organizations?.some((o) => o.id === p.organization.id) || p.prescriber?.organization?.id !== p.organization.id) throw new DomainError("Current prescription/patient/prescriber scope requires reconciliation");
-  return p;
+  const p2 = await context.sudo().query.Prescription.findOne({ where: { id: prescriptionId }, query: FILL_PRESCRIPTION_QUERY });
+  if (!p2?.organization?.id || !p2.location?.id || !p2.patient?.id || p2.patient.status !== "active" || !p2.patient.organizations?.some((o) => o.id === p2.organization.id) || p2.prescriber?.organization?.id !== p2.organization.id) throw new DomainError("Current prescription/patient/prescriber scope requires reconciliation");
+  return p2;
 }
-async function assertItemFillLedger(context, p, item) {
+async function assertItemFillLedger(context, p2, item) {
   if (item.fillLineage !== FILL_LINEAGE) return;
   const store = context.prisma.prescriptionFill;
   if (!store) throw new DomainError("Per-fill schema gate is required");
-  const where = { prescriptionId: p.id, prescriptionItemId: item.id, organizationId: p.organization.id, locationId: p.location.id, patientId: p.patient.id };
+  const where = { prescriptionId: p2.id, prescriptionItemId: item.id, organizationId: p2.organization.id, locationId: p2.location.id, patientId: p2.patient.id };
   const [totals, consumed, reserved] = await Promise.all([
     store.aggregate({ where, _sum: { quantityDispensed: true } }),
     store.count({ where: { ...where, kind: "refill", creditState: "consumed" } }),
@@ -6199,15 +6199,15 @@ async function assertItemFillLedger(context, p, item) {
     throw new DomainError("Item counters disagree with immutable fill lineage; reconciliation is required");
   }
 }
-function assertFillBinding(fill, p, item, clinical = true) {
-  if (fill.prescription?.id !== p.id || fill.prescriptionItem?.id !== item?.id || fill.organization?.id !== p.organization.id || fill.location?.id !== p.location.id || fill.patient?.id !== p.patient.id || fill.itemVersion !== prescriptionItemVersion(p, item)) {
+function assertFillBinding(fill, p2, item, clinical = true) {
+  if (fill.prescription?.id !== p2.id || fill.prescriptionItem?.id !== item?.id || fill.organization?.id !== p2.organization.id || fill.location?.id !== p2.location.id || fill.patient?.id !== p2.patient.id || fill.itemVersion !== prescriptionItemVersion(p2, item)) {
     throw new DomainError("Prescription item or patient changed; reconcile without rewriting history");
   }
   if (clinical) {
-    if (fill.priceSnapshot?.taxRateBps !== p.organization.cashTaxRateBps || fill.priceSnapshot?.taxPolicyReference !== p.organization.cashTaxPolicyReference) throw new DomainError("Cash tax policy changed after reservation; explicit reconciliation is required");
-    assertPrescriptionClinicallyEligible(p);
+    if (fill.priceSnapshot?.taxRateBps !== p2.organization.cashTaxRateBps || fill.priceSnapshot?.taxPolicyReference !== p2.organization.cashTaxPolicyReference) throw new DomainError("Cash tax policy changed after reservation; explicit reconciliation is required");
+    assertPrescriptionClinicallyEligible(p2);
     assertPrescriptionItemProductIdentity(item);
-    if (fill.authorityVersion !== prescriptionAuthorityVersion(p)) throw new DomainError("Prescriber/source/patient authority changed after reservation; fresh evidence is required");
+    if (fill.authorityVersion !== prescriptionAuthorityVersion(p2)) throw new DomainError("Prescriber/source/patient authority changed after reservation; fresh evidence is required");
   }
 }
 async function appendFillEvent(context, fill, input) {
@@ -6241,7 +6241,7 @@ async function appendFillEvent(context, fill, input) {
       policyVersion: fill.policySnapshot.version
     }
   } });
-  await recordAuditAndOutbox(context, {
+  await recordAudit(context, {
     eventKey: input.eventKey,
     organizationId: fill.organization.id,
     locationId: fill.location.id,
@@ -6271,32 +6271,32 @@ async function casFill(context, fill, data) {
   if (result.count !== 1) throw new DomainError("Fill version changed; refresh the workbench");
   return { ...fill, ...data };
 }
-async function reserveFillInTransaction(context, p, item, input) {
+async function reserveFillInTransaction(context, p2, item, input) {
   const q = fillStore(context);
-  if (p.items.length !== 1) throw new DomainError("Per-fill workflow requires one prescription item; multi-item authority is not inferred");
+  if (p2.items.length !== 1) throw new DomainError("Per-fill workflow requires one prescription item; multi-item authority is not inferred");
   if (item.fillLineage !== FILL_LINEAGE) throw new DomainError("Legacy item has no per-fill entitlement provenance; explicit reconciliation is required");
-  assertPrescriptionClinicallyEligible(p);
+  assertPrescriptionClinicallyEligible(p2);
   assertPrescriptionItemProductIdentity(item);
-  await assertItemFillLedger(context, p, item);
-  if (!input.expectedItemVersion || input.expectedItemVersion !== prescriptionItemVersion(p, item)) throw new DomainError("Prescription item version changed; refresh before reserving");
+  await assertItemFillLedger(context, p2, item);
+  if (!input.expectedItemVersion || input.expectedItemVersion !== prescriptionItemVersion(p2, item)) throw new DomainError("Prescription item version changed; refresh before reserving");
   const existing = await q.PrescriptionFill.findOne({ where: { reservationKey: input.key }, query: FILL_QUERY });
   if (existing) {
-    assertFillBinding(existing, p, item);
+    assertFillBinding(existing, p2, item);
     if (existing.requestFingerprint !== input.fingerprint) throw new DomainError("Fill reservation key is already bound to another request");
     return { fill: existing, reused: true };
   }
   if (await q.PrescriptionFill.findOne({ where: { openKey: `item:${item.id}` }, query: "id" })) throw new DomainError("This item already has an open fill; recover or release that fill");
-  if (!p.organization.prescriptionFillPolicy?.approvalId) throw new DomainError("Fill policy lacks recorded operator approval");
-  if (p.organization.cashSalesEnabled !== true || !p.organization.cashTaxPolicyReference?.trim() || !p.organization.cashPolicyReviewedAt || !Number.isInteger(p.organization.cashTaxRateBps)) throw new DomainError("Reviewed cash/tax policy is required before fill reservation");
+  if (!p2.organization.prescriptionFillPolicy?.approvalId) throw new DomainError("Fill policy lacks recorded operator approval");
+  if (p2.organization.cashSalesEnabled !== true || !p2.organization.cashTaxPolicyReference?.trim() || !p2.organization.cashPolicyReviewedAt || !Number.isInteger(p2.organization.cashTaxRateBps)) throw new DomainError("Reviewed cash/tax policy is required before fill reservation");
   if (item.product.currencyCode !== "USD" || !Number.isSafeInteger(item.product.priceAmount) || item.product.priceAmount < 0) throw new DomainError("Fill price/currency requires bounded USD cash policy reconciliation");
-  const cashPolicy = { taxRateBps: p.organization.cashTaxRateBps, policyReference: p.organization.cashTaxPolicyReference };
-  const policySnapshot = { ...parseFillPolicy(p.organization.prescriptionFillPolicy), approvalId: p.organization.prescriptionFillPolicy.approvalId };
+  const cashPolicy = { taxRateBps: p2.organization.cashTaxRateBps, policyReference: p2.organization.cashTaxPolicyReference };
+  const policySnapshot = { ...parseFillPolicy(p2.organization.prescriptionFillPolicy), approvalId: p2.organization.prescriptionFillPolicy.approvalId };
   if (!Number.isSafeInteger(item.quantityPrescribed) || item.quantityPrescribed < 1) throw new DomainError("Prescribed quantity requires reconciliation");
   let fillNumber = 1;
   if (input.kind === "original") {
-    if (!["approved", "fill_closed"].includes(p.status) || item.quantityDispensed !== 0 || item.refillsRemaining !== item.refillsAuthorized || item.refillsReserved !== 0) throw new DomainError("Original fill requires approved unused authority");
+    if (!["approved", "fill_closed"].includes(p2.status) || item.quantityDispensed !== 0 || item.refillsRemaining !== item.refillsAuthorized || item.refillsReserved !== 0) throw new DomainError("Original fill requires approved unused authority");
   } else {
-    if (!["dispensed", "fill_closed"].includes(p.status) || item.quantityDispensed < 1 || item.refillsRemaining - item.refillsReserved < 1) throw new DomainError("No unreserved refill entitlement is available");
+    if (!["dispensed", "fill_closed"].includes(p2.status) || item.quantityDispensed < 1 || item.refillsRemaining - item.refillsReserved < 1) throw new DomainError("No unreserved refill entitlement is available");
     fillNumber = 2 + item.refillsAuthorized - item.refillsRemaining;
     await context.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved + 1 } });
   }
@@ -6310,15 +6310,15 @@ async function reserveFillInTransaction(context, p, item, input) {
     fillNumber,
     creditState: "reserved",
     authorizedQuantity: item.quantityPrescribed,
-    itemVersion: prescriptionItemVersion(p, item),
-    authorityVersion: prescriptionAuthorityVersion(p),
+    itemVersion: prescriptionItemVersion(p2, item),
+    authorityVersion: prescriptionAuthorityVersion(p2),
     policySnapshot,
     priceSnapshot: { amount: item.product.priceAmount, currencyCode: item.product.currencyCode, taxable: item.product.taxable !== false, taxAmount: calculateTaxAmount(item.product.taxable !== false ? item.product.priceAmount : 0, cashPolicy.taxRateBps), taxRateBps: cashPolicy.taxRateBps, taxPolicyReference: cashPolicy.policyReference, title: item.product.title, sku: item.product.sku },
-    expiresAt: new Date(Math.min(new Date(p.expiresAt).getTime(), Date.now() + policySnapshot.reservationMinutes * 6e4)).toISOString(),
-    organization: connect(p.organization.id),
-    location: connect(p.location.id),
-    patient: connect(p.patient.id),
-    prescription: connect(p.id),
+    expiresAt: new Date(Math.min(new Date(p2.expiresAt).getTime(), Date.now() + policySnapshot.reservationMinutes * 6e4)).toISOString(),
+    organization: connect(p2.organization.id),
+    location: connect(p2.location.id),
+    patient: connect(p2.patient.id),
+    prescription: connect(p2.id),
     prescriptionItem: connect(item.id),
     reservedBy: connect(input.actorId),
     refillRequest: input.refillRequestId ? connect(input.refillRequestId) : void 0,
@@ -6331,30 +6331,30 @@ async function reservePharmacyPrescriptionFill(_root, args, context) {
   await currentFillPermission(context, "canReviewPrescriptions");
   if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `prescription-item:${args.prescriptionItemId}`, `fill-command:${args.idempotencyKey}`], async (tx) => {
-    const p = await loadFillPrescription(tx, args.prescriptionId);
-    const { userId } = await requireTenantMembership(tx, { organizationId: p.organization.id, locationId: p.location.id, pharmacist: true });
+    const p2 = await loadFillPrescription(tx, args.prescriptionId);
+    const { userId } = await requireTenantMembership(tx, { organizationId: p2.organization.id, locationId: p2.location.id, pharmacist: true });
     await currentFillPermission(tx, "canReviewPrescriptions");
-    const item = p.items.find((i) => i.id === args.prescriptionItemId);
+    const item = p2.items.find((i) => i.id === args.prescriptionItemId);
     if (!item) throw new DomainError("Prescription item not found");
     const fingerprint2 = fillHash({ ...args, actorId: userId });
     const existing = await fillStore(tx).PrescriptionFill.findOne({ where: { reservationKey: args.idempotencyKey }, query: FILL_QUERY });
     if (existing) {
-      assertFillBinding(existing, p, item);
-      await assertItemFillLedger(tx, p, item);
+      assertFillBinding(existing, p2, item);
+      await assertItemFillLedger(tx, p2, item);
       if (existing.requestFingerprint !== fingerprint2) throw new DomainError("Fill reservation key is already bound to another request");
       return { success: true, reused: true, fillId: existing.id, status: existing.status, version: existing.version };
     }
     const approval = await createHumanApproval(tx, {
-      organizationId: p.organization.id,
-      locationId: p.location.id,
+      organizationId: p2.organization.id,
+      locationId: p2.location.id,
       actorId: userId,
       actionType: "prescription_review",
       reason: args.reason,
       attested: args.attested,
       evidence: { stage: "fill_reservation", itemVersion: args.expectedItemVersion }
     });
-    const { fill } = await reserveFillInTransaction(tx, p, item, { kind: "original", actorId: userId, key: args.idempotencyKey, fingerprint: fingerprint2, expectedItemVersion: args.expectedItemVersion, approvalId: approval.id });
-    if (p.status === "fill_closed") await tx.sudo().query.Prescription.updateOne({ where: { id: p.id }, data: { status: "approved" } });
+    const { fill } = await reserveFillInTransaction(tx, p2, item, { kind: "original", actorId: userId, key: args.idempotencyKey, fingerprint: fingerprint2, expectedItemVersion: args.expectedItemVersion, approvalId: approval.id });
+    if (p2.status === "fill_closed") await tx.sudo().query.Prescription.updateOne({ where: { id: p2.id }, data: { status: "approved" } });
     return { success: true, reused: false, fillId: fill.id, status: fill.status, version: fill.version };
   });
 }
@@ -6362,14 +6362,14 @@ async function releasePharmacyPrescriptionFill(_root, args, context) {
   await currentFillPermission(context, "canReviewPrescriptions");
   if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `fill-command:${args.idempotencyKey}`], async (tx) => {
-    const p = await loadFillPrescription(tx, args.prescriptionId);
-    const { userId } = await requireTenantMembership(tx, { organizationId: p.organization.id, locationId: p.location.id, pharmacist: true });
+    const p2 = await loadFillPrescription(tx, args.prescriptionId);
+    const { userId } = await requireTenantMembership(tx, { organizationId: p2.organization.id, locationId: p2.location.id, pharmacist: true });
     await currentFillPermission(tx, "canReviewPrescriptions");
     const q = fillStore(tx), fill = await q.PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY });
-    const item = p.items.find((i) => i.id === fill?.prescriptionItem?.id);
+    const item = p2.items.find((i) => i.id === fill?.prescriptionItem?.id);
     if (!fill || !item) throw new DomainError("Fill not found");
-    assertFillBinding(fill, p, item, false);
-    await assertItemFillLedger(tx, p, item);
+    assertFillBinding(fill, p2, item, false);
+    await assertItemFillLedger(tx, p2, item);
     const fingerprint2 = fillHash({ ...args, actorId: userId });
     const eventKey = `fill.release:${args.idempotencyKey}`;
     const prior = await q.PrescriptionFillEvent.findOne({ where: { eventKey }, query: "id commandFingerprint result" });
@@ -6379,15 +6379,15 @@ async function releasePharmacyPrescriptionFill(_root, args, context) {
     }
     const plan = releaseFillPlan(fill, args.expectedVersion, args.cause);
     const approval = await createHumanApproval(tx, {
-      organizationId: p.organization.id,
-      locationId: p.location.id,
+      organizationId: p2.organization.id,
+      locationId: p2.location.id,
       actorId: userId,
       actionType: "prescription_review",
       reason: args.reason,
       attested: args.attested,
       evidence: { stage: "fill_release", fillId: fill.id, cause: args.cause, entitlementRestored: false, inventoryRestocked: false }
     });
-    const updated = await applyFillReleaseInTransaction(tx, p, item, fill, plan, args.reason);
+    const updated = await applyFillReleaseInTransaction(tx, p2, item, fill, plan, args.reason);
     const result = { success: true, reused: false, fillId: fill.id, status: "released", version: updated.version };
     await appendFillEvent(tx, updated, {
       eventKey,
@@ -6402,7 +6402,7 @@ async function releasePharmacyPrescriptionFill(_root, args, context) {
     return result;
   });
 }
-async function applyFillReleaseInTransaction(tx, p, item, fill, plan, reason, extra = {}) {
+async function applyFillReleaseInTransaction(tx, p2, item, fill, plan, reason, extra = {}) {
   if (plan.releaseRefill) {
     if (item.refillsReserved < 1) throw new DomainError("Refill reservation counter requires reconciliation");
     await tx.sudo().query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { refillsReserved: item.refillsReserved - 1 } });
@@ -6410,7 +6410,7 @@ async function applyFillReleaseInTransaction(tx, p, item, fill, plan, reason, ex
   const { releaseRefill, ...data } = plan;
   const updated = await casFill(tx, fill, { ...data, ...extra, openKey: null });
   if (fill.refillRequest?.id) await tx.sudo().query.RefillRequest.updateOne({ where: { id: fill.refillRequest.id }, data: { status: "cancelled", openRequestKey: null, resolutionNote: reason, resolvedAt: (/* @__PURE__ */ new Date()).toISOString() } });
-  if (fill.status !== "requested") await tx.sudo().query.Prescription.updateOne({ where: { id: p.id }, data: { status: "fill_closed" } });
+  if (fill.status !== "requested") await tx.sudo().query.Prescription.updateOne({ where: { id: p2.id }, data: { status: "fill_closed" } });
   return updated;
 }
 async function consumeFillInTransaction(tx, fill, item, expectedVersion, quantity, input) {
@@ -6467,7 +6467,7 @@ async function recordPharmacyFillPolicy(_root, args, context) {
       evidence: { stage: "fill_policy", policy, clinicalValidityClaimed: false, nonRetroactive: true }
     });
     await tx.sudo().query.Organization.updateOne({ where: { id: args.organizationId }, data: { prescriptionFillPolicy: { ...policy, approvalId: approval.id } } });
-    await recordAuditAndOutbox(tx, {
+    await recordAudit(tx, {
       eventKey,
       organizationId: args.organizationId,
       actorId: userId,
@@ -6503,7 +6503,7 @@ async function recordPharmacyDrugReferenceReview(_root, args, context) {
     const now = /* @__PURE__ */ new Date();
     const data = { status: "active", marketingStatusSnapshot: args.marketingStatus, controlledScheduleSnapshot: args.controlledSchedule, sourceName: args.sourceName.trim(), sourceVersion: args.sourceVersion.trim(), sourceReference: args.sourceReference.trim(), reviewedAt: now, organizationId: args.organizationId, drugReferenceId: drugReference.id, reviewedById: userId, approvalId: approval.id };
     const review = existing ? await prisma.drugReferenceReview.update({ where: { id: existing.id }, data, select: { id: true, status: true } }) : await prisma.drugReferenceReview.create({ data: { reviewKey: `${args.organizationId}:${drugReference.id}`, ...data }, select: { id: true, status: true } });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `drug_reference.reviewed:${review.id}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: "drug_reference.review_recorded", resourceType: "DrugReferenceReview", resourceId: review.id, metadata: { drugReferenceId: drugReference.id, approvalId: approval.id, marketingStatus: args.marketingStatus, controlledSchedule: args.controlledSchedule, softwareValidationPerformed: false } });
+    await recordAudit(transactionContext, { eventKey: `drug_reference.reviewed:${review.id}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: "drug_reference.review_recorded", resourceType: "DrugReferenceReview", resourceId: review.id, metadata: { drugReferenceId: drugReference.id, approvalId: approval.id, marketingStatus: args.marketingStatus, controlledSchedule: args.controlledSchedule, softwareValidationPerformed: false } });
     return { success: true, reused: false, reviewId: review.id, status: review.status, approvalId: approval.id };
   });
 }
@@ -6611,7 +6611,7 @@ async function recordPrescriptionClinicalSafetyReview(_root, args, context) {
       query: "id outcome reviewedAt"
     });
     if (fill) await appendFillEvent(transactionContext, fill, { eventKey: `fill.clinical:${review.id}`, fingerprint: requestFingerprint, action: "clinical_reviewed", actorId: userId, approvalId: approval.id, result: { reviewId: review.id, outcome: review.outcome }, evidence: { clinicalSafetyReviewId: review.id, outcome: args.outcome, fillVersion: fill.version } });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `prescription.clinical_safety_reviewed:${review.id}`, organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, patientId: prescription.patient.id, eventType: "prescription.clinical_safety_review_recorded", resourceType: "ClinicalSafetyReview", resourceId: review.id, metadata: { prescriptionId: prescription.id, fillNumber, outcome: args.outcome, approvalId: approval.id, softwareClinicalDecisionPerformed: false } });
+    await recordAudit(transactionContext, { eventKey: `prescription.clinical_safety_reviewed:${review.id}`, organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, patientId: prescription.patient.id, eventType: "prescription.clinical_safety_review_recorded", resourceType: "ClinicalSafetyReview", resourceId: review.id, metadata: { prescriptionId: prescription.id, fillNumber, outcome: args.outcome, approvalId: approval.id, softwareClinicalDecisionPerformed: false } });
     return { success: true, reused: false, reviewId: review.id, prescriptionId: prescription.id, outcome: review.outcome, approvalId: approval.id };
   });
 }
@@ -6655,7 +6655,7 @@ async function holdPrescriptionForClinicalReReview(_root, args, context) {
       evidence: { prescriptionId: prescription.id, safetyReviewId: latestReview.id, latestEvidenceChange, requestFingerprint, softwareClinicalDecisionPerformed: false }
     });
     await sudo.query.Prescription.updateOne({ where: { id: prescription.id }, data: { status: "approved", approval: { connect: { id: approval.id } } } });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.clinical_safety_hold:${prescription.id}:${approval.id}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -6716,7 +6716,7 @@ async function recordPharmacyStaffCredentialReview(_root, args, context) {
         credentialVerifiedById: userId
       }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `membership.credential_reviewed:${membership.id}:${approval.id}`,
       organizationId: membership.organization.id,
       locationId: membership.location?.id,
@@ -6762,7 +6762,7 @@ async function recordPharmacyPrescriberCredentialReview(_root, args, context) {
         verifiedById: userId
       }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescriber.credential_reviewed:${prescriber.id}:${approval.id}`,
       organizationId: prescriber.organization.id,
       actorId: userId,
@@ -6786,11 +6786,11 @@ function readId(value) {
   return value;
 }
 var linkedId = (value) => readId(record(value).id);
-function integer21(value, min = 0) {
+function integer20(value, min = 0) {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < min || value > 2147483647) throw readScopeError();
   return value;
 }
-function timestamp38(value) {
+function timestamp37(value) {
   if (typeof value !== "string" || !Number.isFinite(new Date(value).getTime())) throw readScopeError();
   return value;
 }
@@ -6799,22 +6799,22 @@ function hash(value) {
   return value;
 }
 function prescriptionReadScope(value, expectedId) {
-  const p = record(value);
-  if (p.id !== expectedId || !Array.isArray(p.items) || !p.items.length) throw readScopeError();
-  const itemIds = p.items.map((value2) => {
+  const p2 = record(value);
+  if (p2.id !== expectedId || !Array.isArray(p2.items) || !p2.items.length) throw readScopeError();
+  const itemIds = p2.items.map((value2) => {
     const item = record(value2);
-    if (linkedId(item.prescription) !== p.id) throw readScopeError();
+    if (linkedId(item.prescription) !== p2.id) throw readScopeError();
     return readId(item.id);
   });
-  if (new Set(itemIds).size !== itemIds.length || linkedId(record(p.prescriber).organization) !== linkedId(p.organization)) throw readScopeError();
-  return { prescriptionId: readId(p.id), organizationId: linkedId(p.organization), locationId: linkedId(p.location), patientId: linkedId(p.patient), prescriberId: linkedId(p.prescriber), itemIds };
+  if (new Set(itemIds).size !== itemIds.length || linkedId(record(p2.prescriber).organization) !== linkedId(p2.organization)) throw readScopeError();
+  return { prescriptionId: readId(p2.id), organizationId: linkedId(p2.organization), locationId: linkedId(p2.location), patientId: linkedId(p2.patient), prescriberId: linkedId(p2.prescriber), itemIds };
 }
 var FILL_READ_METADATA = "id requestFingerprint openKey status kind version fillNumber creditState authorizedQuantity quantityDispensed quantityReleased itemVersion authorityVersion expiresAt createdAt prescription { id } prescriptionItem { id prescription { id } } organization { id } location { id } patient { id } refillRequest { id } reservedBy { id }";
 function scopedFill(value, scope, expectedId) {
   const f = record(value), id = readId(f.id), itemId = linkedId(f.prescriptionItem);
   if (expectedId && id !== expectedId || linkedId(record(f.prescriptionItem).prescription) !== scope.prescriptionId || linkedId(f.prescription) !== scope.prescriptionId || linkedId(f.organization) !== scope.organizationId || linkedId(f.location) !== scope.locationId || linkedId(f.patient) !== scope.patientId || !scope.itemIds.includes(itemId)) throw readScopeError();
-  const version = integer21(f.version, 1), fillNumber = integer21(f.fillNumber, 1);
-  const authorizedQuantity = integer21(f.authorizedQuantity, 1), quantityDispensed = integer21(f.quantityDispensed), quantityReleased = integer21(f.quantityReleased);
+  const version = integer20(f.version, 1), fillNumber = integer20(f.fillNumber, 1);
+  const authorizedQuantity = integer20(f.authorizedQuantity, 1), quantityDispensed = integer20(f.quantityDispensed), quantityReleased = integer20(f.quantityReleased);
   if (quantityDispensed + quantityReleased > authorizedQuantity || !["original", "refill"].includes(String(f.kind)) || !["requested", "approved", "partially_dispensed", "ready", "dispensed", "released"].includes(String(f.status)) || !["reserved", "consumed", "released"].includes(String(f.creditState))) throw readScopeError();
   return {
     id,
@@ -6832,8 +6832,8 @@ function scopedFill(value, scope, expectedId) {
     itemVersion: hash(f.itemVersion),
     authorityVersion: hash(f.authorityVersion),
     requestFingerprint: hash(f.requestFingerprint),
-    createdAt: timestamp38(f.createdAt),
-    expiresAt: timestamp38(f.expiresAt),
+    createdAt: timestamp37(f.createdAt),
+    expiresAt: timestamp37(f.expiresAt),
     refillRequestId: f.refillRequest ? linkedId(f.refillRequest) : null
   };
 }
@@ -6844,13 +6844,13 @@ var EVENT_READ_METADATA = `id commandFingerprint action version quantity created
 function scopedEvent(value, scope, fill, expectedId) {
   const e = record(value), id = readId(e.id), linked = scopedFill(e.fill, scope, fill.id);
   if (expectedId && id !== expectedId || linkedId(e.prescription) !== scope.prescriptionId || linked.itemId !== fill.itemId || linked.version !== fill.version || linked.itemVersion !== fill.itemVersion || linked.authorityVersion !== fill.authorityVersion) throw readScopeError();
-  const version = integer21(e.version, 1);
+  const version = integer20(e.version, 1);
   if (version > fill.version || !["reserved", "approved", "rejected", "released", "dispensed", "clinical_reviewed", "filled", "picked_up", "returned_to_stock"].includes(String(e.action))) throw readScopeError();
-  const quantity = integer21(e.quantity);
+  const quantity = integer20(e.quantity);
   if (e.action === "dispensed" ? quantity < 1 || quantity > fill.quantityDispensed : e.action === "filled" ? quantity < 1 || quantity > fill.authorizedQuantity : ["released", "returned_to_stock"].includes(String(e.action)) ? quantity > fill.quantityReleased : quantity !== 0) throw readScopeError();
   const commandFingerprint = hash(e.commandFingerprint);
   if (e.action === "reserved" && (commandFingerprint !== fill.requestFingerprint || linkedId(e.actor) !== fill.reservedById)) throw readScopeError();
-  return { id, action: String(e.action), version, commandFingerprint, quantity, createdAt: timestamp38(e.createdAt), actorId: linkedId(e.actor), approvalId: e.approval ? linkedId(e.approval) : null };
+  return { id, action: String(e.action), version, commandFingerprint, quantity, createdAt: timestamp37(e.createdAt), actorId: linkedId(e.actor), approvalId: e.approval ? linkedId(e.approval) : null };
 }
 function eventReadWhere(scope, fill) {
   return { fill: { ...fillReadWhere(scope), id: { equals: fill.id } }, prescription: { id: { equals: scope.prescriptionId } }, version: { gte: 1, lte: fill.version } };
@@ -6863,7 +6863,7 @@ function readCursor(after, scope, purpose, fillId) {
   try {
     const c = record(JSON.parse(Buffer.from(after, "base64url").toString()));
     if (c.purpose !== purpose || c.fillId !== fillId || !sameScope(record(c.scope), scope)) throw Error();
-    return { id: readId(c.id), createdAt: timestamp38(c.createdAt), version: integer21(c.version, 1) };
+    return { id: readId(c.id), createdAt: timestamp37(c.createdAt), version: integer20(c.version, 1) };
   } catch {
     throw new Error("Invalid scoped cursor");
   }
@@ -6889,7 +6889,7 @@ async function readFillProjection(context, scope, fill) {
   if (!equalFill(scopedFill(value, scope, fill.id), fill)) throw readScopeError();
   const policy = parseFillPolicy(value.policySnapshot), price = record(value.priceSnapshot);
   assertFillConservation({ ...fill, policySnapshot: policy });
-  const priceAmount = integer21(price.amount), taxAmount = integer21(price.taxAmount);
+  const priceAmount = integer20(price.amount), taxAmount = integer20(price.taxAmount);
   if (typeof price.currencyCode !== "string" || !/^[A-Z]{3}$/.test(price.currencyCode) || typeof price.taxable !== "boolean") throw readScopeError();
   if (fill.refillRequestId) {
     const request = record(await q.RefillRequest.findOne({ where: { id: fill.refillRequestId }, query: "id prescription { id } prescriptionItem { id } patient { id } location { id }" }));
@@ -6988,12 +6988,12 @@ async function authorizedFillReadback(context, prescriptionId) {
   const metadata = await q.Prescription.findOne({ where: { id: prescriptionId }, query: "id organization { id } location { id } patient { id } prescriber { id organization { id } } items { id prescription { id } }" });
   const scope = prescriptionReadScope(metadata, prescriptionId);
   await requireTenantMembership(context, { organizationId: scope.organizationId, locationId: scope.locationId, pharmacist: true });
-  const p = record(await loadFillPrescription(context, prescriptionId));
-  if (!sameScope(prescriptionReadScope(p, prescriptionId), scope)) throw readScopeError();
-  return { p, role, scope };
+  const p2 = record(await loadFillPrescription(context, prescriptionId));
+  if (!sameScope(prescriptionReadScope(p2, prescriptionId), scope)) throw readScopeError();
+  return { p: p2, role, scope };
 }
 async function pharmacyFillWorkbench(_root, args, context) {
-  const { p, role, scope } = await authorizedFillReadback(context, args.prescriptionId);
+  const { p: p2, role, scope } = await authorizedFillReadback(context, args.prescriptionId);
   const q = readStore(context);
   let boundary = {};
   if (args.after) {
@@ -7021,7 +7021,7 @@ async function pharmacyFillWorkbench(_root, args, context) {
     } catch {
     }
   }
-  const items = p.items.map(record);
+  const items = p2.items.map(record);
   const openItems = await Promise.all(items.map(async (item) => {
     const value = await q.PrescriptionFill.findOne({ where: { openKey: `item:${item.id}` }, query: fillMetadataQuery });
     if (!value) return null;
@@ -7034,13 +7034,13 @@ async function pharmacyFillWorkbench(_root, args, context) {
   if (!Number.isSafeInteger(totalCount) || totalCount < validated.length) throw readScopeError();
   return {
     organizationId: scope.organizationId,
-    policyConfigured: Boolean(record(p.organization).prescriptionFillPolicy && record(record(p.organization).prescriptionFillPolicy).approvalId),
+    policyConfigured: Boolean(record(p2.organization).prescriptionFillPolicy && record(record(p2.organization).prescriptionFillPolicy).approvalId),
     canConfigure,
     items: items.map((item, index) => ({
       id: item.id,
-      itemVersion: prescriptionItemVersion(p, item),
+      itemVersion: prescriptionItemVersion(p2, item),
       lineage: item.fillLineage || "legacy",
-      originalReservable: item.fillLineage === FILL_LINEAGE && ["approved", "fill_closed"].includes(String(p.status)) && item.quantityDispensed === 0 && item.refillsRemaining === item.refillsAuthorized && !openItems[index]
+      originalReservable: item.fillLineage === FILL_LINEAGE && ["approved", "fill_closed"].includes(String(p2.status)) && item.quantityDispensed === 0 && item.refillsRemaining === item.refillsAuthorized && !openItems[index]
     })),
     fills,
     totalCount,
@@ -7291,7 +7291,7 @@ async function transitionInTransaction(args, context) {
       where: { id: fulfillment.order.id },
       data: { status: ORDER_STATUS[args.status], ...approval ? { approval: { connect: { id: approval.id } } } : {} }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `fulfillment.${args.status}:${fulfillment.id}`,
       organizationId: fulfillment.organization.id,
       locationId: fulfillment.location.id,
@@ -7316,9 +7316,9 @@ function userInputError2(message) {
   return new import_graphql3.GraphQLError(message, { extensions: { code: "BAD_USER_INPUT" } });
 }
 function clean(value, max) {
-  const text45 = String(value ?? "").trim();
-  if (text45.length > max) throw userInputError2(`Keep each answer under ${max} characters.`);
-  return text45;
+  const text44 = String(value ?? "").trim();
+  if (text44.length > max) throw userInputError2(`Keep each answer under ${max} characters.`);
+  return text44;
 }
 function customerProjection(request) {
   return { id: request.id, kind: request.kind, status: request.status, createdAt: request.createdAt, resolvedAt: request.resolvedAt, resolutionNote: request.resolutionNote || null, locationName: request.location?.name || "Pharmacy", counterpartyName: request.counterpartyName || null, medications: request.medications || null };
@@ -7402,7 +7402,7 @@ async function submitPharmacyPrescriptionRequest(_root, args, context) {
     },
     query: REQUEST_FIELDS
   });
-  await recordAuditAndOutbox(context, {
+  await recordAudit(context, {
     eventKey: `prescription_request.submitted:${request.id}`,
     organizationId: location.organization.id,
     locationId: location.id,
@@ -7461,7 +7461,7 @@ async function resolvePharmacyPrescriptionRequest(_root, args, context) {
     const customer = await sudo.query.User.findOne({ where: { id: request.user.id }, query: "id patientProfile { id }" });
     if (customer && !customer.patientProfile) {
       await sudo.query.PatientProfile.updateOne({ where: { id: patient.id }, data: { user: { connect: { id: customer.id } } } });
-      await recordAuditAndOutbox(context, {
+      await recordAudit(context, {
         eventKey: `patient.account_linked:${patient.id}:${customer.id}`,
         organizationId: request.organization.id,
         actorId: String(userId),
@@ -7478,7 +7478,7 @@ async function resolvePharmacyPrescriptionRequest(_root, args, context) {
     data: { status: args.status, resolutionNote: note || request.resolutionNote || "", ...patient ? { patient: { connect: { id: patient.id } } } : {}, ...terminal ? { resolvedAt: (/* @__PURE__ */ new Date()).toISOString(), resolvedBy: { connect: { id: String(userId) } } } : {} },
     query: REQUEST_FIELDS
   });
-  await recordAuditAndOutbox(context, {
+  await recordAudit(context, {
     eventKey: `prescription_request.${args.status}:${request.id}`,
     organizationId: request.organization.id,
     locationId: request.location.id,
@@ -7498,7 +7498,7 @@ var import_node_crypto10 = require("node:crypto");
 // features/keystone/workflows/product-location.ts
 function isProductAtActiveTenantLocation(product, location) {
   return Boolean(
-    product && product.coldChainRequired === false && location && location.status === "active" && location.organization?.status === "active" && location.organization.id && location.id && product.organization?.id === location.organization.id && product.location?.id === location.id
+    product && location && location.status === "active" && location.organization?.status === "active" && location.organization.id && location.id && product.organization?.id === location.organization.id && product.location?.id === location.id
   );
 }
 
@@ -7534,6 +7534,7 @@ async function receiveInventoryLot(_root, args, context) {
       throw new DomainError("This product cannot be received at this location");
     }
     if (product.coldChainRequired && !args.coldChainRequired) throw new DomainError("This product is cold-chain; receive it with its storage range and temperature log");
+    if (!product.coldChainRequired && args.coldChainRequired) throw new DomainError("This product is not marked cold-chain; update the product before receiving it refrigerated");
     if (args.supplierId && (!supplier || supplier.organization?.id !== location.organization.id || supplier.status !== "active")) {
       throw new DomainError("Supplier must be active in the receiving organization");
     }
@@ -7582,7 +7583,7 @@ async function receiveInventoryLot(_root, args, context) {
       },
       query: "id"
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `inventory.received:${args.idempotencyKey}`,
       organizationId: location.organization.id,
       locationId: location.id,
@@ -7656,7 +7657,7 @@ async function adjustInventoryLot(_root, args, context) {
       },
       query: "id"
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `inventory.adjusted:${args.idempotencyKey}`,
       organizationId: lot.product.organization.id,
       locationId: lot.location.id,
@@ -7726,7 +7727,7 @@ async function quarantineRecallLots(_root, args, context) {
         where: { id: recall.id },
         data: { status: "quarantined", approval: { connect: { id: approval.id } } }
       });
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `recall.quarantined:${recall.id}`,
         organizationId: recall.organization.id,
         locationId: recall.location?.id,
@@ -7887,7 +7888,7 @@ async function configurePharmacyIntegrationProvider(_root, args, context) {
       where: { id: provider.id },
       data: { configuration, credentials, ...adapterFunctions, status: "active", externalValidationComplete: true, validatedAt: (/* @__PURE__ */ new Date()).toISOString(), validationReference: `health:${new URL(configuration.baseUrl).host}` }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `integration.configured:${provider.id}:${Date.now()}`,
       organizationId: provider.organization.id,
       actorId: userId,
@@ -7915,7 +7916,7 @@ async function validatePharmacyPrescriber(_root, args, context) {
   }
   return withDomainTransaction(context, [`prescriber:${prescriber.id}`], async (transactionContext) => {
     await transactionContext.prisma.prescriber.update({ where: { id: prescriber.id }, data: { verificationStatus: "validated", externalValidationComplete: true, verificationMethod: "external_provider", credentialType: String(result.credentialType).slice(0, 200), credentialJurisdiction: String(result.credentialJurisdiction).slice(0, 200), credentialIdentifier: String(result.credentialIdentifier).slice(0, 200), credentialExpiresAt, validationReference: String(result.validationReference).slice(0, 500), validatedAt: /* @__PURE__ */ new Date(), verifiedById: userId } });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescriber.validated:${prescriber.id}:${result.validationReference}`,
       organizationId: prescriber.organization.id,
       actorId: userId,
@@ -8004,7 +8005,7 @@ async function submitPharmacyExternalWorkflow(_root, args, context) {
   const status = ["accepted", "rejected", "pending"].includes(result.status) ? result.status : "submitted";
   await withDomainTransaction(context, [`integration-workflow:${workflow.id}`], async (transactionContext) => {
     await transactionContext.sudo().query.ExternalIntegrationWorkflow.updateOne({ where: { id: workflow.id }, data: { status, externalReference: result.externalReference, responsePayload: result, attempts: 1, submittedAt: (/* @__PURE__ */ new Date()).toISOString(), ...status === "accepted" || status === "rejected" ? { resolvedAt: (/* @__PURE__ */ new Date()).toISOString() } : {} } });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `integration.submitted:${workflow.id}`,
       organizationId: resource.organizationId,
       locationId: resource.locationId,
@@ -8151,7 +8152,7 @@ async function intakePharmacyPrescription(_root, args, context) {
         }
       });
     }
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.intake:${args.organizationId}:${args.prescriptionNumber.trim()}`,
       organizationId: args.organizationId,
       locationId: args.locationId,
@@ -8220,7 +8221,7 @@ async function createPharmacyPatient(_root, args, context) {
       },
       query: "id patientNumber status"
     });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `patient.created:${identityKey}`, organizationId: args.organizationId, actorId: userId, patientId: patient.id, eventType: "patient.created", resourceType: "PatientProfile", resourceId: patient.id, metadata: { patientNumber, approvalId: approval.id, identityMethod: args.identityMethod.trim(), softwareIdentityValidationPerformed: false } });
+    await recordAudit(transactionContext, { eventKey: `patient.created:${identityKey}`, organizationId: args.organizationId, actorId: userId, patientId: patient.id, eventType: "patient.created", resourceType: "PatientProfile", resourceId: patient.id, metadata: { patientNumber, approvalId: approval.id, identityMethod: args.identityMethod.trim(), softwareIdentityValidationPerformed: false } });
     return { success: true, reused: false, patientId: patient.id, patientNumber: patient.patientNumber, status: patient.status };
   });
 }
@@ -8242,7 +8243,7 @@ async function updatePharmacyPatientContact(_root, args, context) {
     }
     const approval = await createHumanApproval(transactionContext, { organizationId, actorId: userId, actionType: "patient_record", reason: args.reason, attested: args.attested, evidence: { action: "contact_update", patientId: patient.id, requestFingerprint } });
     await transactionContext.prisma.patientProfile.update({ where: { id: patient.id }, data: { email: args.email?.trim().toLowerCase() || "", phone: args.phone?.trim() || "", preferredContactMethod: args.preferredContactMethod, address: args.address || null } });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `patient.contact_updated:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: "patient.contact_updated", resourceType: "PatientProfile", resourceId: patient.id, metadata: { approvalId: approval.id, preferredContactMethod: args.preferredContactMethod, requestFingerprint } });
+    await recordAudit(transactionContext, { eventKey: `patient.contact_updated:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: "patient.contact_updated", resourceType: "PatientProfile", resourceId: patient.id, metadata: { approvalId: approval.id, preferredContactMethod: args.preferredContactMethod, requestFingerprint } });
     return { success: true, reused: false, patientId: patient.id, status: "active" };
   });
 }
@@ -8292,7 +8293,7 @@ async function recordPatientHistoryEntry(input, context) {
     for (const entry of current.filter((entry2) => entry2.status === "none_known")) await model.updateOne({ where: { id: entry.id }, data: { status: kind === "allergy" ? "inactive" : "discontinued" } });
     const common = { [uniqueField]: key, requestFingerprint, source: args.source.trim(), sourceReference: args.sourceReference.trim(), organization: { connect: { id: organizationId } }, patient: { connect: { id: patient.id } }, recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } };
     const record2 = kind === "allergy" ? await sudo.query.PatientAllergy.createOne({ data: { ...common, allergen: label, reaction: normalize(args.reaction), severity: args.severity, ...noneKnown ? { status: "none_known" } : {} }, query: "id status" }) : await sudo.query.PatientMedication.createOne({ data: { ...common, medicationName: label, directions: args.directions?.trim() || void 0, ...noneKnown ? { status: "none_known" } : {} }, query: "id status" });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `patient.${kind}_recorded:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: `patient.${kind}_recorded`, resourceType: kind === "allergy" ? "PatientAllergy" : "PatientMedication", resourceId: record2.id, metadata: { approvalId: approval.id, sourceReference: args.sourceReference.trim() } });
+    await recordAudit(transactionContext, { eventKey: `patient.${kind}_recorded:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: `patient.${kind}_recorded`, resourceType: kind === "allergy" ? "PatientAllergy" : "PatientMedication", resourceId: record2.id, metadata: { approvalId: approval.id, sourceReference: args.sourceReference.trim() } });
     return { success: true, reused: false, recordId: record2.id, status: record2.status };
   });
 }
@@ -8351,7 +8352,7 @@ async function linkPharmacyPatientAccount(_root, args, context) {
     if (patient.user?.id === user.id && user.patientProfile?.id === patient.id) return { success: true, reused: true, patientId: patient.id, userId: user.id };
     if (patient.user?.id || user.patientProfile?.id) throw new DomainError("Patient or user is already linked to another account");
     await sudo.query.PatientProfile.updateOne({ where: { id: patient.id }, data: { user: { connect: { id: user.id } } } });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `patient.account_linked:${patient.id}:${user.id}`,
       organizationId,
       actorId,
@@ -8426,7 +8427,7 @@ async function requestPrescriptionRefill(_root, args, context) {
     const current = await loadFillPrescription(transactionContext, prescription.id);
     const currentItem = current.items.find((entry) => entry.id === item.id);
     await reserveFillInTransaction(transactionContext, current, currentItem, { kind: "refill", actorId, key: `refill:${args.idempotencyKey}`, fingerprint: requestFingerprint, expectedItemVersion: args.expectedItemVersion || void 0, refillRequestId: refill.id });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `refill.requested:${args.idempotencyKey}`,
       organizationId: prescription.organization.id,
       locationId: args.locationId,
@@ -8461,12 +8462,12 @@ async function resolvePrescriptionRefill(_root, args, context) {
     if (refill.prescription.id !== identity.prescription.id || refill.patient.id !== (await loadFillPrescription(transactionContext, identity.prescription.id)).patient.id || refill.location?.id !== refill.prescription.location.id) throw new DomainError("Refill scope changed");
     await currentFillPermission(transactionContext, "canReviewPrescriptions");
     if (refill.prescriptionItem.fillLineage === FILL_LINEAGE) {
-      const q = fillStore(transactionContext), p = await loadFillPrescription(transactionContext, refill.prescription.id);
+      const q = fillStore(transactionContext), p2 = await loadFillPrescription(transactionContext, refill.prescription.id);
       const fill = (await q.PrescriptionFill.findMany({ where: { refillRequest: { id: { equals: refill.id } } }, take: 2, query: FILL_QUERY }))[0];
-      const item = p.items.find((i) => i.id === refill.prescriptionItem.id);
+      const item = p2.items.find((i) => i.id === refill.prescriptionItem.id);
       if (!fill || !item) throw new DomainError("Refill fill lineage is missing");
-      assertFillBinding(fill, p, item, args.decision === "approved");
-      await assertItemFillLedger(transactionContext, p, item);
+      assertFillBinding(fill, p2, item, args.decision === "approved");
+      await assertItemFillLedger(transactionContext, p2, item);
       const fingerprint2 = fillHash({ ...args, actorId: userId }), eventKey = `fill.resolve:${refill.id}`;
       const prior = await q.PrescriptionFillEvent.findOne({ where: { eventKey }, query: "commandFingerprint result" });
       if (prior) {
@@ -8477,8 +8478,8 @@ async function resolvePrescriptionRefill(_root, args, context) {
       if (item.refillsReserved < 1 || item.refillsRemaining < 1) throw new DomainError("Refill reservation evidence is missing");
       if (args.decision === "approved" && new Date(fill.expiresAt).getTime() <= Date.now()) throw new DomainError("Refill reservation expired; record an authorized release");
       const approval2 = await createHumanApproval(transactionContext, {
-        organizationId: p.organization.id,
-        locationId: p.location.id,
+        organizationId: p2.organization.id,
+        locationId: p2.location.id,
         actorId: userId,
         actionType: "prescription_review",
         reason: args.reason,
@@ -8493,7 +8494,7 @@ async function resolvePrescriptionRefill(_root, args, context) {
         ...approved ? {} : { creditState: "released", quantityReleased: fill.authorizedQuantity, openKey: null }
       });
       await sudo.query.RefillRequest.updateOne({ where: { id: refill.id }, data: { status: args.decision, ...approved ? {} : { openRequestKey: null }, resolutionNote: args.reason, resolvedAt: (/* @__PURE__ */ new Date()).toISOString(), approval: { connect: { id: approval2.id } } } });
-      if (approved) await sudo.query.Prescription.updateOne({ where: { id: p.id }, data: { status: "approved", approval: { connect: { id: approval2.id } } } });
+      if (approved) await sudo.query.Prescription.updateOne({ where: { id: p2.id }, data: { status: "approved", approval: { connect: { id: approval2.id } } } });
       const result = { success: true, reused: false, refillRequestId: refill.id, status: args.decision, approvalId: approval2.id };
       await appendFillEvent(transactionContext, updated, { eventKey, fingerprint: fingerprint2, action: args.decision, actorId: userId, approvalId: approval2.id, result, evidence: { refillRequestId: refill.id, refillsRemaining: item.refillsRemaining, refillsReserved: item.refillsReserved - (approved ? 0 : 1) } });
       return result;
@@ -8523,7 +8524,7 @@ async function resolvePrescriptionRefill(_root, args, context) {
       where: { id: refill.id },
       data: { status: args.decision, openRequestKey: null, resolutionNote: args.reason, resolvedAt: (/* @__PURE__ */ new Date()).toISOString(), approval: { connect: { id: approval.id } } }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `refill.${args.decision}:${refill.id}`,
       organizationId: refill.prescription.organization.id,
       locationId: refill.prescription.location.id,
@@ -8587,7 +8588,7 @@ async function requestPrescriptionTransfer(_root, args, context) {
       query: "id"
     });
     await sudo.query.PrescriptionTransfer.updateOne({ where: { id: transfer.id }, data: { status: "consent_recorded", consent: { connect: { id: consent.id } } } });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription_transfer.requested:${args.idempotencyKey}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -8633,7 +8634,7 @@ async function approvePrescriptionTransfer(_root, args, context) {
       where: { id: transfer.id },
       data: { status: "accepted", approval: { connect: { id: approval.id } } }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription_transfer.accepted:${transfer.id}`,
       organizationId: transfer.prescription.organization.id,
       locationId: transfer.prescription.location.id,
@@ -8935,13 +8936,13 @@ async function pharmacyInventoryReceiptProductWorklist(_root, args, context) {
       where: stableCursorWhere(baseWhere, cursor),
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: pageSize + 1,
-      query: "id title sku createdAt"
+      query: "id title sku createdAt coldChainRequired"
     })
   ]);
   const hasMore = products.length > pageSize;
   const pageProducts = products.slice(0, pageSize);
   return {
-    items: pageProducts.map((product) => ({ id: product.id, label: product.title, scopeId: args.locationId, detail: product.sku })),
+    items: pageProducts.map((product) => ({ id: product.id, label: product.title, scopeId: args.locationId, detail: product.sku, coldChainRequired: Boolean(product.coldChainRequired) })),
     totalCount,
     hasMore,
     nextCursor: hasMore && pageProducts.length ? encodeStableCursor({ createdAt: pageProducts[pageProducts.length - 1].createdAt, id: pageProducts[pageProducts.length - 1].id }, cursorScope) : null
@@ -9733,29 +9734,6 @@ async function pharmacyAuditTimeline(_root, args, context) {
     locationName: record2.location?.name || null
   }));
 }
-async function pharmacyOutboxTimeline(_root, args, context) {
-  requireAny(context, ["canManageIntegrations", "canViewAuditLogs"]);
-  const scope = await tenantScope(context);
-  const records = await context.sudo().query.OutboxEvent.findMany({
-    where: tenantEventFilter(scope),
-    orderBy: { occurredAt: "desc" },
-    take: Math.max(1, Math.min(100, args.take || 50)),
-    query: "id eventKey eventType aggregateType aggregateId status attempts replayCount occurredAt processedAt lastError"
-  });
-  return records.map((record2) => ({
-    id: record2.id,
-    eventKey: record2.eventKey,
-    eventType: record2.eventType,
-    aggregateType: record2.aggregateType,
-    aggregateId: record2.aggregateId,
-    status: record2.status,
-    attempts: record2.attempts,
-    replayCount: record2.replayCount,
-    occurredAt: record2.occurredAt,
-    processedAt: record2.processedAt,
-    hasError: Boolean(record2.lastError)
-  }));
-}
 async function pharmacyOperatorLocations(_root, _args, context) {
   requireAny(context, ["canManageOrders"]);
   const scope = await tenantScope(context);
@@ -9795,40 +9773,6 @@ async function pharmacyPosCatalog(_root, args, context) {
     const availableQuantity = (record2.inventoryLots || []).filter((lot) => lot.location?.id === args.locationId).reduce((sum, lot) => sum + eligibleLotQuantity(lot), 0);
     return { ...record2, inventoryLots: void 0, availableQuantity, inStock: availableQuantity > 0 };
   }).filter((record2) => record2.inStock);
-}
-var pharmacyOutboxQueue = pharmacyOutboxTimeline;
-
-// features/keystone/mutations/outboxWorkflows.ts
-async function replayPharmacyOutboxEvent(_root, args, context) {
-  requirePermission(context, "canManageIntegrations");
-  return withDomainTransaction(context, [`outbox:${args.eventId}`], async (transactionContext) => {
-    const sudo = transactionContext.sudo();
-    const event = await sudo.query.OutboxEvent.findOne({
-      where: { id: args.eventId },
-      query: "id eventKey status replayCount organization { id } location { id }"
-    });
-    if (!event) throw new DomainError("Outbox event not found");
-    await requireTenantMembership(transactionContext, {
-      organizationId: event.organization.id,
-      locationId: event.location?.id
-    });
-    if (event.status === "pending") return { id: event.id, status: event.status, replayCount: event.replayCount, reused: true };
-    if (!["failed", "dead_letter"].includes(event.status)) throw new DomainError("Only failed or dead-letter outbox events can be replayed");
-    const updated = await sudo.db.OutboxEvent.updateOne({
-      where: { id: event.id },
-      data: {
-        status: "pending",
-        attempts: 0,
-        replayCount: event.replayCount + 1,
-        lastError: null,
-        processedAt: null,
-        nextAttemptAt: null,
-        lockToken: null,
-        lockedAt: null
-      }
-    });
-    return { id: updated.id, status: "pending", replayCount: event.replayCount + 1, reused: false };
-  });
 }
 
 // features/keystone/mutations/handlePaymentProviderWebhook.ts
@@ -9982,7 +9926,7 @@ async function reconcilePharmacyPaymentSession(_root, args, context) {
     if (!["refunded", "succeeded"].includes(compensation?.status)) throw new DomainError("Payment compensation is still pending");
     return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
       await transactionContext.sudo().query.PaymentSession.updateOne({ where: { id: session.id }, data: { status: "compensated", reconciliationStatus: "compensated", reconciliationAttempts: session.reconciliationAttempts + 1, lastReconciledAt: (/* @__PURE__ */ new Date()).toISOString(), failureReason: null, data: { ...session.data || {}, compensation } } });
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `payment.compensated:${session.id}`,
         organizationId: session.cart.organization.id,
         locationId: session.cart.location.id,
@@ -10104,7 +10048,7 @@ async function recordPrescriptionReview(_root, args, context) {
         ...args.decision === "approved" ? { approvedAt: (/* @__PURE__ */ new Date()).toISOString() } : {}
       }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.reviewed:${prescription.id}:${review.id}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -10165,7 +10109,7 @@ async function authorizePrescriptionDispensing(_root, args, context) {
       where: { id: prescription.id },
       data: { status: "ready_to_dispense", approval: { connect: { id: approval.id } } }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.dispensing_authorized:${prescription.id}:${approval.id}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -10472,7 +10416,7 @@ async function recordDispensingInTransaction(args, auxiliaryWarnings, hold, cont
       where: { id: prescription.id },
       data: { status: nextStatus, ...allCurrentFillsComplete && !hold ? { dispensedAt: (/* @__PURE__ */ new Date()).toISOString() } : {}, approval: { connect: { id: approval.id } } }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.dispensed:${args.idempotencyKey}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -10609,13 +10553,13 @@ async function returnPrescriptionFillToStock(_root, args, context) {
   if (!args.idempotencyKey?.trim()) throw new DomainError("Idempotency key is required");
   return withDomainTransaction(context, [`prescription:${args.prescriptionId}`, `fill:${args.fillId}`, `fill-command:${args.idempotencyKey}`], async (tx) => {
     const sudo = tx.sudo(), q = fillStore(tx);
-    const p = await loadFillPrescription(tx, args.prescriptionId);
-    const { userId } = await requireTenantMembership(tx, { organizationId: p.organization.id, locationId: p.location.id, pharmacist: true });
+    const p2 = await loadFillPrescription(tx, args.prescriptionId);
+    const { userId } = await requireTenantMembership(tx, { organizationId: p2.organization.id, locationId: p2.location.id, pharmacist: true });
     await currentFillPermission(tx, "canReviewPrescriptions");
     const fill = await q.PrescriptionFill.findOne({ where: { id: args.fillId }, query: FILL_QUERY });
-    const item = p.items.find((entry) => entry.id === fill?.prescriptionItem?.id);
+    const item = p2.items.find((entry) => entry.id === fill?.prescriptionItem?.id);
     if (!fill || !item) throw new DomainError("Fill not found");
-    assertFillBinding(fill, p, item, false);
+    assertFillBinding(fill, p2, item, false);
     const fingerprint2 = fillHash({ ...args, actorId: userId }), eventKey = `fill.return:${args.idempotencyKey}`;
     const prior = await q.PrescriptionFillEvent.findOne({ where: { eventKey }, query: "id commandFingerprint result" });
     if (prior) {
@@ -10625,12 +10569,12 @@ async function returnPrescriptionFillToStock(_root, args, context) {
     const returned = await q.PrescriptionFillEvent.count({ where: { fill: { id: { equals: fill.id } }, action: { equals: "returned_to_stock" } } });
     const plan = returnToStockPlan(fill, args.expectedFillVersion, args.cause, returned > 0);
     if (plan.noop) return { success: true, reused: true, fillId: fill.id, status: fill.status, version: fill.version };
-    await assertItemFillLedger(tx, p, item);
+    await assertItemFillLedger(tx, p2, item);
     const { label, movement, lot } = await loadWillCallEvidence(tx, fill);
     await acquireTransactionLocks(tx, [`lot:${lot.id}`, `prescription-item:${item.id}`]);
     const approval = await createHumanApproval(tx, {
-      organizationId: p.organization.id,
-      locationId: p.location.id,
+      organizationId: p2.organization.id,
+      locationId: p2.location.id,
       actorId: userId,
       actionType: "prescription_review",
       reason: args.reason,
@@ -10644,13 +10588,13 @@ async function returnPrescriptionFillToStock(_root, args, context) {
       reason: args.reason,
       idempotencyKey: `return-to-stock:${args.idempotencyKey}`,
       requestFingerprint: fingerprint2,
-      organization: { connect: { id: p.organization.id } },
-      location: { connect: { id: p.location.id } },
+      organization: { connect: { id: p2.organization.id } },
+      location: { connect: { id: p2.location.id } },
       product: { connect: { id: movement.product.id } },
       lot: { connect: { id: lot.id } },
       actor: { connect: { id: userId } },
-      patient: { connect: { id: p.patient.id } },
-      prescription: { connect: { id: p.id } },
+      patient: { connect: { id: p2.patient.id } },
+      prescription: { connect: { id: p2.id } },
       prescriptionItem: { connect: { id: item.id } },
       approval: { connect: { id: approval.id } }
     }, query: "id" });
@@ -10661,7 +10605,7 @@ async function returnPrescriptionFillToStock(_root, args, context) {
       refillsReserved: item.refillsReserved + (plan.restoreRefill ? 1 : 0)
     };
     await sudo.query.PrescriptionItem.updateOne({ where: { id: item.id }, data: { quantityDispensed: unconsumed.quantityDispensed, refillsRemaining: unconsumed.refillsRemaining, refillsReserved: unconsumed.refillsReserved } });
-    const updated = await applyFillReleaseInTransaction(tx, p, unconsumed, fill, plan.release, args.reason, plan.data);
+    const updated = await applyFillReleaseInTransaction(tx, p2, unconsumed, fill, plan.release, args.reason, plan.data);
     await sudo.query.DispensingLabel.updateOne({ where: { id: label.id }, data: { voidedAt: (/* @__PURE__ */ new Date()).toISOString(), voidReason: args.reason } });
     const result = { success: true, reused: false, fillId: fill.id, status: "released", version: updated.version };
     await appendFillEvent(tx, updated, {
@@ -10740,7 +10684,7 @@ async function recordTemperatureExcursion(_root, args, context) {
         approval: { connect: { id: approval.id } }
       }
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `cold_chain.excursion:${args.idempotencyKey}`,
       organizationId: lot.product.organization.id,
       locationId: lot.location.id,
@@ -10816,7 +10760,7 @@ async function resolveTemperatureExcursion(_root, args, context) {
       },
       query: "id"
     });
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `cold_chain.excursion_${disposition}:${excursion.id}`,
       organizationId: excursion.organization.id,
       locationId: excursion.location.id,
@@ -10873,7 +10817,7 @@ async function reconcileRecallExposures(context, recallId) {
     const reconciliation = assessRecallExposureReconciliation({ candidateMovementCount, linkedMovementIds, exposureCount, linkedExposureCount: linkedRows.length });
     const { unlinkedExposureCount, exposureReconciliationComplete } = reconciliation;
     if (recall.status !== "closed") {
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `recall.opened:${recall.organization.id}:${recall.recallNumber}`,
         organizationId: recall.organization.id,
         locationId: recall.location?.id,
@@ -10883,7 +10827,7 @@ async function reconcileRecallExposures(context, recallId) {
         resourceId: recall.id,
         metadata: { recallNumber: recall.recallNumber, classification: recall.classification, sourceReference: recall.sourceValidationReference, lotIds, exposureReconciliationStatus: "pending", approvalId: recall.approval?.id }
       });
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `recall.exposure_reconciliation:${recall.id}:${candidateMovementCount}:${reconciliation.linkedMovementCount}:${exposureCount}:${exposureReconciliationComplete}`,
         organizationId: recall.organization.id,
         locationId: recall.location?.id,
@@ -10989,7 +10933,7 @@ async function recordRecallExposureAction(_root, args, context) {
     const approval = await createHumanApproval(transactionContext, { organizationId: exposure.organization.id, locationId: exposure.location.id, actorId: userId, actionType: "recall_disposition", reason: args.reason, attested: args.attested, evidence: { exposureId: exposure.id, status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), requestFingerprint, custodyClaimed: false } });
     const resolved = ["returned", "resolved", "unable_to_reach"].includes(args.status);
     await transactionContext.prisma.recallExposure.update({ where: { id: exposure.id }, data: { status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), notes: args.notes?.trim() || null, lastActionAt: /* @__PURE__ */ new Date(), resolvedAt: resolved ? /* @__PURE__ */ new Date() : null, lastActorId: userId, approvalId: approval.id } });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `recall.exposure_${args.status}:${exposure.id}:${approval.id}`, organizationId: exposure.organization.id, locationId: exposure.location.id, actorId: userId, patientId: exposure.patient.id, eventType: `recall.exposure_${args.status}`, resourceType: "RecallExposure", resourceId: exposure.id, metadata: { recallId: exposure.recall.id, approvalId: approval.id, contactMethod: args.contactMethod.trim(), custodyClaimed: false } });
+    await recordAudit(transactionContext, { eventKey: `recall.exposure_${args.status}:${exposure.id}:${approval.id}`, organizationId: exposure.organization.id, locationId: exposure.location.id, actorId: userId, patientId: exposure.patient.id, eventType: `recall.exposure_${args.status}`, resourceType: "RecallExposure", resourceId: exposure.id, metadata: { recallId: exposure.recall.id, approvalId: approval.id, contactMethod: args.contactMethod.trim(), custodyClaimed: false } });
     return { success: true, reused: false, exposureId: exposure.id, status: args.status, approvalId: approval.id };
   });
 }
@@ -11013,7 +10957,7 @@ async function disposeRecallLot(_root, args, context) {
     const approval = await createHumanApproval(transactionContext, { organizationId: recall.organization.id, locationId: lot.location.id, actorId: userId, actionType: "recall_disposition", reason: args.reason, attested: args.attested, evidence: { recallId: recall.id, lotId: lot.id, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), physicalDispositionRecorded: true } });
     await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable - args.quantity, quantityQuarantined: 0, status: lot.quantityAvailable - args.quantity === 0 ? "depleted" : "recalled" } });
     const movement = await sudo.query.InventoryMovement.createOne({ data: { movementType: "destroy", quantityDelta: -args.quantity, reason: args.reason, idempotencyKey: `recall-disposition:${args.idempotencyKey}`, requestFingerprint, organization: { connect: { id: recall.organization.id } }, location: { connect: { id: lot.location.id } }, product: { connect: { id: lot.product.id } }, lot: { connect: { id: lot.id } }, actor: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: "id" });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `recall.lot_disposed:${args.idempotencyKey}`, organizationId: recall.organization.id, locationId: lot.location.id, actorId: userId, eventType: "recall.lot_disposed", resourceType: "InventoryLot", resourceId: lot.id, metadata: { recallId: recall.id, movementId: movement.id, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), approvalId: approval.id } });
+    await recordAudit(transactionContext, { eventKey: `recall.lot_disposed:${args.idempotencyKey}`, organizationId: recall.organization.id, locationId: lot.location.id, actorId: userId, eventType: "recall.lot_disposed", resourceType: "InventoryLot", resourceId: lot.id, metadata: { recallId: recall.id, movementId: movement.id, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), approvalId: approval.id } });
     return { success: true, reused: false, recallId: recall.id, lotId: lot.id, movementId: movement.id, status: "disposed" };
   });
 }
@@ -11044,7 +10988,7 @@ async function closePharmacyRecall(_root, args, context) {
     if (recall.exposures.some((exposure) => !["returned", "resolved", "unable_to_reach"].includes(exposure.status))) throw new DomainError("Every dispensed exposure requires a resolved outreach record before closure");
     const approval = await createHumanApproval(transactionContext, { organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, actionType: "recall_disposition", reason: args.reason, attested: args.attested, evidence: { recallId: recall.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length, allDispositionRecorded: true } });
     await sudo.query.Recall.updateOne({ where: { id: recall.id }, data: { status: "closed", closedAt: (/* @__PURE__ */ new Date()).toISOString(), approval: { connect: { id: approval.id } } } });
-    await recordAuditAndOutbox(transactionContext, { eventKey: `recall.closed:${recall.id}:${approval.id}`, organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, eventType: "recall.closed", resourceType: "Recall", resourceId: recall.id, metadata: { approvalId: approval.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length } });
+    await recordAudit(transactionContext, { eventKey: `recall.closed:${recall.id}:${approval.id}`, organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, eventType: "recall.closed", resourceType: "Recall", resourceId: recall.id, metadata: { approvalId: approval.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length } });
     return { success: true, reused: false, recallId: recall.id, status: "closed", approvalId: approval.id };
   });
 }
@@ -11683,7 +11627,7 @@ async function runPharmacyOnboarding(_root, args, context) {
       prescribers: prescribers.length,
       prescriptions: 0
     };
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `onboarding.completed:${organization.id}`,
       organizationId: organization.id,
       locationId: location.id,
@@ -11940,7 +11884,7 @@ async function submitPharmacyOrder(_root, args, context) {
         });
         await sudo.query.Order.updateOne({ where: { id: createdOrder.id }, data: { consent: { connect: { id: consent.id } } } });
       }
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `order.submitted:${idempotencyKey}`,
         organizationId: current.organization.id,
         locationId: current.location.id,
@@ -12005,7 +11949,7 @@ async function submitPharmacyOrder(_root, args, context) {
           data: { ...paymentSession.data || {}, compensation }
         }
       });
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `payment.checkout_recovery:${paymentSession.id}`,
         organizationId: cart.organization.id,
         locationId: cart.location.id,
@@ -12081,7 +12025,7 @@ function extendGraphqlSchema(baseSchema) {
         inventorySummaryStatus: String!
       }
 
-      type PharmacyTaskOption { id: ID!, label: String!, scopeId: ID!, detail: String }
+      type PharmacyTaskOption { id: ID!, label: String!, scopeId: ID!, detail: String, coldChainRequired: Boolean }
       type PharmacyPrescriptionIntakeOptions {
         organizations: [PharmacyTaskOption!]!
         locations: [PharmacyTaskOption!]!
@@ -12589,19 +12533,6 @@ function extendGraphqlSchema(baseSchema) {
         actorName: String
         locationName: String
       }
-      type PharmacyOutboxTimelineEvent {
-        id: ID!
-        eventKey: String!
-        eventType: String!
-        aggregateType: String!
-        aggregateId: String!
-        status: String!
-        attempts: Int!
-        replayCount: Int!
-        occurredAt: String!
-        processedAt: String
-        hasError: Boolean!
-      }
 
       type PharmacyPatientAccountLinkResult { success: Boolean!, reused: Boolean, patientId: ID!, userId: ID! }
       type PharmacyPatientRecordResult { success: Boolean!, reused: Boolean!, patientId: ID!, patientNumber: String, status: String! }
@@ -12651,7 +12582,6 @@ function extendGraphqlSchema(baseSchema) {
         guestOrderToken: String
       }
       type PharmacyFulfillmentResult { success: Boolean!, reused: Boolean, fulfillmentId: ID!, orderId: ID!, approvalId: ID, status: String! }
-      type PharmacyOutboxReplayResult { id: ID!, status: String!, replayCount: Int!, reused: Boolean! }
       type PharmacyOnboardingCounts { drugReferences: Int!, paymentProviders: Int!, suppliers: Int!, products: Int!, lots: Int!, patients: Int!, prescribers: Int!, prescriptions: Int! }
       type PharmacyOnboardingResult { completed: Boolean!, reused: Boolean!, template: String!, organizationId: ID!, locationId: ID, counts: PharmacyOnboardingCounts! }
       input UserUpdateProfileInput { email: String, name: String, password: String, onboardingStatus: String }
@@ -12781,8 +12711,6 @@ function extendGraphqlSchema(baseSchema) {
         pharmacyPatientSafeView(patientId: ID!): PatientSafeProjection!
         pharmacyIntegrationStatus: [PharmacyIntegrationStatus!]!
         pharmacyAuditTimeline(take: Int): [PharmacyAuditTimelineEvent!]!
-        pharmacyOutboxTimeline(take: Int): [PharmacyOutboxTimelineEvent!]!
-        pharmacyOutboxQueue(take: Int): [PharmacyOutboxTimelineEvent!]!
       }
 
       type Mutation {
@@ -12845,7 +12773,6 @@ function extendGraphqlSchema(baseSchema) {
         disposeRecallLot(recallId: ID!, lotId: ID!, quantity: Int!, dispositionReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
         closePharmacyRecall(recallId: ID!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
         transitionOrderFulfillment(fulfillmentId: ID!, status: String!, reason: String!, attested: Boolean!): PharmacyFulfillmentResult!
-        replayPharmacyOutboxEvent(eventId: ID!): PharmacyOutboxReplayResult!
         setPharmacyOnboardingStatus(status: String!): PharmacyOnboardingStatusResult!
         runPharmacyOnboarding(template: String): PharmacyOnboardingResult!
       }
@@ -12898,9 +12825,7 @@ function extendGraphqlSchema(baseSchema) {
         pharmacyPatientPortal,
         pharmacyPatientSafeView,
         pharmacyIntegrationStatus,
-        pharmacyAuditTimeline,
-        pharmacyOutboxTimeline,
-        pharmacyOutboxQueue
+        pharmacyAuditTimeline
       },
       Mutation: {
         registerPharmacyCustomer,
@@ -12960,12 +12885,91 @@ function extendGraphqlSchema(baseSchema) {
         disposeRecallLot,
         closePharmacyRecall,
         transitionOrderFulfillment,
-        replayPharmacyOutboxEvent,
         setPharmacyOnboardingStatus,
         runPharmacyOnboarding
       }
     }
   });
+}
+
+// features/keystone/database-url.ts
+var POOL_SIZES = { web: 15, worker: 5 };
+var OVERRIDE_ENV = {
+  web: "DATABASE_CONNECTION_LIMIT",
+  worker: "DATABASE_CONNECTION_LIMIT_WORKER"
+};
+function pooledDatabaseUrl(url, role = "web") {
+  if (!url || !/^postgres(ql)?:\/\//.test(url)) return url;
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return url;
+  }
+  if (parsed.searchParams.has("connection_limit")) return url;
+  const override = Number(process.env[OVERRIDE_ENV[role]]);
+  parsed.searchParams.set("connection_limit", String(Number.isInteger(override) && override > 0 ? override : POOL_SIZES[role]));
+  return parsed.toString();
+}
+
+// features/keystone/lib/keystonePrismaErrors.ts
+var RAW_METHOD = /^\$(queryRaw|executeRaw|queryRawUnsafe|executeRawUnsafe|queryRawTyped|runCommandRaw)$/;
+var clients = /* @__PURE__ */ new WeakMap();
+var delegates = /* @__PURE__ */ new WeakMap();
+function isKeystonePrismaError(value) {
+  return value instanceof Error && value.extensions?.code === "KS_PRISMA_ERROR";
+}
+function rethrowKeystonePrismaError(value) {
+  if (!isKeystonePrismaError(value)) return value;
+  const prisma = value.extensions.prisma ?? {};
+  throw Object.assign(value, { code: prisma.code, meta: prisma.meta, clientVersion: prisma.clientVersion });
+}
+function throwing(result) {
+  if (!result || typeof result.then !== "function") return rethrowKeystonePrismaError(result);
+  const settled = () => result.then(rethrowKeystonePrismaError);
+  return new Proxy(result, {
+    get(target, key) {
+      if (key === "then") return (ok, fail) => settled().then(ok, fail);
+      if (key === "catch") return (fail) => settled().catch(fail);
+      if (key === "finally") return (done) => settled().finally(done);
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? value.bind(target) : value;
+    }
+  });
+}
+function throwingDelegate(delegate) {
+  const cached = delegates.get(delegate);
+  if (cached) return cached;
+  const wrapped = new Proxy(delegate, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      return typeof value === "function" ? (...args) => throwing(value.apply(target, args)) : value;
+    }
+  });
+  delegates.set(delegate, wrapped);
+  return wrapped;
+}
+function throwKeystonePrismaErrors(client) {
+  const cached = clients.get(client);
+  if (cached) return cached;
+  const wrapped = new Proxy(client, {
+    get(target, key) {
+      const value = Reflect.get(target, key, target);
+      if (key === "$transaction" && typeof value === "function") {
+        return (work, ...options) => {
+          if (typeof work === "function") return value.call(target, (tx) => work(throwKeystonePrismaErrors(tx)), ...options);
+          return Promise.resolve(value.call(target, work, ...options)).then((results) => Array.isArray(results) ? results.map(rethrowKeystonePrismaError) : results);
+        };
+      }
+      if (key === "$extends" && typeof value === "function") return (...args) => throwKeystonePrismaErrors(value.apply(target, args));
+      if (typeof key === "string" && RAW_METHOD.test(key) && typeof value === "function") return (...args) => throwing(value.apply(target, args));
+      if (typeof value === "function") return value.bind(target);
+      if (typeof key === "string" && !key.startsWith("$") && value && typeof value === "object" && typeof value.findFirst === "function") return throwingDelegate(value);
+      return value;
+    }
+  });
+  clients.set(client, wrapped);
+  return wrapped;
 }
 
 // features/keystone/index.ts
@@ -13108,8 +13112,8 @@ var { withAuth } = (0, import_auth.createAuth)({
     }
   `
 });
-var keystone_default = withAuth((0, import_core46.config)({
-  db: { provider: "postgresql", url: databaseURL },
+var keystone_default = withAuth((0, import_core45.config)({
+  db: { provider: "postgresql", url: pooledDatabaseUrl(databaseURL), extendPrismaClient: throwKeystonePrismaErrors },
   lists: models,
   storage: {
     my_images: {

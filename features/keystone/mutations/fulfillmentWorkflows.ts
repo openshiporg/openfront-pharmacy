@@ -1,6 +1,6 @@
 import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { isManualPaymentProvider } from './paymentOperations'
 import { DomainError } from './lib/errors'
@@ -107,7 +107,7 @@ async function transitionInTransaction(args: { fulfillmentId: string; status: st
       where: { id: fulfillment.order.id },
       data: { status: ORDER_STATUS[args.status], ...(approval ? { approval: { connect: { id: approval.id } } } : {}) },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `fulfillment.${args.status}:${fulfillment.id}`,
       organizationId: fulfillment.organization.id,
       locationId: fulfillment.location.id,

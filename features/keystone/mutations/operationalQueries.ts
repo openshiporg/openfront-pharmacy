@@ -1138,30 +1138,6 @@ export async function pharmacyAuditTimeline(_root: unknown, args: { take?: numbe
   }))
 }
 
-export async function pharmacyOutboxTimeline(_root: unknown, args: { take?: number | null }, context: Context) {
-  requireAny(context, ['canManageIntegrations', 'canViewAuditLogs'])
-  const scope = await tenantScope(context)
-  const records = await context.sudo().query.OutboxEvent.findMany({
-    where: tenantEventFilter(scope),
-    orderBy: { occurredAt: 'desc' },
-    take: Math.max(1, Math.min(100, args.take || 50)),
-    query: 'id eventKey eventType aggregateType aggregateId status attempts replayCount occurredAt processedAt lastError',
-  })
-  return records.map((record: any) => ({
-    id: record.id,
-    eventKey: record.eventKey,
-    eventType: record.eventType,
-    aggregateType: record.aggregateType,
-    aggregateId: record.aggregateId,
-    status: record.status,
-    attempts: record.attempts,
-    replayCount: record.replayCount,
-    occurredAt: record.occurredAt,
-    processedAt: record.processedAt,
-    hasError: Boolean(record.lastError),
-  }))
-}
-
 export async function pharmacyOperatorLocations(_root: unknown, _args: unknown, context: Context) {
   requireAny(context, ['canManageOrders'])
   const scope = await tenantScope(context)
@@ -1205,6 +1181,3 @@ export async function pharmacyPosCatalog(_root: unknown, args: { locationId: str
     return { ...record, inventoryLots: undefined, availableQuantity, inStock: availableQuantity > 0 }
   }).filter((record: any) => record.inStock)
 }
-
-/** @deprecated Use pharmacyOutboxTimeline. */
-export const pharmacyOutboxQueue = pharmacyOutboxTimeline

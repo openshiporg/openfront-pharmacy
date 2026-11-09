@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { Context } from '.keystone/types'
 import { permissions } from '../access'
 import { requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { assertItemFillLedger, assertFillBinding, appendFillEvent, casFill, currentFillPermission, FILL_QUERY, fillStore, loadFillPrescription, reserveFillInTransaction } from './fillWorkflows'
 import { FILL_LINEAGE, fillHash } from '../workflows/fill-entitlement'
@@ -46,7 +46,7 @@ export async function linkPharmacyPatientAccount(
     if (patient.user?.id === user.id && user.patientProfile?.id === patient.id) return { success: true, reused: true, patientId: patient.id, userId: user.id }
     if (patient.user?.id || user.patientProfile?.id) throw new DomainError('Patient or user is already linked to another account')
     await sudo.query.PatientProfile.updateOne({ where: { id: patient.id }, data: { user: { connect: { id: user.id } } } })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `patient.account_linked:${patient.id}:${user.id}`,
       organizationId,
       actorId,
@@ -126,7 +126,7 @@ export async function requestPrescriptionRefill(
     const current = await loadFillPrescription(transactionContext, prescription.id)
     const currentItem = current.items.find((entry: any) => entry.id === item.id)
     await reserveFillInTransaction(transactionContext, current, currentItem, { kind: 'refill', actorId, key: `refill:${args.idempotencyKey}`, fingerprint: requestFingerprint, expectedItemVersion: args.expectedItemVersion || undefined, refillRequestId: refill.id })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `refill.requested:${args.idempotencyKey}`,
       organizationId: prescription.organization.id,
       locationId: args.locationId,
@@ -218,7 +218,7 @@ export async function resolvePrescriptionRefill(
       where: { id: refill.id },
       data: { status: args.decision, openRequestKey: null, resolutionNote: args.reason, resolvedAt: new Date().toISOString(), approval: { connect: { id: approval.id } } },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `refill.${args.decision}:${refill.id}`,
       organizationId: refill.prescription.organization.id,
       locationId: refill.prescription.location.id,
@@ -297,7 +297,7 @@ export async function requestPrescriptionTransfer(
       query: 'id',
     })
     await sudo.query.PrescriptionTransfer.updateOne({ where: { id: transfer.id }, data: { status: 'consent_recorded', consent: { connect: { id: consent.id } } } })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription_transfer.requested:${args.idempotencyKey}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -348,7 +348,7 @@ export async function approvePrescriptionTransfer(
       where: { id: transfer.id },
       data: { status: 'accepted', approval: { connect: { id: approval.id } } },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription_transfer.accepted:${transfer.id}`,
       organizationId: transfer.prescription.organization.id,
       locationId: transfer.prescription.location.id,

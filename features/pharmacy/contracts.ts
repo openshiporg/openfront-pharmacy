@@ -423,17 +423,3 @@ export type PharmacyAuditTimelineProjection = {
   actorName?: string | null
   locationName?: string | null
 }
-
-export type PharmacyOutboxTimelineProjection = {
-  id: string
-  eventKey: string
-  eventType: string
-  aggregateType: string
-  aggregateId: string
-  status: string
-  attempts: number
-  replayCount: number
-  occurredAt: string
-  processedAt?: string | null
-  hasError: boolean
-}

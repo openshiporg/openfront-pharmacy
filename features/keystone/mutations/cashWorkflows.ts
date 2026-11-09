@@ -3,7 +3,7 @@ import type { Context } from '.keystone/types'
 import { assertCashTender, calculateTaxAmount, calculateTaxableSubtotal } from '../workflows/commerce-policy'
 import { eligibleLotQuantity, isLotEligible } from '../workflows/lot-eligibility'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
 import { productPhotoSnapshot } from '../lib/product-photo'
@@ -22,7 +22,7 @@ export async function recordPharmacyCashPolicy(
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: args.organizationId })
     const approval = await createHumanApproval(transactionContext, { organizationId: args.organizationId, actorId: userId, actionType: 'cash_policy', reason: args.reason, attested: args.attested, evidence: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), scope: 'operator_attested_cash_direct_pay' } })
     await transactionContext.sudo().query.Organization.updateOne({ where: { id: args.organizationId }, data: { cashSalesEnabled: true, cashTaxRateBps: args.taxRateBps, cashTaxPolicyReference: args.policyReference.trim(), cashPolicyReviewedAt: new Date().toISOString(), cashPolicyReviewedBy: { connect: { id: userId } } }, query: 'id' })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `cash_policy.recorded:${args.organizationId}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: 'cash_policy.recorded', resourceType: 'Organization', resourceId: args.organizationId, metadata: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), approvalId: approval.id } })
+    await recordAudit(transactionContext, { eventKey: `cash_policy.recorded:${args.organizationId}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: 'cash_policy.recorded', resourceType: 'Organization', resourceId: args.organizationId, metadata: { taxRateBps: args.taxRateBps, policyReference: args.policyReference.trim(), approvalId: approval.id } })
     return { success: true, organizationId: args.organizationId, status: 'enabled', taxRateBps: args.taxRateBps, approvalId: approval.id }
   })
 }
@@ -196,7 +196,7 @@ async function recordPosSale(
     }
     const payment = await sudo.query.Payment.createOne({ data: { amount: totalAmount, currencyCode: currencies[0], status: 'captured', ...(card ? { tenderMethod: 'provider', externalPaymentId: card.paymentIntentId, provider: { connect: { id: card.providerId } }, data: { evidenceType: 'stripe_payment_intent_succeeded', approvalId: approval.id, providerSettlementClaimed: true, brand: card.brand, last4: card.last4 } } : { tenderMethod: 'cash', cashReceivedAmount: tender.cashReceivedAmount, changeDueAmount: tender.changeDueAmount, data: { evidenceType: 'operator_attested_cash_received', approvalId: approval.id, providerSettlementClaimed: false } }), processedAt: new Date().toISOString(), organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, recordedBy: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: 'id status' })
     await sudo.query.Fulfillment.createOne({ data: { method, status: method === 'pickup' ? 'preparing' : 'handed_off', ...(method === 'pos' ? { readyAt: new Date().toISOString(), handedOffAt: new Date().toISOString() } : {}), organization: { connect: { id: location.organization.id } }, location: { connect: { id: location.id } }, order: { connect: { id: order.id } }, assignedTo: { connect: { id: userId } } } })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `pos.${card ? 'card' : 'cash'}_sale:${args.idempotencyKey}`, organizationId: location.organization.id, locationId: location.id, actorId: userId, eventType: card ? 'pos.card_sale_recorded' : 'pos.cash_sale_recorded', resourceType: 'Order', resourceId: order.id, metadata: { paymentId: payment.id, lineCount: items.length, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, approvalId: approval.id, providerSettlementClaimed: !!card } })
+    await recordAudit(transactionContext, { eventKey: `pos.${card ? 'card' : 'cash'}_sale:${args.idempotencyKey}`, organizationId: location.organization.id, locationId: location.id, actorId: userId, eventType: card ? 'pos.card_sale_recorded' : 'pos.cash_sale_recorded', resourceType: 'Order', resourceId: order.id, metadata: { paymentId: payment.id, lineCount: items.length, subtotalAmount, taxableSubtotalAmount, taxAmount, totalAmount, approvalId: approval.id, providerSettlementClaimed: !!card } })
     return readCommittedPosReceipt(sudo, order.id, false)
   })
 }
@@ -243,7 +243,7 @@ export async function refundPharmacyCashPayment(
     if (payment.status !== 'captured' || args.cashReturnedAmount !== payment.amount) throw new DomainError('Bounded cash refunds must return the exact captured amount')
     const approval = await createHumanApproval(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, actionType: 'cash_refund', reason: args.reason, attested: args.attested, evidence: { paymentId: payment.id, cashReturnedAmount: args.cashReturnedAmount, inventoryRestocked: false, custodyClaim: false } })
     await (transactionContext.prisma as any).payment.update({ where: { id: payment.id }, data: { status: 'refunded', data: { ...(payment.data || {}), cashRefund: { returnedAmount: args.cashReturnedAmount, returnedAt: new Date().toISOString(), actorId: userId, approvalId: approval.id, inventoryRestocked: false } }, approvalId: approval.id } })
-    await recordAuditAndOutbox(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: 'payment.cash_refunded', resourceType: 'Payment', resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } })
+    await recordAudit(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: 'payment.cash_refunded', resourceType: 'Payment', resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } })
     return { success: true, reused: false, paymentId: payment.id, status: 'refunded', amount: payment.amount }
   })
 }

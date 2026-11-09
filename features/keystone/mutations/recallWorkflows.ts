@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { Context } from '.keystone/types'
 import { assessRecallExposureReconciliation, recallExposureMovementWhere } from '../workflows/recall-exposure'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
 
@@ -47,7 +47,7 @@ async function reconcileRecallExposures(context: Context, recallId: string) {
     const reconciliation = assessRecallExposureReconciliation({ candidateMovementCount, linkedMovementIds, exposureCount, linkedExposureCount: linkedRows.length })
     const { unlinkedExposureCount, exposureReconciliationComplete } = reconciliation
     if (recall.status !== 'closed') {
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `recall.opened:${recall.organization.id}:${recall.recallNumber}`,
         organizationId: recall.organization.id,
         locationId: recall.location?.id,
@@ -57,7 +57,7 @@ async function reconcileRecallExposures(context: Context, recallId: string) {
         resourceId: recall.id,
         metadata: { recallNumber: recall.recallNumber, classification: recall.classification, sourceReference: recall.sourceValidationReference, lotIds, exposureReconciliationStatus: 'pending', approvalId: recall.approval?.id },
       })
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `recall.exposure_reconciliation:${recall.id}:${candidateMovementCount}:${reconciliation.linkedMovementCount}:${exposureCount}:${exposureReconciliationComplete}`,
         organizationId: recall.organization.id,
         locationId: recall.location?.id,
@@ -183,7 +183,7 @@ export async function recordRecallExposureAction(
     const approval = await createHumanApproval(transactionContext, { organizationId: exposure.organization.id, locationId: exposure.location.id, actorId: userId, actionType: 'recall_disposition', reason: args.reason, attested: args.attested, evidence: { exposureId: exposure.id, status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), requestFingerprint, custodyClaimed: false } })
     const resolved = ['returned', 'resolved', 'unable_to_reach'].includes(args.status)
     await (transactionContext.prisma as any).recallExposure.update({ where: { id: exposure.id }, data: { status: args.status, contactMethod: args.contactMethod.trim(), outcome: args.outcome.trim(), notes: args.notes?.trim() || null, lastActionAt: new Date(), resolvedAt: resolved ? new Date() : null, lastActorId: userId, approvalId: approval.id } })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `recall.exposure_${args.status}:${exposure.id}:${approval.id}`, organizationId: exposure.organization.id, locationId: exposure.location.id, actorId: userId, patientId: exposure.patient.id, eventType: `recall.exposure_${args.status}`, resourceType: 'RecallExposure', resourceId: exposure.id, metadata: { recallId: exposure.recall.id, approvalId: approval.id, contactMethod: args.contactMethod.trim(), custodyClaimed: false } })
+    await recordAudit(transactionContext, { eventKey: `recall.exposure_${args.status}:${exposure.id}:${approval.id}`, organizationId: exposure.organization.id, locationId: exposure.location.id, actorId: userId, patientId: exposure.patient.id, eventType: `recall.exposure_${args.status}`, resourceType: 'RecallExposure', resourceId: exposure.id, metadata: { recallId: exposure.recall.id, approvalId: approval.id, contactMethod: args.contactMethod.trim(), custodyClaimed: false } })
     return { success: true, reused: false, exposureId: exposure.id, status: args.status, approvalId: approval.id }
   })
 }
@@ -212,7 +212,7 @@ export async function disposeRecallLot(
     const approval = await createHumanApproval(transactionContext, { organizationId: recall.organization.id, locationId: lot.location.id, actorId: userId, actionType: 'recall_disposition', reason: args.reason, attested: args.attested, evidence: { recallId: recall.id, lotId: lot.id, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), physicalDispositionRecorded: true } })
     await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable - args.quantity, quantityQuarantined: 0, status: lot.quantityAvailable - args.quantity === 0 ? 'depleted' : 'recalled' } })
     const movement = await sudo.query.InventoryMovement.createOne({ data: { movementType: 'destroy', quantityDelta: -args.quantity, reason: args.reason, idempotencyKey: `recall-disposition:${args.idempotencyKey}`, requestFingerprint, organization: { connect: { id: recall.organization.id } }, location: { connect: { id: lot.location.id } }, product: { connect: { id: lot.product.id } }, lot: { connect: { id: lot.id } }, actor: { connect: { id: userId } }, approval: { connect: { id: approval.id } } }, query: 'id' })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `recall.lot_disposed:${args.idempotencyKey}`, organizationId: recall.organization.id, locationId: lot.location.id, actorId: userId, eventType: 'recall.lot_disposed', resourceType: 'InventoryLot', resourceId: lot.id, metadata: { recallId: recall.id, movementId: movement.id, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), approvalId: approval.id } })
+    await recordAudit(transactionContext, { eventKey: `recall.lot_disposed:${args.idempotencyKey}`, organizationId: recall.organization.id, locationId: lot.location.id, actorId: userId, eventType: 'recall.lot_disposed', resourceType: 'InventoryLot', resourceId: lot.id, metadata: { recallId: recall.id, movementId: movement.id, quantity: args.quantity, dispositionReference: args.dispositionReference.trim(), approvalId: approval.id } })
     return { success: true, reused: false, recallId: recall.id, lotId: lot.id, movementId: movement.id, status: 'disposed' }
   })
 }
@@ -248,7 +248,7 @@ export async function closePharmacyRecall(
     if (recall.exposures.some((exposure: any) => !['returned', 'resolved', 'unable_to_reach'].includes(exposure.status))) throw new DomainError('Every dispensed exposure requires a resolved outreach record before closure')
     const approval = await createHumanApproval(transactionContext, { organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, actionType: 'recall_disposition', reason: args.reason, attested: args.attested, evidence: { recallId: recall.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length, allDispositionRecorded: true } })
     await sudo.query.Recall.updateOne({ where: { id: recall.id }, data: { status: 'closed', closedAt: new Date().toISOString(), approval: { connect: { id: approval.id } } } })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `recall.closed:${recall.id}:${approval.id}`, organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, eventType: 'recall.closed', resourceType: 'Recall', resourceId: recall.id, metadata: { approvalId: approval.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length } })
+    await recordAudit(transactionContext, { eventKey: `recall.closed:${recall.id}:${approval.id}`, organizationId: recall.organization.id, locationId: recall.location?.id, actorId: userId, eventType: 'recall.closed', resourceType: 'Recall', resourceId: recall.id, metadata: { approvalId: approval.id, lotCount: recall.lots.length, exposureCount: recall.exposures.length } })
     return { success: true, reused: false, recallId: recall.id, status: 'closed', approvalId: approval.id }
   })
 }

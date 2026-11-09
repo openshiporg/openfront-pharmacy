@@ -2,7 +2,7 @@
 
 Source: every list in `features/keystone/models/**` (46 lists), the custom GraphQL in `features/keystone/mutations/**` (49 queries, 46 mutations), and the onboarding seed (`features/platform/onboarding/lib/seed.json`).
 
-Almost every clinical, inventory and money list is **read-only through the generic API** (`create/update/delete: denyAll`, `graphql.omit`). Their records change only through custom, attested commands: a reason, a human attestation, a `HumanApproval`, an `AuditEvent` and an `OutboxEvent`. Platform pages therefore read through the generic or custom queries and write through those commands. The generic Keystone create and edit drawers are used only for the lists that allow them: Product, DrugReference, Supplier, Prescriber, PharmacyLocation, PaymentProvider, OrganizationMembership and Organization.
+Almost every clinical, inventory and money list is **read-only through the generic API** (`create/update/delete: denyAll`, `graphql.omit`). Their records change only through custom, attested commands: a reason, a human attestation, a `HumanApproval` and an `AuditEvent`. Platform pages therefore read through the generic or custom queries and write through those commands. The generic Keystone create and edit drawers are used only for the lists that allow them: Product, DrugReference, Supplier, Prescriber, PharmacyLocation, PaymentProvider, OrganizationMembership and Organization.
 
 ## Lists
 
@@ -12,7 +12,7 @@ Almost every clinical, inventory and money list is **read-only through the gener
 
 | List | Purpose in a pharmacy | Key fields | Relationships | Who | States / transitions |
 | --- | --- | --- | --- | --- | --- |
-| Organization | The pharmacy business (tenant) | name, slug, storefrontKey/Host, operatorDisplayName, tagline, logo, support email/phone, privacyNotice, cash policy (`cashSalesEnabled`, `cashTaxRateBps`, policy ref/reviewer), `prescriptionFillPolicy` | locations, memberships, patients, products, prescriptions, recalls, orders, integration/payment providers, outbox | S (onboarding); M edits branding | active → suspended → archived. Cash and fill policy change only via `recordPharmacyCashPolicy` / `recordPharmacyFillPolicy`. |
+| Organization | The pharmacy business (tenant) | name, slug, storefrontKey/Host, operatorDisplayName, tagline, logo, support email/phone, privacyNotice, cash policy (`cashSalesEnabled`, `cashTaxRateBps`, policy ref/reviewer), `prescriptionFillPolicy` | locations, memberships, patients, products, prescriptions, recalls, orders, integration/payment providers | S (onboarding); M edits branding | active → suspended → archived. Cash and fill policy change only via `recordPharmacyCashPolicy` / `recordPharmacyFillPolicy`. |
 | PharmacyLocation | A store with a pharmacy counter | name, code, status, address JSON, timezone, hours JSON (store + pharmacy), phone, onlineOrderingEnabled, pickupEnabled, deliveryEnabled | organization, memberships, products, lots, prescriptions, recalls, orders | M (create needs org-wide membership) | active ⇄ temporarily_closed → archived |
 | OrganizationMembership | A staff member's role at the pharmacy or one location | membershipRole (owner, administrator, pharmacist, technician, cashier, delivery, read_only), status, credential evidence (type, jurisdiction, identifier, expiry, reference, verifier) | user, organization, location (null = org-wide) | M (`canManageUsers`; only owners add or change owners) | invited → active ⇄ suspended → revoked. Credential evidence is set only by `recordPharmacyStaffCredentialReview`. |
 | User | Staff and customer accounts | name, email, password, role, tokenVersion, onboardingStatus | role, memberships, patientProfile, carts, orders | C (sign-up), M, S (first admin) | none |
@@ -68,7 +68,7 @@ Almost every clinical, inventory and money list is **read-only through the gener
 | Recall / RecallExposure | FDA and manufacturer recalls and patient outreach | recallNumber, classification, status, reason, source / exposure status, contact method, outcome | lots, exposures (patient, prescription, order, movement) | M (`openPharmacyRecall` …) | draft → active → quarantined → resolved → closed; cancelled. Exposures: outreach_required → contacted / returned / unable_to_reach → resolved |
 | IntegrationProvider / ExternalIntegrationWorkflow / IntegrationWebhookEvent | eRx, wholesaler, insurance and tax adapters, with their submissions and webhooks | providerType, status, configuration, credentials (write-only), validation / workflow status, attempts | organization, suppliers, prescribers, payment providers | M (`configurePharmacyIntegrationProvider`); S (submit, refresh, webhooks) | unconfigured → sandbox / active → disabled; workflows pending_submission → submitted → accepted / rejected / failed |
 | HumanApproval | The attestation behind every consequential action | actionType (17 kinds), reason, attested, evidence | actor, organization, location, the records it approved | S | immutable |
-| AuditEvent / OutboxEvent | Audit trail and the event delivery queue | eventKey, eventType, resource, actor / status, attempts, replayCount | organization, location | S; M replays (`replayPharmacyOutboxEvent`) | outbox: pending → processing → delivered / failed → dead_letter |
+| AuditEvent | Audit trail | eventKey, eventType, resource, actor | organization, location | S | — |
 
 ## Merchant workflows
 
@@ -91,7 +91,7 @@ Almost every clinical, inventory and money list is **read-only through the gener
 | W15 | **Payments:** providers (install Stripe), ledger, refunds, session reconciliation, cash/tax policy | PaymentProvider, PaymentSession, Payment, PaymentWebhookEvent, Organization |
 | W16 | **Recalls:** open → quarantine lots → patient outreach → lot disposition → close | Recall, RecallExposure, InventoryLot, InventoryMovement |
 | W17 | **Integrations:** configure eRx and insurance, validate, workflow status | IntegrationProvider, ExternalIntegrationWorkflow, IntegrationWebhookEvent |
-| W18 | **Audit:** audit trail, delivery failures and replay | AuditEvent, OutboxEvent, HumanApproval |
+| W18 | **Audit:** audit trail | AuditEvent, HumanApproval |
 
 ## Coverage
 
@@ -122,7 +122,7 @@ Routes are under `/dashboard`. "Generic" means the shared Keystone list or item 
 | W15 Payment ledger, reconciliation, providers, cash policy | **MISSING.** Refunds only per order; generic `/payment-providers`; cash policy inside Credential review | `/platform/payments` (payments) |
 | W16 Recalls and exposures | `/platform/recalls`, `/open`, `/[id]` (recalls) | same |
 | W17 Integrations | **THIN.** Status list only; `configure…`, `validate…`, `submit…` and `refresh…` had no screen | configure drawer on `/platform/integrations` (integrations) |
-| W18 Audit and outbox | **THIN.** Read-only; `replayPharmacyOutboxEvent` had no screen | replay action on `/platform/audit` (audit) |
+| W18 Audit | Read-only audit trail | `/platform/audit` |
 | Overview | `/platform/overview` | same, plus refills, requests and payments in the queue cards |
 
 ### Lists covered by a parent page (no page of their own)
@@ -137,7 +137,7 @@ Routes are under `/dashboard`. "Generic" means the shared Keystone list or item 
 | PaymentSession, PaymentWebhookEvent | Payments |
 | DrugReferenceReview | Drug reference detail |
 | ExternalIntegrationWorkflow, IntegrationWebhookEvent | Integrations |
-| HumanApproval, AuditEvent, OutboxEvent | Audit log |
+| HumanApproval, AuditEvent | Audit log |
 | Role, User | generic `/roles` and `/users` (shared shell), linked from Staff |
 
 ### Left missing

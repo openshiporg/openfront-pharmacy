@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import type { Context } from '.keystone/types'
 import { assertCurrentHumanSafetyReview, assertDrugReferenceEligibleForBoundedDispensing, currentFillNumber, isHumanSafetyReviewStale } from '../workflows/clinical-safety'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { FILL_LINEAGE } from '../workflows/fill-entitlement'
 import { appendFillEvent, assertFillBinding, assertItemFillLedger, currentFillPermission, loadFillPrescription, fillStore, FILL_QUERY } from './fillWorkflows'
@@ -36,7 +36,7 @@ export async function recordPharmacyDrugReferenceReview(
     const review = existing
       ? await prisma.drugReferenceReview.update({ where: { id: existing.id }, data, select: { id: true, status: true } })
       : await prisma.drugReferenceReview.create({ data: { reviewKey: `${args.organizationId}:${drugReference.id}`, ...data }, select: { id: true, status: true } })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `drug_reference.reviewed:${review.id}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: 'drug_reference.review_recorded', resourceType: 'DrugReferenceReview', resourceId: review.id, metadata: { drugReferenceId: drugReference.id, approvalId: approval.id, marketingStatus: args.marketingStatus, controlledSchedule: args.controlledSchedule, softwareValidationPerformed: false } })
+    await recordAudit(transactionContext, { eventKey: `drug_reference.reviewed:${review.id}:${approval.id}`, organizationId: args.organizationId, actorId: userId, eventType: 'drug_reference.review_recorded', resourceType: 'DrugReferenceReview', resourceId: review.id, metadata: { drugReferenceId: drugReference.id, approvalId: approval.id, marketingStatus: args.marketingStatus, controlledSchedule: args.controlledSchedule, softwareValidationPerformed: false } })
     return { success: true, reused: false, reviewId: review.id, status: review.status, approvalId: approval.id }
   })
 }
@@ -170,7 +170,7 @@ export async function recordPrescriptionClinicalSafetyReview(
       query: 'id outcome reviewedAt',
     })
     if (fill) await appendFillEvent(transactionContext, fill, { eventKey: `fill.clinical:${review.id}`, fingerprint: requestFingerprint, action: 'clinical_reviewed', actorId: userId, approvalId: approval.id, result: { reviewId: review.id, outcome: review.outcome }, evidence: { clinicalSafetyReviewId: review.id, outcome: args.outcome, fillVersion: fill.version } })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `prescription.clinical_safety_reviewed:${review.id}`, organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, patientId: prescription.patient.id, eventType: 'prescription.clinical_safety_review_recorded', resourceType: 'ClinicalSafetyReview', resourceId: review.id, metadata: { prescriptionId: prescription.id, fillNumber, outcome: args.outcome, approvalId: approval.id, softwareClinicalDecisionPerformed: false } })
+    await recordAudit(transactionContext, { eventKey: `prescription.clinical_safety_reviewed:${review.id}`, organizationId: prescription.organization.id, locationId: prescription.location.id, actorId: userId, patientId: prescription.patient.id, eventType: 'prescription.clinical_safety_review_recorded', resourceType: 'ClinicalSafetyReview', resourceId: review.id, metadata: { prescriptionId: prescription.id, fillNumber, outcome: args.outcome, approvalId: approval.id, softwareClinicalDecisionPerformed: false } })
     return { success: true, reused: false, reviewId: review.id, prescriptionId: prescription.id, outcome: review.outcome, approvalId: approval.id }
   })
 }
@@ -219,7 +219,7 @@ export async function holdPrescriptionForClinicalReReview(
       evidence: { prescriptionId: prescription.id, safetyReviewId: latestReview.id, latestEvidenceChange, requestFingerprint, softwareClinicalDecisionPerformed: false },
     })
     await sudo.query.Prescription.updateOne({ where: { id: prescription.id }, data: { status: 'approved', approval: { connect: { id: approval.id } } } })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.clinical_safety_hold:${prescription.id}:${approval.id}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,

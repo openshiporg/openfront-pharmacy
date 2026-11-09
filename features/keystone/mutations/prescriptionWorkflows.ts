@@ -7,7 +7,7 @@ import { isLotEligible } from '../workflows/lot-eligibility'
 import { assertPrescriptionItemProductIdentity } from '../workflows/clinical-safety'
 import { assertPrescriptionClinicallyEligible } from '../workflows/prescription-eligibility'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { assertItemFillLedger, assertFillBinding, consumeFillInTransaction, currentFillPermission, FILL_QUERY, fillStore, loadFillPrescription } from './fillWorkflows'
 import { FILL_LINEAGE, dispenseFillPlan, fillHash, fillPricePortion, pickupFillPlan, returnToStockPlan } from '../workflows/fill-entitlement'
@@ -118,7 +118,7 @@ export async function recordPrescriptionReview(
         ...(args.decision === 'approved' ? { approvedAt: new Date().toISOString() } : {}),
       },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.reviewed:${prescription.id}:${review.id}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -184,7 +184,7 @@ export async function authorizePrescriptionDispensing(
       where: { id: prescription.id },
       data: { status: 'ready_to_dispense', approval: { connect: { id: approval.id } } },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.dispensing_authorized:${prescription.id}:${approval.id}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,
@@ -499,7 +499,7 @@ async function recordDispensingInTransaction(
       where: { id: prescription.id },
       data: { status: nextStatus, ...(allCurrentFillsComplete && !hold ? { dispensedAt: new Date().toISOString() } : {}), approval: { connect: { id: approval.id } } },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.dispensed:${args.idempotencyKey}`,
       organizationId: prescription.organization.id,
       locationId: prescription.location.id,

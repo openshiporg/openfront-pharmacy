@@ -99,7 +99,7 @@ The [model registry](features/keystone/models/index.ts) and [Prisma schema](sche
 - Organizations, locations, memberships, patients, prescribers, and consent.
 - Prescriptions, items, reviews, clinical safety evidence, approvals, fills, and labels.
 - Drug references, inventory lots, movements, recalls, and temperature excursions.
-- Carts, orders, fulfillment, payment sessions, webhook events, machine credentials, and outbox records.
+- Carts, orders, fulfillment, payment sessions, webhook events, machine credentials and audit events.
 
 ## Getting Started
 
@@ -164,7 +164,6 @@ The [model registry](features/keystone/models/index.ts) and [Prisma schema](sche
 - `npm run lint` - Run the repository's ESLint script.
 - `npm run typecheck` - Run the configured TypeScript check.
 - `npm run test` - Run the repository's configured test suite.
-- `npm run worker:outbox` - Run the configured outbox delivery entry point.
 
 Use a disposable development database for migration generation. Review the script before running it against any existing data.
 
@@ -229,7 +228,7 @@ npm start
 The included [Railway configuration](railway.toml) defines this app's build and startup lifecycle. Provision services and secrets separately.
 
 ### Scaling Considerations
-Run `npm run worker:outbox` in a supervised process with its worker credentials and application endpoint configured. Keep location inventory, fill reservations, and approval state in the shared database.
+Keep location inventory, fill reservations, and approval state in the shared database.
 
 ## Contributing
 

@@ -29,8 +29,6 @@ import {
   pharmacyOrderQueue,
   pharmacyOrderTask,
   pharmacyOperatorLocations,
-  pharmacyOutboxQueue,
-  pharmacyOutboxTimeline,
   pharmacyPatientAccountCandidates,
   pharmacyPatientDirectory,
   pharmacyPatientRecordOptions,
@@ -47,7 +45,6 @@ import {
   pharmacyRecallWorklist,
   pharmacyRecallTask,
 } from './operationalQueries'
-import { replayPharmacyOutboxEvent } from './outboxWorkflows'
 import { activePharmacyPaymentProviders, initiatePharmacyPaymentSession, refundPharmacyPayment } from './paymentOperations'
 import handlePaymentProviderWebhook from './handlePaymentProviderWebhook'
 import { reconcilePharmacyPaymentSession } from './paymentRecovery'
@@ -628,19 +625,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         actorName: String
         locationName: String
       }
-      type PharmacyOutboxTimelineEvent {
-        id: ID!
-        eventKey: String!
-        eventType: String!
-        aggregateType: String!
-        aggregateId: String!
-        status: String!
-        attempts: Int!
-        replayCount: Int!
-        occurredAt: String!
-        processedAt: String
-        hasError: Boolean!
-      }
 
       type PharmacyPatientAccountLinkResult { success: Boolean!, reused: Boolean, patientId: ID!, userId: ID! }
       type PharmacyPatientRecordResult { success: Boolean!, reused: Boolean!, patientId: ID!, patientNumber: String, status: String! }
@@ -690,7 +674,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         guestOrderToken: String
       }
       type PharmacyFulfillmentResult { success: Boolean!, reused: Boolean, fulfillmentId: ID!, orderId: ID!, approvalId: ID, status: String! }
-      type PharmacyOutboxReplayResult { id: ID!, status: String!, replayCount: Int!, reused: Boolean! }
       type PharmacyOnboardingCounts { drugReferences: Int!, paymentProviders: Int!, suppliers: Int!, products: Int!, lots: Int!, patients: Int!, prescribers: Int!, prescriptions: Int! }
       type PharmacyOnboardingResult { completed: Boolean!, reused: Boolean!, template: String!, organizationId: ID!, locationId: ID, counts: PharmacyOnboardingCounts! }
       input UserUpdateProfileInput { email: String, name: String, password: String, onboardingStatus: String }
@@ -820,8 +803,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         pharmacyPatientSafeView(patientId: ID!): PatientSafeProjection!
         pharmacyIntegrationStatus: [PharmacyIntegrationStatus!]!
         pharmacyAuditTimeline(take: Int): [PharmacyAuditTimelineEvent!]!
-        pharmacyOutboxTimeline(take: Int): [PharmacyOutboxTimelineEvent!]!
-        pharmacyOutboxQueue(take: Int): [PharmacyOutboxTimelineEvent!]!
       }
 
       type Mutation {
@@ -884,7 +865,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         disposeRecallLot(recallId: ID!, lotId: ID!, quantity: Int!, dispositionReference: String!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
         closePharmacyRecall(recallId: ID!, reason: String!, attested: Boolean!): PharmacyInventoryActionResult!
         transitionOrderFulfillment(fulfillmentId: ID!, status: String!, reason: String!, attested: Boolean!): PharmacyFulfillmentResult!
-        replayPharmacyOutboxEvent(eventId: ID!): PharmacyOutboxReplayResult!
         setPharmacyOnboardingStatus(status: String!): PharmacyOnboardingStatusResult!
         runPharmacyOnboarding(template: String): PharmacyOnboardingResult!
       }
@@ -938,8 +918,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         pharmacyPatientSafeView,
         pharmacyIntegrationStatus,
         pharmacyAuditTimeline,
-        pharmacyOutboxTimeline,
-        pharmacyOutboxQueue,
       },
       Mutation: {
         registerPharmacyCustomer,
@@ -999,7 +977,6 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         disposeRecallLot,
         closePharmacyRecall,
         transitionOrderFulfillment,
-        replayPharmacyOutboxEvent,
         setPharmacyOnboardingStatus,
         runPharmacyOnboarding,
       },

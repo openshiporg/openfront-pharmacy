@@ -77,52 +77,40 @@ export async function recordAuditEvent(context: Context, input: EvidenceInput) {
 }
 
 /**
- * Persists immutable audit and outbox snapshots on the supplied context. Callers
- * pass a transaction-bound context so domain state and evidence commit or roll
- * back together.
+ * Persists an immutable, idempotent audit snapshot on the supplied context.
+ * Callers pass a transaction-bound context so domain state and evidence commit
+ * or roll back together.
  */
-export async function recordAuditAndOutbox(context: Context, input: EvidenceInput & { eventKey: string }) {
-  const payload = canonicalize({
-    eventKey: input.eventKey,
+export async function recordAudit(context: Context, input: EvidenceInput & { eventKey: string }) {
+  const snapshotHash = evidencePayloadHash({
     eventType: input.eventType,
-    occurredAt: new Date().toISOString(),
-    aggregate: { type: input.resourceType, id: input.resourceId },
-    tenant: { organizationId: input.organizationId, locationId: input.locationId || null },
+    resourceType: input.resourceType,
+    resourceId: input.resourceId,
+    organizationId: input.organizationId,
+    locationId: input.locationId || null,
     actorId: input.actorId || null,
     patientId: input.patientId || null,
     data: input.metadata || {},
-  }) as Record<string, unknown>
-  const payloadHash = evidencePayloadHash(payload)
+  })
   const sudo = context.sudo()
-  const existing = await sudo.query.OutboxEvent.findOne({
+  const existing = await sudo.query.AuditEvent.findOne({
     where: { eventKey: input.eventKey },
-    query: 'id eventKey eventType payloadHash status',
+    query: 'id eventType resourceType resourceId metadata organization { id } location { id } actor { id } patient { id }',
   })
   if (existing) {
-    if (existing.eventType !== input.eventType || existing.payloadHash !== payloadHash) {
-      // occurredAt is intentionally excluded when comparing a replay below.
-      const comparable = { ...payload, occurredAt: undefined }
-      const existingEvent = await sudo.query.OutboxEvent.findOne({ where: { id: existing.id }, query: 'payload' })
-      const existingComparable = { ...(existingEvent?.payload as any), occurredAt: undefined }
-      if (evidencePayloadHash(comparable) !== evidencePayloadHash(existingComparable)) {
-        throw new DomainError('Evidence idempotency key was reused with a different snapshot')
-      }
-    }
-    return { created: false, auditEventId: null, outboxEventId: existing.id, status: existing.status }
+    const existingHash = evidencePayloadHash({
+      eventType: existing.eventType,
+      resourceType: existing.resourceType,
+      resourceId: existing.resourceId,
+      organizationId: existing.organization?.id ?? input.organizationId,
+      locationId: existing.location?.id || null,
+      actorId: existing.actor?.id || null,
+      patientId: existing.patient?.id || null,
+      data: existing.metadata || {},
+    })
+    if (existingHash !== snapshotHash) throw new DomainError('Evidence idempotency key was reused with a different snapshot')
+    return { created: false, auditEventId: existing.id }
   }
   const audit = await recordAuditEvent(context, input)
-  const outbox = await sudo.query.OutboxEvent.createOne({
-    data: {
-      eventKey: input.eventKey,
-      eventType: input.eventType,
-      aggregateType: input.resourceType,
-      aggregateId: input.resourceId,
-      payload: payload as any,
-      payloadHash,
-      organization: { connect: { id: input.organizationId } },
-      location: input.locationId ? { connect: { id: input.locationId } } : undefined,
-    },
-    query: 'id status',
-  })
-  return { created: true, auditEventId: audit.id, outboxEventId: outbox.id, status: outbox.status }
+  return { created: true, auditEventId: audit.id }
 }

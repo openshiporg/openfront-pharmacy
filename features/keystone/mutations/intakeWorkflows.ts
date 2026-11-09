@@ -4,7 +4,7 @@ import { assertDrugReferenceEligibleForBoundedDispensing } from '../workflows/cl
 import { assertPrescriptionClinicallyEligible } from '../workflows/prescription-eligibility'
 import { parseCalendarDateInput } from '../workflows/calendar-dates'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { FILL_LINEAGE, parseFillPolicy } from '../workflows/fill-entitlement'
 import { DomainError } from './lib/errors'
@@ -140,7 +140,7 @@ export async function intakePharmacyPrescription(
         },
       })
     }
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescription.intake:${args.organizationId}:${args.prescriptionNumber.trim()}`,
       organizationId: args.organizationId,
       locationId: args.locationId,

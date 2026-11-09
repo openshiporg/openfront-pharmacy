@@ -16,7 +16,6 @@ import { InventoryMovement } from './InventoryMovement'
 import { MachineCredential } from './MachineCredential'
 import { Order } from './Order'
 import { OrderLineItem } from './OrderLineItem'
-import { OutboxEvent } from './OutboxEvent'
 import { Organization } from './Organization'
 import { OrganizationMembership } from './OrganizationMembership'
 import { PatientAllergy } from './PatientAllergy'
@@ -63,7 +62,6 @@ export const models = {
   MachineCredential,
   Order,
   OrderLineItem,
-  OutboxEvent,
   Organization,
   OrganizationMembership,
   PatientAllergy,

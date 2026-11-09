@@ -3,7 +3,7 @@ import seedDefaults from '../../platform/onboarding/lib/seed.json'
 import { DEFAULT_STORE_LOGO_COLOR, DEFAULT_STORE_LOGO_ICON } from '../../lib/store-logo'
 import { normalizeStorefrontTenantKey } from '../../pharmacy/branding'
 import { permissions } from '../access'
-import { recordAuditAndOutbox } from './lib/evidence'
+import { recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
 
@@ -242,7 +242,7 @@ export async function runPharmacyOnboarding(_root: unknown, args: { template?: O
       prescribers: prescribers.length,
       prescriptions: 0,
     }
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `onboarding.completed:${organization.id}`,
       organizationId: organization.id,
       locationId: location.id,

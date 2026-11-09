@@ -4,7 +4,7 @@ import type { Context } from '.keystone/types'
 
 import { permissions } from '../access'
 import { requireTenantMembership } from './lib/authorization'
-import { recordAuditAndOutbox } from './lib/evidence'
+import { recordAudit } from './lib/evidence'
 import { DomainError } from './lib/errors'
 
 // Online prescription requests (patient registration, transfer, new prescription). The details are
@@ -135,7 +135,7 @@ export async function submitPharmacyPrescriptionRequest(_root: unknown, args: { 
     },
     query: REQUEST_FIELDS,
   })
-  await recordAuditAndOutbox(context, {
+  await recordAudit(context, {
     eventKey: `prescription_request.submitted:${request.id}`,
     organizationId: location.organization.id,
     locationId: location.id,
@@ -204,7 +204,7 @@ export async function resolvePharmacyPrescriptionRequest(_root: unknown, args: {
     const customer = await sudo.query.User.findOne({ where: { id: request.user.id }, query: 'id patientProfile { id }' })
     if (customer && !customer.patientProfile) {
       await sudo.query.PatientProfile.updateOne({ where: { id: patient.id }, data: { user: { connect: { id: customer.id } } } })
-      await recordAuditAndOutbox(context, {
+      await recordAudit(context, {
         eventKey: `patient.account_linked:${patient.id}:${customer.id}`,
         organizationId: request.organization.id,
         actorId: String(userId),
@@ -221,7 +221,7 @@ export async function resolvePharmacyPrescriptionRequest(_root: unknown, args: {
     data: { status: args.status, resolutionNote: note || request.resolutionNote || '', ...(patient ? { patient: { connect: { id: patient.id } } } : {}), ...(terminal ? { resolvedAt: new Date().toISOString(), resolvedBy: { connect: { id: String(userId) } } } : {}) },
     query: REQUEST_FIELDS,
   })
-  await recordAuditAndOutbox(context, {
+  await recordAudit(context, {
     eventKey: `prescription_request.${args.status}:${request.id}`,
     organizationId: request.organization.id,
     locationId: request.location.id,

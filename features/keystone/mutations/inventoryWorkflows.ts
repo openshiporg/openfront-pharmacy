@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { isProductAtActiveTenantLocation } from '../workflows/product-location'
 import { DomainError } from './lib/errors'
@@ -120,7 +120,7 @@ export async function receiveInventoryLot(
       },
       query: 'id',
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `inventory.received:${args.idempotencyKey}`,
       organizationId: location.organization.id,
       locationId: location.id,
@@ -201,7 +201,7 @@ export async function adjustInventoryLot(
       },
       query: 'id',
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `inventory.adjusted:${args.idempotencyKey}`,
       organizationId: lot.product.organization.id,
       locationId: lot.location.id,
@@ -278,7 +278,7 @@ export async function quarantineRecallLots(
         where: { id: recall.id },
         data: { status: 'quarantined', approval: { connect: { id: approval.id } } },
       })
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `recall.quarantined:${recall.id}`,
         organizationId: recall.organization.id,
         locationId: recall.location?.id,

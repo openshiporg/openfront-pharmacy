@@ -19,8 +19,7 @@ function fixture(status = 'pending', provider = 'manual') {
     InventoryLot: { findOne: async () => lot, updateOne: async ({ data }: any) => Object.assign(lot, data) },
     InventoryMovement: { createOne: async ({ data }: any) => { movements.push(data); return { id: 'm' } } },
     HumanApproval: { createOne: async () => ({ id: 'approval' }) },
-    AuditEvent: { createOne: async ({ data }: any) => { events.push(data); return { id: 'audit' } } },
-    OutboxEvent: { findOne: async () => null, createOne: async () => ({ id: 'outbox' }) },
+    AuditEvent: { findOne: async () => null, createOne: async ({ data }: any) => { events.push(data); return { id: 'audit' } } },
   }
   const context: any = { session: { itemId: 'u', data: { role: { canManageOrders: true } } }, query, prisma: { $queryRaw: async () => [] } }
   context.sudo = () => context; context.transaction = async (fn: any) => fn(context)

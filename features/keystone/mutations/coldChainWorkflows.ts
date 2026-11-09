@@ -1,6 +1,6 @@
 import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { excursionDispositionError, lotAfterExcursionDisposition, QUARANTINABLE_LOT_STATUSES, type ExcursionDisposition } from '../workflows/pharmacy-state'
 import { DomainError } from './lib/errors'
@@ -80,7 +80,7 @@ export async function recordTemperatureExcursion(
         approval: { connect: { id: approval.id } },
       },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `cold_chain.excursion:${args.idempotencyKey}`,
       organizationId: lot.product.organization.id,
       locationId: lot.location.id,
@@ -168,7 +168,7 @@ export async function resolveTemperatureExcursion(
       },
       query: 'id',
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `cold_chain.excursion_${disposition}:${excursion.id}`,
       organizationId: excursion.organization.id,
       locationId: excursion.location.id,

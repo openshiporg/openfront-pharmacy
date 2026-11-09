@@ -1,7 +1,7 @@
 import type { Context } from '.keystone/types'
 import { isValidNpi } from '../workflows/prescription-eligibility'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
 
@@ -65,7 +65,7 @@ export async function recordPharmacyStaffCredentialReview(
         credentialVerifiedById: userId,
       },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `membership.credential_reviewed:${membership.id}:${approval.id}`,
       organizationId: membership.organization.id,
       locationId: membership.location?.id,
@@ -116,7 +116,7 @@ export async function recordPharmacyPrescriberCredentialReview(
         verifiedById: userId,
       },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescriber.credential_reviewed:${prescriber.id}:${approval.id}`,
       organizationId: prescriber.organization.id,
       actorId: userId,

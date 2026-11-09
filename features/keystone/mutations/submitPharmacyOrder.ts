@@ -7,7 +7,7 @@ import { calculateCartTotals } from '../workflows/commerce-policy'
 import { eligibleLotQuantity, isLotEligible } from '../workflows/lot-eligibility'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { isCartExpired, loadAndAssertCartAccess } from './lib/cartAccess'
-import { recordAuditAndOutbox } from './lib/evidence'
+import { recordAudit } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { isManualPaymentProvider, PAYMENT_PROVIDER_ADAPTER_FIELDS } from './paymentOperations'
 import { DomainError } from './lib/errors'
@@ -305,7 +305,7 @@ export async function submitPharmacyOrder(
       })
       await sudo.query.Order.updateOne({ where: { id: createdOrder.id }, data: { consent: { connect: { id: consent.id } } } })
     }
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `order.submitted:${idempotencyKey}`,
       organizationId: current.organization.id,
       locationId: current.location.id,
@@ -372,7 +372,7 @@ export async function submitPharmacyOrder(
           data: { ...(paymentSession.data || {}), compensation },
         },
       })
-      await recordAuditAndOutbox(transactionContext, {
+      await recordAudit(transactionContext, {
         eventKey: `payment.checkout_recovery:${paymentSession.id}`,
         organizationId: cart.organization.id,
         locationId: cart.location.id,

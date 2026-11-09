@@ -579,39 +579,6 @@ model OrderLineItem {
   @@index([productId])
 }
 
-model OutboxEvent {
-  id             String            @id @default(cuid())
-  eventKey       String            @unique @default("")
-  eventType      String            @default("")
-  aggregateType  String            @default("")
-  aggregateId    String            @default("")
-  payload        Json?
-  payloadHash    String            @default("")
-  status         String            @default("pending")
-  attempts       Int               @default(0)
-  maxAttempts    Int               @default(8)
-  replayCount    Int               @default(0)
-  lastError      String?
-  nextAttemptAt  DateTime?
-  lockedAt       DateTime?
-  lockToken      String?
-  occurredAt     DateTime          @default(now())
-  processedAt    DateTime?
-  createdAt      DateTime          @default(now())
-  updatedAt      DateTime          @default(now()) @updatedAt
-  organization   Organization      @relation("OutboxEvent_organization", fields: [organizationId], references: [id])
-  organizationId String            @map("organization")
-  location       PharmacyLocation? @relation("OutboxEvent_location", fields: [locationId], references: [id])
-  locationId     String?           @map("location")
-
-  @@index([eventType])
-  @@index([aggregateType])
-  @@index([aggregateId])
-  @@index([lockToken])
-  @@index([organizationId])
-  @@index([locationId])
-}
-
 model Organization {
   id                                     String                        @id @default(cuid())
   name                                   String                        @default("")
@@ -652,7 +619,6 @@ model Organization {
   recalls                                Recall[]                      @relation("Recall_organization")
   orders                                 Order[]                       @relation("Order_organization")
   integrationProviders                   IntegrationProvider[]         @relation("IntegrationProvider_organization")
-  outboxEvents                           OutboxEvent[]                 @relation("OutboxEvent_organization")
   paymentWebhookEvents                   PaymentWebhookEvent[]         @relation("PaymentWebhookEvent_organization")
   machineCredentials                     MachineCredential[]           @relation("MachineCredential_organization")
   externalIntegrationWorkflows           ExternalIntegrationWorkflow[] @relation("ExternalIntegrationWorkflow_organization")
@@ -950,7 +916,6 @@ model PharmacyLocation {
   prescriptions                      Prescription[]                @relation("Prescription_location")
   recalls                            Recall[]                      @relation("Recall_location")
   orders                             Order[]                       @relation("Order_location")
-  outboxEvents                       OutboxEvent[]                 @relation("OutboxEvent_location")
   machineCredentials                 MachineCredential[]           @relation("MachineCredential_location")
   externalIntegrationWorkflows       ExternalIntegrationWorkflow[] @relation("ExternalIntegrationWorkflow_location")
   createdAt                          DateTime                      @default(now())

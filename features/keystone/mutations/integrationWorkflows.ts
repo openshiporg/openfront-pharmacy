@@ -2,7 +2,7 @@ import type { Context } from '.keystone/types'
 import { permissions } from '../access'
 import { isValidNpi } from '../workflows/prescription-eligibility'
 import { requireTenantMembership } from './lib/authorization'
-import { recordAuditAndOutbox } from './lib/evidence'
+import { recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { externalIntegrationRequestMatches } from '../workflows/external-integration-idempotency'
 import { normalizeConfiguration } from '../../integrations/erx/manual'
@@ -29,7 +29,7 @@ export async function configurePharmacyIntegrationProvider(
       where: { id: provider.id },
       data: { configuration, credentials, ...adapterFunctions, status: 'active', externalValidationComplete: true, validatedAt: new Date().toISOString(), validationReference: `health:${new URL(configuration.baseUrl).host}` },
     })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `integration.configured:${provider.id}:${Date.now()}`,
       organizationId: provider.organization.id,
       actorId: userId,
@@ -58,7 +58,7 @@ export async function validatePharmacyPrescriber(_root: unknown, args: { provide
   }
   return withDomainTransaction(context, [`prescriber:${prescriber.id}`], async (transactionContext) => {
     await (transactionContext.prisma as any).prescriber.update({ where: { id: prescriber.id }, data: { verificationStatus: 'validated', externalValidationComplete: true, verificationMethod: 'external_provider', credentialType: String(result.credentialType).slice(0, 200), credentialJurisdiction: String(result.credentialJurisdiction).slice(0, 200), credentialIdentifier: String(result.credentialIdentifier).slice(0, 200), credentialExpiresAt, validationReference: String(result.validationReference).slice(0, 500), validatedAt: new Date(), verifiedById: userId } })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `prescriber.validated:${prescriber.id}:${result.validationReference}`,
       organizationId: prescriber.organization.id,
       actorId: userId,
@@ -153,7 +153,7 @@ export async function submitPharmacyExternalWorkflow(
   const status = ['accepted', 'rejected', 'pending'].includes(result.status) ? result.status : 'submitted'
   await withDomainTransaction(context, [`integration-workflow:${workflow.id}`], async (transactionContext) => {
     await transactionContext.sudo().query.ExternalIntegrationWorkflow.updateOne({ where: { id: workflow.id }, data: { status, externalReference: result.externalReference, responsePayload: result, attempts: 1, submittedAt: new Date().toISOString(), ...(status === 'accepted' || status === 'rejected' ? { resolvedAt: new Date().toISOString() } : {}) } })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `integration.submitted:${workflow.id}`,
       organizationId: resource.organizationId,
       locationId: resource.locationId,

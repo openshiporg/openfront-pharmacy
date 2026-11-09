@@ -86,7 +86,6 @@ export const Organization = list({
     recalls: relationship({ ref: 'Recall.organization', many: true, access: immutableRelationship }),
     orders: relationship({ ref: 'Order.organization', many: true, access: immutableRelationship }),
     integrationProviders: relationship({ ref: 'IntegrationProvider.organization', many: true, access: immutableRelationship }),
-    outboxEvents: relationship({ ref: 'OutboxEvent.organization', many: true, access: immutableRelationship }),
     paymentWebhookEvents: relationship({ ref: 'PaymentWebhookEvent.organization', many: true, access: immutableRelationship }),
     machineCredentials: relationship({ ref: 'MachineCredential.organization', many: true, access: immutableRelationship }),
     externalIntegrationWorkflows: relationship({ ref: 'ExternalIntegrationWorkflow.organization', many: true, access: immutableRelationship }),

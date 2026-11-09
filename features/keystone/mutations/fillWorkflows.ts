@@ -1,6 +1,6 @@
 import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { assertPrescriptionClinicallyEligible } from '../workflows/prescription-eligibility'
 import { endOfPharmacyDay } from '../workflows/calendar-dates'
@@ -70,7 +70,7 @@ export async function appendFillEvent(context: Context, fill: any, input: { even
       organizationId: fill.organization.id, locationId: fill.location.id, patientId: fill.patient.id,
       actorId: input.actorId, refillRequestId: fill.refillRequest?.id || null, fillVersion: fill.version,
       itemVersion: fill.itemVersion, authorityVersion: fill.authorityVersion, policyVersion: fill.policySnapshot.version } } })
-  await recordAuditAndOutbox(context, { eventKey: input.eventKey, organizationId: fill.organization.id, locationId: fill.location.id,
+  await recordAudit(context, { eventKey: input.eventKey, organizationId: fill.organization.id, locationId: fill.location.id,
     actorId: input.actorId, patientId: fill.patient.id, eventType: `prescription_fill.${input.action}`, resourceType: 'PrescriptionFill', resourceId: fill.id,
     metadata: { fillId: fill.id, fillNumber: fill.fillNumber, version: fill.version, kind: fill.kind, creditState: fill.creditState,
       authorizedQuantity: fill.authorizedQuantity, quantityDispensed: fill.quantityDispensed, quantityReleased: fill.quantityReleased,
@@ -242,7 +242,7 @@ export async function recordPharmacyFillPolicy(_root: unknown, args: { organizat
     const approval = await createHumanApproval(tx, { organizationId: args.organizationId, actorId: userId, actionType: 'prescription_review', reason: args.reason,
       attested: args.attested, evidence: { stage: 'fill_policy', policy, clinicalValidityClaimed: false, nonRetroactive: true } })
     await tx.sudo().query.Organization.updateOne({ where: { id: args.organizationId }, data: { prescriptionFillPolicy: { ...policy, approvalId: approval.id } } as any })
-    await recordAuditAndOutbox(tx, { eventKey, organizationId: args.organizationId, actorId: userId, eventType: 'prescription_fill.policy_recorded', resourceType: 'Organization', resourceId: args.organizationId,
+    await recordAudit(tx, { eventKey, organizationId: args.organizationId, actorId: userId, eventType: 'prescription_fill.policy_recorded', resourceType: 'Organization', resourceId: args.organizationId,
       metadata: { policy, approvalId: approval.id, commandFingerprint: fingerprint, nonRetroactive: true } })
     return { success: true, reused: false, status: 'configured' }
   })

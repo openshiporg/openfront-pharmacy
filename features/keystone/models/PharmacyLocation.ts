@@ -67,7 +67,6 @@ export const PharmacyLocation = list({
     prescriptions: relationship({ ref: 'Prescription.location', many: true, access: immutableRelationship }),
     recalls: relationship({ ref: 'Recall.location', many: true, access: immutableRelationship }),
     orders: relationship({ ref: 'Order.location', many: true, access: immutableRelationship }),
-    outboxEvents: relationship({ ref: 'OutboxEvent.location', many: true, access: immutableRelationship }),
     machineCredentials: relationship({ ref: 'MachineCredential.location', many: true, access: immutableRelationship }),
     externalIntegrationWorkflows: relationship({ ref: 'ExternalIntegrationWorkflow.location', many: true, access: immutableRelationship }),
     ...trackingFields,

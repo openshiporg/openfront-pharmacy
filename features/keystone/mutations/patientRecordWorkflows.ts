@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Context } from '.keystone/types'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
-import { createHumanApproval, recordAuditAndOutbox } from './lib/evidence'
+import { createHumanApproval, recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
 
@@ -58,7 +58,7 @@ export async function createPharmacyPatient(
       },
       query: 'id patientNumber status',
     })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `patient.created:${identityKey}`, organizationId: args.organizationId, actorId: userId, patientId: patient.id, eventType: 'patient.created', resourceType: 'PatientProfile', resourceId: patient.id, metadata: { patientNumber, approvalId: approval.id, identityMethod: args.identityMethod.trim(), softwareIdentityValidationPerformed: false } })
+    await recordAudit(transactionContext, { eventKey: `patient.created:${identityKey}`, organizationId: args.organizationId, actorId: userId, patientId: patient.id, eventType: 'patient.created', resourceType: 'PatientProfile', resourceId: patient.id, metadata: { patientNumber, approvalId: approval.id, identityMethod: args.identityMethod.trim(), softwareIdentityValidationPerformed: false } })
     return { success: true, reused: false, patientId: patient.id, patientNumber: patient.patientNumber, status: patient.status }
   })
 }
@@ -85,7 +85,7 @@ export async function updatePharmacyPatientContact(
     }
     const approval = await createHumanApproval(transactionContext, { organizationId, actorId: userId, actionType: 'patient_record', reason: args.reason, attested: args.attested, evidence: { action: 'contact_update', patientId: patient.id, requestFingerprint } })
     await (transactionContext.prisma as any).patientProfile.update({ where: { id: patient.id }, data: { email: args.email?.trim().toLowerCase() || '', phone: args.phone?.trim() || '', preferredContactMethod: args.preferredContactMethod, address: args.address || null } })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `patient.contact_updated:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: 'patient.contact_updated', resourceType: 'PatientProfile', resourceId: patient.id, metadata: { approvalId: approval.id, preferredContactMethod: args.preferredContactMethod, requestFingerprint } })
+    await recordAudit(transactionContext, { eventKey: `patient.contact_updated:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: 'patient.contact_updated', resourceType: 'PatientProfile', resourceId: patient.id, metadata: { approvalId: approval.id, preferredContactMethod: args.preferredContactMethod, requestFingerprint } })
     return { success: true, reused: false, patientId: patient.id, status: 'active' }
   })
 }
@@ -155,7 +155,7 @@ async function recordPatientHistoryEntry(input: ReturnType<typeof transactionInp
     const record = kind === 'allergy'
       ? await sudo.query.PatientAllergy.createOne({ data: { ...common, allergen: label, reaction: normalize(args.reaction), severity: args.severity, ...(noneKnown ? { status: 'none_known' } : {}) }, query: 'id status' })
       : await sudo.query.PatientMedication.createOne({ data: { ...common, medicationName: label, directions: args.directions?.trim() || undefined, ...(noneKnown ? { status: 'none_known' } : {}) }, query: 'id status' })
-    await recordAuditAndOutbox(transactionContext, { eventKey: `patient.${kind}_recorded:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: `patient.${kind}_recorded`, resourceType: kind === 'allergy' ? 'PatientAllergy' : 'PatientMedication', resourceId: record.id, metadata: { approvalId: approval.id, sourceReference: args.sourceReference.trim() } })
+    await recordAudit(transactionContext, { eventKey: `patient.${kind}_recorded:${args.idempotencyKey}`, organizationId, actorId: userId, patientId: patient.id, eventType: `patient.${kind}_recorded`, resourceType: kind === 'allergy' ? 'PatientAllergy' : 'PatientMedication', resourceId: record.id, metadata: { approvalId: approval.id, sourceReference: args.sourceReference.trim() } })
     return { success: true, reused: false, recordId: record.id, status: record.status }
   })
 }

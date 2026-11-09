@@ -4,7 +4,7 @@ import { permissions } from '../access'
 import { createPayment, refundPayment } from '../utils/paymentProviderAdapter'
 import { loadAndAssertCartAccess } from './lib/cartAccess'
 import { requireTenantMembership } from './lib/authorization'
-import { recordAuditAndOutbox } from './lib/evidence'
+import { recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
 
@@ -90,7 +90,7 @@ export async function refundPharmacyPayment(
     if (!current?.order) throw new DomainError('Payment not found')
     if (current.status === 'refunded') return { success: true, reused: true, paymentId: current.id, status: current.status, amount: current.amount }
     await sudo.query.Payment.updateOne({ where: { id: current.id }, data: { status: 'refunded', data: { refund: providerResult, reason: args.reason.trim() } } })
-    await recordAuditAndOutbox(transactionContext, {
+    await recordAudit(transactionContext, {
       eventKey: `payment.refunded:${current.id}`,
       organizationId: current.order.organization.id,
       locationId: current.order.location.id,
