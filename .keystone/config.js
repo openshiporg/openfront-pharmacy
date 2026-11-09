@@ -4813,6 +4813,65 @@ var import_schema = require("@graphql-tools/schema");
 // features/keystone/mutations/cashWorkflows.ts
 var import_node_crypto5 = require("node:crypto");
 
+// features/keystone/workflows/calendar-dates.ts
+var FALLBACK_PHARMACY_TIME_ZONE = "America/New_York";
+function validTimeZone(timeZone) {
+  if (typeof timeZone === "string" && timeZone) {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone });
+      return timeZone;
+    } catch {
+    }
+  }
+  return FALLBACK_PHARMACY_TIME_ZONE;
+}
+function storedCalendarDay(value) {
+  if (value === null || value === void 0 || value === "") return null;
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10);
+}
+function pharmacyToday(timeZone, now = Date.now()) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone: validTimeZone(timeZone), year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(now));
+  const get = (type) => parts.find((part) => part.type === type)?.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+function calendarDateStillValid(value, timeZone, now = Date.now()) {
+  const day = storedCalendarDay(value);
+  return day !== null && day >= pharmacyToday(timeZone, now);
+}
+function calendarDateNotFuture(value, timeZone, now = Date.now()) {
+  const day = storedCalendarDay(value);
+  return day !== null && day <= pharmacyToday(timeZone, now);
+}
+function zoneOffsetMs(instant, timeZone) {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" }).formatToParts(new Date(instant));
+  const get = (type) => Number(parts.find((part) => part.type === type)?.value);
+  return Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second")) - Math.floor(instant / 1e3) * 1e3;
+}
+function endOfPharmacyDay(value, timeZone) {
+  const day = storedCalendarDay(value);
+  if (!day) return null;
+  const zone = validTimeZone(timeZone);
+  const [year, month, date] = day.split("-").map(Number);
+  const localMidnight = Date.UTC(year, month - 1, date + 1);
+  let instant = localMidnight - zoneOffsetMs(localMidnight, zone);
+  instant = localMidnight - zoneOffsetMs(instant, zone);
+  return new Date(instant);
+}
+function parseCalendarDateInput(value) {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const day = /^\d{4}-\d{2}-\d{2}$/.test(value.trim()) ? value.trim() : storedCalendarDay(value.trim());
+  if (!day) return null;
+  const [year, month, date] = day.split("-").map(Number);
+  const check = new Date(Date.UTC(year, month - 1, date));
+  if (check.getUTCFullYear() !== year || check.getUTCMonth() !== month - 1 || check.getUTCDate() !== date) return null;
+  return day;
+}
+function lotNumberKey(lotNumber) {
+  return lotNumber.trim().replace(/\s+/g, " ").toUpperCase();
+}
+
 // features/keystone/workflows/lot-eligibility.ts
 var BLOCKING_RECALL_STATUSES = /* @__PURE__ */ new Set(["active", "quarantined"]);
 function lotHasBlockingRecall(lot) {
@@ -4820,7 +4879,7 @@ function lotHasBlockingRecall(lot) {
 }
 function eligibleLotQuantity(lot, now = Date.now()) {
   if (lot.status !== "available") return 0;
-  if (!lot.expirationDate || new Date(lot.expirationDate).getTime() <= now) return 0;
+  if (!calendarDateStillValid(lot.expirationDate, lot.location?.timezone, now)) return 0;
   if (lot.coldChainRequired && !lot.coldChainEvidenceComplete) return 0;
   if (lotHasBlockingRecall(lot)) return 0;
   return Math.max(0, Number(lot.quantityAvailable || 0) - Number(lot.quantityQuarantined || 0));
@@ -5123,6 +5182,9 @@ function verifyGuestOrderToken(cartId, idempotencyKey, token) {
 }
 
 // features/keystone/mutations/lib/cartAccess.ts
+function isCartExpired(cart, now = Date.now()) {
+  return Boolean(cart.expiresAt && new Date(cart.expiresAt).getTime() <= now);
+}
 async function loadAndAssertCartAccess(context, cartId, guestToken, options = {}) {
   const cart = await context.sudo().query.Cart.findOne({
     where: { id: cartId },
@@ -5145,7 +5207,7 @@ async function loadAndAssertCartAccess(context, cartId, guestToken, options = {}
     `
   });
   if (!cart || cart.status !== "active" && !(options.allowSubmitted && cart.status === "submitted")) throw new DomainError("Active cart not found");
-  if (cart.expiresAt && new Date(cart.expiresAt).getTime() <= Date.now()) throw new DomainError("Cart has expired");
+  if (!options.allowExpired && isCartExpired(cart)) throw new DomainError("Cart has expired");
   const userId = context.session?.itemId;
   if (userId) {
     if (cart.customer?.id !== userId) throw new DomainError("You do not have access to this cart");
@@ -5490,10 +5552,10 @@ async function recordPosSale(args, context, card) {
     if (location.organization.cashSalesEnabled !== true || !location.organization.cashTaxPolicyReference?.trim() || !location.organization.cashPolicyReviewedAt) throw new DomainError("Operator-attested cash and tax policy must be configured before POS sales");
     const productIds = [...new Set(items.map((entry) => entry.productId))];
     if (productIds.length !== items.length) throw new DomainError("Combine duplicate POS product lines before submission");
-    let products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl image { id extension } priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }" });
+    let products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl image { id extension } priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } }" });
     if (products.length !== items.length || products.some((product) => product.organization?.id !== location.organization.id || product.location?.id !== location.id || product.status !== "published" || product.posAvailable !== true || product.prescriptionRequirement !== "none")) throw new DomainError("Every POS item must be an available OTC product in this tenant location");
     await acquireTransactionLocks(transactionContext, products.flatMap((product) => product.inventoryLots.map((lot) => `lot:${lot.id}`)));
-    products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl image { id extension } priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }" });
+    products = await sudo.query.Product.findMany({ where: { id: { in: productIds } }, take: 50, query: "id title sku imageUrl image { id extension } priceAmount currencyCode taxable status posAvailable prescriptionRequirement organization { id } location { id } drugReference { ndc11 } inventoryLots(orderBy: { expirationDate: asc }, take: 100) { id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } }" });
     const currencies = [...new Set(products.map((product) => product.currencyCode))];
     if (currencies.length !== 1) throw new DomainError("POS order currency mismatch");
     const pricedItems = items.map((entry) => ({ ...entry, product: products.find((product) => product.id === entry.productId) }));
@@ -5814,7 +5876,7 @@ async function publicPharmacyCatalog(_root, args, context) {
       where: publicCatalogCursorWhere(baseWhere, cursor),
       orderBy: [{ title: "asc" }, { id: "asc" }],
       take: pageSize + 1,
-      query: "id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots(where: { quantityAvailable: { gt: 0 } }, orderBy: { expirationDate: asc }, take: 101) { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }"
+      query: "id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots(where: { quantityAvailable: { gt: 0 } }, orderBy: { expirationDate: asc }, take: 101) { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } }"
     })
   ]);
   const hasMore = records.length > pageSize;
@@ -5918,7 +5980,7 @@ async function addPharmacyCartItem(_root, args, context) {
     const cart = await loadAndAssertCartAccess(transactionContext, args.cartId, args.guestToken);
     const product = await transactionContext.sudo().query.Product.findOne({
       where: { id: args.productId },
-      query: "id status onlineAvailable prescriptionRequirement priceAmount location { id } inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }"
+      query: "id status onlineAvailable prescriptionRequirement priceAmount location { id } inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } }"
     });
     if (!product || product.location?.id !== cart.location.id) throw new DomainError("Product is not available at this location");
     assertProductCanEnterPublicCart(product);
@@ -5948,7 +6010,7 @@ async function updatePharmacyCartItem(_root, args, context) {
   if (!Number.isInteger(args.quantity) || args.quantity < 0 || args.quantity > 99) throw new DomainError("Quantity must be between 0 and 99");
   return withDomainTransaction(context, [`cart:${item.cart.id}`], async (transactionContext) => {
     const cart = await loadAndAssertCartAccess(transactionContext, item.cart.id, args.guestToken);
-    const current = await transactionContext.sudo().query.CartItem.findOne({ where: { id: args.cartItemId }, query: "id cart { id } product { inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } } }" });
+    const current = await transactionContext.sudo().query.CartItem.findOne({ where: { id: args.cartItemId }, query: "id cart { id } product { inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } } }" });
     if (!current || current.cart?.id !== cart.id) throw new DomainError("Cart item not found");
     if (args.quantity > 0) {
       const availableQuantity = (current.product?.inventoryLots || []).filter((lot) => lot.location?.id === cart.location.id).reduce((sum, lot) => sum + eligibleLotQuantity(lot), 0);
@@ -6152,8 +6214,9 @@ function isValidNpi(value) {
 }
 function assertPrescriptionClinicallyEligible(input, now = Date.now()) {
   if (input.sourceVerificationStatus !== "human_verified") throw new DomainError("Prescription source must be verified by an authorized human");
-  if (!input.writtenAt || new Date(input.writtenAt).getTime() > now) throw new DomainError("Prescription written date is invalid");
-  if (!input.expiresAt || new Date(input.expiresAt).getTime() <= now) throw new DomainError("Prescription is expired");
+  const timeZone = input.location?.timezone;
+  if (!calendarDateNotFuture(input.writtenAt, timeZone, now)) throw new DomainError("Prescription written date is invalid");
+  if (!calendarDateStillValid(input.expiresAt, timeZone, now)) throw new DomainError("Prescription is expired");
   const prescriber = input.prescriber;
   const credentialExpiry = prescriber?.credentialExpiresAt ? new Date(prescriber.credentialExpiresAt).getTime() : Number.NaN;
   if (prescriber?.verificationStatus !== "validated" || prescriber.externalValidationComplete !== true || !["organization_recorded", "external_provider"].includes(prescriber.verificationMethod || "") || !isValidNpi(prescriber.npi) || !prescriber.credentialType?.trim() || !prescriber.credentialJurisdiction?.trim() || !prescriber.credentialIdentifier?.trim() || !prescriber.validationReference?.trim() || !prescriber.verifiedBy?.id || !Number.isFinite(credentialExpiry) || credentialExpiry <= now) {
@@ -6163,7 +6226,7 @@ function assertPrescriptionClinicallyEligible(input, now = Date.now()) {
 
 // features/keystone/mutations/fillWorkflows.ts
 var FILL_PRESCRIPTION_QUERY = `id status sourceVerificationStatus writtenAt expiresAt
-  organization { id prescriptionFillPolicy cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt } location { id }
+  organization { id prescriptionFillPolicy cashSalesEnabled cashTaxRateBps cashTaxPolicyReference cashPolicyReviewedAt } location { id timezone }
   patient { id status organizations { id } user { id } identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } }
   prescriber { id organization { id } npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }
   items { id prescription { id } fillLineage activeFillNumber medicationNameSnapshot sig quantityPrescribed quantityDispensed daysSupply refillsAuthorized refillsRemaining refillsReserved substitutionAllowed drugReference { id } product { id title sku priceAmount currencyCode taxable drugReference { id } } }`;
@@ -6314,7 +6377,7 @@ async function reserveFillInTransaction(context, p2, item, input) {
     authorityVersion: prescriptionAuthorityVersion(p2),
     policySnapshot,
     priceSnapshot: { amount: item.product.priceAmount, currencyCode: item.product.currencyCode, taxable: item.product.taxable !== false, taxAmount: calculateTaxAmount(item.product.taxable !== false ? item.product.priceAmount : 0, cashPolicy.taxRateBps), taxRateBps: cashPolicy.taxRateBps, taxPolicyReference: cashPolicy.policyReference, title: item.product.title, sku: item.product.sku },
-    expiresAt: new Date(Math.min(new Date(p2.expiresAt).getTime(), Date.now() + policySnapshot.reservationMinutes * 6e4)).toISOString(),
+    expiresAt: new Date(Math.min(endOfPharmacyDay(p2.expiresAt, p2.location?.timezone)?.getTime() ?? 0, Date.now() + policySnapshot.reservationMinutes * 6e4)).toISOString(),
     organization: connect(p2.organization.id),
     location: connect(p2.location.id),
     patient: connect(p2.patient.id),
@@ -7507,14 +7570,15 @@ async function receiveInventoryLot(_root, args, context) {
   requirePermission(context, "canManageInventory");
   if (!Number.isInteger(args.quantity) || args.quantity < 1) throw new DomainError("Received quantity must be a positive integer");
   if (!args.idempotencyKey?.trim() || !args.lotNumber?.trim()) throw new DomainError("Lot number and idempotency key are required");
-  const expirationDate = new Date(args.expirationDate);
-  if (Number.isNaN(expirationDate.getTime()) || expirationDate.getTime() <= Date.now()) throw new DomainError("Expiration date must be in the future");
+  const expirationDay = parseCalendarDateInput(args.expirationDate);
+  if (!expirationDay) throw new DomainError("Expiration date must be a real calendar date");
+  const expirationDate = /* @__PURE__ */ new Date(`${expirationDay}T12:00:00.000Z`);
   if (args.coldChainRequired) {
     if (typeof args.minimumTemperatureC !== "number" || typeof args.maximumTemperatureC !== "number" || args.minimumTemperatureC >= args.maximumTemperatureC) throw new DomainError("Cold-chain receipt needs a storage range with the minimum below the maximum");
     if (!args.coldChainEvidenceComplete) throw new DomainError("Review the shipment temperature log before receiving cold-chain stock");
   }
   const requestFingerprint = (0, import_node_crypto10.createHash)("sha256").update(JSON.stringify({ productId: args.productId, locationId: args.locationId, supplierId: args.supplierId || null, lotNumber: args.lotNumber.trim(), serialNumber: args.serialNumber?.trim() || null, expirationDate: expirationDate.toISOString(), quantity: args.quantity, coldChainRequired: args.coldChainRequired, minimumTemperatureC: args.minimumTemperatureC ?? null, maximumTemperatureC: args.maximumTemperatureC ?? null, coldChainEvidenceComplete: args.coldChainEvidenceComplete, reason: args.reason?.trim(), attested: args.attested })).digest("hex");
-  return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${args.lotNumber}`], async (transactionContext) => {
+  return withDomainTransaction(context, [`inventory-idempotency:${args.idempotencyKey}`, `product:${args.productId}`, `lot-number:${args.locationId}:${lotNumberKey(args.lotNumber)}`], async (transactionContext) => {
     const sudo = transactionContext.sudo();
     const existing = await sudo.query.InventoryMovement.findOne({ where: { idempotencyKey: args.idempotencyKey }, query: "id requestFingerprint lot { id quantityAvailable location { id } product { organization { id } } }" });
     if (existing) {
@@ -7527,7 +7591,7 @@ async function receiveInventoryLot(_root, args, context) {
     }
     const [product, location, supplier] = await Promise.all([
       sudo.query.Product.findOne({ where: { id: args.productId }, query: "id organization { id } location { id } coldChainRequired" }),
-      sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id status organization { id status }" }),
+      sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id status timezone organization { id status }" }),
       args.supplierId ? sudo.query.Supplier.findOne({ where: { id: args.supplierId }, query: "id organization { id } status" }) : null
     ]);
     if (!isProductAtActiveTenantLocation(product, location)) {
@@ -7539,6 +7603,13 @@ async function receiveInventoryLot(_root, args, context) {
       throw new DomainError("Supplier must be active in the receiving organization");
     }
     const { userId } = await requireTenantMembership(transactionContext, { organizationId: location.organization.id, locationId: location.id });
+    if (expirationDay <= pharmacyToday(location.timezone)) throw new DomainError("Expiration date must be after today at this pharmacy");
+    const sameLot = await sudo.prisma.$queryRaw`
+      SELECT "lotNumber" FROM "InventoryLot"
+      WHERE "product" = ${product.id} AND "location" = ${location.id}
+        AND upper(regexp_replace(btrim("lotNumber"), '[[:space:]]+', ' ', 'g')) = ${lotNumberKey(args.lotNumber)}
+      LIMIT 1`;
+    if (sameLot.length) throw new DomainError(`Lot ${sameLot[0].lotNumber} is already received for this product here; adjust its count instead of receiving it again`);
     const approval = await createHumanApproval(transactionContext, {
       organizationId: location.organization.id,
       locationId: location.id,
@@ -8060,11 +8131,13 @@ async function intakePharmacyPrescription(_root, args, context) {
   }
   if (!args.prescriptionNumber?.trim() || !args.items.length) throw new DomainError("Prescription number and at least one item are required");
   if (args.items.length !== 1) throw new DomainError("Enter one prescription item per prescription");
-  const writtenAt = new Date(args.writtenAt);
-  const expiresAt = new Date(args.expiresAt);
-  if (Number.isNaN(writtenAt.getTime()) || Number.isNaN(expiresAt.getTime()) || writtenAt.getTime() > Date.now() || expiresAt.getTime() <= writtenAt.getTime()) {
+  const writtenDay = parseCalendarDateInput(args.writtenAt);
+  const expiryDay = parseCalendarDateInput(args.expiresAt);
+  if (!writtenDay || !expiryDay || expiryDay <= writtenDay) {
     throw new DomainError("Prescription written and expiration dates are invalid");
   }
+  const writtenAt = /* @__PURE__ */ new Date(`${writtenDay}T00:00:00.000Z`);
+  const expiresAt = /* @__PURE__ */ new Date(`${expiryDay}T00:00:00.000Z`);
   for (const item of args.items) {
     if (!item.productId || !item.medicationName?.trim() || !item.sig?.trim() || !Number.isInteger(item.quantity) || item.quantity < 1 || !Number.isInteger(item.refillsAuthorized) || item.refillsAuthorized < 0) {
       throw new DomainError("Prescription item is invalid");
@@ -8098,7 +8171,9 @@ async function intakePharmacyPrescription(_root, args, context) {
     ]);
     if (!patient || patient.status !== "active" || !patient.organizations?.some((organization2) => organization2.id === args.organizationId)) throw new DomainError("Active patient is not in the prescription organization");
     if (!prescriber || prescriber.organization?.id !== args.organizationId) throw new DomainError("Prescriber is not in the prescription organization");
-    assertPrescriptionClinicallyEligible({ sourceVerificationStatus: "human_verified", writtenAt, expiresAt, prescriber });
+    const location = await sudo.query.PharmacyLocation.findOne({ where: { id: args.locationId }, query: "id timezone organization { id }" });
+    if (location?.organization?.id !== args.organizationId) throw new DomainError("Location is not in the prescription organization");
+    assertPrescriptionClinicallyEligible({ sourceVerificationStatus: "human_verified", writtenAt, expiresAt, location, prescriber });
     if (products.length !== new Set(args.items.map((item) => item.productId)).size || products.some((product) => product.organization?.id !== args.organizationId || product.location?.id !== args.locationId || !product.drugReference?.id)) {
       throw new DomainError("Every prescription item must use an NDC-linked product from this pharmacy");
     }
@@ -8815,14 +8890,15 @@ async function pharmacyPrescriptionIntakeOptions(_root, _args, context) {
   const sudo = context.sudo();
   const [organizations, locations, patients, prescribers, products] = await Promise.all([
     sudo.query.Organization.findMany({ where: { id: { in: scope.organizationIds } }, orderBy: { name: "asc" }, query: "id name" }),
-    sudo.query.PharmacyLocation.findMany({ where: { id: { in: scope.locationIds } }, orderBy: { name: "asc" }, query: "id name organization { id }" }),
+    sudo.query.PharmacyLocation.findMany({ where: { id: { in: scope.locationIds } }, orderBy: { name: "asc" }, query: "id name timezone organization { id }" }),
     sudo.query.PatientProfile.findMany({ where: { organizations: { some: { id: { in: scope.organizationIds } } }, status: { equals: "active" } }, orderBy: { createdAt: "desc" }, take: 200, query: "id displayName patientNumber organizations { id }" }),
     sudo.query.Prescriber.findMany({ where: { organization: { id: { in: scope.organizationIds } } }, orderBy: { name: "asc" }, take: 200, query: "id name verificationStatus organization { id }" }),
     sudo.query.Product.findMany({ where: { organization: { id: { in: scope.organizationIds } }, location: { id: { in: scope.locationIds } }, status: { equals: "published" }, prescriptionRequirement: { in: ["prescription_required", "pharmacist_review_required"] } }, orderBy: { title: "asc" }, take: 200, query: "id title sku organization { id } location { id }" })
   ]);
   return {
     organizations: organizations.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.id, detail: null })),
-    locations: locations.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id, detail: null })),
+    // detail carries the pharmacy's current calendar day, so date pickers default to and bound by the store's today.
+    locations: locations.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id, detail: pharmacyToday(entry.timezone) })),
     patients: patients.flatMap((entry) => (entry.organizations || []).filter((organization) => scope.organizationIds.includes(organization.id)).map((organization) => ({ id: entry.id, label: entry.displayName, scopeId: organization.id, detail: entry.patientNumber }))),
     prescribers: prescribers.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id || "", detail: entry.verificationStatus })),
     products: products.map((entry) => ({ id: entry.id, label: entry.title, scopeId: entry.location?.id || "", detail: entry.sku }))
@@ -8890,11 +8966,11 @@ async function pharmacyInventoryReceiptOptions(_root, _args, context) {
   const scope = await tenantScope(context);
   const sudo = context.sudo();
   const [locations, suppliers] = await Promise.all([
-    sudo.query.PharmacyLocation.findMany({ where: { id: { in: scope.locationIds } }, orderBy: { name: "asc" }, query: "id name organization { id }" }),
+    sudo.query.PharmacyLocation.findMany({ where: { id: { in: scope.locationIds } }, orderBy: { name: "asc" }, query: "id name timezone organization { id }" }),
     sudo.query.Supplier.findMany({ where: { organization: { id: { in: scope.organizationIds } } }, orderBy: { name: "asc" }, take: 200, query: "id name organization { id }" })
   ]);
   return {
-    locations: locations.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id || "", detail: null })),
+    locations: locations.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id || "", detail: pharmacyToday(entry.timezone) })),
     suppliers: suppliers.map((entry) => ({ id: entry.id, label: entry.name, scopeId: entry.organization?.id || "", detail: null }))
   };
 }
@@ -9071,7 +9147,7 @@ async function pharmacyPrescriptionTask(_root, args, context) {
           inventoryLots(orderBy: { expirationDate: asc }) {
             id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete
             recalls { status }
-            location { id }
+            location { id timezone }
           }
         }
       }
@@ -9231,7 +9307,7 @@ async function pharmacyInventoryLotTask(_root, args, context) {
     query: `
       id lotNumber serialNumber status expirationDate receivedAt quantityReceived quantityAvailable quantityQuarantined
       storageBin coldChainRequired minimumTemperatureC maximumTemperatureC coldChainEvidenceComplete
-      product { id title sku } location { id name }
+      product { id title sku } location { id name timezone }
       recalls { id recallNumber status classification }
       temperatureExcursions(orderBy: { startedAt: desc }) { id status observedMinimumC observedMaximumC startedAt endedAt dispositionReason resolutionNote resolvedAt }
       movements(orderBy: { occurredAt: desc }, take: 50) { id movementType quantityDelta reason occurredAt actor { name } }
@@ -9767,7 +9843,7 @@ async function pharmacyPosCatalog(_root, args, context) {
     },
     orderBy: { title: "asc" },
     take: 100,
-    query: "id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id } }"
+    query: "id title handle sku description category priceAmount currencyCode taxable imageUrl: photoUrl prescriptionRequirement inventoryLots { status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } location { id timezone } }"
   });
   return records.map((record2) => {
     const availableQuantity = (record2.inventoryLots || []).filter((lot) => lot.location?.id === args.locationId).reduce((sum, lot) => sum + eligibleLotQuantity(lot), 0);
@@ -9958,7 +10034,7 @@ async function reconcilePharmacyPaymentSession(_root, args, context) {
 
 // features/keystone/mutations/prescriptionWorkflows.ts
 var import_node_crypto17 = require("node:crypto");
-var CLINICAL_QUERY = "sourceVerificationStatus writtenAt expiresAt prescriber { npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }";
+var CLINICAL_QUERY = "sourceVerificationStatus writtenAt expiresAt location { timezone } prescriber { npi verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validationReference verifiedBy { id } }";
 var SAFETY_QUERY = `
   patient { id displayName identityVerificationStatus identityReference identityVerifiedAt identityVerifiedBy { id } allergies(where: { status: { in: ["active", "none_known"] } }) { id updatedAt } medications(where: { status: { in: ["current", "none_known"] } }) { id updatedAt } }
   safetyReviews(orderBy: { reviewedAt: desc }, take: 1) {
@@ -10303,7 +10379,7 @@ async function recordDispensingInTransaction(args, auxiliaryWarnings, hold, cont
     const tender = hold ? null : assertCashTender(totalAmount, args.cashReceivedAmount);
     const lot = await sudo.query.InventoryLot.findOne({
       where: { id: args.lotId },
-      query: "id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } product { id } location { id }"
+      query: "id lotNumber status expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete recalls { status } product { id } location { id timezone }"
     });
     if (!lot || lot.location.id !== prescription.location.id || lot.product.id !== item.product?.id) throw new DomainError("Inventory lot does not match this prescription item and location");
     if (!isLotEligible(lot) || lot.quantityAvailable - lot.quantityQuarantined < args.quantity) throw new DomainError("Inventory lot is not eligible for dispensing");
@@ -11687,8 +11763,16 @@ async function submitPharmacyOrder(_root, args, context) {
   const customerName = input.customerName?.trim().replace(/\s+/g, " ") || "";
   if (customerName.length > 120 || !customerName && input.fulfillmentMethod !== "pos") throw new DomainError(input.fulfillmentMethod === "delivery" ? "Enter the name for delivery" : "Enter the name for pickup");
   const shippingAddress = input.fulfillmentMethod === "delivery" ? input.shippingAddress || null : null;
+  let pickupAt;
+  if (input.pickupAt) {
+    const requested = new Date(input.pickupAt);
+    if (input.fulfillmentMethod !== "pickup" || Number.isNaN(requested.getTime())) throw new DomainError("A pickup time is only accepted for pickup orders");
+    if (requested.getTime() < Date.now() - 5 * 6e4 || requested.getTime() > Date.now() + 14 * 864e5) throw new DomainError("Pickup time must be within the next 14 days");
+    pickupAt = requested.toISOString();
+  }
+  if (input.deliveryWindow && (input.fulfillmentMethod !== "delivery" || input.deliveryWindow.trim().length > 120)) throw new DomainError("A delivery window is only accepted for delivery orders");
   if (input.fulfillmentMethod === "delivery" && !shippingAddress) throw new DomainError("A delivery address is required");
-  const cart = await loadAndAssertCartAccess(context, input.cartId, input.guestToken, { allowSubmitted: true });
+  const cart = await loadAndAssertCartAccess(context, input.cartId, input.guestToken, { allowSubmitted: true, allowExpired: true });
   const replayToken = context.session?.itemId ? null : createGuestOrderToken(cart.id, idempotencyKey);
   if (cart.status === "submitted") return checkoutReplay(cart, idempotencyKey, replayToken);
   if (input.fulfillmentMethod === "pos") {
@@ -11710,6 +11794,8 @@ async function submitPharmacyOrder(_root, args, context) {
   if (manualTender && input.fulfillmentMethod === "delivery") throw new DomainError("Delivery orders are paid online. Choose card payment.");
   const paymentStatus = manualTender ? { status: "pending" } : await getPaymentStatus({ provider, paymentId });
   if (!manualTender && !["captured", "succeeded"].includes(paymentStatus.status)) throw new DomainError(`Payment is not settled: ${paymentStatus.status || "unknown"}`);
+  const completingSettledPayment = !manualTender;
+  if (manualTender && isCartExpired(cart)) throw new DomainError("Cart has expired");
   await withDomainTransaction(context, [`payment-session:${paymentSession.id}`], async (transactionContext) => {
     await transactionContext.sudo().query.PaymentSession.updateOne({
       where: { id: paymentSession.id },
@@ -11732,7 +11818,7 @@ async function submitPharmacyOrder(_root, args, context) {
         query: "id"
       });
       await acquireTransactionLocks(transactionContext, transactionLots.map((lot) => `lot:${lot.id}`));
-      const accessCart = await loadAndAssertCartAccess(transactionContext, input.cartId, input.guestToken, { allowSubmitted: true });
+      const accessCart = await loadAndAssertCartAccess(transactionContext, input.cartId, input.guestToken, { allowSubmitted: true, allowExpired: completingSettledPayment });
       if (accessCart.status === "submitted") return checkoutReplay(accessCart, idempotencyKey, replayToken);
       const current = await sudo.query.Cart.findOne({
         where: { id: cart.id },
@@ -11748,7 +11834,7 @@ async function submitPharmacyOrder(_root, args, context) {
             inventoryLots(orderBy: { expirationDate: asc }) {
               id lotNumber expirationDate quantityAvailable quantityQuarantined coldChainRequired coldChainEvidenceComplete status
               recalls { status }
-              location { id }
+              location { id timezone }
             }
           }
         }
@@ -11784,8 +11870,8 @@ async function submitPharmacyOrder(_root, args, context) {
           deliveryAmount: totals.deliveryAmount,
           totalAmount: totals.totalAmount,
           currencyCode: current.items[0].product.currencyCode,
-          pickupAt: input.pickupAt || void 0,
-          deliveryWindow: input.deliveryWindow || void 0,
+          pickupAt,
+          deliveryWindow: input.deliveryWindow?.trim() || void 0,
           shippingAddressSnapshot: shippingAddress || void 0,
           organization: { connect: { id: current.organization.id } },
           location: { connect: { id: current.location.id } },
