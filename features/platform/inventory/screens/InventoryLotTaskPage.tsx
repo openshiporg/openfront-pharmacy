@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyInventoryLotTaskProjection } from '@/features/pharmacy/contracts'
@@ -12,7 +13,7 @@ export async function InventoryLotTaskPage({ params }: { params: Promise<{ id: s
   const timeZone = await getStoreTimeZone()
   const { id: lotId } = await params
   const response = await platformRequest<{ pharmacyInventoryLotTask: PharmacyInventoryLotTaskProjection }>(`query Task($lotId: ID!) { pharmacyInventoryLotTask(lotId: $lotId) { id lotNumber serialNumber status expirationDate receivedAt quantityReceived quantityAvailable quantityQuarantined eligibleQuantity storageBin coldChainRequired minimumTemperatureC maximumTemperatureC coldChainEvidenceComplete productId productTitle productSku locationId locationName canAdjust recalls { id recallNumber status classification } excursions { id status observedMinimumC observedMaximumC startedAt endedAt dispositionReason resolutionNote resolvedAt } movements { id movementType quantityDelta reason occurredAt actorName } } }`, { lotId })
-  if (!response.success) return <TaskPage parent={{ label: 'Inventory', href: '/platform/inventory' }} title="Lot unavailable" description={response.error} />
+  if (!response.success || !response.data.pharmacyInventoryLotTask) notFound()
   const lot = response.data.pharmacyInventoryLotTask
   const expires = new Date(lot.expirationDate)
   return <TaskPage parent={{ label: 'Inventory', href: '/platform/inventory' }} meta={`Lot ${lot.lotNumber}`} title={lot.productTitle} state={humanize(lot.status)} tone={statusTone(lot.status)} description={`${lot.productSku} · ${lot.locationName}${lot.storageBin ? ` · Bin ${lot.storageBin}` : ''}`}>

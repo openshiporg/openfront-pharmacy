@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import { platformRequest } from '@/features/platform/lib/request'
 import { normalizeWeeklyHours } from '@/features/pharmacy/hours'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
@@ -14,7 +15,7 @@ export async function LocationDetailPage({ params }: { params: Promise<{ id: str
   const { id } = await params
   const response = await platformRequest<{ pharmacyLocation: LocationRow | null }>(`query Location($id: ID!) { pharmacyLocation(where: { id: $id }) { ${LOCATION_FIELDS} } }`, { id })
   const parent = { label: 'Locations', href: '/platform/locations' }
-  if (!response.success || !response.data.pharmacyLocation) return <TaskPage parent={parent} title="Location unavailable" description={response.success ? 'Not found' : response.error} />
+  if (!response.success || !response.data.pharmacyLocation) notFound()
   const location = response.data.pharmacyLocation
 
   return <TaskPage parent={parent} meta={`Location ${location.code}`} title={location.name} state={humanize(location.status)} tone={statusTone(location.status === 'temporarily_closed' ? 'on_hold' : location.status)} description={formatLocationAddress(location.address) || location.organization?.name}>

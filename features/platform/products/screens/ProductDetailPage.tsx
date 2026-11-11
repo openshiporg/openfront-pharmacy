@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 
 import { platformRequest } from '@/features/platform/lib/request'
@@ -38,7 +39,7 @@ export async function ProductDetailPage({ params }: { params: Promise<{ id: stri
     { id },
   )
   const parent = { label: 'Products', href: '/platform/products' }
-  if (!response.success || !response.data.product) return <TaskPage parent={parent} title="Product unavailable" description={response.success ? 'Not found' : response.error} />
+  if (!response.success || !response.data.product) notFound()
   const product = response.data.product
   const lots = product.inventoryLots || []
   const onHand = lots.filter((lot) => lot.status === 'available').reduce((sum, lot) => sum + lot.quantityAvailable, 0)

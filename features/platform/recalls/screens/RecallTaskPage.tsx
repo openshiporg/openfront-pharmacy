@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyRecallTaskProjection } from '@/features/pharmacy/contracts'
@@ -11,7 +12,7 @@ export async function RecallTaskPage({ params }: { params: Promise<{ id: string 
   const timeZone = await getStoreTimeZone()
   const { id: recallId } = await params
   const response = await platformRequest<{ pharmacyRecallTask: PharmacyRecallTaskProjection }>(`query Task($recallId: ID!) { pharmacyRecallTask(recallId: $recallId) { id recallNumber classification status reason source initiatedAt closedAt locationId locationName approvalRecorded approvedAt approvedBy canQuarantine canClose unlinkedExposureCount exposureReconciliationComplete exposures { id status quantityDispensed contactMethod outcome notes lastActionAt resolvedAt patientId patientDisplayName prescriptionId prescriptionNumber orderId orderNumber } lots { id lotNumber status quantityAvailable quantityQuarantined productTitle productSku locationName } } }`, { recallId })
-  if (!response.success) return <TaskPage parent={{ label: 'Recalls', href: '/platform/recalls' }} title="Recall unavailable" description={response.error} />
+  if (!response.success || !response.data.pharmacyRecallTask) notFound()
   const recall = response.data.pharmacyRecallTask
   return <TaskPage parent={{ label: 'Recalls', href: '/platform/recalls' }} meta={`Recall · ${humanize(recall.classification)}`} title={recall.recallNumber} state={humanize(recall.status)} tone={recall.classification === 'class_i' && !['closed', 'resolved'].includes(recall.status) ? 'danger' : statusTone(recall.status)} description={recall.reason}>
     <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">

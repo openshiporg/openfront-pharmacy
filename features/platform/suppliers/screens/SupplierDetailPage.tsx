@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 
 import { platformRequest } from '@/features/platform/lib/request'
@@ -21,7 +22,7 @@ export async function SupplierDetailPage({ params }: { params: Promise<{ id: str
     { id },
   )
   const parent = { label: 'Suppliers', href: '/platform/suppliers' }
-  if (!response.success || !response.data.supplier) return <TaskPage parent={parent} title="Supplier unavailable" description={response.success ? 'Not found' : response.error} />
+  if (!response.success || !response.data.supplier) notFound()
   const supplier = response.data.supplier
   const received = supplier.inventoryLots.reduce((sum, lot) => sum + lot.quantityReceived, 0)
 

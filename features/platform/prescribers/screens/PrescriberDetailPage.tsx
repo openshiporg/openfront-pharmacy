@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 
 import { platformRequest } from '@/features/platform/lib/request'
@@ -23,7 +24,7 @@ export async function PrescriberDetailPage({ params }: { params: Promise<{ id: s
     { id },
   )
   const parent = { label: 'Prescribers', href: '/platform/prescribers' }
-  if (!response.success || !response.data.prescriber) return <TaskPage parent={parent} title="Prescriber unavailable" description={response.success ? 'Not found' : response.error} />
+  if (!response.success || !response.data.prescriber) notFound()
   const prescriber = response.data.prescriber
   const erx = response.data.pharmacyIntegrationStatus.filter((provider) => provider.providerType === 'erx' && provider.status === 'active')
   const expired = prescriber.credentialExpiresAt ? new Date(prescriber.credentialExpiresAt).getTime() < Date.now() : false

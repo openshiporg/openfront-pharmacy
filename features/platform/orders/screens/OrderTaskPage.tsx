@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyOrderTaskProjection } from '@/features/pharmacy/contracts'
@@ -14,7 +15,7 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
   const timeZone = await getStoreTimeZone()
   const { id: orderId } = await params
   const response = await platformRequest<{ pharmacyOrderTask: PharmacyOrderTaskProjection }>(`query Task($orderId: ID!) { pharmacyOrderTask(orderId: $orderId) { id orderNumber status fulfillmentMethod customerName customerEmail customerPhone subtotalAmount taxAmount deliveryAmount totalAmount currencyCode createdAt pickupAt deliveryWindow locationId locationName availableFulfillmentStatuses lines { id title sku ndc11 imageUrl quantity unitPriceAmount lineTotalAmount prescriptionRequirement } fulfillment { id method status readyAt handedOffAt assignedToName } payment { id status amount currencyCode processedAt tenderMethod cashReceivedAmount changeDueAmount providerName providerCode } } }`, { orderId })
-  if (!response.success) return <TaskPage parent={{ label: 'Orders', href: '/platform/orders' }} title="Order unavailable" description={response.error} />
+  if (!response.success || !response.data.pharmacyOrderTask) notFound()
   const order = response.data.pharmacyOrderTask
   const state = order.fulfillment?.status || order.status
   return <TaskPage parent={{ label: 'Orders', href: '/platform/orders' }} meta={`Order · ${humanize(order.fulfillmentMethod)}`} title={order.orderNumber} state={humanize(state)} tone={statusTone(state)} description={order.locationName}>

@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import Link from 'next/link'
 
 import { platformRequest } from '@/features/platform/lib/request'
@@ -21,7 +22,7 @@ export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id
     { id },
   )
   const parent = { label: 'Drug references', href: '/platform/drug-references' }
-  if (!response.success || !response.data.drugReference) return <TaskPage parent={parent} title="Drug reference unavailable" description={response.success ? 'Not found' : response.error} />
+  if (!response.success || !response.data.drugReference) notFound()
   const drug = response.data.drugReference
   const activeReview = drug.reviews.find((review) => review.status === 'active')
   const name = `${drug.proprietaryName}${drug.strength ? ` ${drug.strength}` : ''}`

@@ -1,3 +1,4 @@
+import { notFound } from 'next/navigation'
 import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyPrescriptionTaskProjection } from '@/features/pharmacy/contracts'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
@@ -14,7 +15,7 @@ export async function PrescriptionTaskPage({ params }: { params: Promise<{ id: s
   const timeZone = await getStoreTimeZone()
   const { id: prescriptionId } = await params
   const response = await platformRequest<{ pharmacyPrescriptionTask: PharmacyPrescriptionTaskProjection }>(`query Task($prescriptionId: ID!) { pharmacyPrescriptionTask(prescriptionId: $prescriptionId) { id prescriptionNumber status source sourceVerificationStatus writtenAt expiresAt patientId patientDisplayName patientIdentityVerificationStatus patientIdentityEvidenceRecorded prescriberId prescriberName prescriberVerificationStatus locationId locationName operatorDisplayName operatorPhone cashSalesEnabled cashTaxRateBps willCallReturnDays approvalRecorded approvedAt availableActions items { id fillLineage medicationName sig quantityPrescribed daysSupply refillsAuthorized refillsRemaining substitutionAllowed productId productTitle productSku priceAmount currencyCode taxable eligibleLots { id lotNumber expirationDate eligibleQuantity coldChainRequired } } patientAllergies { id allergen reaction severity } patientMedications { id medicationName directions } safetyReviews { id fillNumber outcome reviewReference notes overrideReason reviewedAt pharmacistName } dispensingLabels { id labelNumber fillNumber operatorName operatorPhone locationName locationAddress patientName prescriberName medicationName sig quantityDispensed lotNumber ndc11 expirationDate auxiliaryWarnings counselingOutcome dispensedAt voidedAt voidReason } refillRequests { id status requestNote resolutionNote requestedAt resolvedAt prescriptionItemId medicationName } transfers { id direction status counterpartyName counterpartyPhone requestedAt completedAt consentRecorded } reviews { id decision reason reviewedAt pharmacistName } } }`, { prescriptionId })
-  if (!response.success) return <TaskPage parent={{ label: 'Prescriptions', href: '/platform/prescriptions' }} title="Prescription unavailable" description={response.error} />
+  if (!response.success || !response.data.pharmacyPrescriptionTask) notFound()
   const prescription = response.data.pharmacyPrescriptionTask
   const fillResponse = await platformRequest<{ pharmacyFillWorkbench: PharmacyFillWorkbench }>(`query FillWorkbench($prescriptionId: ID!) { pharmacyFillWorkbench(prescriptionId: $prescriptionId) { ${fillWorkbenchSelection} } }`, { prescriptionId })
   const workbench = fillResponse.success ? fillResponse.data.pharmacyFillWorkbench : undefined
