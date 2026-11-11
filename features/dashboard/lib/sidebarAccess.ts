@@ -5,7 +5,34 @@
  */
 
 type SidebarList = { path: string; isHidden?: boolean | null }
-type SidebarUser = { role?: { canAccessDashboard?: boolean | null } | null } | null | undefined
+type SidebarRole = { canAccessDashboard?: boolean | null } & Record<string, boolean | null | undefined>
+type SidebarUser = { role?: SidebarRole | null } | null | undefined
+
+/**
+ * Platform pages whose data queries require a role permission (any one of the listed).
+ * Mirrors the checks in features/keystone/mutations/operationalQueries.ts so the sidebar
+ * never links a role to a page that can only answer "you do not have permission".
+ */
+export const PLATFORM_PAGE_PERMISSIONS: Record<string, string[]> = {
+  prescriptions: ['canManagePrescriptions', 'canReviewPrescriptions', 'canDispenseMedications'],
+  orders: ['canManageOrders'],
+  pos: ['canManageOrders'],
+  patients: ['canManagePatients', 'canManagePrescriptions'],
+  requests: ['canManagePatients', 'canManagePrescriptions'],
+  prescribers: ['canManagePrescriptions', 'canReviewPrescriptions', 'canDispenseMedications'],
+  inventory: ['canManageInventory', 'canManageRecalls', 'canDispenseMedications'],
+  recalls: ['canManageRecalls'],
+  credentials: ['canManageUsers', 'canReviewPrescriptions'],
+  integrations: ['canManageIntegrations'],
+  audit: ['canViewAuditLogs'],
+}
+
+/** An unknown role is left to the middleware; a known role must hold one of the page's permissions. */
+export function canUsePlatformPage(slug: string, user: SidebarUser) {
+  const needed = PLATFORM_PAGE_PERMISSIONS[slug]
+  if (!needed || !user?.role) return true
+  return needed.some((permission) => user.role?.[permission] === true)
+}
 
 /** Only an explicit false hides navigation; an unknown user is left to the middleware. */
 export function canUseDashboardNav(user: SidebarUser) {
@@ -30,6 +57,6 @@ export function visiblePlatformItems<T extends { href: string }>(
   const hiddenPaths = new Set(lists.filter((list) => list.isHidden).map((list) => list.path))
   return items.filter((item) => {
     const slug = item.href.split('/platform/')[1]?.split(/[/?#]/)[0]
-    return !slug || !hiddenPaths.has(slug)
+    return !slug || (!hiddenPaths.has(slug) && canUsePlatformPage(slug, user))
   })
 }

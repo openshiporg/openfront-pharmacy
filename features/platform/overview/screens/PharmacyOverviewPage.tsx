@@ -8,6 +8,8 @@ import type { PharmacyInventoryWorklistProjection, PharmacyOrderWorklistProjecti
 import { expiryContext } from '@/features/platform/components/workflowQueue'
 import { Callout, Count, RaisedLink, StatusText, buttonClass, primaryPillClass, type DotTone } from '@/features/platform/components/rx-ui'
 import { platformNavItems } from '@/features/platform/lib/navigation'
+import { getAuthenticatedUser } from '@/features/dashboard/actions/auth'
+import { canUsePlatformPage } from '@/features/dashboard/lib/sidebarAccess'
 
 type Page<T> = { items: T[]; totalCount: number; hasMore: boolean }
 
@@ -33,17 +35,22 @@ async function loadQueue<K extends string, T>(key: K, query: string) {
   return response.success ? { page: response.data[key], error: undefined } : { page: null, error: response.error }
 }
 
+const noQueue = { page: null, error: undefined }
+
 export async function PharmacyOverviewPage() {
+  const me = await getAuthenticatedUser()
+  const viewer = me.success ? me.data?.authenticatedItem : null
+  const can = (slug: string) => canUsePlatformPage(slug, viewer)
   const [prescriptions, orders, inventory, recalls] = await Promise.all([
-    loadQueue<'pharmacyPrescriptionWorklist', PharmacyPrescriptionQueueProjection>('pharmacyPrescriptionWorklist', `query { pharmacyPrescriptionWorklist(first: 50) { items { id status openRefillCount openTransferCount sourceVerificationStatus prescriberVerificationStatus } totalCount hasMore } }`),
-    loadQueue<'pharmacyOrderQueue', PharmacyOrderWorklistProjection['items'][number]>('pharmacyOrderQueue', `query { pharmacyOrderQueue(first: 50) { items { id status fulfillmentStatus paymentStatus hasPrescriptionLines } totalCount hasMore } }`),
-    loadQueue<'pharmacyInventoryQueue', PharmacyInventoryWorklistProjection['items'][number]>('pharmacyInventoryQueue', `query { pharmacyInventoryQueue(first: 50) { items { id status expirationDate quantityQuarantined activeRecallCount openExcursionCount coldChainRequired coldChainEvidenceComplete } totalCount hasMore } }`),
-    loadQueue<'pharmacyRecallWorklist', PharmacyRecallQueueProjection>('pharmacyRecallWorklist', `query { pharmacyRecallWorklist(first: 50) { items { id status classification unresolvedExposureCount quarantinedLotCount affectedLotCount } totalCount hasMore } }`),
+    !can('prescriptions') ? noQueue : loadQueue<'pharmacyPrescriptionWorklist', PharmacyPrescriptionQueueProjection>('pharmacyPrescriptionWorklist', `query { pharmacyPrescriptionWorklist(first: 50) { items { id status openRefillCount openTransferCount sourceVerificationStatus prescriberVerificationStatus } totalCount hasMore } }`),
+    !can('orders') ? noQueue : loadQueue<'pharmacyOrderQueue', PharmacyOrderWorklistProjection['items'][number]>('pharmacyOrderQueue', `query { pharmacyOrderQueue(first: 50) { items { id status fulfillmentStatus paymentStatus hasPrescriptionLines } totalCount hasMore } }`),
+    !can('inventory') ? noQueue : loadQueue<'pharmacyInventoryQueue', PharmacyInventoryWorklistProjection['items'][number]>('pharmacyInventoryQueue', `query { pharmacyInventoryQueue(first: 50) { items { id status expirationDate quantityQuarantined activeRecallCount openExcursionCount coldChainRequired coldChainEvidenceComplete } totalCount hasMore } }`),
+    !can('recalls') ? noQueue : loadQueue<'pharmacyRecallWorklist', PharmacyRecallQueueProjection>('pharmacyRecallWorklist', `query { pharmacyRecallWorklist(first: 50) { items { id status classification unresolvedExposureCount quarantinedLotCount affectedLotCount } totalCount hasMore } }`),
   ])
 
   const [refills, requests, sessions] = await Promise.all([
     platformRequest<{ refillRequestsCount: number }>('query { refillRequestsCount(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }) }'),
-    platformRequest<{ pharmacyPrescriptionRequestQueue: Array<{ id: string }> }>('query { pharmacyPrescriptionRequestQueue(status: "requested") { id } }'),
+    !can('requests') ? Promise.resolve({ success: false as const, error: '' }) : platformRequest<{ pharmacyPrescriptionRequestQueue: Array<{ id: string }> }>('query { pharmacyPrescriptionRequestQueue(status: "requested") { id } }'),
     platformRequest<{ paymentSessionsCount: number }>('query { paymentSessionsCount(where: { reconciliationStatus: { in: ["settled_unordered", "compensation_pending", "manual_review"] } }) }'),
   ])
   const waiting = [
@@ -76,12 +83,13 @@ export async function PharmacyOverviewPage() {
   const recOutreach = rec.reduce((sum, item) => sum + (item.unresolvedExposureCount || 0), 0)
   const recGap = count(rec, (item) => item.quarantinedLotCount < item.affectedLotCount)
 
-  const queues: Queue[] = [
-    { title: 'Prescriptions', href: `${basePath}/platform/prescriptions`, total: prescriptions.page?.totalCount ?? 0, partial: Boolean(prescriptions.page?.hasMore), error: prescriptions.error, lead: { label: 'Awaiting pharmacist review', value: rxReview }, tone: rxReview || onlineRequests || rxRefills ? 'warn' : 'ok', state: rxReview ? 'Review' : onlineRequests ? 'Online requests' : rxRefills ? 'Refills' : 'Clear', metrics: [{ label: 'Refills', value: rxRefills }, { label: 'Online', value: onlineRequests }, { label: 'To fill', value: rxReady }], action: { href: `${basePath}/platform/prescriptions/intake`, label: 'New' } },
-    { title: 'Orders', href: `${basePath}/platform/orders`, total: orders.page?.totalCount ?? 0, partial: Boolean(orders.page?.hasMore), error: orders.error, lead: { label: 'To prepare', value: ordToPrepare }, tone: ordPayment ? 'danger' : ordToPrepare ? 'info' : 'ok', state: ordPayment ? 'Payment issue' : ordToPrepare ? 'Open' : 'Clear', metrics: [{ label: 'Ready', value: ordReady }, { label: 'Payment', value: ordPayment }, { label: 'With Rx', value: ordRx }] },
-    { title: 'Inventory', href: `${basePath}/platform/inventory`, total: inventory.page?.totalCount ?? 0, partial: Boolean(inventory.page?.hasMore), error: inventory.error, lead: { label: 'Expired or expiring in 60 days', value: lotsExpiring }, tone: lotsRecall || lotsColdChain ? 'danger' : lotsExpiring || lotsHeld ? 'warn' : 'ok', state: lotsRecall || lotsColdChain ? 'Hold' : lotsExpiring || lotsHeld ? 'Review' : 'Clear', metrics: [{ label: 'Quarantined', value: lotsHeld }, { label: 'Recall', value: lotsRecall }, { label: 'Cold chain', value: lotsColdChain }], action: { href: `${basePath}/platform/inventory/receive`, label: 'Receive' } },
-    { title: 'Recalls', href: `${basePath}/platform/recalls`, total: recalls.page?.totalCount ?? 0, partial: Boolean(recalls.page?.hasMore), error: recalls.error, lead: { label: 'Open recalls', value: recOpen }, tone: recClassOne ? 'danger' : recOpen ? 'warn' : 'ok', state: recClassOne ? 'Class I open' : recOpen ? 'Open' : 'Clear', metrics: [{ label: 'Class I', value: recClassOne }, { label: 'Outreach', value: recOutreach }, { label: 'Lot gaps', value: recGap }], action: { href: `${basePath}/platform/recalls/open`, label: 'Open recall' } },
+  const allQueues: Array<Queue & { slug: string }> = [
+    { slug: 'prescriptions', title: 'Prescriptions', href: `${basePath}/platform/prescriptions`, total: prescriptions.page?.totalCount ?? 0, partial: Boolean(prescriptions.page?.hasMore), error: prescriptions.error, lead: { label: 'Awaiting pharmacist review', value: rxReview }, tone: rxReview || onlineRequests || rxRefills ? 'warn' : 'ok', state: rxReview ? 'Review' : onlineRequests ? 'Online requests' : rxRefills ? 'Refills' : 'Clear', metrics: [{ label: 'Refills', value: rxRefills }, { label: 'Online', value: onlineRequests }, { label: 'To fill', value: rxReady }], action: { href: `${basePath}/platform/prescriptions/intake`, label: 'New' } },
+    { slug: 'orders', title: 'Orders', href: `${basePath}/platform/orders`, total: orders.page?.totalCount ?? 0, partial: Boolean(orders.page?.hasMore), error: orders.error, lead: { label: 'To prepare', value: ordToPrepare }, tone: ordPayment ? 'danger' : ordToPrepare ? 'info' : 'ok', state: ordPayment ? 'Payment issue' : ordToPrepare ? 'Open' : 'Clear', metrics: [{ label: 'Ready', value: ordReady }, { label: 'Payment', value: ordPayment }, { label: 'With Rx', value: ordRx }] },
+    { slug: 'inventory', title: 'Inventory', href: `${basePath}/platform/inventory`, total: inventory.page?.totalCount ?? 0, partial: Boolean(inventory.page?.hasMore), error: inventory.error, lead: { label: 'Expired or expiring in 60 days', value: lotsExpiring }, tone: lotsRecall || lotsColdChain ? 'danger' : lotsExpiring || lotsHeld ? 'warn' : 'ok', state: lotsRecall || lotsColdChain ? 'Hold' : lotsExpiring || lotsHeld ? 'Review' : 'Clear', metrics: [{ label: 'Quarantined', value: lotsHeld }, { label: 'Recall', value: lotsRecall }, { label: 'Cold chain', value: lotsColdChain }], action: { href: `${basePath}/platform/inventory/receive`, label: 'Receive' } },
+    { slug: 'recalls', title: 'Recalls', href: `${basePath}/platform/recalls`, total: recalls.page?.totalCount ?? 0, partial: Boolean(recalls.page?.hasMore), error: recalls.error, lead: { label: 'Open recalls', value: recOpen }, tone: recClassOne ? 'danger' : recOpen ? 'warn' : 'ok', state: recClassOne ? 'Class I open' : recOpen ? 'Open' : 'Clear', metrics: [{ label: 'Class I', value: recClassOne }, { label: 'Outreach', value: recOutreach }, { label: 'Lot gaps', value: recGap }], action: { href: `${basePath}/platform/recalls/open`, label: 'Open recall' } },
   ]
+  const queues: Queue[] = allQueues.filter((queue) => can(queue.slug))
   // Everything that needs a pharmacist or technician now, most urgent first.
   const attention: Array<{ label: string; count: number; tone: DotTone; href: string; action: string }> = [
     { label: 'Class I recalls open', count: recClassOne, tone: 'danger' as const, href: `${basePath}/platform/recalls`, action: 'Review' },
@@ -97,7 +105,7 @@ export async function PharmacyOverviewPage() {
     { label: 'Recall patient outreach outstanding', count: recOutreach, tone: 'warn' as const, href: `${basePath}/platform/recalls`, action: 'Contact' },
   ].filter((entry) => entry.count > 0)
   const urgent = attention.filter((entry) => entry.tone === 'danger').length
-  const destinations = platformNavItems.filter((item) => !['/platform/overview', '/platform/prescriptions', '/platform/orders', '/platform/inventory', '/platform/recalls'].includes(item.href))
+  const destinations = platformNavItems.filter((item) => can(item.href.split('/platform/')[1]?.split(/[/?#]/)[0] ?? '')).filter((item) => !['/platform/overview', '/platform/prescriptions', '/platform/orders', '/platform/inventory', '/platform/recalls'].includes(item.href))
   const th = 'h-8 whitespace-nowrap px-3 text-left text-xs font-medium text-muted-foreground'
 
   return (
@@ -116,9 +124,9 @@ export async function PharmacyOverviewPage() {
             <StatusText tone={urgent ? 'danger' : attention.length ? 'warn' : 'ok'}>{urgent ? `${urgent} urgent` : attention.length ? `${attention.length} waiting` : 'All queues clear'}</StatusText>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href={`${basePath}/platform/prescriptions/intake`} className={buttonClass}>New prescription</Link>
-            <Link href={`${basePath}/platform/inventory/receive`} className={buttonClass}>Receive stock</Link>
-            <Link href={`${basePath}/platform/pos`} className={primaryPillClass}>Point of sale</Link>
+            {can('prescriptions') && <Link href={`${basePath}/platform/prescriptions/intake`} className={buttonClass}>New prescription</Link>}
+            {can('inventory') && <Link href={`${basePath}/platform/inventory/receive`} className={buttonClass}>Receive stock</Link>}
+            {can('pos') && <Link href={`${basePath}/platform/pos`} className={primaryPillClass}>Point of sale</Link>}
           </div>
         </header>
 
