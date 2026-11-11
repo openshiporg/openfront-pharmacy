@@ -19,7 +19,7 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
   const order = response.data.pharmacyOrderTask
   const state = order.fulfillment?.status || order.status
   return <TaskPage parent={{ label: 'Orders', href: '/platform/orders' }} meta={`Order · ${humanize(order.fulfillmentMethod)}`} title={order.orderNumber} state={humanize(state)} tone={statusTone(state)} description={order.locationName}>
-    <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
+    <dl className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-[repeat(4,minmax(0,1fr))] sm:px-5">
       {(order.customerName || order.customerEmail || order.customerPhone) && <Field label="Customer" className="col-span-2">{order.customerName || 'Name not given'}{order.customerPhone && <a href={`tel:${order.customerPhone}`} className="block font-mono text-xs text-muted-foreground hover:underline">{order.customerPhone}</a>}{order.customerEmail && <span className="block truncate text-xs text-muted-foreground">{order.customerEmail}</span>}</Field>}
       <Field label="Total"><Mono>{money(order.totalAmount, order.currencyCode)}</Mono></Field>
       <Field label="Payment">{order.payment ? humanize(order.payment.status) : 'Not recorded'}</Field>
@@ -28,7 +28,7 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
     </dl>
     <TaskSection title="Items" count={order.lines.length}>
       <div className="divide-y">{order.lines.map((line) => <div key={line.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 py-3 text-sm first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_4rem_7rem]">
-        <span className="flex min-w-0 items-start gap-3">{line.imageUrl && <span className="relative size-10 shrink-0 overflow-hidden rounded-md border bg-muted"><Image src={line.imageUrl} alt="" fill sizes="40px" className="object-cover" /></span>}<span className="min-w-0"><span className="font-semibold">{line.title}</span><span className="block font-mono text-[12px] text-muted-foreground">{line.sku}{line.ndc11 ? ` · NDC ${line.ndc11}` : ''}{line.prescriptionRequirement !== 'none' ? ` · ${humanize(line.prescriptionRequirement)}` : ''}</span></span></span>
+        <span className="flex min-w-0 items-start gap-3">{line.imageUrl && <span className="relative size-10 shrink-0 overflow-hidden rounded-md border bg-muted"><Image src={line.imageUrl} alt="" fill sizes="40px" className="object-cover" /></span>}<span className="min-w-0"><span className="break-words font-semibold">{line.title}</span><span className="block break-all font-mono text-[12px] text-muted-foreground">{line.sku}{line.ndc11 ? ` · NDC ${line.ndc11}` : ''}{line.prescriptionRequirement !== 'none' ? ` · ${humanize(line.prescriptionRequirement)}` : ''}</span></span></span>
         <Mono className="text-muted-foreground sm:text-right">{line.quantity}×</Mono>
         <Mono className="col-start-2 row-start-1 text-right sm:col-start-auto sm:row-start-auto">{money(line.lineTotalAmount, order.currencyCode)}</Mono>
       </div>)}</div>
