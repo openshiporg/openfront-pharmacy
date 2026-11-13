@@ -7,6 +7,40 @@ import { requireTenantMembership } from './lib/authorization'
 import { recordAudit } from './lib/evidence'
 import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
+import { isFullyRefunded } from './lib/fulfillment-cancel'
+
+const OPEN_FULFILLMENTS = ['pending', 'preparing', 'ready', 'out_for_delivery']
+
+/**
+ * A full refund ends the order: an open fulfillment is cancelled (nothing is restocked, as with a cancel after refund)
+ * and the checkout session is marked refunded, so staff are not offered "ready" and the customer sees the refund.
+ */
+export async function closeOrderAfterRefund(transactionContext: Context, orderId: string, actorId?: string | null) {
+  const sudo = transactionContext.sudo()
+  const order = await sudo.query.Order.findOne({ where: { id: orderId }, query: 'id status organization { id } location { id } patient { id } fulfillment { id status } payments { id status session { id status } }' })
+  if (!order) return
+  for (const payment of order.payments || []) {
+    if (payment.status === 'refunded' && payment.session?.id && payment.session.status === 'captured') {
+      await sudo.query.PaymentSession.updateOne({ where: { id: payment.session.id }, data: { status: 'refunded', reconciliationStatus: 'refunded', lastReconciledAt: new Date().toISOString() } })
+    }
+  }
+  if (!isFullyRefunded(order.payments || [])) return
+  // A handed-off order stays completed; only an order still being worked on is closed.
+  if (['completed', 'cancelled'].includes(order.status) || order.fulfillment?.status === 'handed_off') return
+  if (order.fulfillment && OPEN_FULFILLMENTS.includes(order.fulfillment.status)) await sudo.query.Fulfillment.updateOne({ where: { id: order.fulfillment.id }, data: { status: 'cancelled' } })
+  await sudo.query.Order.updateOne({ where: { id: order.id }, data: { status: 'cancelled' } })
+  await recordAudit(transactionContext, {
+    eventKey: `order.refunded:${order.id}`,
+    organizationId: order.organization.id,
+    locationId: order.location?.id,
+    actorId: actorId || undefined,
+    patientId: order.patient?.id,
+    eventType: 'order.refunded',
+    resourceType: 'Order',
+    resourceId: order.id,
+    metadata: { previousStatus: order.status, fulfillmentStatus: order.fulfillment?.status || null },
+  })
+}
 
 export const PAYMENT_PROVIDER_ADAPTER_FIELDS = 'id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction'
 
@@ -100,6 +134,7 @@ export async function refundPharmacyPayment(
       resourceId: current.id,
       metadata: { orderId: current.order.id, amount: current.amount, reason: args.reason.trim() },
     })
+    await closeOrderAfterRefund(transactionContext, current.order.id, prepared.userId)
     return { success: true, reused: false, paymentId: current.id, status: 'refunded', amount: current.amount }
   })
 }

@@ -243,6 +243,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         id: ID!
         orderNumber: String!
         status: String!
+        refunded: Boolean!
         fulfillmentMethod: String!
         subtotalAmount: Int!
         taxAmount: Int!

@@ -6,6 +6,7 @@ import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { createHumanApproval, recordAudit } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
+import { closeOrderAfterRefund } from './paymentOperations'
 import { productPhotoSnapshot } from '../lib/product-photo'
 import { assertCounterCardCovers, openCounterCardIntent, refundRefusedCounterCard, verifyCounterCardIntent, type VerifiedCounterCard } from './counterCard'
 
@@ -244,6 +245,7 @@ export async function refundPharmacyCashPayment(
     const approval = await createHumanApproval(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, actionType: 'cash_refund', reason: args.reason, attested: args.attested, evidence: { paymentId: payment.id, cashReturnedAmount: args.cashReturnedAmount, inventoryRestocked: false, custodyClaim: false } })
     await (transactionContext.prisma as any).payment.update({ where: { id: payment.id }, data: { status: 'refunded', data: { ...(payment.data || {}), cashRefund: { returnedAmount: args.cashReturnedAmount, returnedAt: new Date().toISOString(), actorId: userId, approvalId: approval.id, inventoryRestocked: false } }, approvalId: approval.id } })
     await recordAudit(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: 'payment.cash_refunded', resourceType: 'Payment', resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } })
+    if (payment.order?.id) await closeOrderAfterRefund(transactionContext, payment.order.id, userId)
     return { success: true, reused: false, paymentId: payment.id, status: 'refunded', amount: payment.amount }
   })
 }

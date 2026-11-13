@@ -192,6 +192,12 @@ export const rules = {
   canReadOrganizationRecords({ session }: AccessArgs): AccessFilter {
     return scoped(session, (userId) => [organizationMembershipBranch(userId)])
   },
+  /** Suppliers belong to the organization; inventory staff at one of its locations receive stock from them. */
+  canReadSuppliers({ session }: AccessArgs): AccessFilter {
+    if (!session) return false
+    if (!permissions.canManageInventory({ session })) return rules.canReadOrganizationRecords({ session })
+    return { organization: { memberships: { some: { user: byId(session.itemId), status: { equals: 'active' } } } } }
+  },
   canReadLocationRecords({ session }: AccessArgs): AccessFilter {
     return scoped(session, (userId) => [locationMembershipBranch(userId)])
   },

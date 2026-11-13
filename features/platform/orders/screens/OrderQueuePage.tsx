@@ -23,12 +23,16 @@ const fulfillmentMethods = [
 ] as const
 
 // Same names the customer sees on the storefront for the same order.
-const ORDER_STATE_LABELS: Record<string, string> = { processing: 'preparing', ready: 'ready for pickup', handed_off: 'completed' }
+const ORDER_STATE_LABELS: Record<string, string> = { pending: 'Pending', review_required: 'Review required', approved: 'Approved', processing: 'Preparing', preparing: 'Preparing', ready: 'Ready for pickup', out_for_delivery: 'Out for delivery', handed_off: 'Completed', completed: 'Completed', cancelled: 'Cancelled' }
+const PAYMENT_LABELS: Record<string, string> = { captured: 'Paid', pending: 'Pending', authorized: 'Authorized', refund_pending: 'Refund pending', refunded: 'Refunded', failed: 'Failed', cancelled: 'Cancelled', payment_failed: 'Failed', unpaid: 'Unpaid' }
+const stateLabel = (value: string) => ORDER_STATE_LABELS[value] || value.replaceAll('_', ' ')
+const paymentLabel = (value: string) => PAYMENT_LABELS[value] || value.replaceAll('_', ' ')
 
 function orderDecision(fulfillmentStatus: string, paymentStatus: string, orderStatus: string) {
   if (orderStatus === 'completed' || fulfillmentStatus === 'handed_off') return { label: 'Completed', hint: '' }
   if (orderStatus === 'cancelled') return { label: 'Cancelled', hint: '' }
   if (paymentStatus === 'payment_failed') return { label: 'Resolve payment exception', hint: 'Review the recorded cash/payment evidence before any fulfillment transition.' }
+  if (paymentStatus === 'refunded') return { label: 'Close refunded order', hint: 'The payment was refunded in full; record the cancellation instead of preparing it.' }
   if (paymentStatus === 'refund_pending') return { label: 'Review refund evidence', hint: 'Complete the operator-authorized refund review; provider settlement is not implied.' }
   if (fulfillmentStatus === 'pending') return { label: 'Start pickup preparation', hint: 'Review immutable lines and prescription dependencies before recording preparation.' }
   if (['preparing', 'in_progress'].includes(fulfillmentStatus)) return { label: 'Review pickup readiness', hint: 'Confirm every line and required pharmacist decision before advancing fulfillment.' }
@@ -48,13 +52,15 @@ export async function OrderQueuePage({ searchParams }: { searchParams?: Promise<
   )
   const worklist = response.success ? response.data.pharmacyOrderQueue : null
   const items = worklist ? worklist.items.map((order) => {
-    const exceptions = [
-      ['payment_failed', 'refund_pending'].includes(order.paymentStatus) ? `Payment state: ${order.paymentStatus.replaceAll('_', ' ')}` : '',
-      ['exception', 'cancelled'].includes(order.status) ? `Order state: ${order.status.replaceAll('_', ' ')}` : '',
+    // A closed order (completed or cancelled) needs nothing more from staff.
+    const closed = ['completed', 'cancelled'].includes(order.status) || ['handed_off', 'cancelled'].includes(order.fulfillmentStatus)
+    const exceptions = closed ? [] : [
+      ['payment_failed', 'refund_pending'].includes(order.paymentStatus) ? `Payment: ${paymentLabel(order.paymentStatus).toLowerCase()}` : '',
+      order.status === 'exception' ? 'Order exception' : '',
       order.hasPrescriptionLines ? 'Contains prescription items' : '',
       !order.fulfillmentId ? 'No fulfillment record' : '',
     ].filter(Boolean)
-    const statePriority: WorkflowPriority = order.paymentStatus === 'payment_failed' || order.status === 'exception' ? 'critical' : order.paymentStatus === 'refund_pending' || order.hasPrescriptionLines ? 'attention' : 'routine'
+    const statePriority: WorkflowPriority = closed ? 'routine' : order.paymentStatus === 'payment_failed' || order.status === 'exception' ? 'critical' : order.paymentStatus === 'refund_pending' || order.hasPrescriptionLines ? 'attention' : 'routine'
     const priority = strongestPriority(statePriority, exceptions.length ? 'attention' : 'routine')
     const decision = orderDecision(order.fulfillmentStatus, order.paymentStatus, order.status)
     return {
@@ -62,16 +68,16 @@ export async function OrderQueuePage({ searchParams }: { searchParams?: Promise<
       href: `/dashboard/platform/orders/${order.id}`,
       title: order.orderNumber,
       subtitle: `${plural(order.lineItemCount, 'line item')} · ${order.fulfillmentMethod.replaceAll('_', ' ')}`,
-      state: ORDER_STATE_LABELS[order.status] || order.status,
+      state: stateLabel(order.status),
       priority,
-      priorityLabel: priority === 'critical' ? 'Exception first' : priority === 'attention' ? 'Needs attention' : 'Routine pickup',
-      ageLabel: reportedAge(order.createdAt),
+      priorityLabel: closed ? 'Closed' : priority === 'critical' ? 'Exception first' : priority === 'attention' ? 'Needs attention' : 'Routine pickup',
+      ageLabel: closed ? `Placed ${formatDateTime(order.createdAt, timeZone)}` : reportedAge(order.createdAt),
       sortValue: new Date(order.createdAt).getTime(),
       location: order.locationName,
       exceptions,
       context: [
-        { label: 'Fulfillment', value: (ORDER_STATE_LABELS[order.fulfillmentStatus] || order.fulfillmentStatus).replaceAll('_', ' ') },
-        { label: 'Payment', value: order.paymentStatus.replaceAll('_', ' ') },
+        { label: 'Fulfillment', value: stateLabel(order.fulfillmentStatus) },
+        { label: 'Payment', value: paymentLabel(order.paymentStatus) },
         { label: 'Total', value: new Intl.NumberFormat('en-US', { style: 'currency', currency: order.currencyCode || 'USD' }).format((order.totalAmount || 0) / 100) },
         { label: 'Created', value: formatDateTime(order.createdAt, timeZone) },
       ],

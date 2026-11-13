@@ -123,6 +123,7 @@ export type GuestPharmacyOrderProjection = {
   id: string
   orderNumber: string
   status: string
+  refunded?: boolean
   fulfillmentMethod: string
   subtotalAmount: number
   taxAmount: number

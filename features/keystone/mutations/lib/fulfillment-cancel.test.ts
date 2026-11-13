@@ -19,6 +19,8 @@ test('finished fulfillments cannot be cancelled', () => {
 
 test('cancel is offered after the forward step only when allowed', () => {
   assert.deepEqual(availableFulfillmentTransitions('preparing', ['captured']), ['ready'])
-  assert.deepEqual(availableFulfillmentTransitions('preparing', ['refunded']), ['ready', 'cancelled'])
+  assert.deepEqual(availableFulfillmentTransitions('preparing', ['refunded']), ['cancelled'])
+  assert.deepEqual(availableFulfillmentTransitions('preparing', ['failed', 'refunded']), ['cancelled'])
+  assert.deepEqual(availableFulfillmentTransitions('preparing', ['failed']), ['ready', 'cancelled'])
   assert.deepEqual(availableFulfillmentTransitions('handed_off', ['refunded']), [])
 })

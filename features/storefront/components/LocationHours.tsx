@@ -6,7 +6,8 @@ import { Dot } from './rx-ui'
 export function OpenNow({ week, timezone, label }: { week: DayHours[]; timezone?: string | null; label?: string }) {
   const state = openState(week, timezone)
   const text = state.open ? `Open until ${formatDay(state.todayHours).split(' – ')[1]}` : state.todayHours ? `Closed · today ${formatDay(state.todayHours)}` : 'Closed today'
-  return <span className="inline-flex items-baseline gap-1.5 whitespace-nowrap text-sm text-muted-foreground"><Dot tone={state.open ? 'ok' : 'muted'} />{label ? `${label} · ` : ''}{text}</span>
+  // A labelled line (checkout) is long enough to wrap on a phone; the short footer line stays on one line.
+  return <span className={cn('inline-flex items-baseline gap-1.5 text-sm text-muted-foreground', label ? 'min-w-0 max-w-full' : 'whitespace-nowrap')}><Dot tone={state.open ? 'ok' : 'muted'} className="shrink-0" /><span className="min-w-0">{label ? `${label} · ` : ''}{text}</span></span>
 }
 
 /** Weekly store and pharmacy counter hours, today highlighted. */

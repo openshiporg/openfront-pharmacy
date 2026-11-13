@@ -125,7 +125,7 @@ export function CheckoutForm({ providers, pickupEnabled, deliveryEnabled, defaul
       <Step number={3} title="Payment">
         {available.length
           ? <Track label="Payment method">
-            {available.map((provider) => <Pill key={provider.code} active={selectedCode === provider.code} onClick={() => setProviderCode(provider.code)}>{provider.name}</Pill>)}
+            {available.map((provider) => <Pill key={provider.code} active={selectedCode === provider.code} onClick={() => setProviderCode(provider.code)}>{provider.payAtPickup ? provider.name : 'Pay by card'}</Pill>)}
           </Track>
           : <Notice>Delivery orders are paid online, and card payment is not set up at this pharmacy. Choose pickup.</Notice>}
       </Step>

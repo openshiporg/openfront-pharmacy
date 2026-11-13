@@ -155,7 +155,7 @@ test('reset says plainly when no mail transport is configured, without calling K
 test('sidebar shows only lists and platform pages the session can see', () => {
   const access = sandbox().load('features/dashboard/lib/sidebarAccess.ts');
   const lists = [{ path: 'orders', isHidden: false }, { path: 'roles', isHidden: true }, { path: 'users', isHidden: true }];
-  const staff = { role: { canAccessDashboard: true } };
+  const staff = { role: { canAccessDashboard: true, canManageOrders: true } };
   assert.deepEqual(plain(access.visibleSidebarLists(lists, staff)).map(list => list.path), ['orders']);
   const items = [{ href: '/dashboard/platform/orders' }, { href: '/dashboard/platform/users' },
     { href: '/dashboard/platform/analytics' }, { href: '/platform/users?tab=1' }];
@@ -165,6 +165,10 @@ test('sidebar shows only lists and platform pages the session can see', () => {
   assert.equal(access.visibleSidebarLists(lists, customer).length, 0);
   assert.equal(access.visiblePlatformItems(items, lists, customer).length, 0);
   assert.equal(access.visibleSidebarLists(lists, null).length, 1);
+  const readOnly = { role: { canAccessDashboard: true } };
+  assert.deepEqual(plain(access.visiblePlatformItems(items, lists, readOnly)).map(item => item.href), ['/dashboard/platform/analytics']);
+  assert.equal(access.canUsePlatformPage('prescriptions/intake', { role: { canReviewPrescriptions: true } }), false);
+  assert.equal(access.canUsePlatformPage('prescriptions/intake', { role: { canManagePrescriptions: true } }), true);
 });
 
 test('formatInZone: viewer zone by default, explicit zone when given, labelled', () => {

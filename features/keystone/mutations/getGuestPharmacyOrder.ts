@@ -2,6 +2,7 @@ import type { Context } from '.keystone/types'
 import { verifyGuestCartToken } from '../security/cart-token'
 import { DomainError } from './lib/errors'
 import { resolveLinePhoto } from '../lib/product-photo'
+import { isFullyRefunded } from './lib/fulfillment-cancel'
 
 export async function getGuestPharmacyOrder(
   _root: unknown,
@@ -35,6 +36,7 @@ export const GUEST_ORDER_QUERY = `
       location { name timezone }
       lineItems { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
       fulfillment { method status readyAt handedOffAt }
+      payments { status }
     `
 
 /** The projection with each line photo made displayable: stored photo references are signed at read time. */
@@ -49,6 +51,8 @@ export function guestOrderProjection(order: any) {
     id: order.id,
     orderNumber: order.orderNumber,
     status: order.status,
+    // Every payment came back to the customer: the order page says refunded, not preparing or cancelled.
+    refunded: isFullyRefunded((order.payments || []).map((payment: any) => payment.status)),
     fulfillmentMethod: order.fulfillmentMethod,
     subtotalAmount: order.subtotalAmount,
     taxAmount: order.taxAmount,

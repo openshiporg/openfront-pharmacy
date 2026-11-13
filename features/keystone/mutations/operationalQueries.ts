@@ -360,7 +360,8 @@ export async function pharmacyPrescriptionQueue(_root: unknown, _args: unknown, 
 export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first?: number | null; after?: string | null; willCall?: string | null }, context: Context) {
   requireAny(context, ['canManagePrescriptions', 'canReviewPrescriptions', 'canDispenseMedications'])
   requirePatientPrivateData(context)
-  const pharmacistScope = await validatedPharmacistScope(context)
+  // Reading the queue needs the store's membership only; reviewing or dispensing still needs a recorded credential.
+  const pharmacistScope = await tenantScope(context)
   const pageSize = boundedPageSize(args.first)
   const cursor = decodeStableCursor(args.after)
   let willCallFilterWhere: Record<string, unknown> | null = null
@@ -415,7 +416,7 @@ export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first
 }
 
 export async function pharmacyPrescriptionTask(_root: unknown, args: { prescriptionId: string }, context: Context) {
-  requireAny(context, ['canReviewPrescriptions', 'canDispenseMedications'])
+  requireAny(context, ['canManagePrescriptions', 'canReviewPrescriptions', 'canDispenseMedications'])
   requirePatientPrivateData(context)
   const scope = await tenantScope(context)
   const pharmacistScope = await validatedPharmacistScope(context)
@@ -444,7 +445,7 @@ export async function pharmacyPrescriptionTask(_root: unknown, args: { prescript
       transfers(orderBy: { requestedAt: desc }, take: 50) { id direction status counterpartyName counterpartyPhone requestedAt completedAt consent { id accepted } }
     `,
   })
-  if (!prescription || !scope.organizationIds.includes(prescription.organization?.id) || !scope.locationIds.includes(prescription.location?.id) || !pharmacistScope.locationIds.includes(prescription.location?.id)) {
+  if (!prescription || !scope.organizationIds.includes(prescription.organization?.id) || !scope.locationIds.includes(prescription.location?.id)) {
     throw new DomainError('Prescription not found')
   }
   const now = Date.now()

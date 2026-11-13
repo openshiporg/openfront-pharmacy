@@ -1027,6 +1027,12 @@ var rules = {
   canReadOrganizationRecords({ session }) {
     return scoped(session, (userId) => [organizationMembershipBranch(userId)]);
   },
+  /** Suppliers belong to the organization; inventory staff at one of its locations receive stock from them. */
+  canReadSuppliers({ session }) {
+    if (!session) return false;
+    if (!permissions.canManageInventory({ session })) return rules.canReadOrganizationRecords({ session });
+    return { organization: { memberships: { some: { user: byId(session.itemId), status: { equals: "active" } } } } };
+  },
   canReadLocationRecords({ session }) {
     return scoped(session, (userId) => [locationMembershipBranch(userId)]);
   },
@@ -3295,6 +3301,7 @@ var PaymentSession = (0, import_core26.list)({
         { label: "Settled without order", value: "settled_unordered" },
         { label: "Compensation pending", value: "compensation_pending" },
         { label: "Compensated", value: "compensated" },
+        { label: "Refunded", value: "refunded" },
         { label: "Failed", value: "failed" },
         { label: "Cancelled", value: "cancelled" }
       ],
@@ -3311,6 +3318,7 @@ var PaymentSession = (0, import_core26.list)({
         { label: "Ordered", value: "ordered" },
         { label: "Compensation pending", value: "compensation_pending" },
         { label: "Compensated", value: "compensated" },
+        { label: "Refunded", value: "refunded" },
         { label: "Manual review", value: "manual_review" }
       ],
       defaultValue: "pending"
@@ -3598,7 +3606,9 @@ var PAYMENT_SESSION_TRANSITIONS = {
   authorized: ["captured", "settled_unordered", "failed", "cancelled"],
   // Money arrived but no order exists yet: it becomes an order payment, or is refunded.
   settled_unordered: ["captured", "compensation_pending", "compensated"],
-  captured: [],
+  // The order's payment was refunded in full.
+  captured: ["refunded"],
+  refunded: [],
   compensation_pending: ["compensated"],
   compensated: [],
   // A success that arrives after a failure or cancel is real money and must surface for reconciliation.
@@ -4392,7 +4402,7 @@ var Supplier = (0, import_core42.list)({
       update: permissions.canManageInventory,
       delete: import_access69.denyAll
     },
-    filter: { query: rules.canReadOrganizationRecords, update: rules.canReadOrganizationRecords }
+    filter: { query: rules.canReadSuppliers, update: rules.canReadSuppliers }
   },
   hooks: {
     validateInput: async ({ operation, resolvedData, context, addValidationError }) => {
@@ -4701,6 +4711,32 @@ async function resolveLinePhoto(value, context) {
   }
 }
 
+// features/keystone/mutations/lib/fulfillment-cancel.ts
+var SETTLED_PAYMENT_STATUSES = /* @__PURE__ */ new Set(["refunded", "failed", "cancelled"]);
+var OPEN_FULFILLMENT_STATUSES = /* @__PURE__ */ new Set(["pending", "preparing", "ready", "out_for_delivery"]);
+function isUnpaidPickupPayment(payment) {
+  return typeof payment === "object" && payment !== null && payment.status === "pending" && payment.provider?.createPaymentFunction === "manual";
+}
+function canCancelFulfillment(fulfillmentStatus, payments) {
+  if (!fulfillmentStatus || !OPEN_FULFILLMENT_STATUSES.has(fulfillmentStatus)) return false;
+  return payments.every((payment) => isUnpaidPickupPayment(payment) || SETTLED_PAYMENT_STATUSES.has(String(typeof payment === "object" ? payment?.status || "" : payment || "")));
+}
+var FORWARD_TRANSITIONS = {
+  pending: ["preparing"],
+  preparing: ["ready"],
+  ready: ["handed_off"]
+};
+function paymentStatusOf(payment) {
+  return String(typeof payment === "object" ? payment?.status || "" : payment || "");
+}
+function isFullyRefunded(payments) {
+  return payments.length > 0 && payments.some((payment) => paymentStatusOf(payment) === "refunded") && payments.every((payment) => ["refunded", "failed", "cancelled"].includes(paymentStatusOf(payment)));
+}
+function availableFulfillmentTransitions(fulfillmentStatus, payments) {
+  const forward = isFullyRefunded(payments) ? [] : FORWARD_TRANSITIONS[fulfillmentStatus || ""] || [];
+  return canCancelFulfillment(fulfillmentStatus, payments) ? [...forward, "cancelled"] : forward;
+}
+
 // features/keystone/mutations/getGuestPharmacyOrder.ts
 async function getGuestPharmacyOrder(_root, args, context) {
   if (!args.guestOrderToken?.trim()) throw new DomainError("Guest order token is required");
@@ -4724,6 +4760,7 @@ var GUEST_ORDER_QUERY = `
       location { name timezone }
       lineItems { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirementSnapshot }
       fulfillment { method status readyAt handedOffAt }
+      payments { status }
     `;
 async function signedGuestOrderProjection(order, context) {
   const projection = guestOrderProjection(order);
@@ -4735,6 +4772,8 @@ function guestOrderProjection(order) {
     id: order.id,
     orderNumber: order.orderNumber,
     status: order.status,
+    // Every payment came back to the customer: the order page says refunded, not preparing or cancelled.
+    refunded: isFullyRefunded((order.payments || []).map((payment) => payment.status)),
     fulfillmentMethod: order.fulfillmentMethod,
     subtotalAmount: order.subtotalAmount,
     taxAmount: order.taxAmount,
@@ -5072,6 +5111,9 @@ async function withDomainTransaction(context, lockKeys, operation, options = {})
   throw new DomainConflictError();
 }
 
+// features/keystone/mutations/paymentOperations.ts
+var import_node_crypto4 = require("node:crypto");
+
 // features/keystone/utils/paymentProviderAdapter.ts
 init_payment();
 var ADAPTER_OPERATIONS = /* @__PURE__ */ new Set([
@@ -5158,9 +5200,6 @@ async function handleWebhook({ provider, event, headers }) {
   });
 }
 
-// features/keystone/mutations/paymentOperations.ts
-var import_node_crypto4 = require("node:crypto");
-
 // features/keystone/security/order-token.ts
 var import_node_crypto3 = require("node:crypto");
 function sessionSecret() {
@@ -5222,6 +5261,32 @@ async function loadAndAssertCartAccess(context, cartId, guestToken, options = {}
 }
 
 // features/keystone/mutations/paymentOperations.ts
+var OPEN_FULFILLMENTS = ["pending", "preparing", "ready", "out_for_delivery"];
+async function closeOrderAfterRefund(transactionContext, orderId, actorId) {
+  const sudo = transactionContext.sudo();
+  const order = await sudo.query.Order.findOne({ where: { id: orderId }, query: "id status organization { id } location { id } patient { id } fulfillment { id status } payments { id status session { id status } }" });
+  if (!order) return;
+  for (const payment of order.payments || []) {
+    if (payment.status === "refunded" && payment.session?.id && payment.session.status === "captured") {
+      await sudo.query.PaymentSession.updateOne({ where: { id: payment.session.id }, data: { status: "refunded", reconciliationStatus: "refunded", lastReconciledAt: (/* @__PURE__ */ new Date()).toISOString() } });
+    }
+  }
+  if (!isFullyRefunded(order.payments || [])) return;
+  if (["completed", "cancelled"].includes(order.status) || order.fulfillment?.status === "handed_off") return;
+  if (order.fulfillment && OPEN_FULFILLMENTS.includes(order.fulfillment.status)) await sudo.query.Fulfillment.updateOne({ where: { id: order.fulfillment.id }, data: { status: "cancelled" } });
+  await sudo.query.Order.updateOne({ where: { id: order.id }, data: { status: "cancelled" } });
+  await recordAudit(transactionContext, {
+    eventKey: `order.refunded:${order.id}`,
+    organizationId: order.organization.id,
+    locationId: order.location?.id,
+    actorId: actorId || void 0,
+    patientId: order.patient?.id,
+    eventType: "order.refunded",
+    resourceType: "Order",
+    resourceId: order.id,
+    metadata: { previousStatus: order.status, fulfillmentStatus: order.fulfillment?.status || null }
+  });
+}
 var PAYMENT_PROVIDER_ADAPTER_FIELDS = "id code isInstalled createPaymentFunction capturePaymentFunction refundPaymentFunction getPaymentStatusFunction generatePaymentLinkFunction handleWebhookFunction";
 function isManualPaymentProvider(provider) {
   return provider.createPaymentFunction === "manual";
@@ -5302,6 +5367,7 @@ async function refundPharmacyPayment(_root, args, context) {
       resourceId: current.id,
       metadata: { orderId: current.order.id, amount: current.amount, reason: args.reason.trim() }
     });
+    await closeOrderAfterRefund(transactionContext, current.order.id, prepared.userId);
     return { success: true, reused: false, paymentId: current.id, status: "refunded", amount: current.amount };
   });
 }
@@ -5626,6 +5692,7 @@ async function refundPharmacyCashPayment(_root, args, context) {
     const approval = await createHumanApproval(transactionContext, { organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, actionType: "cash_refund", reason: args.reason, attested: args.attested, evidence: { paymentId: payment.id, cashReturnedAmount: args.cashReturnedAmount, inventoryRestocked: false, custodyClaim: false } });
     await transactionContext.prisma.payment.update({ where: { id: payment.id }, data: { status: "refunded", data: { ...payment.data || {}, cashRefund: { returnedAmount: args.cashReturnedAmount, returnedAt: (/* @__PURE__ */ new Date()).toISOString(), actorId: userId, approvalId: approval.id, inventoryRestocked: false } }, approvalId: approval.id } });
     await recordAudit(transactionContext, { eventKey, organizationId: payment.organization.id, locationId: payment.location?.id, actorId: userId, patientId: payment.order?.patient?.id, eventType: "payment.cash_refunded", resourceType: "Payment", resourceId: payment.id, metadata: { orderId: payment.order?.id, amount: payment.amount, approvalId: approval.id, requestFingerprint, inventoryRestocked: false } });
+    if (payment.order?.id) await closeOrderAfterRefund(transactionContext, payment.order.id, userId);
     return { success: true, reused: false, paymentId: payment.id, status: "refunded", amount: payment.amount };
   });
 }
@@ -7137,26 +7204,6 @@ async function pharmacyFillHistory(_root, args, context) {
     hasMore: records.length > 20,
     nextCursor: records.length > 20 && last ? writeCursor(scope, "operator_fill_history", last, fill.id) : null
   };
-}
-
-// features/keystone/mutations/lib/fulfillment-cancel.ts
-var SETTLED_PAYMENT_STATUSES = /* @__PURE__ */ new Set(["refunded", "failed", "cancelled"]);
-var OPEN_FULFILLMENT_STATUSES = /* @__PURE__ */ new Set(["pending", "preparing", "ready", "out_for_delivery"]);
-function isUnpaidPickupPayment(payment) {
-  return typeof payment === "object" && payment !== null && payment.status === "pending" && payment.provider?.createPaymentFunction === "manual";
-}
-function canCancelFulfillment(fulfillmentStatus, payments) {
-  if (!fulfillmentStatus || !OPEN_FULFILLMENT_STATUSES.has(fulfillmentStatus)) return false;
-  return payments.every((payment) => isUnpaidPickupPayment(payment) || SETTLED_PAYMENT_STATUSES.has(String(typeof payment === "object" ? payment?.status || "" : payment || "")));
-}
-var FORWARD_TRANSITIONS = {
-  pending: ["preparing"],
-  preparing: ["ready"],
-  ready: ["handed_off"]
-};
-function availableFulfillmentTransitions(fulfillmentStatus, payments) {
-  const forward = FORWARD_TRANSITIONS[fulfillmentStatus || ""] || [];
-  return canCancelFulfillment(fulfillmentStatus, payments) ? [...forward, "cancelled"] : forward;
 }
 
 // features/keystone/mutations/pickupNotice.ts
@@ -9075,7 +9122,7 @@ async function pharmacyPrescriptionQueue(_root, _args, context) {
 async function pharmacyPrescriptionWorklist(_root, args, context) {
   requireAny(context, ["canManagePrescriptions", "canReviewPrescriptions", "canDispenseMedications"]);
   requirePatientPrivateData(context);
-  const pharmacistScope = await validatedPharmacistScope(context);
+  const pharmacistScope = await tenantScope(context);
   const pageSize = boundedPageSize(args.first);
   const cursor = decodeStableCursor(args.after);
   let willCallFilterWhere = null;
@@ -9129,7 +9176,7 @@ async function pharmacyPrescriptionWorklist(_root, args, context) {
   return { items, totalCount, hasMore, nextCursor: hasMore && pageRecords.length ? encodeStableCursor({ createdAt: pageRecords[pageRecords.length - 1].createdAt, id: pageRecords[pageRecords.length - 1].id }) : null };
 }
 async function pharmacyPrescriptionTask(_root, args, context) {
-  requireAny(context, ["canReviewPrescriptions", "canDispenseMedications"]);
+  requireAny(context, ["canManagePrescriptions", "canReviewPrescriptions", "canDispenseMedications"]);
   requirePatientPrivateData(context);
   const scope = await tenantScope(context);
   const pharmacistScope = await validatedPharmacistScope(context);
@@ -9158,7 +9205,7 @@ async function pharmacyPrescriptionTask(_root, args, context) {
       transfers(orderBy: { requestedAt: desc }, take: 50) { id direction status counterpartyName counterpartyPhone requestedAt completedAt consent { id accepted } }
     `
   });
-  if (!prescription || !scope.organizationIds.includes(prescription.organization?.id) || !scope.locationIds.includes(prescription.location?.id) || !pharmacistScope.locationIds.includes(prescription.location?.id)) {
+  if (!prescription || !scope.organizationIds.includes(prescription.organization?.id) || !scope.locationIds.includes(prescription.location?.id)) {
     throw new DomainError("Prescription not found");
   }
   const now = Date.now();
@@ -9966,9 +10013,13 @@ async function handlePaymentProviderWebhook(_root, { providerId, event, headers 
         }
         handled = sessions.length > 0;
       } else if (refunded) {
-        const payments = await sudo.query.Payment.findMany({ where: { externalPaymentId: { equals: paymentId }, provider: { id: { equals: provider.id } } }, query: "id status" });
+        const payments = await sudo.query.Payment.findMany({ where: { externalPaymentId: { equals: paymentId }, provider: { id: { equals: provider.id } } }, query: "id status order { id }" });
         if (resource?.status === "succeeded" || resource?.status === "COMPLETED") {
-          for (const payment of payments) if (canMovePayment(payment.status, "refunded")) await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: "refunded" } });
+          for (const payment of payments) {
+            if (!canMovePayment(payment.status, "refunded")) continue;
+            await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: "refunded" } });
+            if (payment.order?.id) await closeOrderAfterRefund(transactionContext, payment.order.id);
+          }
         }
         handled = payments.length > 0;
       }
@@ -10015,7 +10066,7 @@ async function reconcilePharmacyPaymentSession(_root, args, context) {
       return { success: true, status: "compensated", paymentSessionId: session.id };
     });
   }
-  if (["captured", "compensated"].includes(session.status)) return { success: true, status: session.status, paymentSessionId: session.id };
+  if (["captured", "compensated", "refunded"].includes(session.status)) return { success: true, status: session.status, paymentSessionId: session.id };
   const providerStatus = await getPaymentStatus({ provider: session.provider, paymentId: session.externalPaymentId });
   const settled = ["captured", "succeeded"].includes(providerStatus?.status);
   return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {
@@ -12237,6 +12288,7 @@ function extendGraphqlSchema(baseSchema) {
         id: ID!
         orderNumber: String!
         status: String!
+        refunded: Boolean!
         fulfillmentMethod: String!
         subtotalAmount: Int!
         taxAmount: Int!

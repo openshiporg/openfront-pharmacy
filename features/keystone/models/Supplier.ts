@@ -15,7 +15,7 @@ export const Supplier = list({
       update: permissions.canManageInventory,
       delete: denyAll,
     },
-    filter: { query: rules.canReadOrganizationRecords, update: rules.canReadOrganizationRecords },
+    filter: { query: rules.canReadSuppliers, update: rules.canReadSuppliers },
   },
   hooks: {
     validateInput: async ({ operation, resolvedData, context, addValidationError }) => {

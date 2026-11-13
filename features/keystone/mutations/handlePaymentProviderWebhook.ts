@@ -4,6 +4,7 @@ import { withDomainTransaction } from './lib/transaction'
 import { DomainError } from './lib/errors'
 import { canMovePayment, canMovePaymentSession } from '../workflows/pharmacy-state'
 import { ingestPharmacyIntegrationWebhook } from './integrationWorkflows'
+import { closeOrderAfterRefund } from './paymentOperations'
 
 const NO_DIVISION_CURRENCIES = new Set([
   'JPY', 'KRW', 'VND', 'CLP', 'PYG', 'XAF', 'XOF', 'BIF', 'DJF',
@@ -123,9 +124,13 @@ async function handlePaymentProviderWebhook(
         }
         handled = sessions.length > 0
       } else if (refunded) {
-        const payments = await sudo.query.Payment.findMany({ where: { externalPaymentId: { equals: paymentId }, provider: { id: { equals: provider.id } } }, query: 'id status' })
+        const payments = await sudo.query.Payment.findMany({ where: { externalPaymentId: { equals: paymentId }, provider: { id: { equals: provider.id } } }, query: 'id status order { id }' })
         if (resource?.status === 'succeeded' || resource?.status === 'COMPLETED') {
-          for (const payment of payments) if (canMovePayment(payment.status, 'refunded')) await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: 'refunded' } })
+          for (const payment of payments) {
+            if (!canMovePayment(payment.status, 'refunded')) continue
+            await sudo.query.Payment.updateOne({ where: { id: payment.id }, data: { status: 'refunded' } })
+            if (payment.order?.id) await closeOrderAfterRefund(transactionContext, payment.order.id)
+          }
         }
         handled = payments.length > 0
       }

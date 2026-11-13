@@ -46,8 +46,8 @@ export async function reconcilePharmacyPaymentSession(
     })
   }
 
-  // A captured or compensated session is final: asking the provider again must not rewind it.
-  if (['captured', 'compensated'].includes(session.status)) return { success: true, status: session.status, paymentSessionId: session.id }
+  // A captured, refunded or compensated session is final: asking the provider again must not rewind it.
+  if (['captured', 'compensated', 'refunded'].includes(session.status)) return { success: true, status: session.status, paymentSessionId: session.id }
   const providerStatus = await getPaymentStatus({ provider: session.provider, paymentId: session.externalPaymentId })
   const settled = ['captured', 'succeeded'].includes(providerStatus?.status)
   return withDomainTransaction(context, [`payment-session:${session.id}`], async (transactionContext) => {

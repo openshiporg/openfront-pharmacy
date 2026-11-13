@@ -15,7 +15,7 @@ import { ProductImage } from './ProductImage'
 
 export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection }) {
   const fulfillmentStatus = order.fulfillment?.status || ''
-  const state = fulfillmentStatus || order.status
+  const state = order.refunded ? 'refunded' : fulfillmentStatus || order.status
   const delivery = order.fulfillmentMethod === 'delivery'
   const reached = fulfillmentStatus === 'handed_off' ? 3 : ['ready', 'ready_for_pickup', 'out_for_delivery'].includes(fulfillmentStatus) ? 2 : 1
   const steps = ['Received', delivery ? 'On the way' : 'Ready for pickup', delivery ? 'Delivered' : 'Picked up']
@@ -44,6 +44,7 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
       <div className="flex justify-between"><dt className="text-muted-foreground">Tax</dt><dd className="rx-num">{formatMoney(order.taxAmount, order.currencyCode)}</dd></div>
       {order.deliveryAmount > 0 && <div className="flex justify-between"><dt className="text-muted-foreground">Delivery</dt><dd className="rx-num">{formatMoney(order.deliveryAmount, order.currencyCode)}</dd></div>}
       <div className="flex justify-between border-t border-[var(--rx-rule)] pt-3 text-base font-semibold"><dt>Total</dt><dd className="rx-num">{formatMoney(order.totalAmount, order.currencyCode)}</dd></div>
+      {order.refunded && <div className="flex justify-between text-sm"><dt className="text-muted-foreground">Refunded to your payment method</dt><dd className="rx-num">{formatMoney(order.totalAmount, order.currencyCode)}</dd></div>}
     </dl>
   </div>
 }

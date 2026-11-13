@@ -19,7 +19,8 @@ export async function CreatePage({ params }: CreatePageParams) {
 
   const list = await getListByPath(listKey)
 
-  if (!list) {
+  // A list the session may not create in (Keystone hideCreate) has no create screen.
+  if (!list || list.hideCreate) {
     notFound()
   }
 

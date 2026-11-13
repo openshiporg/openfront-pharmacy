@@ -65,7 +65,7 @@ export async function getStorefrontOrder(input: { orderId: string; guestOrderTok
   const credentials = normalizePublicOrderLookupInput(input)
   if (!credentials) return publicOrderLookupFailure()
   try {
-    const response = await keystoneClient<{ guestPharmacyOrder: GuestPharmacyOrderProjection | null }>(`query Order($orderId: ID!, $guestOrderToken: String!) { guestPharmacyOrder(orderId: $orderId, guestOrderToken: $guestOrderToken) { id orderNumber status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt locationName lines { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirement } fulfillment { method status readyAt handedOffAt } } }`, credentials,
+    const response = await keystoneClient<{ guestPharmacyOrder: GuestPharmacyOrderProjection | null }>(`query Order($orderId: ID!, $guestOrderToken: String!) { guestPharmacyOrder(orderId: $orderId, guestOrderToken: $guestOrderToken) { id orderNumber status refunded fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt locationName lines { id title sku quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirement } fulfillment { method status readyAt handedOffAt } } }`, credentials,
       // @ts-expect-error The restored E-commerce keystoneClient ignores suppressErrorLog and logs failures with their variables; kept until the family upstreams it.
       { suppressErrorLog: true })
     if (!response.success || !response.data.guestPharmacyOrder) return publicOrderLookupFailure(response)

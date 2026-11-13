@@ -13,7 +13,15 @@ export function canCancelFulfillment(fulfillmentStatus: string | null | undefine
 const FORWARD_TRANSITIONS: Record<string, string[]> = {
   pending: ['preparing'], preparing: ['ready'], ready: ['handed_off'],
 }
+function paymentStatusOf(payment: CancellationPayment) {
+  return String(typeof payment === 'object' ? payment?.status || '' : payment || '')
+}
+/** Every payment on the order was paid and then refunded in full: the order must not move forward. */
+export function isFullyRefunded(payments: CancellationPayment[]) {
+  return payments.length > 0 && payments.some((payment) => paymentStatusOf(payment) === 'refunded')
+    && payments.every((payment) => ['refunded', 'failed', 'cancelled'].includes(paymentStatusOf(payment)))
+}
 export function availableFulfillmentTransitions(fulfillmentStatus: string | null | undefined, payments: CancellationPayment[]) {
-  const forward = FORWARD_TRANSITIONS[fulfillmentStatus || ''] || []
+  const forward = isFullyRefunded(payments) ? [] : FORWARD_TRANSITIONS[fulfillmentStatus || ''] || []
   return canCancelFulfillment(fulfillmentStatus, payments) ? [...forward, 'cancelled'] : forward
 }

@@ -25,11 +25,23 @@ export const PLATFORM_PAGE_PERMISSIONS: Record<string, string[]> = {
   credentials: ['canManageUsers', 'canReviewPrescriptions'],
   integrations: ['canManageIntegrations'],
   audit: ['canViewAuditLogs'],
+  products: ['canManageCatalog', 'canManageInventory', 'canManageOrders'],
+  suppliers: ['canManageInventory'],
+  payments: ['canManagePayments'],
+  staff: ['canManageUsers'],
+}
+
+/** Create and intake screens under a platform page that need a narrower permission than the page itself. */
+export const PLATFORM_SUBPAGE_PERMISSIONS: Record<string, string[]> = {
+  'prescriptions/intake': ['canManagePrescriptions'],
+  'inventory/receive': ['canManageInventory'],
+  'recalls/open': ['canManageRecalls'],
+  'patients/create': ['canManagePatients'],
 }
 
 /** An unknown role is left to the middleware; a known role must hold one of the page's permissions. */
 export function canUsePlatformPage(slug: string, user: SidebarUser) {
-  const needed = PLATFORM_PAGE_PERMISSIONS[slug]
+  const needed = PLATFORM_PAGE_PERMISSIONS[slug] || PLATFORM_SUBPAGE_PERMISSIONS[slug]
   if (!needed || !user?.role) return true
   return needed.some((permission) => user.role?.[permission] === true)
 }

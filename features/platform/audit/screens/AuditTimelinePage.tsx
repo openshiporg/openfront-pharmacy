@@ -4,6 +4,18 @@ import { OperationalPage, type OperationalItem } from '@/features/platform/compo
 import { formatDateTime } from '@/features/platform/lib/dates'
 import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
 
+/** "payment.refunded" reads "Payment refunded"; "fulfillment.handed_off" reads "Fulfillment handed off". */
+function eventLabel(eventType: string) {
+  const words = eventType.replaceAll('.', ' ').replaceAll('_', ' ').replace(/\s+/g, ' ').trim()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
+/** "PatientProfile" reads "Patient profile". */
+function resourceLabel(resourceType: string) {
+  const words = resourceType.replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase()
+  return words.charAt(0).toUpperCase() + words.slice(1)
+}
+
 export async function AuditTimelinePage() {
   const timeZone = await getStoreTimeZone()
   const response = await platformRequest<{
@@ -14,14 +26,14 @@ export async function AuditTimelinePage() {
     ? [
         ...response.data.pharmacyAuditTimeline.map((event) => ({
           id: `audit:${event.id}`,
-          title: event.eventType,
-          subtitle: `${event.resourceType} · ${event.resourceId}`,
+          title: eventLabel(event.eventType),
+          subtitle: `${resourceLabel(event.resourceType)} · ${event.actorName || 'System'}`,
           status: 'recorded',
           details: [
             { label: 'Occurred', value: formatDateTime(event.occurredAt, timeZone) },
             { label: 'Actor', value: event.actorName || event.actorType },
             { label: 'Location', value: event.locationName || 'Organization-wide' },
-            { label: 'Event key', value: event.eventKey || 'Legacy event' },
+            { label: 'Record', value: event.resourceId },
           ],
         })),
       ]

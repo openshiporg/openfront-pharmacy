@@ -7,7 +7,9 @@ import { RecordDrawerButton } from '@/features/platform/components/RecordDrawerB
 import { TaskSection } from '@/features/platform/components/TaskPage'
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
 import { Callout, Count, Dot, EmptyBand, Field, ListBand, Mono, PillLink, TitleLine, Track, humanize, statusTone } from '@/features/platform/components/rx-ui'
-import { money, shortDate } from '../../lib/mutate'
+import { money } from '../../lib/mutate'
+import { formatDay } from '@/features/platform/lib/dates'
+import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
 import { reconcileSession, setProviderInstalled } from '../actions'
 import { CashPolicyForm } from '../components/CashPolicyForm'
 
@@ -21,6 +23,9 @@ const NEEDS_RECONCILIATION = ['settled_unordered', 'compensation_pending', 'manu
 
 export async function PaymentsPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams
+  const timeZone = await getStoreTimeZone()
+  // Ledger dates are the store's calendar day, matching the order page.
+  const shortDate = (value?: string | null) => formatDay(value, timeZone)
   const status = typeof params?.status === 'string' && STATUS_TABS.some(([value]) => value === params.status) ? params.status : null
   const response = await platformRequest<{ payments: Payment[]; paymentSessions: Session[]; paymentProviders: Provider[]; organizations: Organization[] }>(
     `query Payments($where: PaymentWhereInput!, $sessions: PaymentSessionWhereInput!) {
@@ -62,7 +67,7 @@ export async function PaymentsPage({ searchParams }: { searchParams?: Promise<Re
 
         <div id="providers"><TaskSection title="Payment providers" count={data.paymentProviders.length} action={<RecordDrawerButton listPath="payment-providers" label="Add provider" variant="outline" />}>
           {data.paymentProviders.length ? <ListBand>{data.paymentProviders.map((provider) => <div key={provider.id} className="flex flex-wrap items-center justify-between gap-3 bg-background px-3.5 py-2.5 text-sm">
-            <div className="min-w-0"><TitleLine as="h3" titleClassName="text-sm" title={provider.name} tone={provider.isInstalled ? 'ok' : 'muted'} state={provider.isInstalled ? 'Installed' : 'Not installed'} /><p className="mt-0.5 font-mono text-[12px] text-muted-foreground">{provider.code} · {provider.createPaymentFunction === 'manual' ? 'Pay at pickup' : provider.createPaymentFunction} · {provider.paymentsCount} payments</p></div>
+            <div className="min-w-0"><TitleLine as="h3" titleClassName="text-sm" title={provider.name} tone={provider.isInstalled ? 'ok' : 'muted'} state={provider.isInstalled ? 'Installed' : 'Not installed'} /><p className="mt-0.5 text-[12px] text-muted-foreground">{provider.createPaymentFunction === 'manual' ? 'Pay at pickup' : 'Card payments'} · {provider.paymentsCount} {provider.paymentsCount === 1 ? 'payment' : 'payments'}</p></div>
             <div className="flex flex-wrap items-center gap-1.5"><TransitionPills label={`${provider.name} install`} options={[{ label: provider.isInstalled ? 'Uninstall' : 'Install', action: setProviderInstalled.bind(null, provider.id, !provider.isInstalled), danger: provider.isInstalled }]} /><RecordDrawerButton listPath="payment-providers" itemId={provider.id} label="Edit" /></div>
           </div>)}</ListBand> : <p className="text-sm text-muted-foreground">No payment providers.</p>}
         </TaskSection></div>

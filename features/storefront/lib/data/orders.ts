@@ -10,7 +10,7 @@ export async function lookupGuestOrder(input: { orderId: string; guestOrderToken
   const credentials = normalizePublicOrderLookupInput(input)
   if (!credentials) return publicOrderLookupFailure()
   const response = await storefrontRequest<{ guestPharmacyOrder: GuestPharmacyOrderProjection | null }>(
-    'query StorefrontGuestOrder($orderId: ID!, $guestOrderToken: String!) { guestPharmacyOrder(orderId: $orderId, guestOrderToken: $guestOrderToken) { id orderNumber status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt locationName locationTimezone lines { id title quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirement } fulfillment { method status readyAt handedOffAt } } }',
+    'query StorefrontGuestOrder($orderId: ID!, $guestOrderToken: String!) { guestPharmacyOrder(orderId: $orderId, guestOrderToken: $guestOrderToken) { id orderNumber status refunded fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt locationName locationTimezone lines { id title quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirement } fulfillment { method status readyAt handedOffAt } } }',
     credentials,
   )
   if (!response.success || !response.data.guestPharmacyOrder) return publicOrderLookupFailure()
@@ -22,7 +22,7 @@ export async function lookupOrderByNumber(input: { orderNumber: string; email: s
   const email = input.email.trim()
   if (!orderNumber || !email || orderNumber.length > 64 || email.length > 254) return publicOrderLookupFailure()
   const response = await storefrontRequest<{ lookupPharmacyOrder: GuestPharmacyOrderProjection | null }>(
-    'query StorefrontOrderLookup($orderNumber: String!, $email: String!) { lookupPharmacyOrder(orderNumber: $orderNumber, email: $email) { id orderNumber status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt locationName locationTimezone lines { id title quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirement } fulfillment { method status readyAt handedOffAt } } }',
+    'query StorefrontOrderLookup($orderNumber: String!, $email: String!) { lookupPharmacyOrder(orderNumber: $orderNumber, email: $email) { id orderNumber status refunded fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt locationName locationTimezone lines { id title quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirement } fulfillment { method status readyAt handedOffAt } } }',
     { orderNumber, email },
   )
   if (!response.success || !response.data.lookupPharmacyOrder) return publicOrderLookupFailure()
@@ -41,7 +41,7 @@ export async function getCustomerOrder(orderId: string): Promise<CustomerOrder |
 /** The signed-in customer's order with tracking detail (method, progress, times, totals), or null. */
 export async function getCustomerOrderDetails(orderId: string): Promise<GuestPharmacyOrderProjection | null> {
   const response = await storefrontRequest<{ pharmacyCustomerOrderDetails: GuestPharmacyOrderProjection }>(
-    'query StorefrontCustomerOrderDetails($orderId: ID!) { pharmacyCustomerOrderDetails(orderId: $orderId) { id orderNumber status fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt locationName locationTimezone lines { id title quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirement } fulfillment { method status readyAt handedOffAt } } }',
+    'query StorefrontCustomerOrderDetails($orderId: ID!) { pharmacyCustomerOrderDetails(orderId: $orderId) { id orderNumber status refunded fulfillmentMethod subtotalAmount taxAmount deliveryAmount totalAmount currencyCode pickupAt deliveryWindow createdAt locationName locationTimezone lines { id title quantity unitPriceAmount lineTotalAmount imageUrl prescriptionRequirement } fulfillment { method status readyAt handedOffAt } } }',
     { orderId },
   )
   return response.success ? response.data.pharmacyCustomerOrderDetails : null

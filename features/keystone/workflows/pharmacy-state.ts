@@ -82,7 +82,9 @@ export const PAYMENT_SESSION_TRANSITIONS: Readonly<Record<string, readonly strin
   authorized: ['captured', 'settled_unordered', 'failed', 'cancelled'],
   // Money arrived but no order exists yet: it becomes an order payment, or is refunded.
   settled_unordered: ['captured', 'compensation_pending', 'compensated'],
-  captured: [],
+  // The order's payment was refunded in full.
+  captured: ['refunded'],
+  refunded: [],
   compensation_pending: ['compensated'],
   compensated: [],
   // A success that arrives after a failure or cancel is real money and must surface for reconciliation.
