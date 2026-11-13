@@ -19,16 +19,18 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
   const delivery = order.fulfillmentMethod === 'delivery'
   const reached = fulfillmentStatus === 'handed_off' ? 3 : ['ready', 'ready_for_pickup', 'out_for_delivery'].includes(fulfillmentStatus) ? 2 : 1
   const steps = ['Received', delivery ? 'On the way' : 'Ready for pickup', delivery ? 'Delivered' : 'Picked up']
+  // A refunded or cancelled order is closed; its pickup progress no longer applies.
+  const closed = order.refunded || order.status === 'cancelled' || fulfillmentStatus === 'cancelled'
   return <div>
     <TitleLine as="h2" title={<>Order <span className="rx-num">{order.orderNumber}</span></>} titleClassName="text-2xl" tone={orderTone(state)} state={orderStatusLabel(state)} />
     <p className="mt-1 text-sm text-muted-foreground">{order.locationName}</p>
 
-    <ol aria-label="Progress" className="mt-6 grid grid-cols-3 gap-1.5">
+    {!closed && <ol aria-label="Progress" className="mt-6 grid grid-cols-3 gap-1.5">
       {steps.map((label, index) => <li key={label} aria-current={index + 1 === reached ? 'step' : undefined} className="min-w-0">
         <span aria-hidden="true" className={cn('block h-1.5 rounded-full', index < reached ? 'bg-primary' : 'bg-muted')} />
         <span className={cn('mt-2 block truncate text-[13px] sm:text-sm', index < reached ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{label}</span>
       </li>)}
-    </ol>
+    </ol>}
 
     <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
       <Field label="Placed">{formatStoreDate(order.createdAt, order.locationTimezone)}</Field>
