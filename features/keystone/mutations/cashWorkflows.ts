@@ -109,9 +109,10 @@ export async function submitPharmacyPosCashOrder(
   args: { locationId: string; customerCartId?: string | null; fulfillmentMethod?: string | null; items: Array<{ productId: string; quantity: number }>; cashReceivedAmount: number; idempotencyKey: string; reason: string; attested: boolean; tenderMethod?: string | null; paymentIntentId?: string | null },
   context: Context,
 ) {
+  // The same permissions that open the counter card: a role that can charge the card can record the sale,
+  // so a card is never charged for a sale its operator is refused. Lot draw-down is part of the sale.
   requirePermission(context, 'canManageOrders')
   requirePermission(context, 'canManagePayments')
-  requirePermission(context, 'canManageInventory')
   if (args.tenderMethod && !['cash', 'card'].includes(args.tenderMethod)) throw new DomainError('Tender must be cash or card')
   let card: VerifiedCounterCard | null = null
   if (args.tenderMethod === 'card') {

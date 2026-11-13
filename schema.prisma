@@ -597,7 +597,6 @@ model Organization {
   storefrontHero_extension               String?
   logoIcon                               String                        @default("<svg fill=\"none\" height=\"100%\" viewBox=\"0 0 40 48\" width=\"100%\" xmlns=\"http://www.w3.org/2000/svg\"><circle cx=\"14\" cy=\"18\" fill=\"#1570ef\" r=\"14\"/><circle cx=\"26\" cy=\"30\" fill=\"#53b1fd\" r=\"14\"/></svg>")
   logoColor                              String                        @default("295")
-  isDemo                                 Boolean                       @default(false)
   supportEmail                           String                        @default("")
   supportPhone                           String                        @default("")
   privacyNotice                          String                        @default("")

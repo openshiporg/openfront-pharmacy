@@ -23,14 +23,6 @@ const NO_DIVISION_CURRENCIES = [
   "HTG", "VUV", "XAG", "XDR", "XAU"
 ];
 
-// Get PayPal API base URL based on sandbox/production mode
-const getPayPalBaseUrl = () => {
-  const isSandbox = process.env.NEXT_PUBLIC_PAYPAL_SANDBOX !== "false";
-  return isSandbox
-    ? "https://api-m.sandbox.paypal.com"
-    : "https://api-m.paypal.com";
-};
-
 // Format amount for PayPal API (handles no-division currencies)
 const formatPayPalAmount = (amount: number, currency: string): string => {
   const upperCurrency = currency.toUpperCase();
@@ -55,6 +47,22 @@ const parsePayPalAmount = (value: string, currency: string): number => {
   return Math.round(parseFloat(value) * 100);
 };
 
+// The PayPal host follows the credentials, as Stripe's mode follows its key: PayPal issues
+// separate live and test app credentials, and each only authenticates on its own host.
+const PAYPAL_HOSTS = ["https://api-m.paypal.com", "https://api-m.sandbox.paypal.com"];
+let paypalSession: { clientId: string; baseUrl: string } | null = null;
+
+const requestPayPalToken = (baseUrl: string, clientId: string, clientSecret: string) =>
+  fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Accept-Language": "en_US",
+      Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`,
+    },
+    body: "grant_type=client_credentials",
+  });
+
 const getPayPalAccessToken = async () => {
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
   const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
@@ -63,28 +71,21 @@ const getPayPalAccessToken = async () => {
     throw new Error("PayPal credentials not configured");
   }
 
-  const baseUrl = getPayPalBaseUrl();
-  const response = await fetch(
-    `${baseUrl}/v1/oauth2/token`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Accept-Language": "en_US",
-        Authorization: `Basic ${Buffer.from(
-          `${clientId}:${clientSecret}`
-        ).toString("base64")}`,
-      },
-      body: "grant_type=client_credentials",
-    }
-  );
-
-  const { access_token } = await response.json();
-  if (!access_token) {
-    throw new Error("Failed to get PayPal access token");
+  const hosts = paypalSession?.clientId === clientId ? [paypalSession.baseUrl] : PAYPAL_HOSTS;
+  for (const host of hosts) {
+    const response = await requestPayPalToken(host, clientId, clientSecret);
+    if (response.status === 401) continue;
+    const { access_token } = await response.json();
+    if (!access_token) break;
+    paypalSession = { clientId, baseUrl: host };
+    return access_token as string;
   }
+  throw new Error("Failed to get PayPal access token");
+};
 
-  return access_token;
+const getPayPalBaseUrl = () => {
+  if (!paypalSession) throw new Error("PayPal access token must be requested first");
+  return paypalSession.baseUrl;
 };
 
 export async function handleWebhookFunction({ event, headers }: PaymentWebhookInput) {

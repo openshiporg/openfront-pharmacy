@@ -55,7 +55,6 @@ export const IntegrationProvider = list({
       type: 'string',
       options: [
         { label: 'Unconfigured', value: 'unconfigured' },
-        { label: 'Sandbox', value: 'sandbox' },
         { label: 'Active', value: 'active' },
         { label: 'Disabled', value: 'disabled' },
       ],

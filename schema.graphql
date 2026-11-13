@@ -1557,7 +1557,6 @@ type Organization {
   storefrontHeroUrl: String
   logoIcon: String
   logoColor: String
-  isDemo: Boolean
   supportEmail: String
   supportPhone: String
   privacyNotice: String
@@ -1638,7 +1637,6 @@ input OrganizationWhereInput {
   brandLogoUrl: StringFilter
   logoIcon: StringFilter
   logoColor: StringFilter
-  isDemo: BooleanFilter
   supportEmail: StringFilter
   supportPhone: StringFilter
   privacyNotice: StringFilter
@@ -1715,7 +1713,6 @@ input OrganizationOrderByInput {
   brandLogoUrl: OrderDirection
   logoIcon: OrderDirection
   logoColor: OrderDirection
-  isDemo: OrderDirection
   supportEmail: OrderDirection
   supportPhone: OrderDirection
   privacyNotice: OrderDirection
@@ -1742,7 +1739,6 @@ input OrganizationUpdateInput {
   storefrontHero: ImageFieldInput
   logoIcon: String
   logoColor: String
-  isDemo: Boolean
   supportEmail: String
   supportPhone: String
   privacyNotice: String

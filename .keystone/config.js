@@ -522,7 +522,7 @@ async function getPaymentStatusFunction2({ paymentId }) {
 async function generatePaymentLinkFunction2({ paymentId }) {
   return `https://www.paypal.com/activity/payment/${paymentId}`;
 }
-var NO_DIVISION_CURRENCIES, getPayPalBaseUrl, formatPayPalAmount, parsePayPalAmount, getPayPalAccessToken;
+var NO_DIVISION_CURRENCIES, formatPayPalAmount, parsePayPalAmount, PAYPAL_HOSTS, paypalSession, requestPayPalToken, getPayPalAccessToken, getPayPalBaseUrl;
 var init_paypal = __esm({
   "features/integrations/payment/paypal.ts"() {
     "use strict";
@@ -547,10 +547,6 @@ var init_paypal = __esm({
       "XDR",
       "XAU"
     ];
-    getPayPalBaseUrl = () => {
-      const isSandbox = process.env.NEXT_PUBLIC_PAYPAL_SANDBOX !== "false";
-      return isSandbox ? "https://api-m.sandbox.paypal.com" : "https://api-m.paypal.com";
-    };
     formatPayPalAmount = (amount, currency) => {
       const upperCurrency = currency.toUpperCase();
       const isNoDivision = NO_DIVISION_CURRENCIES.includes(upperCurrency);
@@ -567,32 +563,37 @@ var init_paypal = __esm({
       }
       return Math.round(parseFloat(value) * 100);
     };
+    PAYPAL_HOSTS = ["https://api-m.paypal.com", "https://api-m.sandbox.paypal.com"];
+    paypalSession = null;
+    requestPayPalToken = (baseUrl, clientId, clientSecret) => fetch(`${baseUrl}/v1/oauth2/token`, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Accept-Language": "en_US",
+        Authorization: `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString("base64")}`
+      },
+      body: "grant_type=client_credentials"
+    });
     getPayPalAccessToken = async () => {
       const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
       const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
       if (!clientId || !clientSecret) {
         throw new Error("PayPal credentials not configured");
       }
-      const baseUrl = getPayPalBaseUrl();
-      const response = await fetch(
-        `${baseUrl}/v1/oauth2/token`,
-        {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Accept-Language": "en_US",
-            Authorization: `Basic ${Buffer.from(
-              `${clientId}:${clientSecret}`
-            ).toString("base64")}`
-          },
-          body: "grant_type=client_credentials"
-        }
-      );
-      const { access_token } = await response.json();
-      if (!access_token) {
-        throw new Error("Failed to get PayPal access token");
+      const hosts = paypalSession?.clientId === clientId ? [paypalSession.baseUrl] : PAYPAL_HOSTS;
+      for (const host of hosts) {
+        const response = await requestPayPalToken(host, clientId, clientSecret);
+        if (response.status === 401) continue;
+        const { access_token } = await response.json();
+        if (!access_token) break;
+        paypalSession = { clientId, baseUrl: host };
+        return access_token;
       }
-      return access_token;
+      throw new Error("Failed to get PayPal access token");
+    };
+    getPayPalBaseUrl = () => {
+      if (!paypalSession) throw new Error("PayPal access token must be requested first");
+      return paypalSession.baseUrl;
     };
   }
 });
@@ -1904,7 +1905,6 @@ var IntegrationProvider = (0, import_core12.list)({
       type: "string",
       options: [
         { label: "Unconfigured", value: "unconfigured" },
-        { label: "Sandbox", value: "sandbox" },
         { label: "Active", value: "active" },
         { label: "Disabled", value: "disabled" }
       ],
@@ -2833,7 +2833,6 @@ var Organization = (0, import_core19.list)({
       resolveInput: ({ resolvedData, fieldKey }) => resolvedData[fieldKey] === void 0 ? void 0 : normalizeStoreLogoColor(resolvedData[fieldKey])
     } }),
     // Retained column; no longer read or written.
-    isDemo: (0, import_fields20.checkbox)({ defaultValue: false, access: { create: import_access30.denyAll, update: import_access30.denyAll }, ui: { createView: { fieldMode: "hidden" }, itemView: { fieldMode: "hidden" }, listView: { fieldMode: "hidden" } } }),
     supportEmail: (0, import_fields20.text)(),
     supportPhone: (0, import_fields20.text)(),
     privacyNotice: (0, import_fields20.text)({ ui: { displayMode: "textarea", description: "Notice of Privacy Practices shown at /privacy and linked from checkout." } }),
@@ -5579,7 +5578,6 @@ async function pharmacyPosCustomers(_root, args, context) {
 async function submitPharmacyPosCashOrder(_root, args, context) {
   requirePermission(context, "canManageOrders");
   requirePermission(context, "canManagePayments");
-  requirePermission(context, "canManageInventory");
   if (args.tenderMethod && !["cash", "card"].includes(args.tenderMethod)) throw new DomainError("Tender must be cash or card");
   let card = null;
   if (args.tenderMethod === "card") {

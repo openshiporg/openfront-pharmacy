@@ -57,7 +57,6 @@ export const Organization = list({
       resolveInput: ({ resolvedData, fieldKey }) => resolvedData[fieldKey] === undefined ? undefined : normalizeStoreLogoColor(resolvedData[fieldKey]),
     } }),
     // Retained column; no longer read or written.
-    isDemo: checkbox({ defaultValue: false, access: { create: denyAll, update: denyAll }, ui: { createView: { fieldMode: 'hidden' }, itemView: { fieldMode: 'hidden' }, listView: { fieldMode: 'hidden' } } }),
     supportEmail: text(),
     supportPhone: text(),
     privacyNotice: text({ ui: { displayMode: 'textarea', description: 'Notice of Privacy Practices shown at /privacy and linked from checkout.' } }),
