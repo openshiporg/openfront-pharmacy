@@ -198,6 +198,12 @@ export const rules = {
     if (!permissions.canManageInventory({ session })) return rules.canReadOrganizationRecords({ session })
     return { organization: { memberships: { some: { user: byId(session.itemId), status: { equals: 'active' } } } } }
   },
+  /** Prescription staff at one of the organization's locations open the prescribers the directory lists them. */
+  canReadPrescribers({ session }: AccessArgs): AccessFilter {
+    if (!session) return false
+    if (!permissions.canManagePrescriptions({ session }) && !permissions.canReviewPrescriptions({ session })) return rules.canReadOrganizationRecords({ session })
+    return { organization: { memberships: { some: { user: byId(session.itemId), status: { equals: 'active' } } } } }
+  },
   canReadLocationRecords({ session }: AccessArgs): AccessFilter {
     return scoped(session, (userId) => [locationMembershipBranch(userId)])
   },

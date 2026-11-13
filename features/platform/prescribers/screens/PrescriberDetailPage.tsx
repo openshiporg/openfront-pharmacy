@@ -19,14 +19,16 @@ type Prescriber = {
 
 export async function PrescriberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const response = await platformRequest<{ prescriber: Prescriber | null; pharmacyIntegrationStatus: Array<{ id: string; name: string; providerType: string; status: string }> }>(
-    `query Prescriber($id: ID!) { prescriber(where: { id: $id }) { id name npi phone fax verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validatedAt verifiedBy { name } organization { name } prescriptionsCount prescriptions(orderBy: [{ createdAt: desc }], take: 25) { id prescriptionNumber status createdAt location { name } } } pharmacyIntegrationStatus { id name providerType status } }`,
+  const response = await platformRequest<{ prescriber: Prescriber | null }>(
+    `query Prescriber($id: ID!) { prescriber(where: { id: $id }) { id name npi phone fax verificationStatus externalValidationComplete verificationMethod credentialType credentialJurisdiction credentialIdentifier credentialExpiresAt validatedAt verifiedBy { name } organization { name } prescriptionsCount prescriptions(orderBy: [{ createdAt: desc }], take: 25) { id prescriptionNumber status createdAt location { name } } } }`,
     { id },
   )
   const parent = { label: 'Prescribers', href: '/platform/prescribers' }
   if (!response.success || !response.data.prescriber) notFound()
   const prescriber = response.data.prescriber
-  const erx = response.data.pharmacyIntegrationStatus.filter((provider) => provider.providerType === 'erx' && provider.status === 'active')
+  // eRx validation is offered only to roles that manage integrations; others still open the prescriber.
+  const integrations = await platformRequest<{ pharmacyIntegrationStatus: Array<{ id: string; name: string; providerType: string; status: string }> }>('query PrescriberIntegrations { pharmacyIntegrationStatus { id name providerType status } }')
+  const erx = (integrations.success ? integrations.data.pharmacyIntegrationStatus : []).filter((provider) => provider.providerType === 'erx' && provider.status === 'active')
   const expired = prescriber.credentialExpiresAt ? new Date(prescriber.credentialExpiresAt).getTime() < Date.now() : false
 
   return <TaskPage parent={parent} meta={prescriber.npi ? `NPI ${prescriber.npi}` : 'Prescriber'} title={prescriber.name} state={expired ? 'Credential expired' : humanize(prescriber.verificationStatus)} tone={expired ? 'danger' : statusTone(prescriber.verificationStatus === 'unverified' ? 'not_reviewed' : prescriber.verificationStatus)} description={prescriber.organization?.name} actions={<RecordDrawerButton listPath="prescribers" itemId={prescriber.id} label="Edit" />}>

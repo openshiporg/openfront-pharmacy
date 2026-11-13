@@ -149,7 +149,6 @@ input CartWhereInput {
   OR: [CartWhereInput!]
   NOT: [CartWhereInput!]
   id: IDFilter
-  guestTokenHash: StringFilter
   status: StringNullableFilter
   fulfillmentMethod: StringNullableFilter
   subtotalAmount: IntNullableFilter
@@ -218,7 +217,6 @@ input PaymentSessionManyRelationFilter {
 
 input CartOrderByInput {
   id: OrderDirection
-  guestTokenHash: OrderDirection
   status: OrderDirection
   fulfillmentMethod: OrderDirection
   subtotalAmount: OrderDirection
@@ -1287,7 +1285,6 @@ input InventoryMovementWhereInput {
   quantityDelta: IntFilter
   reason: StringFilter
   idempotencyKey: StringFilter
-  requestFingerprint: StringNullableFilter
   occurredAt: DateTimeFilter
   organization: OrganizationWhereInput
   location: PharmacyLocationWhereInput
@@ -1309,7 +1306,6 @@ input InventoryMovementOrderByInput {
   quantityDelta: OrderDirection
   reason: OrderDirection
   idempotencyKey: OrderDirection
-  requestFingerprint: OrderDirection
   occurredAt: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection
@@ -1336,8 +1332,6 @@ type MachineCredential {
 
 input MachineCredentialWhereUniqueInput {
   id: ID
-  tokenPrefix: String
-  tokenHash: String
 }
 
 input MachineCredentialWhereInput {
@@ -1346,8 +1340,6 @@ input MachineCredentialWhereInput {
   NOT: [MachineCredentialWhereInput!]
   id: IDFilter
   name: StringFilter
-  tokenPrefix: StringFilter
-  tokenHash: StringFilter
   status: StringNullableFilter
   expiresAt: DateTimeFilter
   revokedAt: DateTimeNullableFilter
@@ -1364,8 +1356,6 @@ input MachineCredentialWhereInput {
 input MachineCredentialOrderByInput {
   id: OrderDirection
   name: OrderDirection
-  tokenPrefix: OrderDirection
-  tokenHash: OrderDirection
   status: OrderDirection
   expiresAt: OrderDirection
   revokedAt: OrderDirection
@@ -1431,7 +1421,6 @@ input OrderWhereInput {
   id: IDFilter
   orderNumber: StringFilter
   idempotencyKey: StringFilter
-  guestTokenHash: StringFilter
   email: StringFilter
   phone: StringFilter
   customerName: StringFilter
@@ -1482,7 +1471,6 @@ input OrderOrderByInput {
   id: OrderDirection
   orderNumber: OrderDirection
   idempotencyKey: OrderDirection
-  guestTokenHash: OrderDirection
   email: OrderDirection
   phone: OrderDirection
   customerName: OrderDirection
@@ -2025,7 +2013,6 @@ input PatientAllergyWhereInput {
   NOT: [PatientAllergyWhereInput!]
   id: IDFilter
   allergyKey: StringFilter
-  requestFingerprint: StringFilter
   allergen: StringFilter
   reaction: StringFilter
   severity: StringNullableFilter
@@ -2044,7 +2031,6 @@ input PatientAllergyWhereInput {
 input PatientAllergyOrderByInput {
   id: OrderDirection
   allergyKey: OrderDirection
-  requestFingerprint: OrderDirection
   allergen: OrderDirection
   reaction: OrderDirection
   severity: OrderDirection
@@ -2085,7 +2071,6 @@ input PatientMedicationWhereInput {
   NOT: [PatientMedicationWhereInput!]
   id: IDFilter
   medicationKey: StringFilter
-  requestFingerprint: StringFilter
   medicationName: StringFilter
   directions: StringFilter
   status: StringNullableFilter
@@ -2103,7 +2088,6 @@ input PatientMedicationWhereInput {
 input PatientMedicationOrderByInput {
   id: OrderDirection
   medicationKey: OrderDirection
-  requestFingerprint: OrderDirection
   medicationName: OrderDirection
   directions: OrderDirection
   status: OrderDirection
@@ -2164,7 +2148,6 @@ type PatientProfile {
 input PatientProfileWhereUniqueInput {
   id: ID
   patientNumber: String
-  identityKey: String
   user: UserWhereUniqueInput
 }
 
@@ -2174,8 +2157,6 @@ input PatientProfileWhereInput {
   NOT: [PatientProfileWhereInput!]
   id: IDFilter
   patientNumber: StringFilter
-  identityKey: StringNullableFilter
-  requestFingerprint: StringNullableFilter
   firstName: StringFilter
   lastName: StringFilter
   status: StringNullableFilter
@@ -2243,8 +2224,6 @@ input AuditEventManyRelationFilter {
 input PatientProfileOrderByInput {
   id: OrderDirection
   patientNumber: OrderDirection
-  identityKey: OrderDirection
-  requestFingerprint: OrderDirection
   firstName: OrderDirection
   lastName: OrderDirection
   status: OrderDirection
@@ -3026,7 +3005,6 @@ input PrescriptionFillWhereInput {
   NOT: [PrescriptionFillWhereInput!]
   id: IDFilter
   reservationKey: StringFilter
-  requestFingerprint: StringFilter
   openKey: StringNullableFilter
   kind: StringFilter
   status: StringFilter
@@ -3054,7 +3032,6 @@ input PrescriptionFillWhereInput {
 input PrescriptionFillOrderByInput {
   id: OrderDirection
   reservationKey: OrderDirection
-  requestFingerprint: OrderDirection
   openKey: OrderDirection
   kind: OrderDirection
   status: OrderDirection
@@ -3099,7 +3076,6 @@ input PrescriptionFillEventWhereInput {
   NOT: [PrescriptionFillEventWhereInput!]
   id: IDFilter
   eventKey: StringFilter
-  commandFingerprint: StringFilter
   action: StringFilter
   version: IntFilter
   quantity: IntFilter
@@ -3114,7 +3090,6 @@ input PrescriptionFillEventWhereInput {
 input PrescriptionFillEventOrderByInput {
   id: OrderDirection
   eventKey: OrderDirection
-  commandFingerprint: OrderDirection
   action: OrderDirection
   version: OrderDirection
   quantity: OrderDirection
@@ -3729,7 +3704,6 @@ input RefillRequestWhereInput {
   NOT: [RefillRequestWhereInput!]
   id: IDFilter
   idempotencyKey: StringFilter
-  requestFingerprint: StringNullableFilter
   openRequestKey: StringNullableFilter
   status: StringNullableFilter
   requestNote: StringFilter
@@ -3748,7 +3722,6 @@ input RefillRequestWhereInput {
 input RefillRequestOrderByInput {
   id: OrderDirection
   idempotencyKey: OrderDirection
-  requestFingerprint: OrderDirection
   openRequestKey: OrderDirection
   status: OrderDirection
   requestNote: OrderDirection
@@ -4113,7 +4086,6 @@ input UserWhereInput {
   name: StringFilter
   email: StringFilter
   role: RoleWhereInput
-  tokenVersion: IntNullableFilter
   onboardingStatus: StringNullableFilter
   memberships: OrganizationMembershipManyRelationFilter
   patientProfile: PatientProfileWhereInput
@@ -4125,7 +4097,6 @@ input UserWhereInput {
   createdMachineCredentials: MachineCredentialManyRelationFilter
   createdAt: DateTimeFilter
   updatedAt: DateTimeFilter
-  passwordResetToken: PasswordFilter
   passwordResetIssuedAt: DateTimeNullableFilter
   passwordResetRedeemedAt: DateTimeNullableFilter
 }
@@ -4142,15 +4113,10 @@ input HumanApprovalManyRelationFilter {
   none: HumanApprovalWhereInput
 }
 
-input PasswordFilter {
-  isSet: Boolean!
-}
-
 input UserOrderByInput {
   id: OrderDirection
   name: OrderDirection
   email: OrderDirection
-  tokenVersion: OrderDirection
   onboardingStatus: OrderDirection
   createdAt: OrderDirection
   updatedAt: OrderDirection

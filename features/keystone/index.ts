@@ -13,6 +13,7 @@ import { isSessionTokenVersionCurrent } from './session-revocation'
 import { extendGraphqlSchema } from './mutations'
 import { pooledDatabaseUrl } from './database-url';
 import { throwKeystonePrismaErrors } from './lib/keystonePrismaErrors';
+import { secureFilterAccess } from './security/filter-access'
 
 function requiredEnv(name: string): string {
   const value = process.env[name]
@@ -174,7 +175,7 @@ const { withAuth } = createAuth({
   `,
 })
 
-export default withAuth(config({
+export default secureFilterAccess(withAuth(config({
   db: { provider: 'postgresql', url: pooledDatabaseUrl(databaseURL), extendPrismaClient: throwKeystonePrismaErrors },
   lists: models,
   storage: {
@@ -196,4 +197,4 @@ export default withAuth(config({
   },
   session: statelessSessions(sessionConfig),
   graphql: { extendGraphqlSchema },
-}))
+})))

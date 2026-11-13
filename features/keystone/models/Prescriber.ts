@@ -15,7 +15,7 @@ export const Prescriber = list({
       update: permissions.canManagePrescriptions,
       delete: denyAll,
     },
-    filter: { query: rules.canReadOrganizationRecords, update: rules.canReadOrganizationRecords },
+    filter: { query: rules.canReadPrescribers, update: rules.canReadOrganizationRecords },
   },
   hooks: {
     validateInput: async ({ operation, resolvedData, context, addValidationError }) => {

@@ -1033,6 +1033,12 @@ var rules = {
     if (!permissions.canManageInventory({ session })) return rules.canReadOrganizationRecords({ session });
     return { organization: { memberships: { some: { user: byId(session.itemId), status: { equals: "active" } } } } };
   },
+  /** Prescription staff at one of the organization's locations open the prescribers the directory lists them. */
+  canReadPrescribers({ session }) {
+    if (!session) return false;
+    if (!permissions.canManagePrescriptions({ session }) && !permissions.canReviewPrescriptions({ session })) return rules.canReadOrganizationRecords({ session });
+    return { organization: { memberships: { some: { user: byId(session.itemId), status: { equals: "active" } } } } };
+  },
   canReadLocationRecords({ session }) {
     return scoped(session, (userId) => [locationMembershipBranch(userId)]);
   },
@@ -3480,7 +3486,7 @@ var Prescriber = (0, import_core29.list)({
       update: permissions.canManagePrescriptions,
       delete: import_access49.denyAll
     },
-    filter: { query: rules.canReadOrganizationRecords, update: rules.canReadOrganizationRecords }
+    filter: { query: rules.canReadPrescribers, update: rules.canReadOrganizationRecords }
   },
   hooks: {
     validateInput: async ({ operation, resolvedData, context, addValidationError }) => {
@@ -13110,6 +13116,133 @@ function throwKeystonePrismaErrors(client) {
   return wrapped;
 }
 
+// features/keystone/security/filter-access.ts
+var NEVER_FILTERABLE_FIELDS = /* @__PURE__ */ new Set([
+  "password",
+  "passwordResetToken",
+  "magicAuthToken",
+  "tokenHash",
+  "tokenPrefix",
+  "tokenVersion",
+  "guestTokenHash",
+  "credentials",
+  "requestFingerprint",
+  "commandFingerprint",
+  "identityKey"
+]);
+var allow = () => true;
+function operationQuery(list45) {
+  const access = list45.access;
+  if (typeof access === "function") return access;
+  const operation = access?.operation;
+  if (typeof operation === "function") return operation;
+  return operation?.query ?? allow;
+}
+function filterQuery(list45) {
+  const access = list45.access;
+  if (typeof access === "function") return allow;
+  return access?.filter?.query ?? allow;
+}
+function fieldRead(access) {
+  if (typeof access === "function") return access;
+  return typeof access?.read === "function" ? access.read : void 0;
+}
+var trusted = /* @__PURE__ */ new WeakSet();
+function trust(value) {
+  if (value && typeof value === "object" && !trusted.has(value)) {
+    trusted.add(value);
+    for (const child of Object.values(value)) trust(child);
+  }
+  return value;
+}
+var sudoContexts = /* @__PURE__ */ new WeakMap();
+function isSudo(context) {
+  if (!context || typeof context !== "object") return false;
+  let sudo = sudoContexts.get(context);
+  if (sudo === void 0) {
+    sudo = Boolean(context.sudo && context.sudo().graphql.schema === context.graphql?.schema);
+    sudoContexts.set(context, sudo);
+  }
+  return sudo;
+}
+async function listQueryAccess(lists, listKey, context) {
+  const list45 = lists[listKey];
+  const args = { session: context?.session, context, listKey, operation: "query" };
+  if (!list45 || !await operationQuery(list45)(args)) return false;
+  return await filterQuery(list45)(args);
+}
+var NO_ROWS = { id: { in: [] } };
+async function scopeRelationFilter(lists, foreignListKey, many, value, context) {
+  if (value === null || value === void 0 || trusted.has(value) || isSudo(context)) return value;
+  const rowFilter = await listQueryAccess(lists, foreignListKey, context);
+  if (rowFilter === true) return value;
+  const scope = trust(rowFilter === false ? NO_ROWS : rowFilter);
+  if (!many) return { AND: [value, scope] };
+  return Object.fromEntries(Object.entries(value).map(([key, inner]) => {
+    if (inner === null) return [key, inner];
+    if (key === "every") return [key, { OR: [inner, { NOT: [scope] }] }];
+    return [key, { AND: [inner, scope] }];
+  }));
+}
+function secureField(lists, fieldKey, fieldFunc) {
+  if (typeof fieldFunc !== "function") return fieldFunc;
+  return (data) => {
+    const f = fieldFunc(data);
+    if (NEVER_FILTERABLE_FIELDS.has(fieldKey)) return { ...f, isFilterable: false, isOrderable: false };
+    const read = fieldRead(f.access);
+    const readGate = async (args) => !read || Boolean(await read({ ...args, operation: "read" }));
+    if (f.dbField?.kind === "relation") {
+      const foreignListKey = f.dbField.list;
+      const many = f.dbField.mode === "many";
+      const where = f.input?.where;
+      return {
+        ...f,
+        isFilterable: async (args) => await readGate(args) && await listQueryAccess(lists, foreignListKey, args.context) !== false,
+        isOrderable: readGate,
+        input: where ? {
+          ...f.input,
+          where: {
+            ...where,
+            resolve: async (value, context, resolve) => {
+              const scoped2 = await scopeRelationFilter(lists, foreignListKey, many, value, context);
+              if (!many || scoped2 === value) return where.resolve ? where.resolve(scoped2, context, resolve) : resolve(scoped2);
+              const original = { ...value };
+              Object.assign(value, scoped2);
+              try {
+                return where.resolve ? where.resolve(value, context, resolve) : resolve(value);
+              } finally {
+                for (const key of Object.keys(value)) delete value[key];
+                Object.assign(value, original);
+              }
+            }
+          }
+        } : f.input
+      };
+    }
+    if (!read) return f;
+    return { ...f, isFilterable: readGate, isOrderable: readGate };
+  };
+}
+function trustAccessFilters(access) {
+  if (!access || typeof access !== "object" || !access.filter) return access;
+  const filter = Object.fromEntries(Object.entries(access.filter).map(([operation, rule]) => [
+    operation,
+    typeof rule === "function" ? async (args) => trust(await rule(args)) : rule
+  ]));
+  return { ...access, filter };
+}
+function secureFilterAccess(config2) {
+  const lists = config2.lists;
+  return {
+    ...config2,
+    lists: Object.fromEntries(Object.entries(lists).map(([listKey, list45]) => [listKey, {
+      ...list45,
+      access: trustAccessFilters(list45.access),
+      fields: Object.fromEntries(Object.entries(list45.fields).map(([fieldKey, fieldFunc]) => [fieldKey, fieldKey.startsWith("__group") ? fieldFunc : secureField(lists, fieldKey, fieldFunc)]))
+    }]))
+  };
+}
+
 // features/keystone/index.ts
 function requiredEnv(name) {
   const value = process.env[name];
@@ -13250,7 +13383,7 @@ var { withAuth } = (0, import_auth.createAuth)({
     }
   `
 });
-var keystone_default = withAuth((0, import_core45.config)({
+var keystone_default = secureFilterAccess(withAuth((0, import_core45.config)({
   db: { provider: "postgresql", url: pooledDatabaseUrl(databaseURL), extendPrismaClient: throwKeystonePrismaErrors },
   lists: models,
   storage: {
@@ -13272,7 +13405,7 @@ var keystone_default = withAuth((0, import_core45.config)({
   },
   session: statelessSessions(sessionConfig),
   graphql: { extendGraphqlSchema }
-}));
+})));
 
 // keystone.ts
 var keystone_default2 = keystone_default;
