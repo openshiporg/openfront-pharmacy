@@ -4,6 +4,7 @@ import { getServerGraphQLTarget } from "@/features/dashboard/lib/getBaseUrl";
 import { GraphQLClient } from 'graphql-request';
 import { safeErrorSummary, sanitizeDashboardRedirect } from './lib/security';
 import { isDashboardRoute, publicSignUpsAllowed } from './lib/authFlow';
+import { canUsePlatformPage } from './lib/sidebarAccess';
 
 const basePath = "/dashboard";
 
@@ -51,7 +52,8 @@ export async function getAuthenticatedUser(request: NextRequest) {
         ... on User {
           id
           role {
-            canAccessDashboard
+            canAccessDashboard canManageUsers canManageCatalog canManagePatients canManagePrescriptions canReviewPrescriptions
+            canDispenseMedications canManageOrders canManagePayments canManageInventory canManageRecalls canManageIntegrations canViewAuditLogs
           }
         }
       }
@@ -134,6 +136,13 @@ export async function handleDashboardRoutes(
   // Check role permissions
   if (user && !isNoAccessRoute && !user.role?.canAccessDashboard) {
     return NextResponse.redirect(new URL(`${basePath}/no-access`, request.url));
+  }
+
+  // A platform page the role cannot use is a 404 before anything renders, so no page data is sent.
+  const platform = pathname.slice(`${basePath}/platform/`.length).split('/').filter(Boolean);
+  if (user && pathname.startsWith(`${basePath}/platform/`) && platform.length) {
+    const forbidden = !canUsePlatformPage(platform[0], user) || (platform[1] && !canUsePlatformPage(`${platform[0]}/${platform[1]}`, user));
+    if (forbidden) return NextResponse.rewrite(new URL(`${basePath}/__not-found`, request.url), { status: 404 });
   }
 
   return NextResponse.next();
