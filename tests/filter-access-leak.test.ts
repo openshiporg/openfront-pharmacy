@@ -10,6 +10,8 @@
  *   DATABASE_URL=... timeout 300 npx vitest run tests/filter-access-leak.test.ts --no-file-parallelism
  */
 import { randomBytes } from 'node:crypto'
+// vitest is the runner for this file but not a dependency of the app, so the production typecheck cannot resolve it.
+// @ts-ignore
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 const hasDb = Boolean(process.env.DATABASE_URL)
