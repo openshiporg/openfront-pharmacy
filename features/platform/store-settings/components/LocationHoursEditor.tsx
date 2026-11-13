@@ -28,7 +28,7 @@ function DayRow({ day, value, onChange }: { day: string; value: DayHours; onChan
   </div>
 }
 
-export function LocationHoursEditor({ location }: { location: StoreLocationHours }) {
+export function LocationHoursEditor({ location, canEdit = true }: { location: StoreLocationHours; canEdit?: boolean }) {
   const [timezone, setTimezone] = useState(location.timezone)
   const [hours, setHours] = useState<WeeklyHours>(location.hours || { store: DEFAULT_WEEK, pharmacy: DEFAULT_WEEK })
   const [counter, setCounter] = useState<Counter>('pharmacy')
@@ -62,7 +62,7 @@ export function LocationHoursEditor({ location }: { location: StoreLocationHours
     <div className="divide-y divide-dashed">{WEEKDAYS.map((day, index) => <DayRow key={day} day={day} value={hours[counter][index]} onChange={(next) => setDay(index, next)} />)}</div>
     <div className="flex flex-wrap items-end gap-3">
       <label className="grid gap-1.5 text-sm font-medium">Time zone<Input value={timezone} onChange={(event) => setTimezone(event.target.value)} maxLength={64} className="h-9 w-56 rounded-[5px]" /></label>
-      <Button onClick={save} disabled={pending}>{pending ? 'Saving…' : 'Save hours'}</Button>
+      {canEdit && <Button onClick={save} disabled={pending}>{pending ? 'Saving…' : 'Save hours'}</Button>}
       {savedAt && <p role="status" className="pb-2 text-sm text-muted-foreground">Saved {savedAt}</p>}
     </div>
     {error && <Callout tone="danger">{error}</Callout>}

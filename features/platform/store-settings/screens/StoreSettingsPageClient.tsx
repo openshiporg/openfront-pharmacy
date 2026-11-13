@@ -25,6 +25,8 @@ interface StoreSettingsPageClientProps {
   initialData: StoreSettings[];
   initialError: string | null;
   locations?: Record<string, StoreLocationHours[]>;
+  canEdit?: boolean;
+  canEditHours?: boolean;
 }
 
 function Mark({ svg, hue, className }: { svg: string; hue: string; className?: string }) {
@@ -56,7 +58,7 @@ function StorefrontPreview({ name, tagline, logoIcon, logoColor, phone }: { name
   </figure>;
 }
 
-function StoreSettingsForm({ store }: { store: StoreSettings }) {
+function StoreSettingsForm({ store, canEdit = true }: { store: StoreSettings; canEdit?: boolean }) {
   const [name, setName] = useState(store.operatorDisplayName || '');
   const [logoIcon, setLogoIcon] = useState(store.logoIcon || LOGO_ICONS[0].lightSvg);
   const [logoColor, setLogoColor] = useState(store.logoColor || '0');
@@ -262,7 +264,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
           <Textarea id="privacy-notice" value={privacyNotice} onChange={(e) => setPrivacyNotice(e.target.value)} maxLength={50000} className="min-h-48 text-sm" />
         </section>
 
-        <div className="flex flex-wrap items-center gap-3">
+        {canEdit && <div className="flex flex-wrap items-center gap-3">
           <StoreSettingsSaveBar
             isSaving={isLoading}
             button={
@@ -272,7 +274,7 @@ function StoreSettingsForm({ store }: { store: StoreSettings }) {
             }
           />
           {saved && <p role="status" className={saved.ok ? 'text-sm text-muted-foreground' : 'text-sm text-red-700 dark:text-red-300'}>{saved.text}</p>}
-        </div>
+        </div>}
       </div>
 
       <div className="space-y-2 lg:sticky lg:top-4">
@@ -287,6 +289,8 @@ export function StoreSettingsPageClient({
   initialData,
   initialError,
   locations,
+  canEdit = true,
+  canEditHours = true,
 }: StoreSettingsPageClientProps) {
   const [storeId, setStoreId] = useState(initialData[0]?.id || '');
   const store = initialData.find((entry) => entry.id === storeId);
@@ -302,10 +306,10 @@ export function StoreSettingsPageClient({
             {initialData.length > 1 && <Track label="Store">
               {initialData.map((entry) => <Pill key={entry.id} active={entry.id === storeId} onClick={() => setStoreId(entry.id)}>{entry.operatorDisplayName}</Pill>)}
             </Track>}
-            <StoreSettingsForm key={store.id} store={store} />
+            <StoreSettingsForm key={store.id} store={store} canEdit={canEdit} />
             {locations?.[store.id]?.length ? <div className="grid gap-4 lg:max-w-[calc(100%-21.5rem)]">
               <h2 className="text-sm font-semibold">Hours</h2>
-              {locations[store.id].map((location) => <LocationHoursEditor key={location.id} location={location} />)}
+              {locations[store.id].map((location) => <LocationHoursEditor key={location.id} location={location} canEdit={canEditHours} />)}
             </div> : null}
           </>}
     </div>

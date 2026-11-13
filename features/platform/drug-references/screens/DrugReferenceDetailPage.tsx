@@ -7,6 +7,7 @@ import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
 import { Callout, Field, ListBand, Mono, TitleLine, humanize, statusTone } from '@/features/platform/components/rx-ui'
 import { shortDate } from '../../lib/mutate'
 import { DrugReviewForm } from '../components/DrugReviewForm'
+import { roleCan } from '@/features/platform/lib/page-access'
 
 type Drug = {
   id: string; ndc11: string; proprietaryName: string; genericName?: string | null; labelerName?: string | null; dosageForm?: string | null; route?: string | null; strength?: string | null; rxNormCui?: string | null
@@ -24,10 +25,11 @@ export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id
   const parent = { label: 'Drug references', href: '/platform/drug-references' }
   if (!response.success || !response.data.drugReference) notFound()
   const drug = response.data.drugReference
+  const canManage = await roleCan('canManageCatalog')
   const activeReview = drug.reviews.find((review) => review.status === 'active')
   const name = `${drug.proprietaryName}${drug.strength ? ` ${drug.strength}` : ''}`
 
-  return <TaskPage parent={parent} meta={`NDC ${drug.ndc11}`} title={name} state={activeReview ? humanize(activeReview.marketingStatusSnapshot) : 'Not reviewed'} tone={activeReview ? statusTone(activeReview.marketingStatusSnapshot === 'active' ? 'active' : 'inactive') : 'warn'} description={drug.genericName || undefined} actions={<RecordDrawerButton listPath="drug-references" itemId={drug.id} label="Edit" />}>
+  return <TaskPage parent={parent} meta={`NDC ${drug.ndc11}`} title={name} state={activeReview ? humanize(activeReview.marketingStatusSnapshot) : 'Not reviewed'} tone={activeReview ? statusTone(activeReview.marketingStatusSnapshot === 'active' ? 'active' : 'inactive') : 'warn'} description={drug.genericName || undefined} actions={canManage ? <RecordDrawerButton listPath="drug-references" itemId={drug.id} label="Edit" /> : undefined}>
     <dl className="grid grid-cols-2 gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-4 sm:px-5">
       <Field label="Dosage form">{drug.dosageForm || 'Not recorded'}</Field>
       <Field label="Route">{drug.route || 'Not recorded'}</Field>
@@ -44,7 +46,7 @@ export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id
         <p className="mt-0.5 text-muted-foreground">{humanize(review.marketingStatusSnapshot)} · {humanize(review.controlledScheduleSnapshot)} · {review.sourceReference}</p>
         <p className="mt-0.5 font-mono text-[12px] text-muted-foreground">{review.reviewedBy?.name}{review.organization ? ` · ${review.organization.name}` : ''} · {shortDate(review.reviewedAt)}</p>
       </div>)}</ListBand> : null}
-      <DrugReviewForm drugReferenceId={drug.id} organizations={response.data.organizations} />
+      {canManage && <DrugReviewForm drugReferenceId={drug.id} organizations={response.data.organizations} />}
     </TaskSection>
 
     <TaskSection title="Products" count={drug.products.length}>

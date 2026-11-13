@@ -19,7 +19,7 @@ export const OrderLineItem = list({
     filter: { query: rules.canReadOrderLineItems },
   },
   graphql: { omit: { create: true, update: true, delete: true } },
-  ui: { hideCreate: true, hideDelete: true },
+  ui: { isHidden: (args) => !permissions.canManageOrders(args), hideCreate: true, hideDelete: true },
   hooks: orderLineItemHooks,
   fields: {
     title: text({ validation: { isRequired: true }, access: { update: denyMutation } }),

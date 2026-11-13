@@ -19,6 +19,7 @@ export const PLATFORM_PAGE_PERMISSIONS: Record<string, string[]> = {
   pos: ['canManageOrders'],
   patients: ['canManagePatients', 'canManagePrescriptions'],
   requests: ['canManagePatients', 'canManagePrescriptions'],
+  refills: ['canManagePatients', 'canManagePrescriptions', 'canReviewPrescriptions', 'canDispenseMedications'],
   prescribers: ['canManagePrescriptions', 'canReviewPrescriptions', 'canDispenseMedications'],
   inventory: ['canManageInventory', 'canManageRecalls', 'canDispenseMedications'],
   recalls: ['canManageRecalls'],

@@ -49,7 +49,7 @@ export async function PharmacyOverviewPage() {
   ])
 
   const [refills, requests, sessions] = await Promise.all([
-    platformRequest<{ refillRequestsCount: number }>('query { refillRequestsCount(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }) }'),
+    !can('refills') ? Promise.resolve({ success: false as const, error: '' }) : platformRequest<{ refillRequestsCount: number }>('query { refillRequestsCount(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }) }'),
     !can('requests') ? Promise.resolve({ success: false as const, error: '' }) : platformRequest<{ pharmacyPrescriptionRequestQueue: Array<{ id: string }> }>('query { pharmacyPrescriptionRequestQueue(status: "requested") { id } }'),
     !can('payments') ? Promise.resolve({ success: false as const, error: '' }) : platformRequest<{ paymentSessionsCount: number }>('query { paymentSessionsCount(where: { reconciliationStatus: { in: ["settled_unordered", "compensation_pending", "manual_review"] } }) }'),
   ])

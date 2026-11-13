@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils'
 import { formatStoreDate, formatStoreDateTime } from '../lib/dates'
 import { lookupOrderByNumber } from '../lib/data/orders'
 import { orderStatusLabel, orderTone } from '../lib/order-status'
-import { formatMoney, formatStatus } from '../lib/money'
+import { formatMoney } from '../lib/money'
 import { Field, TitleLine, buttonClass } from './rx-ui'
 import { ProductImage } from './ProductImage'
 
@@ -34,7 +34,7 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
 
     <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
       <Field label="Placed">{formatStoreDate(order.createdAt, order.locationTimezone)}</Field>
-      <Field label="Method"><span className="capitalize">{formatStatus(order.fulfillmentMethod)}</span></Field>
+      <Field label="Method">{order.fulfillmentMethod === 'delivery' ? 'Delivery' : 'Pickup'}</Field>
       {order.pickupAt && <Field label="Pickup">{formatStoreDateTime(order.pickupAt, order.locationTimezone)}</Field>}
       {order.fulfillment?.readyAt && <Field label="Ready">{formatStoreDateTime(order.fulfillment.readyAt, order.locationTimezone)}</Field>}
       {order.deliveryWindow && <Field label="Delivery window">{order.deliveryWindow}</Field>}

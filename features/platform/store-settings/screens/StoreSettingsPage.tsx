@@ -1,9 +1,11 @@
 import { StoreSettingsPageClient } from './StoreSettingsPageClient'
 import { getStoreLocationHours, getStoreSettings, type StoreLocationHours } from '../actions'
 import { PageBreadcrumbs } from '@/features/dashboard/components/PageBreadcrumbs'
+import { roleCan } from '@/features/platform/lib/page-access'
 
 export async function StoreSettingsPage() {
   const response = await getStoreSettings()
+  const [canEdit, canEditHours] = await Promise.all([roleCan('canManageOrganizations'), roleCan('canManageLocations')])
   const locations: Record<string, StoreLocationHours[]> = {}
   if (response.success) {
     await Promise.all(response.data.map(async (store) => {
@@ -35,6 +37,8 @@ export async function StoreSettingsPage() {
         initialData={response.success ? response.data : []}
         initialError={response.success ? null : (response.error ?? null)}
         locations={locations}
+        canEdit={canEdit}
+        canEditHours={canEditHours}
       />
     </section>
   )

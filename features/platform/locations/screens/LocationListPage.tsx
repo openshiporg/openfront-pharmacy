@@ -3,6 +3,7 @@ import { OperationalPage, type OperationalItem } from '@/features/platform/compo
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
 import { normalizeWeeklyHours, openState } from '@/features/pharmacy/hours'
 import { setLocationStatus } from '../actions'
+import { roleCan } from '@/features/platform/lib/page-access'
 
 export type LocationRow = { id: string; name: string; code: string; status: string; address?: Record<string, string> | null; phone?: string | null; timezone: string; hours?: unknown; onlineOrderingEnabled: boolean; pickupEnabled: boolean; deliveryEnabled: boolean; organization?: { id: string; name: string } | null; productsCount: number; ordersCount: number; membershipsCount: number }
 
@@ -20,6 +21,7 @@ export function locationStatusOptions(location: Pick<LocationRow, 'id' | 'status
 }
 
 export async function LocationListPage() {
+  const canManage = await roleCan('canManageLocations')
   const response = await platformRequest<{ pharmacyLocations: LocationRow[] }>(`query Locations { pharmacyLocations(orderBy: [{ name: asc }], take: 100) { ${LOCATION_FIELDS} } }`)
   const items: OperationalItem[] = response.success ? response.data.pharmacyLocations.map((location) => {
     const hours = normalizeWeeklyHours(location.hours)
@@ -37,8 +39,8 @@ export async function LocationListPage() {
         { label: 'Products', value: String(location.productsCount) },
         { label: 'Orders', value: String(location.ordersCount) },
       ],
-      actions: <TransitionPills label={`Status of ${location.name}`} options={locationStatusOptions(location)} />,
+      actions: canManage ? <TransitionPills label={`Status of ${location.name}`} options={locationStatusOptions(location)} /> : undefined,
     }
   }) : []
-  return <OperationalPage title="Locations" description="" items={items} emptyMessage="No locations yet" error={response.success ? undefined : response.error} attentionStatuses={['temporarily_closed']} primaryAction={{ listKey: 'pharmacy-locations', label: 'Add location' }} />
+  return <OperationalPage title="Locations" description="" items={items} emptyMessage="No locations yet" error={response.success ? undefined : response.error} attentionStatuses={['temporarily_closed']} primaryAction={canManage ? { listKey: 'pharmacy-locations', label: 'Add location' } : undefined} />
 }

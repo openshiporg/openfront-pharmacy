@@ -14,6 +14,7 @@ import { extendGraphqlSchema } from './mutations'
 import { pooledDatabaseUrl } from './database-url';
 import { throwKeystonePrismaErrors } from './lib/keystonePrismaErrors';
 import { secureFilterAccess } from './security/filter-access'
+import { secureAdminUi } from './security/admin-ui'
 
 function requiredEnv(name: string): string {
   const value = process.env[name]
@@ -177,7 +178,7 @@ const { withAuth } = createAuth({
 
 export default secureFilterAccess(withAuth(config({
   db: { provider: 'postgresql', url: pooledDatabaseUrl(databaseURL), extendPrismaClient: throwKeystonePrismaErrors },
-  lists: models,
+  lists: secureAdminUi(models),
   storage: {
     my_images: {
       kind: 's3',

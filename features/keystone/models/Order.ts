@@ -19,7 +19,8 @@ export const Order = list({
     filter: { query: rules.canReadOrders, update: rules.canReadOrders },
   },
   graphql: { omit: { create: true, update: true, delete: true } },
-  ui: { hideCreate: true, hideDelete: true, listView: { initialColumns: ['orderNumber', 'status', 'fulfillmentMethod', 'location', 'totalAmount'] } },
+  // Staff without order permission have no order queue on the platform; the model page follows it.
+  ui: { isHidden: (args) => !permissions.canManageOrders(args), hideCreate: true, hideDelete: true, listView: { initialColumns: ['orderNumber', 'status', 'fulfillmentMethod', 'location', 'totalAmount'] } },
   hooks: orderHooks,
   fields: {
     orderNumber: text({ validation: { isRequired: true }, isIndexed: 'unique' }),

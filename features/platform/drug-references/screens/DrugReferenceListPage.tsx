@@ -2,11 +2,13 @@ import { platformRequest } from '@/features/platform/lib/request'
 import { OperationalPage, type OperationalItem } from '@/features/platform/components/OperationalPage'
 import { humanize } from '@/features/platform/components/rx-ui'
 import { shortDate } from '../../lib/mutate'
+import { roleCan } from '@/features/platform/lib/page-access'
 
 type DrugReference = { id: string; ndc11: string; proprietaryName: string; genericName?: string | null; strength?: string | null; dosageForm?: string | null; labelerName?: string | null; controlledSchedule: string; marketingStatus: string; reviewedAt?: string | null; productsCount: number; reviewsCount: number }
 
 export async function DrugReferenceListPage() {
   const response = await platformRequest<{ drugReferences: DrugReference[] }>('query DrugReferences { drugReferences(orderBy: [{ proprietaryName: asc }], take: 500) { id ndc11 proprietaryName genericName strength dosageForm labelerName controlledSchedule marketingStatus reviewedAt productsCount reviewsCount } }')
+  const canManage = await roleCan('canManageCatalog')
   const items: OperationalItem[] = response.success ? response.data.drugReferences.map((drug) => ({
     id: drug.id,
     href: `/dashboard/platform/drug-references/${drug.id}`,
@@ -21,5 +23,5 @@ export async function DrugReferenceListPage() {
       { label: 'Labeler', value: drug.labelerName || 'Not recorded' },
     ],
   })) : []
-  return <OperationalPage title="Drug references" description="" items={items} emptyMessage="No drug references yet" error={response.success ? undefined : response.error} attentionStatuses={['unverified', 'inactive']} primaryAction={{ listKey: 'drug-references', label: 'Add drug reference' }} />
+  return <OperationalPage title="Drug references" description="" items={items} emptyMessage="No drug references yet" error={response.success ? undefined : response.error} attentionStatuses={['unverified', 'inactive']} primaryAction={canManage ? { listKey: 'drug-references', label: 'Add drug reference' } : undefined} />
 }

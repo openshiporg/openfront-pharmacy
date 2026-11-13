@@ -3,7 +3,7 @@ import Image from 'next/image'
 import { platformRequest } from '@/features/platform/lib/request'
 import type { PharmacyOrderTaskProjection } from '@/features/pharmacy/contracts'
 import { TaskPage, TaskSection } from '@/features/platform/components/TaskPage'
-import { Field, Mono, humanize, statusTone } from '@/features/platform/components/rx-ui'
+import { Field, Mono, humanize, label, statusTone } from '@/features/platform/components/rx-ui'
 import { FulfillmentTaskActions } from '../components/FulfillmentTaskActions'
 import { PaymentTaskActions } from '../components/PaymentTaskActions'
 import { formatDateTime } from '@/features/platform/lib/dates'
@@ -22,7 +22,7 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
     <dl className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-[repeat(4,minmax(0,1fr))] sm:px-5">
       {(order.customerName || order.customerEmail || order.customerPhone) && <Field label="Customer" className="col-span-2">{order.customerName || 'Name not given'}{order.customerPhone && <a href={`tel:${order.customerPhone}`} className="block font-mono text-xs text-muted-foreground hover:underline">{order.customerPhone}</a>}{order.customerEmail && <span className="block truncate text-xs text-muted-foreground">{order.customerEmail}</span>}</Field>}
       <Field label="Total"><Mono>{money(order.totalAmount, order.currencyCode)}</Mono></Field>
-      <Field label="Payment">{order.payment ? humanize(order.payment.status) : 'Not recorded'}</Field>
+      <Field label="Payment">{order.payment ? label(order.payment.status) : 'Not recorded'}</Field>
       <Field label="Placed">{formatDateTime(order.createdAt, timeZone)}</Field>
       <Field label={order.fulfillmentMethod === 'delivery' ? 'Delivery window' : 'Pickup'}>{order.fulfillmentMethod === 'delivery' ? (order.deliveryWindow || 'Not set') : (order.pickupAt ? formatDateTime(order.pickupAt, timeZone) : 'Not set')}</Field>
     </dl>

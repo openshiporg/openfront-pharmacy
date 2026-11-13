@@ -31,7 +31,8 @@ export async function ListPage({ params, searchParams }: PageProps) {
   // Get the list by path using our cached function
   const list = await getListByPath(listKeyParam);
 
-  if (!list) {
+  // A list the session may not use (Keystone isHidden) has no list screen, the same as the sidebar.
+  if (!list || list.isHidden) {
     notFound()
   }
 

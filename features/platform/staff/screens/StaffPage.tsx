@@ -4,7 +4,7 @@ import { platformRequest } from '@/features/platform/lib/request'
 import { OperationalPage, type OperationalItem } from '@/features/platform/components/OperationalPage'
 import { RecordDrawerButton } from '@/features/platform/components/RecordDrawerButton'
 import { TransitionPills } from '@/features/platform/components/TransitionPills'
-import { humanize } from '@/features/platform/components/rx-ui'
+import { label } from '@/features/platform/components/rx-ui'
 import { shortDate } from '../../lib/mutate'
 import { setMembershipStatus } from '../actions'
 
@@ -42,13 +42,13 @@ export async function StaffPage() {
     return {
       id: membership.id,
       title: membership.user?.name || 'Unknown user',
-      subtitle: `${membership.user?.email || ''} · ${humanize(membership.membershipRole)} · ${membership.location?.name || 'All locations'}`,
+      subtitle: `${membership.user?.email || ''} · ${label(membership.membershipRole)} · ${membership.location?.name || 'All locations'}`,
       status: needsCredential && membership.status === 'active' ? 'credential_required' : membership.status,
       details: [
-        { label: 'Role', value: humanize(membership.membershipRole) },
+        { label: 'Role', value: label(membership.membershipRole) },
         { label: 'Credential', value: credential },
         { label: 'Scope', value: membership.location?.name || `${membership.organization?.name || 'Organization'} (all locations)` },
-        { label: 'Status', value: humanize(membership.status) },
+        { label: 'Status', value: label(membership.status) },
       ],
       actions: <>
         <TransitionPills label={`Membership of ${membership.user?.name || 'staff member'}`} options={statusOptions(membership)} />

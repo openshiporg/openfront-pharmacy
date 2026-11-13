@@ -125,6 +125,12 @@ export function humanize(value?: string | null) {
   return value ? value.replaceAll('_', ' ') : ''
 }
 
+/** A stored value as a standalone label: "ready_for_pickup" → "Ready for pickup". */
+export function label(value?: string | null) {
+  const text = humanize(value)
+  return text ? text.charAt(0).toUpperCase() + text.slice(1) : ''
+}
+
 /** Tone for the common pharmacy workflow states. */
 export function statusTone(status?: string | null): DotTone {
   const value = String(status || '')

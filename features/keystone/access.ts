@@ -155,6 +155,11 @@ const prescriptionReadCapabilities = [
   permissions.canDispenseMedications,
 ] as const
 
+/** Staff whose role may read patient records beyond their own (dashboard list visibility). */
+export const canReadPrivatePatientRecords = ({ session }: AccessArgs) => hasPrivatePatientReadAuthority(session, patientReadCapabilities)
+/** Staff whose role may read prescription records beyond their own (dashboard list visibility). */
+export const canReadPrivatePrescriptionRecords = ({ session }: AccessArgs) => hasPrivatePatientReadAuthority(session, prescriptionReadCapabilities)
+
 const prescriptionLocationMembershipBranch = (userId: string) => ({
   prescription: { location: locationMembershipBranch(userId).location },
 })
