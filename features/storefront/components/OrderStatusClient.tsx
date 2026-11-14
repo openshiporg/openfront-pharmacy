@@ -40,7 +40,7 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
       {order.deliveryWindow && <Field label="Delivery window">{order.deliveryWindow}</Field>}
     </dl>
 
-    <ul className="mt-6 divide-y divide-[var(--rx-rule)]">{order.lines.map((line) => <li key={line.id} className="flex items-center justify-between gap-4 py-3.5 text-sm"><span className="flex min-w-0 items-center gap-3">{line.imageUrl && <span className="rx-photo relative size-12 shrink-0 overflow-hidden rounded-[4px] border border-[var(--rx-rule)]"><ProductImage src={line.imageUrl} alt="" sizes="48px" /></span>}<span className="min-w-0"><span className="rx-num text-muted-foreground">{line.quantity}×</span> {line.title}</span></span><span className="rx-num">{formatMoney(line.lineTotalAmount, order.currencyCode)}</span></li>)}</ul>
+    <ul className="mt-6 divide-y divide-[var(--rx-rule)]">{order.lines.map((line) => <li key={line.id} className="flex items-center justify-between gap-4 py-3.5 text-sm"><span className="flex min-w-0 items-center gap-3">{line.imageUrl && <span className="rx-photo relative size-12 shrink-0 overflow-hidden rounded-2xl border border-[var(--rx-rule)]"><ProductImage src={line.imageUrl} alt="" sizes="48px" /></span>}<span className="min-w-0"><span className="rx-num text-muted-foreground">{line.quantity}×</span> {line.title}</span></span><span className="rx-num">{formatMoney(line.lineTotalAmount, order.currencyCode)}</span></li>)}</ul>
     <dl className="mt-4 grid gap-2 text-sm">
       <div className="flex justify-between"><dt className="text-muted-foreground">Subtotal</dt><dd className="rx-num">{formatMoney(order.subtotalAmount, order.currencyCode)}</dd></div>
       <div className="flex justify-between"><dt className="text-muted-foreground">Tax</dt><dd className="rx-num">{formatMoney(order.taxAmount, order.currencyCode)}</dd></div>
@@ -70,11 +70,11 @@ export function OrderLookupForm() {
 
   return <div>
     <form onSubmit={submit} className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
-      <div className="grid gap-2"><Label htmlFor="lookup-order">Order number</Label><Input id="lookup-order" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value)} autoComplete="off" maxLength={64} required className="rx-num h-11 rounded-[4px] bg-card" /></div>
-      <div className="grid gap-2"><Label htmlFor="lookup-email">Email used at checkout</Label><Input id="lookup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} required className="h-11 rounded-[4px] bg-card" /></div>
+      <div className="grid gap-2"><Label htmlFor="lookup-order">Order number</Label><Input id="lookup-order" value={orderNumber} onChange={(event) => setOrderNumber(event.target.value)} autoComplete="off" maxLength={64} required className="rx-num h-11 rounded-2xl bg-card" /></div>
+      <div className="grid gap-2"><Label htmlFor="lookup-email">Email used at checkout</Label><Input id="lookup-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" maxLength={254} required className="h-11 rounded-2xl bg-card" /></div>
       <button type="submit" disabled={pending} className={buttonClass}>{pending ? 'Checking…' : 'Check status'}</button>
     </form>
-    {error && <p role="alert" aria-live="polite" className="mt-5 rounded-[4px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+    {error && <p role="alert" aria-live="polite" className="mt-5 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
     {order && <div className="mt-8 border-t border-[var(--rx-rule)] pt-8"><OrderDetails order={order} /></div>}
   </div>
 }

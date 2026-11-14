@@ -51,12 +51,12 @@ export function PatientAccountPrescriptions({ patientId, prescriptions }: { pati
         {prescription.status === 'ready_for_pickup' && <Field label="Pick up at">{prescription.locationName}</Field>}
         {prescription.lastRefillStatus && <Field label="Last request"><span className="capitalize">{formatStatus(prescription.lastRefillStatus)}</span></Field>}
       </dl>
-      {prescription.status === 'ready_for_pickup' && <p role="status" className="mt-4 rounded-[4px] bg-accent px-4 py-3 text-sm text-accent-foreground">Your prescription is ready for pickup at {prescription.locationName}.</p>}
+      {prescription.status === 'ready_for_pickup' && <p role="status" className="mt-4 rounded-2xl bg-accent px-4 py-3 text-sm text-accent-foreground">Your prescription is ready for pickup at {prescription.locationName}.</p>}
       {canRefill && !completed[prescription.id] && <div className="mt-5 flex flex-col gap-2 sm:flex-row">
-        <Input aria-label={`Note for ${prescription.medicationName} refill (optional)`} value={note[prescription.id] || ''} onChange={(event) => setNote((value) => ({ ...value, [prescription.id]: event.target.value }))} placeholder="Note for the pharmacist (optional)" maxLength={500} className="h-11 rounded-[4px] bg-background" />
+        <Input aria-label={`Note for ${prescription.medicationName} refill (optional)`} value={note[prescription.id] || ''} onChange={(event) => setNote((value) => ({ ...value, [prescription.id]: event.target.value }))} placeholder="Note for the pharmacist (optional)" maxLength={500} className="h-11 rounded-2xl bg-background" />
         <button type="button" disabled={pending} onClick={() => submitRequest(prescription)} className={`${buttonClass} shrink-0`}>{requests.current[prescription.id] ? 'Try again' : 'Request refill'}</button>
       </div>}
-      {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className={`mt-3 rounded-[4px] px-4 py-3 text-sm ${message.tone === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-accent text-accent-foreground'}`}>{message.text}</p>}
+      {message && <p role={message.tone === 'error' ? 'alert' : 'status'} className={`mt-3 rounded-2xl px-4 py-3 text-sm ${message.tone === 'error' ? 'bg-destructive/10 text-destructive' : 'bg-accent text-accent-foreground'}`}>{message.text}</p>}
     </article>
   })}</Band>
 }

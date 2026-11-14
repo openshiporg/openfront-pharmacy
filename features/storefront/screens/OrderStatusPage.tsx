@@ -23,7 +23,7 @@ export async function OrderStatusPage({ searchParams }: { searchParams: Promise<
     <section className="mt-8 rx-panel p-5 sm:p-8">
       {result?.ok
         ? <OrderDetails order={result.order} />
-        : <>{result && <p role="alert" className="mb-5 rounded-[4px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{result.message}</p>}<OrderLookupForm /></>}
+        : <>{result && <p role="alert" className="mb-5 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{result.message}</p>}<OrderLookupForm /></>}
     </section>
   </div>
 }

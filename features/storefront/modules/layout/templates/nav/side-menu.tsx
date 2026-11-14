@@ -6,7 +6,7 @@ import { categoryLabel } from '../../../../lib/categories'
 import type { StoreCategory } from '../../../../lib/data/store'
 import { categoryHref } from './links'
 
-const itemClass = 'rx-serif flex min-h-8 items-center gap-2.5 rounded-[4px] text-[16px] leading-tight lg:min-h-[24px] lg:text-[14px] text-foreground hover:text-primary max-lg:min-h-11'
+const itemClass = 'rx-serif flex min-h-8 items-center gap-2.5 rounded-2xl text-[16px] leading-tight lg:min-h-[24px] lg:text-[14px] text-foreground hover:text-primary max-lg:min-h-11'
 const iconClass = 'size-4 shrink-0 text-primary'
 
 function Group({ title, children }: { title: string; children: React.ReactNode }) {
@@ -39,7 +39,7 @@ export function SideMenu({ categories, phone, signedIn, onNavigate }: { categori
       {item('/account#account-prescriptions', <FileClock aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Prescription history')}
       {signedIn && item('/account/profile', <UserRoundCog aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Profile')}
     </Group>
-    {phone && <div className="rounded-[6px] border border-dashed border-primary/45 bg-accent/60 p-4">
+    {phone && <div className="rounded-2xl border border-dashed border-primary/45 bg-accent/60 p-4">
       <p className="rx-serif text-[19px] leading-tight">Need help?</p>
       <p className="mt-1 text-[14px] text-muted-foreground">Our pharmacists are here for you.</p>
       <a href={`tel:${phone}`} className="rx-serif mt-2 inline-flex min-h-9 items-center gap-1.5 text-[16px] text-primary hover:underline">Call now<ArrowRight aria-hidden="true" className="size-4" /></a>

@@ -1,5 +1,5 @@
-// Storefront kit (Antares): outlined tabs (the chosen one is filled red), title-line status dots,
-// ruled white bands, and a solid red primary button. Server-safe; client pieces import from here too.
+// Storefront kit (Vega): outlined tabs (the chosen one is filled teal), title-line status dots,
+// ruled white bands, and a solid teal primary button. Server-safe; client pieces import from here too.
 
 import type { ComponentProps, ReactNode } from 'react'
 import Link from 'next/link'
@@ -32,7 +32,7 @@ export function TitleLine({ as: Tag = 'h2', title, tone, state, className, title
 
 export const trackClass = 'inline-flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar'
 
-export const pillClass = 'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-[4px] bg-card px-3.5 text-[14px] font-medium text-foreground/80 shadow-[inset_0_0_0_1px_var(--rx-rule)] transition-[color,background-color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground hover:shadow-[inset_0_0_0_1px_var(--input)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-none max-sm:min-h-11'
+export const pillClass = 'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-card px-3.5 text-[14px] font-medium text-foreground/80 shadow-[inset_0_0_0_1px_var(--rx-rule)] transition-[color,background-color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground hover:shadow-[inset_0_0_0_1px_var(--input)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-none max-sm:min-h-11'
 
 export function Track({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
   return <div role="group" aria-label={label} className={cn(trackClass, className)}>{children}</div>
@@ -46,11 +46,11 @@ export function PillLink({ active, className, ...props }: ComponentProps<typeof 
   return <Link aria-current={active ? 'page' : undefined} data-active={Boolean(active)} className={cn(pillClass, className)} {...props} />
 }
 
-/** Primary action: a solid red block. */
-export const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[4px] bg-primary px-6 rx-serif text-[17px] text-primary-foreground transition-[filter,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-110 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
+/** Primary action: a solid teal pill. */
+export const buttonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-primary px-6 font-semibold text-[16px] text-primary-foreground transition-[filter,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:brightness-110 active:translate-y-px focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-60'
 
-/** Secondary action: a red outline. */
-export const outlineButtonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-[4px] bg-card px-6 rx-serif text-[17px] text-primary shadow-[inset_0_0_0_1px_var(--primary)] transition-colors duration-150 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
+/** Secondary action: a teal outline. */
+export const outlineButtonClass = 'inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-card px-6 font-semibold text-[16px] text-primary shadow-[inset_0_0_0_1px_var(--primary)] transition-colors duration-150 hover:bg-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
 
 /** Secondary action: the chosen-pill style, as a link. */
 export function SecondaryAction({ className, children, ...props }: ComponentProps<typeof Link>) {
@@ -81,7 +81,7 @@ export function PageHead({ eyebrow, title, meta, className, children }: { eyebro
 }
 
 export function Notice({ tone = 'muted', children, className }: { tone?: 'muted' | 'danger' | 'brand'; children: ReactNode; className?: string }) {
-  return <p role={tone === 'danger' ? 'alert' : 'status'} className={cn('rounded-[4px] px-4 py-3 text-sm', tone === 'danger' ? 'bg-destructive/10 text-destructive' : tone === 'brand' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground', className)}>{children}</p>
+  return <p role={tone === 'danger' ? 'alert' : 'status'} className={cn('rounded-2xl px-4 py-3 text-sm', tone === 'danger' ? 'bg-destructive/10 text-destructive' : tone === 'brand' ? 'bg-accent text-accent-foreground' : 'bg-muted text-muted-foreground', className)}>{children}</p>
 }
 
 export function EmptyState({ title, children }: { title: string; children?: ReactNode }) {

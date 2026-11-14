@@ -70,7 +70,7 @@ export async function ProductPage({ params }: Props) {
           </ul>
           <Link href="/products" className="mt-2 flex min-h-11 items-center justify-between border-t border-[var(--rx-rule)] pt-2 text-[13px] font-semibold uppercase tracking-[0.06em] hover:text-primary">Shop all categories<ChevronRight aria-hidden="true" className="size-4" /></Link>
         </nav>}
-        <div className="rounded-[8px] bg-[oklch(0.955_0.003_50)] p-5">
+        <div className="rounded-2xl bg-[oklch(0.955_0.02_185)] p-5">
           <h2 className="text-[14px] font-semibold uppercase tracking-[0.06em]">Why shop with us?</h2>
           <ul className="mt-3 divide-y divide-[var(--rx-rule)]">
             <li className="flex gap-3 py-3"><MapPin aria-hidden="true" strokeWidth={1.5} className="size-8 shrink-0 rounded-full border border-primary/40 p-1.5 text-primary" /><span><span className="rx-serif block text-[17px] leading-tight">{location.name}</span><span className="text-[13.5px] text-muted-foreground">{address || 'Your local pharmacy'}</span></span></li>
@@ -83,7 +83,7 @@ export async function ProductPage({ params }: Props) {
       {/* Centre: photo and buy box */}
       <div className="min-w-0">
         <div className="grid gap-6 md:grid-cols-2 md:gap-8">
-          <div className="rx-photo relative aspect-square overflow-hidden rounded-[8px]">
+          <div className="rx-photo relative aspect-square overflow-hidden rounded-2xl">
             <ProductImage src={product.imageUrl} alt={product.title} fallbackLabel={product.title} sizes="(max-width: 768px) 100vw, 30vw" />
             {requirement && <span className="rx-plate absolute left-3 top-3 px-2 py-0.5 text-[13px] font-semibold">{requirement}</span>}
           </div>
@@ -122,7 +122,7 @@ export async function ProductPage({ params }: Props) {
         <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-5 md:grid-cols-4 xl:grid-cols-2">
           {related.map((entry) => <li key={entry.id} className="min-w-0">
             <Link href={`/products/${encodeURIComponent(entry.handle)}`} className="group block max-md:!flex max-md:!flex-col max-md:!items-stretch">
-              <span className="rx-photo relative block aspect-square overflow-hidden rounded-[6px]"><ProductImage src={entry.imageUrl} alt={entry.title} fallbackLabel={entry.title} sizes="(max-width: 1280px) 25vw, 150px" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /></span>
+              <span className="rx-photo relative block aspect-square overflow-hidden rounded-2xl"><ProductImage src={entry.imageUrl} alt={entry.title} fallbackLabel={entry.title} sizes="(max-width: 1280px) 25vw, 150px" className="object-cover transition-transform duration-300 group-hover:scale-[1.03]" /></span>
               {entry.category && <span className="mt-2 block text-[13px] leading-tight text-muted-foreground">{categoryShortLabel(entry.category)}</span>}
               <span className="line-clamp-2 block break-words text-[15px] leading-snug group-hover:text-primary">{entry.title}</span>
               <span className="rx-num block text-[15px] font-semibold">{formatMoney(entry.priceAmount, entry.currencyCode)}</span>

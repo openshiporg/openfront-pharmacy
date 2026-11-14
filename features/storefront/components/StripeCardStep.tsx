@@ -48,15 +48,15 @@ function tokenColor(host: HTMLElement, token: string, fallback: string) {
   return `rgb(${r}, ${g}, ${b})`
 }
 
-/** The storefront's light Antares palette, Source Sans 3 and 4px corners for the Payment Element. */
+/** The storefront's light Vega palette, Figtree and rounded corners for the Payment Element. */
 function storeAppearance(host: HTMLElement) {
   const color = (token: string, fallback: string) => tokenColor(host, token, fallback)
-  const text = color('--foreground', '#2b2523')
-  const muted = color('--muted-foreground', '#6b625e')
-  const primary = color('--primary', '#b0262c')
+  const text = color('--foreground', '#16373a')
+  const muted = color('--muted-foreground', '#4f6f72')
+  const primary = color('--primary', '#2a7f7a')
   const field = color('--card', '#ffffff')
-  const stroke = color('--input', '#d6d1cd')
-  const rule = color('--rx-rule', '#e3dfdc')
+  const stroke = color('--input', '#cfe3e1')
+  const rule = color('--rx-rule', '#dcebe9')
   return {
     theme: 'stripe',
     variables: {
@@ -67,9 +67,9 @@ function storeAppearance(host: HTMLElement) {
       colorTextPlaceholder: muted,
       colorIcon: muted,
       colorDanger: color('--destructive', '#b3261e'),
-      fontFamily: '"Source Sans 3", ui-sans-serif, system-ui, sans-serif',
+      fontFamily: 'ui-sans-serif, system-ui, sans-serif',
       fontSizeBase: '15px',
-      borderRadius: '4px',
+      borderRadius: '14px',
       spacingUnit: '4px',
     },
     rules: {
@@ -126,7 +126,7 @@ export function StripeCardStep({ publishableKey, clientSecret, returnUrl, totalL
 
   return <div className="grid w-full min-w-0 gap-4">
     <div ref={mountRef} className="min-h-24 w-full min-w-0" aria-busy={!ready} />
-    {error && <p role="alert" className="rounded-[4px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+    {error && <p role="alert" className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
     <button type="button" onClick={pay} disabled={!ready || pending} className={payButtonClass || `${buttonClass} min-h-12 w-full`}>{pending ? 'Charging…' : payLabel || `Pay ${totalLabel}`}</button>
   </div>
 }

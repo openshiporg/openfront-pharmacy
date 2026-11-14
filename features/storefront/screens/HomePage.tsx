@@ -69,7 +69,7 @@ function hoursSummary(location: PublicPharmacyLocationProjection) {
 function InfoCards({ location, phone }: { location: PublicPharmacyLocationProjection; phone?: string | null }) {
   const service = serviceLine(location)
   const hours = hoursSummary(location)
-  const card = 'rx-panel flex min-w-0 flex-col gap-0.5 px-2 py-2 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.3_0.02_30/0.4)]'
+  const card = 'rx-panel flex min-w-0 flex-col gap-0.5 px-2 py-2 shadow-[0_0_0_1px_var(--rx-rule),0_6px_16px_-12px_oklch(0.35_0.05_195/0.4)]'
   return <div className="grid grid-cols-3 gap-2 px-4 pt-3 lg:hidden">
     <Link href="/prescriptions#location" className={card}>
       <span className="flex items-center gap-1.5"><Clock aria-hidden="true" strokeWidth={1.6} className="size-3.5 shrink-0 text-primary" /><span className="text-[13px] font-semibold leading-tight">Store hours</span></span>
@@ -91,7 +91,7 @@ function InfoCards({ location, phone }: { location: PublicPharmacyLocationProjec
 /** Phone only: the department column beside the hero and featured products. */
 function PhoneDepartments({ categories }: { categories: Array<{ value: string }> }) {
   const row = 'flex min-h-[44px] items-center gap-1.5 pl-2 pr-0.5 text-[13px] leading-[1.15] [overflow-wrap:normal] [word-break:normal] hyphens-none'
-  return <nav aria-label="Departments" className="self-start rounded-r-[18px] bg-[oklch(0.955_0.003_50)] pb-2 lg:hidden">
+  return <nav aria-label="Departments" className="self-start rounded-r-[18px] bg-[oklch(0.955_0.02_185)] pb-2 lg:hidden">
     <ul>
       <li><Link href="/" aria-current="page" className={`${row} rounded-r-[18px] bg-accent text-primary`}><House aria-hidden="true" strokeWidth={1.6} className="size-[17px] shrink-0" /><span className="min-w-0 flex-1">Home</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" /></Link></li>
       <li><Link href="/prescriptions" className={row}><ClipboardList aria-hidden="true" strokeWidth={1.5} className="size-[17px] shrink-0" /><span className="min-w-0 flex-1">Prescription services</span><ChevronRight aria-hidden="true" className="size-3 shrink-0 text-muted-foreground" /></Link></li>
@@ -126,10 +126,10 @@ export async function HomePage() {
 
       <div className="min-w-0 pr-4 lg:pr-0">
         {/* Hero */}
-        <section aria-labelledby="home-title" className="relative overflow-hidden rounded-[18px] bg-[oklch(0.36_0.035_35)] lg:rounded-none lg:bg-[oklch(0.955_0.003_50)]">
+        <section aria-labelledby="home-title" className="relative overflow-hidden rounded-[28px] bg-[oklch(0.3_0.05_200)] lg:rounded-none lg:bg-[oklch(0.955_0.02_185)]">
           <div className="absolute inset-y-0 left-[46%] right-0 lg:left-auto lg:w-[60%]">
             <Image src={brand.heroUrl || "/storefront/hero-pharmacist.jpg"} alt="" fill priority sizes="(max-width: 1024px) 70vw, 55vw" className="object-cover object-[100%_25%] lg:object-[70%_30%]" />
-            <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.36_0.035_35)] to-transparent to-[14%] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:from-[oklch(0.955_0.003_50)] lg:via-[oklch(0.955_0.003_50/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[oklch(0.3_0.05_200)] to-transparent to-[14%] lg:via-[oklch(0.955_0.02_185/0.35)] lg:via-25% lg:from-[oklch(0.955_0.02_185)] lg:via-[oklch(0.955_0.02_185/0.35)] lg:via-25% lg:to-transparent lg:to-60%" />
           </div>
           <div className="relative flex min-h-[160px] flex-col justify-center py-2.5 pl-3 pr-0 sm:px-4 text-white sm:min-h-[340px] lg:min-h-0 lg:max-w-[44rem] lg:px-8 lg:py-4 lg:text-foreground xl:px-12">
             <h1 id="home-title" className="rx-display max-w-[44%] text-[1.15rem] leading-[1.08] sm:max-w-[14ch] sm:text-[2.5rem] lg:max-w-[22ch] lg:text-[2.25rem] xl:text-[2.4rem]">{headline}</h1>
@@ -157,7 +157,7 @@ export async function HomePage() {
     </div>
 
     {/* Trust strip */}
-    <section aria-label="Why shop with us" className="mt-8 border-y border-[var(--rx-rule)] bg-[oklch(0.955_0.003_50)] lg:mt-6">
+    <section aria-label="Why shop with us" className="mt-8 border-y border-[var(--rx-rule)] bg-[oklch(0.955_0.02_185)] lg:mt-6">
       <ul className="grid gap-x-5 gap-y-4 px-5 py-5 sm:grid-cols-2 lg:grid-cols-4 lg:px-8 lg:py-3 xl:px-12">
         {trust.map(({ icon: Icon, title, detail }) => <li key={title} className="flex items-start gap-3 lg:items-center lg:gap-2.5">
           <Icon aria-hidden="true" strokeWidth={1.4} className="size-9 shrink-0 text-primary lg:size-7" />

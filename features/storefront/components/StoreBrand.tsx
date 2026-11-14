@@ -9,23 +9,12 @@ export function StoreMark({ logoIcon, logoColor, className = 'size-8' }: { logoI
   return <span aria-hidden="true" className={`block shrink-0 overflow-hidden [&>svg]:block [&>svg]:size-full ${className}`} style={{ filter: `hue-rotate(${normalizeStoreLogoColor(logoColor)}deg)` }} dangerouslySetInnerHTML={{ __html: svg }} />
 }
 
-/** Splits a trailing trade word ("Pharmacy", "Drugs", "Apothecary", "Chemist") onto a letter-spaced second line. */
-function splitName(name: string) {
-  const match = name.trim().match(/^(.+?)\s+(pharmacy|drugs|drug store|apothecary|chemists?)$/i)
-  return match ? { main: match[1], trade: match[2] } : { main: name.trim(), trade: '' }
-}
-
-/** The store's mark from its settings beside its name, set as a red serif wordmark. */
+/** The store's mark from its settings beside its name, set plainly in the store sans (mixed case, dark). */
 export function StoreBrand({ name, logoIcon, logoColor, size = 'md', className }: { name: string; logoIcon?: string | null; logoColor?: string | null; size?: 'sm' | 'md' | 'lg'; className?: string }) {
-  const { main, trade } = splitName(name)
-  const mainSize = size === 'lg' ? 'text-[30px] sm:text-[34px]' : size === 'sm' ? 'text-[20px]' : 'text-[20px] sm:text-[30px] lg:text-[27px]'
-  const tradeSize = size === 'sm' ? 'text-[12px] tracking-[0.22em]' : 'text-[12px] tracking-[0.24em] sm:tracking-[0.42em]'
-  const markSize = size === 'sm' ? 'size-6' : 'size-5 sm:size-8'
-  return <Link href="/" aria-label={`${name} home`} className={cn('inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-[4px] py-1 sm:gap-2.5 lg:py-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring', className)}>
+  const nameSize = size === 'lg' ? 'text-[26px] sm:text-[30px]' : size === 'sm' ? 'text-[19px]' : 'text-[20px] sm:text-[26px] lg:text-[24px]'
+  const markSize = size === 'sm' ? 'size-6' : 'size-6 sm:size-9'
+  return <Link href="/" aria-label={`${name} home`} className={cn('inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 rounded-full py-1 sm:gap-2.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring', className)}>
     <StoreMark logoIcon={logoIcon} logoColor={logoColor} className={markSize} />
-    <span className="grid min-w-0 justify-items-center text-primary">
-      <span className={cn('rx-serif max-w-full truncate font-medium uppercase leading-none tracking-[0.02em]', mainSize)}>{main}</span>
-      {trade && <span className={cn('rx-serif mt-0.5 pl-[0.42em] font-normal uppercase leading-none text-foreground/80', tradeSize)}>{trade}</span>}
-    </span>
+    <span className={cn('min-w-0 max-w-full truncate font-medium leading-none tracking-[-0.01em] text-foreground', nameSize)}>{name.trim()}</span>
   </Link>
 }

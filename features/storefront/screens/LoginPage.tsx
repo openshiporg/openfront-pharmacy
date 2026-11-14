@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Pill, Track, buttonClass } from '../components/rx-ui'
 import { login, signUp } from '../lib/data/user'
 
-const inputClass = 'h-11 rounded-[4px] bg-background'
+const inputClass = 'h-11 rounded-2xl bg-background'
 
 export function LoginPage({ from }: { from?: string }) {
   const [view, setView] = useState<'signin' | 'signup'>('signin')

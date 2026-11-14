@@ -39,7 +39,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, initialS
       <form role="search" onSubmit={(event) => { event.preventDefault(); load(search.trim(), null) }} className="relative w-full sm:max-w-md">
         <label className="block">
           <span className="sr-only">Search products</span>
-          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} maxLength={100} placeholder="Search for products by name, brand, or keyword…" className="h-11 w-full rounded-[4px] border border-input bg-card pl-4 pr-11 text-[15px] outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15" />
+          <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} maxLength={100} placeholder="Search for products by name, brand, or keyword…" className="h-11 w-full rounded-2xl border border-input bg-card pl-4 pr-11 text-[15px] outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15" />
         </label>
         <button type="submit" disabled={pending} aria-label="Search" className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center text-foreground/70 hover:text-primary disabled:opacity-50"><Search aria-hidden="true" className="size-[18px]" strokeWidth={1.8} /></button>
       </form>
@@ -51,7 +51,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, initialS
     </Track>}
 
     {appliedSearch && <p className="mt-4 text-[15px] text-muted-foreground" aria-live="polite"><span className="rx-num">{totalCount}</span> {totalCount === 1 ? 'result' : 'results'} for “{appliedSearch}” · <button type="button" onClick={() => { setSearch(''); load('', null) }} className="font-semibold text-primary hover:underline">Clear</button></p>}
-    {error && <p role="alert" className="mt-4 rounded-[4px] bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
+    {error && <p role="alert" className="mt-4 rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">{error}</p>}
 
     <ul className="rx-settle mt-6 grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
       {products.map((product) => <li key={product.id} className="flex min-w-0"><ProductCard product={product} locationId={locationId} orderingEnabled={orderingEnabled} className="w-full" /></li>)}

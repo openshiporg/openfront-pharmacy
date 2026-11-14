@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Notice, buttonClass } from '../components/rx-ui'
 import { requestPasswordReset, resetPassword } from '../lib/data/user'
 
-const inputClass = 'h-11 rounded-[4px] bg-background'
+const inputClass = 'h-11 rounded-2xl bg-background'
 
 export function ResetPasswordPage({ token, email }: { token?: string; email?: string }) {
   const [requestState, requestAction, requestPending] = useActionState(requestPasswordReset, { sent: false, error: null })
