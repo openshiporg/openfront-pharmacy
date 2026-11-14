@@ -40,8 +40,8 @@ export function secureAdminUi<T extends Record<string, any>>(lists: T): T {
       next.isHidden = async (args: AnyArgs) => {
         const call = { ...args, listKey, operation: 'query' }
         if (query && !(await query(call))) return true
-        if (filter && PATIENT_ROW_RULES.has(filter)) return !canReadPrivatePatientRecords(call)
-        if (filter && PRESCRIPTION_ROW_RULES.has(filter)) return !canReadPrivatePrescriptionRecords(call)
+        if (filter && PATIENT_ROW_RULES.has(filter)) return !canReadPrivatePatientRecords({ session: args.session })
+        if (filter && PRESCRIPTION_ROW_RULES.has(filter)) return !canReadPrivatePrescriptionRecords({ session: args.session })
         return Boolean(filter && (await filter(call)) === false)
       }
     }
