@@ -7,7 +7,9 @@ import type { PharmacyOrderTaskProjection } from '@/features/pharmacy/contracts'
 import { refundCashPaymentAction, refundPaymentAction } from '../actions'
 import { unwrapAction } from '@/features/platform/lib/action-result'
 
-export function PaymentTaskActions({ order }: { order: PharmacyOrderTaskProjection }) {
+export const REFUND_DENIED_TEXT = 'Your role cannot refund payments. Ask an administrator for the Manage Payments permission.'
+
+export function PaymentTaskActions({ order, canRefund = false }: { order: PharmacyOrderTaskProjection; canRefund?: boolean }) {
   const [reason, setReason] = useState('')
   const [attested, setAttested] = useState(false)
   const [message, setMessage] = useState('')
@@ -16,6 +18,7 @@ export function PaymentTaskActions({ order }: { order: PharmacyOrderTaskProjecti
   const cashRefundKey = useRef<string | null>(null)
   if (!order.payment) return <p className="text-sm text-muted-foreground">No payment record.</p>
   if (order.payment.status !== 'captured') return <p className="text-sm">{order.payment.providerName} · {label(order.payment.status)}</p>
+  if (!canRefund) return <div className="space-y-2"><p className="text-sm">{order.payment.providerName} · Captured</p><p className="text-sm text-muted-foreground">{REFUND_DENIED_TEXT}</p></div>
   const refund = order.payment.tenderMethod === 'cash'
     ? () => unwrapAction(refundCashPaymentAction({ paymentId: order.payment!.id, orderId: order.id, cashReturnedAmount: order.payment!.amount, idempotencyKey: cashRefundKey.current || (cashRefundKey.current = crypto.randomUUID()), reason, attested }))
     : () => unwrapAction(refundPaymentAction({ paymentId: order.payment!.id, orderId: order.id, reason, attested }))

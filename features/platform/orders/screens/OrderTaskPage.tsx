@@ -8,6 +8,7 @@ import { FulfillmentTaskActions } from '../components/FulfillmentTaskActions'
 import { PaymentTaskActions } from '../components/PaymentTaskActions'
 import { formatDateTime } from '@/features/platform/lib/dates'
 import { getStoreTimeZone } from '@/features/platform/lib/store-time-zone'
+import { roleCan } from '@/features/platform/lib/page-access'
 
 function money(amount: number, currency: string) { return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount / 100) }
 
@@ -18,6 +19,7 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
   if (!response.success || !response.data.pharmacyOrderTask) notFound()
   const order = response.data.pharmacyOrderTask
   const state = order.fulfillment?.status || order.status
+  const canRefund = await roleCan('canManagePayments')
   return <TaskPage parent={{ label: 'Orders', href: '/platform/orders' }} meta={`Order · ${humanize(order.fulfillmentMethod)}`} title={order.orderNumber} state={humanize(state)} tone={statusTone(state)} description={order.locationName}>
     <dl className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-[repeat(4,minmax(0,1fr))] sm:px-5">
       {(order.customerName || order.customerEmail || order.customerPhone) && <Field label="Customer" className="col-span-2">{order.customerName || 'Name not given'}{order.customerPhone && <a href={`tel:${order.customerPhone}`} className="block font-mono text-xs text-muted-foreground hover:underline">{order.customerPhone}</a>}{order.customerEmail && <span className="block truncate text-xs text-muted-foreground">{order.customerEmail}</span>}</Field>}
@@ -40,6 +42,6 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
       </dl>
     </TaskSection>
     <TaskSection title="Fulfillment"><FulfillmentTaskActions order={order} /></TaskSection>
-    <TaskSection title="Payment and refund"><PaymentTaskActions order={order} /></TaskSection>
+    <TaskSection title="Payment and refund"><PaymentTaskActions order={order} canRefund={canRefund} /></TaskSection>
   </TaskPage>
 }
