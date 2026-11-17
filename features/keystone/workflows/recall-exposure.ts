@@ -1,8 +1,13 @@
+/**
+ * Sale/dispense movements that need a patient outreach record before a recall closes. A recall exposure is a
+ * patient record, so over-the-counter sales with no patient on the movement cannot have one and do not block closure.
+ */
 export function recallExposureMovementWhere(lotIds: string[]) {
   return {
     lot: { id: { in: lotIds } },
     movementType: { in: ['dispense', 'sale'] },
     quantityDelta: { lt: 0 },
+    NOT: [{ patient: null }],
   }
 }
 
