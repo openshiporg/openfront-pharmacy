@@ -78,9 +78,9 @@ async function transitionInTransaction(args: { fulfillmentId: string; status: st
       if (allocations.some((a: any) => !a.lotId || !Number.isSafeInteger(a.quantity) || a.quantity <= 0)) throw new DomainError('Invalid original inventory allocation')
       await acquireTransactionLocks(transactionContext, allocations.map((a: any) => `lot:${a.lotId}`))
       for (const allocation of allocations) {
-        const lot = await sudo.query.InventoryLot.findOne({ where: { id: allocation.lotId }, query: 'id quantityAvailable product { id organization { id } } location { id }' })
+        const lot = await sudo.query.InventoryLot.findOne({ where: { id: allocation.lotId }, query: 'id status quantityAvailable product { id organization { id } } location { id }' })
         if (!lot || lot.product?.id !== allocation.productId || lot.product.organization?.id !== fulfillment.organization.id || lot.location?.id !== fulfillment.location.id) throw new DomainError('Allocation does not match this tenant lot')
-        await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable + allocation.quantity } })
+        await sudo.query.InventoryLot.updateOne({ where: { id: lot.id }, data: { quantityAvailable: lot.quantityAvailable + allocation.quantity, ...(lot.status === 'depleted' ? { status: 'available' } : {}) } })
         await sudo.query.InventoryMovement.createOne({ data: {
           movementType: 'release', quantityDelta: allocation.quantity, reason: args.reason,
           idempotencyKey: `cancel:${fulfillment.id}:${allocation.lineId}:${lot.id}`,
