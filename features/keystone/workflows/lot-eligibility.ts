@@ -30,3 +30,10 @@ export function eligibleLotQuantity(lot: LotEligibilityInput, now = Date.now()) 
 export function isLotEligible(lot: LotEligibilityInput, now = Date.now()) {
   return eligibleLotQuantity(lot, now) > 0
 }
+
+/** Units already drawn from a lot may go to the customer only while the lot is not recalled, quarantined or past its date. */
+export function lotSafeToHandOver(lot: LotEligibilityInput, now = Date.now()) {
+  if (['recalled', 'expired', 'quarantined'].includes(String(lot.status))) return false
+  if (!calendarDateStillValid(lot.expirationDate, lot.location?.timezone, now)) return false
+  return !lotHasBlockingRecall(lot)
+}

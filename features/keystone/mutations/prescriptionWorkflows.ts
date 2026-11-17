@@ -3,7 +3,7 @@ import type { Context } from '.keystone/types'
 import { assertCurrentHumanSafetyReview, assertDrugReferenceEligibleForBoundedDispensing, currentFillNumber } from '../workflows/clinical-safety'
 import { assertCashTender, calculateTaxAmount } from '../workflows/commerce-policy'
 import { assertPrescriptionTransition } from '../workflows/pharmacy-state'
-import { isLotEligible } from '../workflows/lot-eligibility'
+import { isLotEligible, lotSafeToHandOver } from '../workflows/lot-eligibility'
 import { assertPrescriptionItemProductIdentity } from '../workflows/clinical-safety'
 import { assertPrescriptionClinicallyEligible } from '../workflows/prescription-eligibility'
 import { requirePermission, requireTenantMembership } from './lib/authorization'
@@ -521,7 +521,7 @@ async function loadWillCallEvidence(tx: Context, fill: any) {
   const [label] = await sudo.query.DispensingLabel.findMany({ where: { fill: { id: { equals: fill.id } }, voidedAt: { equals: null } }, take: 1, query: 'id labelNumber dispensedAt' })
   const [filled] = await fillStore(tx).PrescriptionFillEvent.findMany({ where: { fill: { id: { equals: fill.id } }, action: { equals: 'filled' } }, orderBy: [{ createdAt: 'desc' }], take: 1, query: 'id evidence' })
   const movementId = filled?.evidence?.movementId
-  const movement = movementId ? await sudo.query.InventoryMovement.findOne({ where: { id: movementId }, query: 'id movementType quantityDelta lot { id lotNumber expirationDate status quantityAvailable } product { id }' }) : null
+  const movement = movementId ? await sudo.query.InventoryMovement.findOne({ where: { id: movementId }, query: 'id movementType quantityDelta lot { id lotNumber expirationDate status quantityAvailable recalls { status } location { timezone } } product { id }' }) : null
   if (!label || !movement || movement.movementType !== 'dispense' || -movement.quantityDelta !== fill.quantityDispensed) throw new DomainError('Will-call label and stock evidence require reconciliation')
   return { label, movement, lot: movement.lot }
 }
@@ -610,6 +610,7 @@ async function recordWillCallPickup(
     if (prescription.status !== 'ready_for_pickup') throw new DomainError('Prescription is not waiting for pickup')
     if (prescription.organization.cashSalesEnabled !== true || !prescription.organization.cashTaxPolicyReference?.trim() || !prescription.organization.cashPolicyReviewedAt) throw new DomainError('Operator-attested cash and tax policy must be configured before pickup')
     const { label, lot } = await loadWillCallEvidence(tx, fill)
+    if (!lotSafeToHandOver(lot)) throw new DomainError('This fill came from a recalled, quarantined or expired lot and cannot be handed over')
     const { subtotalAmount, taxAmount, totalAmount, currencyCode } = willCallAmountDue(fill)
     if (card) assertCounterCardCovers(card, totalAmount, currencyCode)
     const tender = card ? { cashReceivedAmount: totalAmount, changeDueAmount: 0 } : assertCashTender(totalAmount, args.cashReceivedAmount)

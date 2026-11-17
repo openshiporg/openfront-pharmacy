@@ -6,6 +6,7 @@ import { isManualPaymentProvider } from './paymentOperations'
 import { DomainError } from './lib/errors'
 import { canCancelFulfillment, isUnpaidPickupPayment } from './lib/fulfillment-cancel'
 import { notifyOrderReady } from './pickupNotice'
+import { lotSafeToHandOver } from '../workflows/lot-eligibility'
 
 const ORDER_STATUS: Record<string, string> = {
   preparing: 'processing',
@@ -51,6 +52,12 @@ async function transitionInTransaction(args: { fulfillmentId: string; status: st
     // Pay-at-pickup (manual provider) payments are collected at handoff.
     const pickupPayments = payments.filter((payment: any) => payment.status === 'pending' && isManualPaymentProvider(payment.provider || {}))
     if (args.status === 'handed_off' && !payments.some((payment: any) => payment.status === 'captured') && !pickupPayments.length) throw new DomainError('Payment must be captured before handoff')
+    if (args.status === 'handed_off' && fulfillment.status !== 'handed_off') {
+      const lotIds = [...new Set((fulfillment.order.lineItems || []).flatMap((line: any) => (Array.isArray(line.lotAllocationSnapshot) ? line.lotAllocationSnapshot : []).map((allocation: any) => allocation.lotId)).filter(Boolean))] as string[]
+      const lots = lotIds.length ? await sudo.query.InventoryLot.findMany({ where: { id: { in: lotIds } }, query: 'id lotNumber status expirationDate recalls { status } location { timezone }' }) : []
+      const unsafe = (lots as any[]).find((lot) => !lotSafeToHandOver(lot))
+      if (unsafe) throw new DomainError(`Lot ${unsafe.lotNumber} is recalled, quarantined or expired; this order cannot be handed over`)
+    }
     if (fulfillment.status === args.status) {
       return { success: true, reused: true, fulfillmentId: fulfillment.id, orderId: fulfillment.order.id, status: args.status, approvalId: fulfillment.order.approval?.id }
     }
