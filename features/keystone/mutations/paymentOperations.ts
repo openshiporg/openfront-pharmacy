@@ -139,6 +139,9 @@ export async function refundPharmacyPayment(
   })
 }
 
+/** Payment session states whose money was returned or is being returned. */
+export const SPENT_PAYMENT_SESSION_STATUSES = ['compensated', 'compensation_pending', 'refunded']
+
 export async function initiatePharmacyPaymentSession(
   _root: unknown,
   args: { cartId: string; providerCode: string; guestToken?: string | null },
@@ -157,9 +160,11 @@ export async function initiatePharmacyPaymentSession(
   const prepared = await withDomainTransaction(context, [`cart:${cart.id}`, `payment-session:${idempotencyKey}`], async (transactionContext) => {
     const sudo = transactionContext.sudo()
     const existing = await sudo.query.PaymentSession.findOne({ where: { idempotencyKey }, query: 'id amount currencyCode status externalPaymentId data provider { code name }' })
-    if (existing?.externalPaymentId) return existing
+    // A refunded or compensated payment can never pay for an order again.
+    if (existing && SPENT_PAYMENT_SESSION_STATUSES.includes(existing.status)) throw new DomainError('This payment was refunded. Change your cart to pay again.')
     const current = await loadAndAssertCartAccess(transactionContext, cart.id, args.guestToken)
-    for (const session of current.paymentSessions.filter((entry: any) => entry.isSelected)) {
+    // The session handed back is always the selected one, including a reused session that already has a provider payment.
+    for (const session of current.paymentSessions.filter((entry: any) => entry.isSelected && entry.id !== existing?.id)) {
       await sudo.query.PaymentSession.updateOne({ where: { id: session.id }, data: { isSelected: false } })
     }
     if (existing) {
@@ -186,7 +191,7 @@ export async function initiatePharmacyPaymentSession(
 
   let providerData: any
   try {
-    providerData = await createPayment({ provider, cart: { id: cart.id }, amount: cart.totalAmount, currency: prepared.currencyCode })
+    providerData = await createPayment({ provider, cart: { id: cart.id }, amount: prepared.amount, currency: prepared.currencyCode })
   } catch (error) {
     await withDomainTransaction(context, [`payment-session:${prepared.id}`], async (transactionContext) => {
       await transactionContext.sudo().query.PaymentSession.updateOne({

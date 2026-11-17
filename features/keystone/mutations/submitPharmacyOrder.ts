@@ -9,7 +9,7 @@ import { requirePermission, requireTenantMembership } from './lib/authorization'
 import { isCartExpired, loadAndAssertCartAccess } from './lib/cartAccess'
 import { recordAudit } from './lib/evidence'
 import { acquireTransactionLocks, withDomainTransaction } from './lib/transaction'
-import { isManualPaymentProvider, PAYMENT_PROVIDER_ADAPTER_FIELDS } from './paymentOperations'
+import { isManualPaymentProvider, PAYMENT_PROVIDER_ADAPTER_FIELDS, SPENT_PAYMENT_SESSION_STATUSES } from './paymentOperations'
 import { DomainError } from './lib/errors'
 import { productPhotoSnapshot } from '../lib/product-photo'
 
@@ -112,6 +112,7 @@ export async function submitPharmacyOrder(
   const paymentSession = cart.paymentSessions.find((session: any) => session.id === input.paymentSessionId)
   if (!paymentSession?.isSelected || !paymentSession.provider?.isInstalled) throw new DomainError('Selected payment session not found for this cart')
   if (paymentSession.amount !== cart.totalAmount) throw new DomainError('Payment amount does not match cart total')
+  if (SPENT_PAYMENT_SESSION_STATUSES.includes(paymentSession.status)) throw new DomainError('This payment was refunded. Start payment again.')
   const paymentId = paymentSession.externalPaymentId || paymentSession.data?.paymentIntentId || paymentSession.data?.orderId
   if (!paymentId) throw new DomainError('Payment session is missing provider payment id')
   const provider = await context.sudo().query.PaymentProvider.findOne({ where: { id: paymentSession.provider.id }, query: PAYMENT_PROVIDER_ADAPTER_FIELDS })
@@ -140,6 +141,8 @@ export async function submitPharmacyOrder(
     })
   })
 
+  // The order total must equal what the provider actually charged, not only the session's own record.
+  if (!manualTender && Number((paymentStatus as any).amount) !== paymentSession.amount) throw new DomainError('Charged amount does not match the order total; the payment is listed for staff to refund')
   const productIds = [...new Set(cart.items.map((item: any) => item.product.id))] as string[]
   try {
     return await withDomainTransaction(context, [`cart:${cart.id}`, ...productIds.map((id) => `product:${id}`)], async (transactionContext) => {
