@@ -1,1 +1,1 @@
-export { AccountPageLayout as default, metadata } from '@/features/storefront/screens/AccountPageLayout'
+export { AccountPageLayout as default, generateMetadata } from '@/features/storefront/screens/AccountPageLayout'

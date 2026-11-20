@@ -3,8 +3,14 @@ import type { Metadata } from 'next'
 
 import { AccountNav } from '../modules/account/components/account-nav'
 import { getCustomer } from '../lib/data/user'
+import { getStorefront } from '../lib/data/store'
 
-export const metadata: Metadata = { title: 'Account' }
+// The account segment declares its own title, which ends the storefront template,
+// so it carries the brand template forward for Sign in, Reset password and Profile tabs.
+export async function generateMetadata(): Promise<Metadata> {
+  const name = (await getStorefront())?.brand.displayName || 'Pharmacy'
+  return { title: { template: `%s | ${name}`, default: `Account | ${name}` } }
+}
 
 export async function AccountPageLayout({ dashboard, login }: { dashboard?: ReactNode; login?: ReactNode }) {
   const customer = await getCustomer()
