@@ -97,7 +97,7 @@ function StoreSettingsForm({ store, canEdit = true }: { store: StoreSettings; ca
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
-      <div className="space-y-5">
+      <fieldset disabled={!canEdit} className="min-w-0 space-y-5">
         <section className="space-y-4 rounded-[6px] bg-background p-4 border border-border sm:p-5">
           <h2 className="text-sm font-semibold">Store</h2>
           <div className="grid gap-2">
@@ -275,7 +275,7 @@ function StoreSettingsForm({ store, canEdit = true }: { store: StoreSettings; ca
           />
           {saved && <p role="status" className={saved.ok ? 'text-sm text-muted-foreground' : 'text-sm text-red-700 dark:text-red-300'}>{saved.text}</p>}
         </div>}
-      </div>
+      </fieldset>
 
       <div className="space-y-2 lg:sticky lg:top-4">
         <h2 className="text-sm font-semibold">Storefront</h2>

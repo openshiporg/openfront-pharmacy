@@ -25,7 +25,7 @@ export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id
   const parent = { label: 'Drug references', href: '/platform/drug-references' }
   if (!response.success || !response.data.drugReference) notFound()
   const drug = response.data.drugReference
-  const canManage = await roleCan('canManageCatalog')
+  const [canManage, canApprove] = await Promise.all([roleCan('canManageCatalog'), roleCan('canApproveConsequentialActions')])
   const activeReview = drug.reviews.find((review) => review.status === 'active')
   const name = `${drug.proprietaryName}${drug.strength ? ` ${drug.strength}` : ''}`
 
@@ -46,7 +46,7 @@ export async function DrugReferenceDetailPage({ params }: { params: Promise<{ id
         <p className="mt-0.5 text-muted-foreground">{humanize(review.marketingStatusSnapshot)} · {humanize(review.controlledScheduleSnapshot)} · {review.sourceReference}</p>
         <p className="mt-0.5 font-mono text-[12px] text-muted-foreground">{review.reviewedBy?.name}{review.organization ? ` · ${review.organization.name}` : ''} · {shortDate(review.reviewedAt)}</p>
       </div>)}</ListBand> : null}
-      {canManage && <DrugReviewForm drugReferenceId={drug.id} organizations={response.data.organizations} />}
+      {canManage && canApprove && <DrugReviewForm drugReferenceId={drug.id} organizations={response.data.organizations} />}
     </TaskSection>
 
     <TaskSection title="Products" count={drug.products.length}>

@@ -34,7 +34,7 @@ export function OrderDetails({ order }: { order: GuestPharmacyOrderProjection })
 
     <dl className="mt-6 grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
       <Field label="Placed">{formatStoreDate(order.createdAt, order.locationTimezone)}</Field>
-      <Field label="Method">{order.fulfillmentMethod === 'delivery' ? 'Delivery' : 'Pickup'}</Field>
+      <Field label="Method">{order.fulfillmentMethod === 'delivery' ? 'Delivery' : order.fulfillmentMethod === 'pos' ? 'In store' : 'Pickup'}</Field>
       {order.pickupAt && <Field label="Pickup">{formatStoreDateTime(order.pickupAt, order.locationTimezone)}</Field>}
       {order.fulfillment?.readyAt && <Field label="Ready">{formatStoreDateTime(order.fulfillment.readyAt, order.locationTimezone)}</Field>}
       {order.deliveryWindow && <Field label="Delivery window">{order.deliveryWindow}</Field>}
