@@ -153,6 +153,8 @@
   :is([role="option"], [role^="menuitem"]):not(.storefront-brand *) { padding-block: 12px; }
   :is(input, select, textarea) { font-size: 16px; max-width: 100%; }
   :is([role="dialog"], main, form, fieldset) { min-width: 0; }
+  /* A grid cell never forces its column wider than the screen. */
+  .grid > * { min-width: 0; }
 }
 
 /* Staff tables on a phone: each row becomes a stacked record, so nothing runs off the edge. */
