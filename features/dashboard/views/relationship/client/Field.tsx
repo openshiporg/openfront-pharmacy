@@ -240,7 +240,8 @@ export function ClientField({
                 </>
               )}
 
-              {onChange !== undefined &&
+              {/* A field that hides create also hides the "Set as <me>" shortcut: both are database-admin conveniences. */}
+              {onChange !== undefined && !field?.hideCreate &&
                 authenticatedItem?.state === "authenticated" &&
                 authenticatedItem.listKey === field?.refListKey &&
                 (value?.kind === "many"

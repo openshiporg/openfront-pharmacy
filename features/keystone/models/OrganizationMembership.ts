@@ -84,9 +84,10 @@ export const OrganizationMembership = list({
   ui: { listView: { initialColumns: ['user', 'organization', 'location', 'membershipRole', 'status'] } },
   fields: {
     membershipKey: text({ isIndexed: 'unique', access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
-    user: relationship({ ref: 'User.memberships', db: requiredRelationshipDb }),
+    // Staff are picked from existing people; inviting a new person happens under Users.
+    user: relationship({ ref: 'User.memberships', db: requiredRelationshipDb, ui: { hideCreate: true } }),
     organization: relationship({ ref: 'Organization.memberships', db: requiredRelationshipDb, ui: notOnCreate }),
-    location: relationship({ ref: 'PharmacyLocation.memberships', ui: { description: 'Leave empty for access to every location.' } }),
+    location: relationship({ ref: 'PharmacyLocation.memberships', ui: { hideCreate: true, description: 'Leave empty for access to every location.' } }),
     membershipRole: select({
       access: { update: notOwnMembership },
       type: 'string',

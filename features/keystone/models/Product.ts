@@ -151,7 +151,7 @@ export const Product = list({
     }),
     organization: relationship({ ref: 'Organization.products', db: requiredRelationshipDb, ui: notOnCreate }),
     location: relationship({ ref: 'PharmacyLocation.products', db: requiredRelationshipDb, ui: notOnCreate }),
-    drugReference: relationship({ ref: 'DrugReference.products', label: 'Drug reference (needed for prescription items)' }),
+    drugReference: relationship({ ref: 'DrugReference.products', label: 'Drug reference (needed for prescription items)', ui: { hideCreate: true } }),
     inventoryLots: relationship({ ref: 'InventoryLot.product', many: true, access: immutableRelationship, ui: notOnCreate }),
     cartItems: relationship({ ref: 'CartItem.product', many: true, access: immutableRelationship, ui: notOnCreate }),
     orderLineItems: relationship({ ref: 'OrderLineItem.product', many: true, access: immutableRelationship, ui: notOnCreate }),

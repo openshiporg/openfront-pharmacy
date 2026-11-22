@@ -109,7 +109,7 @@ export function CreateItemDrawerClient({
                   Creating...
                 </>
               ) : (
-                `Add ${name}`
+                'Add'
               )}
             </Button>
           </div>
