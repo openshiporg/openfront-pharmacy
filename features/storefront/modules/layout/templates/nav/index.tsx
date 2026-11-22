@@ -114,16 +114,16 @@ export default function Nav({ brand, location, cartCount, categories, signedIn, 
             {location && <Link href="/prescriptions#location" className="inline-flex min-w-0 items-center gap-1.5 hover:text-primary"><MapPin aria-hidden="true" className="size-4 shrink-0" strokeWidth={1.7} /><span className="truncate">{typeof location.address?.line1 === 'string' ? location.address.line1 : location.name}</span><ChevronDown aria-hidden="true" className="size-3.5" /></Link>}
             {hours && <span className="hidden items-center gap-1.5 whitespace-nowrap xl:inline-flex"><Clock aria-hidden="true" className="size-4" strokeWidth={1.7} />{hours}</span>}
           </div>
-          <HeaderSearch pill placeholder="Search products…" className="w-full max-w-[30rem] flex-1" />
+          <HeaderSearch className="w-full max-w-[26rem] flex-1" />
           {phone && <a href={`tel:${phone}`} className="hidden items-center gap-2.5 whitespace-nowrap xl:inline-flex"><Phone aria-hidden="true" className="size-6 text-primary" strokeWidth={1.6} /><span className="grid leading-tight"><span className="text-[13px] text-muted-foreground">Questions?</span><span className="rx-num rx-serif text-[19px] text-primary">{phone}</span></span></a>}
           <Link href="/account" className="ml-auto inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap text-[15px] hover:text-primary"><UserRound aria-hidden="true" className="size-[18px]" strokeWidth={1.7} />{signedIn ? 'Account' : 'Sign in'}</Link>
+          <CartLink cartCount={cartCount} />
         </div>
         <div className="mx-auto flex max-w-[90rem] items-center gap-10 px-8 pb-1 xl:px-16">
           <Link href="/" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Home</Link>
           <Link href="/products" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Products</Link>
           <PrimaryNav categories={categories} location={location} phone={phone} />
           <Link href="/order-status" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Track order</Link>
-          <Link href="/cart" className="rx-serif ml-auto inline-flex min-h-9 items-center gap-2 rounded-2xl bg-primary px-4 text-[16px] text-primary-foreground hover:brightness-110"><ShoppingCart aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />Cart{cartCount > 0 && <span className="rx-num rounded-full bg-primary-foreground/20 px-2 text-[14px] leading-6">{cartCount}</span>}</Link>
         </div>
       </div>}
   </header>

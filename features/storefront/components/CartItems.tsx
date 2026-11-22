@@ -10,7 +10,6 @@ import { prescriptionRequirementLabel } from '../lib/catalog-availability'
 import { updateCartItem } from '../lib/data/cart'
 import { formatMoney } from '../lib/money'
 import { ProductImage } from './ProductImage'
-import { trackClass } from './rx-ui'
 
 const stepClass = 'grid size-8 place-items-center rounded-2xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50 max-sm:size-9'
 
@@ -33,14 +32,14 @@ export function CartItems({ items }: { items: PharmacyCartProjection['items'] })
       {items.map((item) => {
         const requirement = prescriptionRequirementLabel(item.product.prescriptionRequirement)
         return <li key={item.id} className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-x-4 gap-y-1 py-4 sm:gap-4 sm:py-5 sm:grid-cols-[5rem_minmax(0,1fr)_auto] sm:items-center">
-          <Link href={`/products/${encodeURIComponent(item.product.handle)}`} className="relative size-[4.5rem] overflow-hidden rounded-2xl border border-border bg-muted sm:size-20"><ProductImage src={item.product.imageUrl} alt="" sizes="80px" /></Link>
+          <Link href={`/products/${encodeURIComponent(item.product.handle)}`} className="relative row-span-2 size-[4.5rem] self-start overflow-hidden rounded-2xl border border-border bg-muted sm:row-span-1 sm:size-20 sm:self-auto"><ProductImage src={item.product.imageUrl} alt="" sizes="80px" /></Link>
           <div className="min-w-0">
             <h3 className="rx-serif text-[18px] leading-snug">{item.product.title}</h3>
             <p className="rx-num mt-1 text-sm text-muted-foreground">{formatMoney(item.unitPriceAmount, item.product.currencyCode)}</p>
             {requirement && <p className="mt-1 text-[13px] font-medium text-accent-foreground">{requirement}</p>}
           </div>
-          <div className="col-start-2 flex items-center justify-between gap-3 sm:col-start-auto sm:justify-end">
-            <div role="group" aria-label={`Quantity of ${item.product.title}`} className={`${trackClass} gap-1`}>
+          <div className="col-start-2 -ml-2.5 flex items-center justify-between gap-3 sm:col-start-auto sm:ml-0 sm:justify-end">
+            <div role="group" aria-label={`Quantity of ${item.product.title}`} className="flex shrink-0 items-center gap-1">
               <button type="button" aria-label={`Decrease ${item.product.title}`} disabled={pending} className={stepClass} onClick={() => change(item.id, item.quantity - 1)}><Minus className="size-3.5" /></button>
               <span className="rx-num w-6 text-center text-sm" aria-live="polite">{item.quantity}</span>
               <button type="button" aria-label={`Increase ${item.product.title}`} disabled={pending} className={stepClass} onClick={() => change(item.id, item.quantity + 1)}><Plus className="size-3.5" /></button>
