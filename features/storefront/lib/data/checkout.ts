@@ -95,8 +95,20 @@ export async function startCheckout(input: PlaceOrderInput): Promise<StorefrontR
   if (invalid) return { success: false, error: invalid }
 
   const session = await storefrontRequest<{ initiatePharmacyPaymentSession: PharmacyPaymentSessionResult }>(
-    'mutation StorefrontPayment($cartId: ID!, $guestToken: String, $providerCode: String!) { initiatePharmacyPaymentSession(cartId: $cartId, guestToken: $guestToken, providerCode: $providerCode) { id status clientSecret } }',
-    { ...stored, providerCode: input.providerCode },
+    'mutation StorefrontPayment($cartId: ID!, $guestToken: String, $providerCode: String!, $checkout: JSON) { initiatePharmacyPaymentSession(cartId: $cartId, guestToken: $guestToken, providerCode: $providerCode, checkout: $checkout) { id status clientSecret } }',
+    {
+      ...stored,
+      providerCode: input.providerCode,
+      checkout: {
+        email: input.email.trim(),
+        phone: input.phone.trim(),
+        customerName: input.name.trim(),
+        fulfillmentMethod: input.fulfillmentMethod,
+        shippingAddress: input.fulfillmentMethod === 'delivery' ? input.shippingAddress ?? null : null,
+        privacyConsentAccepted: true,
+        ...CHECKOUT_POLICY,
+      },
+    },
     'Payment could not be started. Please try again.',
   )
   if (!session.success) return session

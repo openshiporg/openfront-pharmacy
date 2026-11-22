@@ -76,7 +76,16 @@ export async function submitPharmacyOrder(
   args: { input: CheckoutInput },
   context: Context,
 ) {
-  const input = args.input
+  return placePharmacyOrder(args.input, context, false)
+}
+
+/** The card sweep's entry: same checkout, for a cart whose card payment Stripe already settled. */
+export async function submitSettledPharmacyOrder(input: CheckoutInput, context: Context) {
+  if (input.fulfillmentMethod === 'pos') throw new DomainError('Point-of-sale orders are not finished by the card sweep')
+  return placePharmacyOrder(input, context, true)
+}
+
+async function placePharmacyOrder(input: CheckoutInput, context: Context, trusted: boolean) {
   if (!['pickup', 'delivery', 'pos'].includes(input.fulfillmentMethod)) throw new DomainError('Fulfillment method is invalid')
   requireCheckoutConsent(input)
   const idempotencyKey = input.idempotencyKey?.trim()
@@ -96,7 +105,7 @@ export async function submitPharmacyOrder(
   }
   if (input.deliveryWindow && (input.fulfillmentMethod !== 'delivery' || input.deliveryWindow.trim().length > 120)) throw new DomainError('A delivery window is only accepted for delivery orders')
   if (input.fulfillmentMethod === 'delivery' && !shippingAddress) throw new DomainError('A delivery address is required')
-  const cart = await loadAndAssertCartAccess(context, input.cartId, input.guestToken, { allowSubmitted: true, allowExpired: true })
+  const cart = await loadAndAssertCartAccess(context, input.cartId, input.guestToken, { allowSubmitted: true, allowExpired: true, trusted })
   const replayToken = context.session?.itemId ? null : createGuestOrderToken(cart.id, idempotencyKey)
   if (cart.status === 'submitted') return checkoutReplay(cart, idempotencyKey, replayToken)
 
@@ -152,7 +161,7 @@ export async function submitPharmacyOrder(
       query: 'id',
     })
     await acquireTransactionLocks(transactionContext, transactionLots.map((lot: any) => `lot:${lot.id}`))
-    const accessCart = await loadAndAssertCartAccess(transactionContext, input.cartId, input.guestToken, { allowSubmitted: true, allowExpired: completingSettledPayment })
+    const accessCart = await loadAndAssertCartAccess(transactionContext, input.cartId, input.guestToken, { allowSubmitted: true, allowExpired: completingSettledPayment, trusted })
     if (accessCart.status === 'submitted') return checkoutReplay(accessCart, idempotencyKey, replayToken)
     const current = await sudo.query.Cart.findOne({
       where: { id: cart.id },

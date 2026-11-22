@@ -11,7 +11,7 @@ export async function loadAndAssertCartAccess(
   context: Context,
   cartId: string,
   guestToken?: string | null,
-  options: { allowSubmitted?: boolean; allowExpired?: boolean } = {},
+  options: { allowSubmitted?: boolean; allowExpired?: boolean; trusted?: boolean } = {},
 ) {
   const cart = await context.sudo().query.Cart.findOne({
     where: { id: cartId },
@@ -38,6 +38,8 @@ export async function loadAndAssertCartAccess(
   // so honouring it is safe, while refusing would leave captured money with no order and no refund.
   if (!options.allowExpired && isCartExpired(cart)) throw new DomainError('Cart has expired')
 
+  // trusted: the server's own card sweep, finishing a checkout whose payment Stripe reports as settled.
+  if (options.trusted) return cart
   const userId = context.session?.itemId
   if (userId) {
     if (cart.customer?.id !== userId) throw new DomainError('You do not have access to this cart')

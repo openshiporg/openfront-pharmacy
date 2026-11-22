@@ -4299,7 +4299,7 @@ type Mutation {
   addPharmacyCartItem(cartId: ID!, productId: ID!, quantity: Int!, guestToken: String): PharmacyCart!
   updatePharmacyCartItem(cartItemId: ID!, quantity: Int!, guestToken: String): PharmacyCart!
   removePharmacyCartItem(cartItemId: ID!, guestToken: String): PharmacyCart!
-  initiatePharmacyPaymentSession(cartId: ID!, providerCode: String!, guestToken: String): PharmacyPaymentSessionResult!
+  initiatePharmacyPaymentSession(cartId: ID!, providerCode: String!, guestToken: String, checkout: JSON): PharmacyPaymentSessionResult!
   submitPharmacyOrder(input: SubmitPharmacyOrderInput!): SubmitPharmacyOrderResult!
   refundPharmacyPayment(paymentId: ID!, reason: String!, attested: Boolean!): PharmacyRefundResult!
   refundPharmacyCashPayment(paymentId: ID!, cashReturnedAmount: Int!, idempotencyKey: String!, reason: String!, attested: Boolean!): PharmacyRefundResult!

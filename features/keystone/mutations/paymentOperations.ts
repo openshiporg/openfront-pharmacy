@@ -52,6 +52,29 @@ function paymentProviderOption(provider: any) {
   return { code: provider.code, name: provider.name, payAtPickup: isManualPaymentProvider(provider) }
 }
 
+/**
+ * The contact and pickup details the customer entered, kept on the card session so the server can finish the
+ * order if the customer pays and closes the tab before the browser does (there is no Stripe webhook slot).
+ */
+function checkoutDetails(value: unknown) {
+  if (!value || typeof value !== 'object') return null
+  const raw = value as Record<string, unknown>
+  const text = (key: string, max: number) => (typeof raw[key] === 'string' ? (raw[key] as string).trim().slice(0, max) : '')
+  const fulfillmentMethod = raw.fulfillmentMethod === 'delivery' ? 'delivery' : 'pickup'
+  const address = raw.shippingAddress && typeof raw.shippingAddress === 'object' ? raw.shippingAddress : null
+  if (!text('email', 320) || !text('customerName', 120) || raw.privacyConsentAccepted !== true) return null
+  return {
+    email: text('email', 320),
+    phone: text('phone', 40),
+    customerName: text('customerName', 120),
+    fulfillmentMethod,
+    shippingAddress: fulfillmentMethod === 'delivery' ? address : null,
+    privacyConsentAccepted: true,
+    policyVersion: text('policyVersion', 40),
+    statementKey: text('statementKey', 120),
+  }
+}
+
 function paymentSessionResult(session: any) {
   return {
     id: session.id,
@@ -144,10 +167,11 @@ export const SPENT_PAYMENT_SESSION_STATUSES = ['compensated', 'compensation_pend
 
 export async function initiatePharmacyPaymentSession(
   _root: unknown,
-  args: { cartId: string; providerCode: string; guestToken?: string | null },
+  args: { cartId: string; providerCode: string; guestToken?: string | null; checkout?: unknown },
   context: Context,
 ) {
   const cart = await loadAndAssertCartAccess(context, args.cartId, args.guestToken)
+  const checkout = checkoutDetails(args.checkout)
   if (!cart.items.length || cart.totalAmount < 1) throw new DomainError('Cart is empty')
   const provider = (await context.sudo().query.PaymentProvider.findMany({
     where: { code: { equals: args.providerCode }, organization: { id: { equals: cart.organization.id } } },
@@ -187,7 +211,11 @@ export async function initiatePharmacyPaymentSession(
       query: 'id amount currencyCode status externalPaymentId data provider { code name }',
     })
   })
-  if (prepared.externalPaymentId) return paymentSessionResult(prepared)
+  if (prepared.externalPaymentId) {
+    if (!checkout) return paymentSessionResult(prepared)
+    const updated = await context.sudo().query.PaymentSession.updateOne({ where: { id: prepared.id }, data: { data: { ...(prepared.data || {}), checkout } }, query: 'id amount currencyCode status externalPaymentId data provider { code name }' })
+    return paymentSessionResult(updated)
+  }
 
   let providerData: any
   try {
@@ -210,7 +238,7 @@ export async function initiatePharmacyPaymentSession(
       data: {
         status: normalizeStatus(providerData.status),
         externalPaymentId,
-        data: providerData,
+        data: checkout ? { ...providerData, checkout } : providerData,
         reconciliationStatus: 'pending',
         lastReconciledAt: new Date().toISOString(),
       },
