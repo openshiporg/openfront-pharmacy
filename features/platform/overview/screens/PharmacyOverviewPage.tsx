@@ -133,12 +133,12 @@ export async function PharmacyOverviewPage() {
         <section aria-labelledby="overview-attention">
           <h2 id="overview-attention" className="mb-2 flex items-baseline gap-2 text-[13px] font-semibold text-foreground">Needs attention {attention.length > 0 && <Count>{attention.length}</Count>}</h2>
           {attention.length
-            ? <div className="relative overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full min-w-[420px] border-collapse text-[13px]">
+            ? <div className="relative overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full border-collapse text-[13px]">
               <thead className="bg-muted/50"><tr className="border-b border-border"><th scope="col" className={th}>Item</th><th scope="col" className={`${th} text-right`}>Count</th><th scope="col" className={th}><span className="sr-only">Action</span></th></tr></thead>
               <tbody>{attention.map((entry) => <tr key={entry.label} className="border-b border-border/70 last:border-b-0 hover:bg-muted/30">
                 <td className="px-3 py-2"><StatusText tone={entry.tone}>{entry.label}</StatusText></td>
                 <td className="px-3 py-2 text-right font-semibold tabular-nums">{entry.count}</td>
-                <td className="w-px px-3 py-1.5 text-right"><Link href={entry.href} className={buttonClass}>{entry.action}</Link></td>
+                <td className="w-px whitespace-nowrap px-3 py-1.5 text-right"><Link href={entry.href} className={buttonClass}>{entry.action}</Link></td>
               </tr>)}</tbody>
             </table></div>
             : <Callout tone="muted" title="Nothing needs attention">Every queue below is clear.</Callout>}
@@ -146,15 +146,15 @@ export async function PharmacyOverviewPage() {
 
         <section aria-labelledby="overview-queues">
           <h2 id="overview-queues" className="mb-2 text-[13px] font-semibold text-foreground">Queues</h2>
-          <div className="relative overflow-x-auto rounded-[6px] border border-border bg-card"><table className="w-full min-w-[760px] border-collapse text-[13px]">
+          <div className="relative overflow-x-auto rounded-[6px] border border-border bg-card"><table className="rx-stack w-full min-w-[760px] border-collapse text-[13px]">
             <thead className="bg-muted/50"><tr className="border-b border-border"><th scope="col" className={th}>Queue</th><th scope="col" className={`${th} text-right`}>Records</th><th scope="col" className={th}>Lead</th><th scope="col" className={th}>Also</th><th scope="col" className={th}>State</th><th scope="col" className={th}><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>{queues.map((queue) => <tr key={queue.href} className="border-b border-border/70 align-baseline last:border-b-0 hover:bg-muted/30">
               <td className="px-3 py-2.5 font-medium"><Link href={queue.href} className="underline-offset-4 hover:underline">{queue.title}</Link></td>
-              <td className="px-3 py-2.5 text-right tabular-nums">{queue.total}{queue.partial ? '+' : ''}</td>
+              <td data-label="Records" className="px-3 py-2.5 text-right tabular-nums">{queue.total}{queue.partial ? '+' : ''}</td>
               <td className="px-3 py-2.5">{queue.error ? <span className="text-muted-foreground">{queue.error}</span> : <><span className="font-semibold tabular-nums">{queue.lead.value}</span> <span className="text-muted-foreground">{queue.lead.label.toLowerCase()}</span></>}</td>
-              <td className="px-3 py-2.5 text-muted-foreground">{!queue.error && queue.metrics.map((metric) => `${metric.label} ${metric.value}`).join(' · ')}</td>
+              <td data-label="Also" className="px-3 py-2.5 text-muted-foreground">{!queue.error && queue.metrics.map((metric) => `${metric.label} ${metric.value}`).join(' · ')}</td>
               <td className="whitespace-nowrap px-3 py-2.5"><StatusText tone={queue.tone}>{queue.state}</StatusText></td>
-              <td className="px-3 py-1.5 text-right"><div className="inline-flex gap-1.5">{queue.action && <Link href={queue.action.href} className={buttonClass}>{queue.action.label}</Link>}<RaisedLink href={queue.href}>Open<ChevronRight aria-hidden="true" className="size-3.5" /></RaisedLink></div></td>
+              <td className="rx-stack-actions px-3 py-1.5 text-right"><div className="inline-flex gap-1.5">{queue.action && <Link href={queue.action.href} className={buttonClass}>{queue.action.label}</Link>}<RaisedLink href={queue.href}>Open<ChevronRight aria-hidden="true" className="size-3.5" /></RaisedLink></div></td>
             </tr>)}</tbody>
           </table></div>
         </section>

@@ -40,9 +40,9 @@ function OperationalRow({ item, attention, columns }: { item: OperationalItem; a
         <span className="block min-w-0 font-medium text-foreground">{item.href ? <Link href={item.href} className="underline-offset-4 hover:underline">{item.title}</Link> : item.title}</span>
         {item.subtitle && <span className="block break-words text-xs text-muted-foreground">{item.subtitle}</span>}
       </td>
-      {columns.map((label) => <td key={label} className="max-w-56 break-words px-3 py-2 align-baseline text-muted-foreground" title={value(label)}>{value(label) || '—'}</td>)}
+      {columns.map((label) => <td key={label} data-label={label} className="max-w-56 break-words px-3 py-2 align-baseline text-muted-foreground" title={value(label)}>{value(label) || '—'}</td>)}
       <td className="whitespace-nowrap px-3 py-2 align-baseline"><StatusText tone={attention ? 'warn' : statusTone(item.status)}>{statusLabel(item.status)}</StatusText></td>
-      <td className="px-3 py-1.5 text-right align-baseline">
+      <td className="rx-stack-actions px-3 py-1.5 text-right align-baseline">
         <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
           {item.actions}
           {Boolean(item.details?.length) && <button type="button" onClick={() => setOpen((current) => !current)} aria-expanded={open} aria-controls={`details-${item.id}`} className={cn(buttonClass, 'border-transparent bg-transparent px-2 shadow-none text-muted-foreground')}>Details<ChevronDown aria-hidden="true" className={cn('size-3.5 transition-transform duration-200', open && 'rotate-180')} /></button>}
@@ -143,7 +143,7 @@ export function OperationalPage(props: {
           {filteredItems.length === 0
             ? <EmptyBand>No results match these filters</EmptyBand>
             : <div className="relative min-w-0 overflow-x-auto rounded-[6px] border border-border bg-card">
-              <table aria-label={props.title} className="w-full min-w-[640px] border-collapse text-[13px]">
+              <table aria-label={props.title} className="rx-stack w-full min-w-[640px] border-collapse text-[13px]">
                 <thead className="bg-muted/50"><tr className="border-b border-border">
                   <th scope="col" className="h-8 px-3 text-left text-xs font-medium text-muted-foreground">{props.title.replace(/s$/, '')}</th>
                   {columns.map((label) => <th key={label} scope="col" className="h-8 whitespace-nowrap px-3 text-left text-xs font-medium text-muted-foreground">{label}</th>)}

@@ -154,3 +154,17 @@
   :is(input, select, textarea) { font-size: 16px; max-width: 100%; }
   :is([role="dialog"], main, form, fieldset) { min-width: 0; }
 }
+
+/* Staff tables on a phone: each row becomes a stacked record, so nothing runs off the edge. */
+@media (max-width: 639px) {
+  table.rx-stack { display: block; min-width: 0 !important; }
+  table.rx-stack > thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  table.rx-stack > tbody { display: block; }
+  table.rx-stack > tbody > tr { display: block; padding: 10px 0; }
+  table.rx-stack > tbody > tr > td { display: block; width: auto; max-width: none; padding: 2px 14px; text-align: left; white-space: normal; }
+  table.rx-stack > tbody > tr > td:empty { display: none; }
+  table.rx-stack > tbody > tr > td[data-label]::before { content: attr(data-label) ": "; color: var(--muted-foreground); font-weight: 400; }
+  table.rx-stack > tbody > tr > td[data-label] > * { display: inline; }
+  table.rx-stack > tbody > tr > td.rx-stack-actions { padding-top: 8px; }
+  table.rx-stack > tbody > tr > td.rx-stack-actions > div { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+}

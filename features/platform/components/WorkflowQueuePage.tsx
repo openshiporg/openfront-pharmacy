@@ -84,10 +84,10 @@ function QueueRow({ item }: { item: WorkflowQueueItem }) {
       </ul>}
     </td>
     <td className="max-w-48 px-3 py-2.5 text-muted-foreground">{lead && <span className="block break-words" title={lead.value}>{lead.value || 'Not recorded'}</span>}{second && <span className="block truncate text-xs" title={second.value}>{second.value || 'Not recorded'}</span>}</td>
-    <td className="whitespace-nowrap px-3 py-2.5">{humanize(item.state).replace(/^./, (letter) => letter.toUpperCase())}</td>
-    <td className="whitespace-nowrap px-3 py-2.5 text-muted-foreground tabular-nums">{item.ageLabel}<span className="block text-xs">{item.location}</span></td>
-    <td className="px-3 py-2.5 font-medium" title={item.decisionHint}>{item.nextDecision}</td>
-    <td className="px-3 py-2 text-right"><Link href={item.href} aria-label={`Open ${item.title}`} className={buttonClass}>Open<ChevronRight aria-hidden="true" className="size-3.5" /></Link></td>
+    <td data-label="State" className="whitespace-nowrap px-3 py-2.5">{humanize(item.state).replace(/^./, (letter) => letter.toUpperCase())}</td>
+    <td data-label="Age" className="whitespace-nowrap px-3 py-2.5 text-muted-foreground tabular-nums">{item.ageLabel}<span className="block text-xs max-sm:before:content-['_·_']">{item.location}</span></td>
+    <td data-label="Next" className="px-3 py-2.5 font-medium" title={item.decisionHint}>{item.nextDecision}</td>
+    <td className="rx-stack-actions px-3 py-2 text-right"><Link href={item.href} aria-label={`Open ${item.title}`} className={buttonClass}>Open<ChevronRight aria-hidden="true" className="size-3.5" /></Link></td>
   </tr>
 }
 
@@ -183,7 +183,7 @@ export function WorkflowQueuePage(props: {
         {filteredItems.length === 0
           ? <EmptyBand>No results match these filters</EmptyBand>
           : <div className="relative min-w-0 overflow-x-auto rounded-[6px] border border-border bg-card">
-            <table aria-label={props.title} className="w-full min-w-[860px] border-collapse text-[13px]">
+            <table aria-label={props.title} className="rx-stack w-full min-w-[860px] border-collapse text-[13px]">
               <thead className="bg-muted/50"><tr className="border-b border-border text-left text-xs font-medium text-muted-foreground">
                 <th scope="col" className="h-8 px-3 font-medium">Priority</th>
                 <th scope="col" className="h-8 px-3 font-medium">{props.title.replace(/s$/, '')}</th>
