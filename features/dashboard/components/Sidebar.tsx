@@ -53,6 +53,7 @@ interface User {
   role?: {
     canAccessDashboard?: boolean;
     canManageOnboarding?: boolean;
+    canManageRoles?: boolean;
   };
 }
 
@@ -268,8 +269,8 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
           </SidebarMenu>
         </SidebarGroup>
 
-        {/* Models */}
-        <SidebarGroup>
+        {/* Raw records: for the store administrator only, the way E-commerce keeps Models off staff screens. */}
+        {user?.role?.canManageRoles && modelLinks.length > 0 && <SidebarGroup>
           <SidebarGroupLabel>Advanced</SidebarGroupLabel>
           <SidebarMenu className="group-has-[[data-collapsible=icon]]/sidebar-wrapper:hidden">
             <Collapsible
@@ -355,7 +356,7 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
               </SidebarMenuItem>
             </DropdownMenu>
           </SidebarMenu>
-        </SidebarGroup>
+        </SidebarGroup>}
       </SidebarContent>
       
       <SidebarFooter>
