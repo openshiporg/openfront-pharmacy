@@ -30,7 +30,7 @@ export function TitleLine({ as: Tag = 'h2', title, tone, state, className, title
   </div>
 }
 
-export const trackClass = 'inline-flex max-w-full items-center gap-1.5 overflow-x-auto no-scrollbar'
+export const trackClass = 'flex max-w-full flex-wrap items-center gap-1.5'
 
 export const pillClass = 'inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-card px-3.5 text-[14px] font-medium text-foreground/80 shadow-[inset_0_0_0_1px_var(--rx-rule)] transition-[color,background-color,box-shadow] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground hover:shadow-[inset_0_0_0_1px_var(--input)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50 data-[active=true]:bg-primary data-[active=true]:text-primary-foreground data-[active=true]:shadow-none max-sm:min-h-11'
 

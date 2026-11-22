@@ -19,7 +19,7 @@ export async function PatientCreatePage({ searchParams }: { searchParams?: Promi
   const request = requestResponse?.success ? requestResponse.data.pharmacyPrescriptionRequestQueue[0] : undefined
   const prefill: PatientPrefill | undefined = request ? { requestId: request.id, organizationId: request.organizationId, firstName: request.firstName, lastName: request.lastName, dateOfBirth: request.dateOfBirth, email: request.email || request.customerEmail, phone: request.phone } : undefined
   return <TaskPage parent={{ label: 'Patients', href: '/platform/patients' }} title="Create patient">
-    <TaskSection title="Setup"><TaskDataReadiness metrics={[{ label: 'Organizations', value: organizations.length }]} missingMessage={!organizations.length ? 'No pharmacy is available. Complete onboarding first.' : undefined} /></TaskSection>
+    <TaskDataReadiness metrics={[{ label: 'Organizations', value: organizations.length }]} missingMessage={!organizations.length ? 'No pharmacy is available. Complete onboarding first.' : undefined} />
     {request && (request.allergies || request.medications || request.insurance) && <TaskSection title="From the online request">
       <dl className="grid gap-3 sm:grid-cols-3">
         {request.allergies && <Field label="Allergies (patient-reported)"><span className="whitespace-pre-line">{request.allergies}</span></Field>}

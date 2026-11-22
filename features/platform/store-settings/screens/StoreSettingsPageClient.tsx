@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { rxFontClass } from '@/features/storefront/lib/fonts';
 import Link from 'next/link';
-import { Code } from 'lucide-react';
+import { Code, Menu, ShoppingCart, UserRound } from 'lucide-react';
 import * as SelectPrimitive from '@radix-ui/react-select';
 import { toast } from 'sonner';
 
@@ -34,26 +34,22 @@ function Mark({ svg, hue, className }: { svg: string; hue: string; className?: s
 }
 
 function StorefrontPreview({ name, tagline, logoIcon, logoColor, phone }: { name: string; tagline: string; logoIcon: string; logoColor: string; phone: string }) {
-  const hue = storeBrandHue(logoColor);
-  // The storefront's apothecary cabinet in miniature: ebonized ground, gold name, enamel-plated drawers.
-  return <figure aria-label="Storefront preview" className={cn(rxFontClass, 'overflow-hidden rounded-[6px] border border-border text-[oklch(0.95_0.012_85)]')} style={{ background: `oklch(0.165 0.012 ${hue})` }}>
-    <div className="flex items-center justify-between gap-3 border-b px-4 py-1.5 text-[12px] font-medium" style={{ background: `oklch(0.2 0.014 ${hue})`, borderColor: `oklch(0.33 0.014 ${hue})` }}>
-      <span className="truncate">{name || 'Store name'}</span>
-      {phone && <span className="tabular-nums">{phone}</span>}
+  // The storefront's phone home page in miniature: same header, same hero, same colours.
+  return <figure aria-label="Storefront preview" className={cn(rxFontClass, 'overflow-hidden rounded-[6px] border border-border bg-[oklch(0.985_0.008_185)] text-[oklch(0.22_0.03_195)]')}>
+    <div className="flex items-center gap-2.5 border-b border-[oklch(0.92_0.015_185)] bg-white px-3 py-2.5">
+      <Menu aria-hidden="true" className="size-4 shrink-0" />
+      <Mark svg={logoIcon} hue={logoColor} className="size-5 shrink-0" />
+      <span className="min-w-0 flex-1 truncate text-[15px] font-medium">{name || 'Store name'}</span>
+      <UserRound aria-hidden="true" className="size-4 shrink-0" />
+      <ShoppingCart aria-hidden="true" className="size-4 shrink-0" />
     </div>
-    <div className="flex items-center gap-2.5 px-4 py-3">
-      <Mark svg={logoIcon} hue={logoColor} className="size-7" />
-      <span className="truncate font-[family-name:var(--rx-font-display),Georgia,serif] text-[16px]">{name || 'Store name'}</span>
-    </div>
-    <div className="px-4 pb-4">
-      <p className="font-[family-name:var(--rx-font-display),Georgia,serif] text-[28px] leading-none text-[oklch(0.77_0.095_82)]">{name || 'Store name'}</p>
-      {tagline && <p className="mt-2 text-xs opacity-75">{tagline}</p>}
-      <div className="mt-4 grid grid-cols-2 gap-1.5 rounded-[6px] p-1.5" style={{ background: `oklch(0.2 0.014 ${hue})` }}>
-        {['Refill a prescription', 'Track an order'].map((label) => <span key={label} className="flex flex-col items-center gap-2 rounded-[4px] px-2 py-3" style={{ background: `oklch(0.235 0.016 ${hue})` }}>
-          <span className="rounded-[3px] bg-[oklch(0.93_0.022_88)] px-2 py-0.5 text-[12px] font-bold text-[oklch(0.2_0.015_160)]">{label}</span>
-          <span className="block h-1 w-7 rounded-[2px] bg-[oklch(0.7_0.085_80)]" />
-        </span>)}
+    <div className="p-3">
+      <div className="rounded-[16px] bg-[oklch(0.3_0.05_200)] px-4 py-5 text-white">
+        <p className="text-balance text-[20px] font-medium leading-tight">{tagline || name || 'Store name'}</p>
+        <p className="mt-1 text-[12px] text-white/85">Refills and everyday health.</p>
+        <span className="mt-3 inline-block rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-[oklch(0.22_0.03_195)]">Refill prescription</span>
       </div>
+      {phone && <p className="mt-2.5 flex items-center justify-between px-1 text-[12px] text-[oklch(0.45_0.02_195)]"><span>Questions?</span><span className="tabular-nums font-medium text-[oklch(0.5_0.085_190)]">{phone}</span></p>}
     </div>
   </figure>;
 }
