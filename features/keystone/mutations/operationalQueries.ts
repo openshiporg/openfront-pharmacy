@@ -390,7 +390,7 @@ export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first
       where: stableCursorWhere(baseWhere, cursor),
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: pageSize + 1,
-      query: 'id prescriptionNumber status source sourceVerificationStatus createdAt writtenAt patient { displayName } prescriber { name verificationStatus } location { name } items(take: 1) { medicationNameSnapshot quantityPrescribed refillsRemaining } refillRequests(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }, take: 50) { id } transfers(where: { status: { in: ["requested", "consent_recorded", "under_review"] } }, take: 50) { id } organization { willCallReturnDays } dispensingLabels(where: { voidedAt: null, order: null }, orderBy: { dispensedAt: desc }, take: 1) { dispensedAt }',
+      query: 'id prescriptionNumber status source sourceVerificationStatus createdAt updatedAt dispensedAt writtenAt patient { displayName } prescriber { name verificationStatus } location { name } items(take: 1) { medicationNameSnapshot quantityPrescribed refillsRemaining } refillRequests(where: { status: { in: ["requested", "under_review", "prescriber_contacted"] } }, take: 50) { id } transfers(where: { status: { in: ["requested", "consent_recorded", "under_review"] } }, take: 50) { id } organization { willCallReturnDays } dispensingLabels(where: { voidedAt: null, order: null }, orderBy: { dispensedAt: desc }, take: 1) { dispensedAt }',
     }),
   ])
   const hasMore = records.length > pageSize
@@ -413,6 +413,8 @@ export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first
     openRefillCount: record.refillRequests?.length || 0,
     openTransferCount: record.transfers?.length || 0,
     readyAt: record.status === 'ready_for_pickup' ? record.dispensingLabels?.[0]?.dispensedAt || null : null,
+    // When finished work ended: the dispense time, or the last change for a rejected, cancelled or closed fill.
+    closedAt: ['dispensed', 'fill_closed', 'rejected', 'cancelled'].includes(record.status) ? record.dispensedAt || record.updatedAt || null : null,
     willCallReturnDays: record.organization?.willCallReturnDays ?? 10,
   }))
   return { items, totalCount, hasMore, nextCursor: hasMore && pageRecords.length ? encodeStableCursor({ createdAt: pageRecords[pageRecords.length - 1].createdAt, id: pageRecords[pageRecords.length - 1].id }) : null }

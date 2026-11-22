@@ -289,6 +289,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         openRefillCount: Int
         openTransferCount: Int
         readyAt: String
+        closedAt: String
         willCallReturnDays: Int!
       }
       type PharmacyPrescriptionWorklist { items: [PharmacyPrescriptionQueueItem!]!, totalCount: Int!, hasMore: Boolean!, nextCursor: String }

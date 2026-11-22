@@ -182,6 +182,7 @@ export type PharmacyPrescriptionQueueProjection = {
   openRefillCount?: number | null
   openTransferCount?: number | null
   readyAt?: string | null
+  closedAt?: string | null
   willCallReturnDays: number
 }
 
