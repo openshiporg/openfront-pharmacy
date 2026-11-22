@@ -12,6 +12,7 @@ interface CreateItemDrawerClientWrapperProps {
   open: boolean
   onClose: () => void
   onCreate?: (newItem: any) => void
+  noun?: string
 }
 
 // Loading skeleton component
@@ -43,7 +44,8 @@ export function CreateItemDrawerClientWrapper({
   listKey,
   open,
   onClose,
-  onCreate
+  onCreate,
+  noun,
 }: CreateItemDrawerClientWrapperProps) {
   const [list, setList] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -109,6 +111,7 @@ export function CreateItemDrawerClientWrapper({
             list={list}
             onClose={onClose}
             onCreate={onCreate}
+            noun={noun}
           />
         ) : (
           <>

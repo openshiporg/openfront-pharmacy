@@ -157,7 +157,7 @@ export function OperationalPage(props: {
         </>}
 
         {props.primaryAction && 'listKey' in props.primaryAction && (
-          <CreateItemDrawerClientWrapper listKey={props.primaryAction.listKey} open={createOpen} onClose={() => setCreateOpen(false)} onCreate={() => router.refresh()} />
+          <CreateItemDrawerClientWrapper listKey={props.primaryAction.listKey} noun={props.primaryAction.label.replace(/^Add /, '').replace(/^member$/, 'staff member')} open={createOpen} onClose={() => setCreateOpen(false)} onCreate={() => router.refresh()} />
         )}
 
         {!props.error && props.items.length === 0 && !props.disabledMessage && <EmptyBand>{props.emptyMessage}</EmptyBand>}

@@ -14,13 +14,17 @@ interface CreateItemDrawerClientProps {
   list: any
   onClose: () => void
   onCreate?: (newItem: any) => void
+  /** Plain name for the thing being added, e.g. "staff member"; defaults to the list's name. */
+  noun?: string
 }
 
 export function CreateItemDrawerClient({ 
   list, 
   onClose, 
-  onCreate 
+  onCreate,
+  noun,
 }: CreateItemDrawerClientProps) {
+  const name = noun || String(list.singular).toLowerCase()
   // Create enhanced fields exactly like dashboard implementation
   const enhancedFields = useMemo(() => {
     return enhanceFields(list.fields || {}, list.key)
@@ -39,7 +43,7 @@ export function CreateItemDrawerClient({
       // Use the createItem hook's create method (same as dashboard)
       const item = await createItem.create()
       if (item?.id) {
-        toast.success(`${list.singular} created successfully`)
+        toast.success(`${name.charAt(0).toUpperCase()}${name.slice(1)} added`)
         
         // Call onCreate callback if provided
         if (onCreate) {
@@ -52,7 +56,7 @@ export function CreateItemDrawerClient({
       console.error('Error creating item:', error)
       toast.error('Failed to create item')
     }
-  }, [createItem, onCreate, onClose, list.singular])
+  }, [createItem, onCreate, onClose, name])
 
   // Don't render if no createItem hook available
   if (!createItem) {
@@ -71,10 +75,8 @@ export function CreateItemDrawerClient({
   return (
     <>
       <DrawerHeader className="flex-shrink-0">
-        <DrawerTitle>Create {list.singular}</DrawerTitle>
-        <DrawerDescription>
-          Create a new {list.singular.toLowerCase()}
-        </DrawerDescription>
+        <DrawerTitle>Add {name}</DrawerTitle>
+        <DrawerDescription className="sr-only">Add {name}</DrawerDescription>
       </DrawerHeader>
 
       <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
@@ -107,7 +109,7 @@ export function CreateItemDrawerClient({
                   Creating...
                 </>
               ) : (
-                `Create ${list.singular}`
+                `Add ${name}`
               )}
             </Button>
           </div>
