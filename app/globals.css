@@ -131,12 +131,15 @@
 
 /* Dashboard on a phone: finger-sized controls. The storefront sizes its own (vega.css). */
 @media (max-width: 767px) {
-  :is(button, a[href], summary, select, textarea, input:not([type="hidden"], [type="checkbox"], [type="radio"]), [role="button"], [role="option"], [role^="menuitem"], [role="tab"]):not(.storefront-brand *) {
+  /* Buttons and links only. Checkboxes, radios and switches keep their own size (see below). */
+  :is(button, a[href], summary, [role="button"], [role="option"], [role^="menuitem"], [role="tab"]):not([role="checkbox"], [role="radio"], [role="switch"]):not(.storefront-brand *) {
     min-width: 44px !important;
     min-height: 44px !important;
     flex-shrink: 0;
     scroll-margin-block: 5rem;
   }
+  /* Text fields are tall enough to tap; their width follows the layout. */
+  :is(select, textarea, input:not([type="hidden"], [type="checkbox"], [type="radio"])):not(.storefront-brand *) { min-height: 44px; }
   a[href]:not(.storefront-brand *) { align-items: center; max-width: 100%; }
   button:not(.storefront-brand *) { white-space: normal; max-width: 100%; }
   a[href]:not(.hidden):not(.storefront-brand *) { display: inline-flex; }

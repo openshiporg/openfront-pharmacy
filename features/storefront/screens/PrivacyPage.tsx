@@ -19,9 +19,13 @@ export async function PrivacyPage() {
     <section aria-label="Notice" className="mt-8 rx-panel p-6 sm:p-8">
       {notice
         ? <div className="grid gap-4 text-[15px] leading-7">{notice.split(/\n{2,}/).map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}</div>
-        : <div className="text-[15px] leading-7">
-          <p className="font-medium text-foreground">Ask the pharmacy for a printed copy of this notice.</p>
-          <p className="mt-1 text-muted-foreground">It is available at the counter{location?.name ? ` at ${location.name}` : ''}{phone ? <>, or call <a href={`tel:${phone}`} className="rx-num font-medium text-primary hover:underline">{phone}</a></> : ''}.</p>
+        : <div className="grid gap-4 text-[15px] leading-7">
+          <p className="font-medium text-foreground">Contact {brand.displayName} for our Notice of Privacy Practices.</p>
+          {(phone || brand.supportEmail) && <dl className="grid gap-3 sm:grid-cols-2">
+            {phone && <Field label="Call"><a href={`tel:${phone}`} className="rx-num font-medium text-primary hover:underline">{phone}</a></Field>}
+            {brand.supportEmail && <Field label="Email"><a href={`mailto:${brand.supportEmail}`} className="break-all font-medium text-primary hover:underline">{brand.supportEmail}</a></Field>}
+          </dl>}
+          {location?.name && <p className="text-muted-foreground">A printed copy is also available at the counter at {location.name}.</p>}
         </div>}
     </section>
 
