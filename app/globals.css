@@ -129,28 +129,28 @@
   }
 }
 
-/* Real phone action boxes, not padded parents or unpainted hit-area claims. */
+/* Dashboard on a phone: finger-sized controls. The storefront sizes its own (vega.css). */
 @media (max-width: 767px) {
-  :is(button, a[href], summary, select, textarea, input:not([type="hidden"]), [role="button"], [role="checkbox"], [role="radio"], [role="option"], [role^="menuitem"], [role="tab"]) {
-    min-width: 48px !important;
-    min-height: 48px !important;
+  :is(button, a[href], summary, select, textarea, input:not([type="hidden"], [type="checkbox"], [type="radio"]), [role="button"], [role="option"], [role^="menuitem"], [role="tab"]):not(.storefront-brand *) {
+    min-width: 44px !important;
+    min-height: 44px !important;
     flex-shrink: 0;
     scroll-margin-block: 5rem;
   }
-  a[href] { align-items: center; max-width: 100%; }
-  button { white-space: normal; max-width: 100%; }
-  a[href]:not(.hidden) { display: inline-flex; }
-  :is(input[type="checkbox"], input[type="radio"]) {
-    width: 48px;
-    height: 48px;
+  a[href]:not(.storefront-brand *) { align-items: center; max-width: 100%; }
+  button:not(.storefront-brand *) { white-space: normal; max-width: 100%; }
+  a[href]:not(.hidden):not(.storefront-brand *) { display: inline-flex; }
+  :is(input[type="checkbox"], input[type="radio"], [role="checkbox"], [role="radio"]) {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    min-height: 24px;
     margin-top: 0;
     flex-shrink: 0;
     accent-color: var(--primary);
   }
-  input[type="password"] { padding-inline-end: 52px; }
-  button.rounded-full { min-width: 72px !important; }
-  :is([role="option"], [role^="menuitem"]) { padding-block: 12px; }
+  input[type="password"]:not(.storefront-brand *) { padding-inline-end: 52px; }
+  :is([role="option"], [role^="menuitem"]):not(.storefront-brand *) { padding-block: 12px; }
   :is(input, select, textarea) { font-size: 16px; max-width: 100%; }
   :is([role="dialog"], main, form, fieldset) { min-width: 0; }
 }
-

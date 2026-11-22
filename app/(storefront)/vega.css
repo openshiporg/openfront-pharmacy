@@ -112,3 +112,10 @@
 
 .storefront-brand .no-scrollbar { scrollbar-width: none; }
 .storefront-brand .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Phones: finger-sized controls. Text links inside sentences are inline, so this leaves them alone. */
+@media (max-width: 767px) {
+  .storefront-brand :is(a[href], button, select, summary, [role="button"], [role="tab"]) { min-height: 44px; }
+  .storefront-brand :is(button, select) { min-width: 44px; }
+  .storefront-brand :is(input:not([type="checkbox"], [type="radio"], [type="hidden"]), textarea) { min-height: 44px; }
+}

@@ -1,6 +1,5 @@
 import Nav from '../modules/layout/templates/nav'
 import Footer from '../modules/layout/templates/footer'
-import { MobileMenu } from '../modules/layout/templates/nav/mobile-menu'
 import { SideMenu } from '../modules/layout/templates/nav/side-menu'
 import { StoreShell } from '../modules/layout/templates/shell'
 import { getStorefront, getStorefrontCategories } from '../lib/data/store'
@@ -22,7 +21,6 @@ export async function MainLayout({ children }: { children: React.ReactNode }) {
     plainHeader={<Nav {...navProps} variant="plain" />}
     sidebar={<SideMenu categories={categories} phone={phone} signedIn={signedIn} />}
     footer={<Footer brand={brand} location={location} categories={categories} />}
-    more={<MobileMenu brand={brand} categories={categories} phone={phone} signedIn={signedIn} trigger="tab" />}
   >{children}</StoreShell>
 }
 

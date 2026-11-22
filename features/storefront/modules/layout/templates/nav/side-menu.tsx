@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ArrowRight, ArrowRightLeft, Clock, FileClock, History, MapPin, PackageSearch, Phone, RefreshCw, UserRound, UserRoundCog } from 'lucide-react'
+import { ArrowRight, ArrowRightLeft, Clock, FileClock, History, House, LayoutGrid, MapPin, PackageSearch, Phone, RefreshCw, UserRound, UserRoundCog } from 'lucide-react'
 
 import { CategoryIcon } from '../../../../components/CategoryIcon'
 import { categoryLabel } from '../../../../lib/categories'
@@ -9,23 +9,28 @@ import { categoryHref } from './links'
 const itemClass = 'rx-serif flex min-h-8 items-center gap-2.5 rounded-2xl text-[16px] leading-tight lg:min-h-[24px] lg:text-[14px] text-foreground hover:text-primary max-lg:min-h-11'
 const iconClass = 'size-4 shrink-0 text-primary'
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+function Group({ title, children }: { title?: string; children: React.ReactNode }) {
   return <div>
-    <p className="rx-eyebrow mb-1">{title}</p>
+    {title && <p className="rx-eyebrow mb-1">{title}</p>}
     <ul className="grid">{children}</ul>
   </div>
 }
 
 /** The store's left rail: prescriptions, product categories with products, store and account links. */
-export function SideMenu({ categories, phone, signedIn, onNavigate }: { categories: StoreCategory[]; phone?: string | null; signedIn: boolean; onNavigate?: () => void }) {
+export function SideMenu({ categories, phone, signedIn, onNavigate, drawer = false }: { categories: StoreCategory[]; phone?: string | null; signedIn: boolean; onNavigate?: () => void; drawer?: boolean }) {
   const item = (href: string, icon: React.ReactNode, label: string) => <li key={label}><Link href={href} onClick={onNavigate} className={itemClass}>{icon}{label}</Link></li>
   return <div className="grid gap-5">
+    {drawer && <Group>
+      {item('/', <House aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Home')}
+      {item('/account', <UserRound aria-hidden="true" strokeWidth={1.6} className={iconClass} />, signedIn ? 'Account' : 'Sign in or create account')}
+    </Group>}
     <Group title="Prescriptions">
       {item('/account#account-prescriptions', <RefreshCw aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Refill prescription')}
       {item('/prescriptions#transfer', <ArrowRightLeft aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Transfer prescription')}
       {item('/order-status', <PackageSearch aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Track an order')}
     </Group>
     {categories.length > 0 && <Group title="Shop OTC">
+      {drawer && item('/products', <LayoutGrid aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'All products')}
       {categories.map((entry) => item(categoryHref(entry.value), <CategoryIcon category={entry.value} className="size-4" />, categoryLabel(entry.value)))}
     </Group>}
     <Group title="Store">
@@ -33,12 +38,12 @@ export function SideMenu({ categories, phone, signedIn, onNavigate }: { categori
       {item('/prescriptions#location', <Clock aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Store hours')}
       {phone && <li><a href={`tel:${phone}`} onClick={onNavigate} className={itemClass}><Phone aria-hidden="true" strokeWidth={1.6} className={iconClass} />Call store</a></li>}
     </Group>
-    <Group title="Account">
-      {item('/account', <UserRound aria-hidden="true" strokeWidth={1.6} className={iconClass} />, signedIn ? 'My account' : 'Sign in / Register')}
+    {(!drawer || signedIn) && <Group title="Account">
+      {!drawer && item('/account', <UserRound aria-hidden="true" strokeWidth={1.6} className={iconClass} />, signedIn ? 'Account' : 'Sign in or create account')}
       {item('/account#account-orders', <History aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Order history')}
       {item('/account#account-prescriptions', <FileClock aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Prescription history')}
       {signedIn && item('/account/profile', <UserRoundCog aria-hidden="true" strokeWidth={1.6} className={iconClass} />, 'Profile')}
-    </Group>
+    </Group>}
     {phone && <div className="rounded-2xl border border-dashed border-primary/45 bg-accent/60 p-4">
       <p className="rx-serif text-[19px] leading-tight">Need help?</p>
       <p className="mt-1 text-[14px] text-muted-foreground">Our pharmacists are here for you.</p>

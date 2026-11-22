@@ -1,8 +1,8 @@
-import { Bandage, BriefcaseMedical, Citrus, HandHeart, HeartPulse, Leaf, Pill, Stethoscope, Tablets, Thermometer, Wind, type LucideIcon } from 'lucide-react'
+import { Apple, Bandage, BriefcaseMedical, Citrus, HandHeart, HeartPulse, Leaf, Pill, Stethoscope, Tablets, Thermometer, Wind, type LucideIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
 
-// One line icon per product category (features/keystone/models/Product.ts), drawn in the store red.
+// One line icon per product category (features/keystone/models/Product.ts), drawn in the store colour.
 const ICONS: Record<string, LucideIcon> = {
   prescription: Tablets,
   otc_medication: Pill,
@@ -12,8 +12,8 @@ const ICONS: Record<string, LucideIcon> = {
   medical_supply: BriefcaseMedical,
   allergy: Leaf,
   cold_and_flu: Wind,
-  digestive_health: Citrus,
-  vitamins: Pill,
+  digestive_health: Apple,
+  vitamins: Citrus,
   health_devices: Thermometer,
 }
 

@@ -23,7 +23,7 @@ export async function CartPage() {
   const count = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0
 
   return <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12 lg:px-8">
-    <PageHead title={<span className="flex items-baseline gap-3">Cart{count > 0 && <span className="rx-num text-base font-normal text-muted-foreground">{count}</span>}</span>} meta={cart?.location.name} />
+    <PageHead title={<span className="flex items-baseline gap-3">Cart{count > 0 && <span className="rx-num font-sans text-[15px] font-normal tracking-normal text-muted-foreground">{count} {count === 1 ? 'item' : 'items'}</span>}</span>} meta={cart?.location.name} />
     {cart?.items.length
       ? <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1fr)_22rem] lg:gap-12">
         <section aria-label="Items" className="min-w-0"><CartItems items={cart.items} /></section>

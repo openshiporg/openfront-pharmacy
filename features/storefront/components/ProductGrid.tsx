@@ -45,7 +45,7 @@ export function ProductGrid({ locationId, orderingEnabled, initialPage, initialS
       </form>
     </div>
 
-    {categories.length > 1 && <Track label="Category" className="mt-5 flex">
+    {categories.length > 1 && <Track label="Category" className="mt-5 flex flex-wrap gap-2">
       <PillLink href="/products#products" active={!activeCategory} scroll={false}>All</PillLink>
       {categories.map((entry) => <PillLink key={entry.value} href={`/products?category=${entry.value}#products`} active={activeCategory === entry.value} scroll={false}>{categoryLabel(entry.value)} <span className="rx-num text-[13px] opacity-70">{entry.count}</span></PillLink>)}
     </Track>}

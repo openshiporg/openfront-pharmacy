@@ -20,13 +20,14 @@ export type NavLocation = Pick<PublicPharmacyLocationProjection, 'name' | 'phone
 export function todayHours(location?: NavLocation | null) {
   if (!location?.hours) return null
   const state = openState(location.hours.pharmacy, location.timezone)
-  return state.today < 0 ? null : `${state.open ? 'Open today' : 'Today'} ${formatDay(state.todayHours)}`
+  if (state.today < 0) return null
+  return state.todayHours ? `${state.open ? 'Open today' : 'Today'} ${formatDay(state.todayHours)}` : 'Closed today'
 }
 
 function CartLink({ cartCount, className = '' }: { cartCount: number; className?: string }) {
   return <Link href="/cart" aria-label={`Cart, ${cartCount} ${cartCount === 1 ? 'item' : 'items'}`} className={`relative inline-flex size-11 shrink-0 items-center justify-center rounded-2xl text-foreground hover:text-primary ${className}`}>
     <ShoppingCart aria-hidden="true" strokeWidth={1.7} className="size-[22px]" />
-    <span className="rx-num absolute right-0.5 top-0.5 grid min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[12px] font-semibold leading-[18px] text-primary-foreground">{cartCount}</span>
+    {cartCount > 0 && <span className="rx-num absolute right-0.5 top-0.5 grid min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[12px] font-semibold leading-[18px] text-primary-foreground">{cartCount}</span>}
   </Link>
 }
 
@@ -35,7 +36,7 @@ export function HeaderSearch({ placeholder = 'Search for medications, vitamins, 
     <label className="relative block">
       <span className="sr-only">Search products</span>
       {pill && <span aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-1/2 h-10 -translate-y-1/2 rounded-full border border-input bg-card" />}
-      <input type="search" name="q" maxLength={100} placeholder={placeholder} className={pill ? 'peer relative h-12 w-full rounded-full bg-transparent pl-4 pr-11 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/20' : 'h-10 w-full rounded-2xl border border-input bg-card pl-4 pr-11 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15'} />
+      <input type="search" name="q" maxLength={100} placeholder={placeholder} className={pill ? 'peer relative h-12 w-full rounded-full bg-transparent pl-4 pr-11 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-primary/20' : 'h-11 w-full rounded-2xl border border-input bg-card pl-4 pr-11 text-[14px] text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/15'} />
     </label>
     <button type="submit" aria-label="Search" className="absolute right-1 top-1/2 grid size-9 -translate-y-1/2 place-items-center rounded-full text-foreground/70 hover:text-primary"><Search aria-hidden="true" className="size-[18px]" strokeWidth={1.8} /></button>
   </form>
@@ -76,17 +77,12 @@ export default function Nav({ brand, location, cartCount, categories, signedIn, 
   const hours = todayHours(location)
 
   return <header className="relative z-30">
-    {/* Phone and tablet: menu, centred wordmark, cart; then search and account. */}
-    <div className="lg:hidden">
-      <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2 px-3 pt-1">
-        <MobileMenu brand={brand} categories={categories} phone={phone} signedIn={signedIn} />
-        <div className="flex min-w-0 justify-center"><StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} /></div>
-        <CartLink cartCount={cartCount} />
-      </div>
-      <div className="flex items-center gap-2.5 px-4 pt-1">
-        <HeaderSearch pill placeholder="Search products…" className="min-w-0 flex-1" />
-        <Link href="/account" className="inline-flex h-12 shrink-0 items-center rounded-full"><span className="inline-flex h-10 items-center gap-1.5 rounded-full bg-primary px-3.5 text-[14px] font-medium text-primary-foreground shadow-[0_4px_10px_-4px_oklch(0.5_0.085_190/0.6)]"><UserRound aria-hidden="true" className="size-4" strokeWidth={1.8} />{signedIn ? 'Account' : 'Sign in'}</span></Link>
-      </div>
+    {/* Phone and tablet: menu, store name, account, cart. Search lives in the menu. */}
+    <div className="flex items-center gap-0.5 border-b border-[var(--rx-rule)] bg-card px-1.5 py-1 lg:hidden">
+      <MobileMenu brand={brand} categories={categories} phone={phone} signedIn={signedIn} search={<HeaderSearch placeholder="Search products" />} />
+      <StoreBrand name={brand.displayName} logoIcon={brand.logoIcon} logoColor={brand.logoColor} className="min-w-0 flex-1 pl-1" />
+      <Link href="/account" aria-label={signedIn ? 'Account' : 'Sign in'} className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-foreground hover:text-primary"><UserRound aria-hidden="true" className="size-[22px]" strokeWidth={1.7} /></Link>
+      <CartLink cartCount={cartCount} />
     </div>
 
     {/* Desktop */}
@@ -120,14 +116,14 @@ export default function Nav({ brand, location, cartCount, categories, signedIn, 
           </div>
           <HeaderSearch pill placeholder="Search products…" className="w-full max-w-[30rem] flex-1" />
           {phone && <a href={`tel:${phone}`} className="hidden items-center gap-2.5 whitespace-nowrap xl:inline-flex"><Phone aria-hidden="true" className="size-6 text-primary" strokeWidth={1.6} /><span className="grid leading-tight"><span className="text-[13px] text-muted-foreground">Questions?</span><span className="rx-num rx-serif text-[19px] text-primary">{phone}</span></span></a>}
-          <Link href="/account" className="ml-auto inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap text-[15px] hover:text-primary"><UserRound aria-hidden="true" className="size-[18px]" strokeWidth={1.7} />{signedIn ? 'My account' : 'Sign in'}</Link>
+          <Link href="/account" className="ml-auto inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap text-[15px] hover:text-primary"><UserRound aria-hidden="true" className="size-[18px]" strokeWidth={1.7} />{signedIn ? 'Account' : 'Sign in'}</Link>
         </div>
         <div className="mx-auto flex max-w-[90rem] items-center gap-10 px-8 pb-1 xl:px-16">
           <Link href="/" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Home</Link>
           <Link href="/products" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Products</Link>
           <PrimaryNav categories={categories} location={location} phone={phone} />
           <Link href="/order-status" className="rx-serif inline-flex min-h-10 items-center text-[16px] hover:text-primary">Track order</Link>
-          <Link href="/cart" className="rx-serif ml-auto inline-flex min-h-9 items-center gap-2 rounded-2xl bg-primary px-4 text-[16px] text-primary-foreground hover:brightness-110"><ShoppingCart aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />Cart (<span className="rx-num">{cartCount}</span>)</Link>
+          <Link href="/cart" className="rx-serif ml-auto inline-flex min-h-9 items-center gap-2 rounded-2xl bg-primary px-4 text-[16px] text-primary-foreground hover:brightness-110"><ShoppingCart aria-hidden="true" className="size-[18px]" strokeWidth={1.8} />Cart{cartCount > 0 && <span className="rx-num rounded-full bg-primary-foreground/20 px-2 text-[14px] leading-6">{cartCount}</span>}</Link>
         </div>
       </div>}
   </header>
