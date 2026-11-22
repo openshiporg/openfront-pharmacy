@@ -1,6 +1,6 @@
 // Server-only mail helpers. Not a 'use server' module: these must never be callable as server actions.
 import { createTransport, getTestMessageUrl } from "nodemailer";
-import { emailButton, emailLayout, emailMuted, emailParagraph } from "./email-layout";
+import { emailButton, emailLayout, emailMuted, emailParagraph, storeNameFromEnv } from "./email-layout";
 
 // Utility function to get base URL for emails
 function getBaseUrlForEmails(): string {
@@ -23,8 +23,9 @@ const transport = createTransport({
   },
 });
 
-function passwordResetEmail({ url }: { url: string }): string {
+function passwordResetEmail({ url, storeName }: { url: string; storeName?: string }): string {
   return emailLayout({
+    storeName,
     preheader: "Use this link to choose a new password.",
     title: "Reset your password",
     body: `${emailParagraph("We received a request to reset the password for your account. Use the button below to choose a new one.")}
@@ -70,7 +71,9 @@ export async function sendPasswordResetToken({ itemId, identity, token, context 
   const url = user?.role?.canAccessDashboard
     ? `${origin}/dashboard/reset?token=${encodeURIComponent(token)}`
     : `${origin}/account/reset?${new URLSearchParams({ token, email: identity })}`
-  await sendPasswordResetEmail(token, identity, undefined, url)
+  const organization = (await context.sudo().query.Organization.findMany({ take: 2, query: 'operatorDisplayName' })) as Array<{ operatorDisplayName?: string }>
+  const storeName = organization.length === 1 ? organization[0].operatorDisplayName || undefined : undefined
+  await sendPasswordResetEmail(token, identity, undefined, url, storeName)
 }
 
 export async function sendOrderConfirmationEmail({ to, orderNumber, storeName, url }: { to: string; orderNumber: string; storeName: string; url: string }): Promise<boolean> {
@@ -93,7 +96,7 @@ ${emailButton('Track order', url)}`,
   return true
 }
 
-export async function sendPasswordResetEmail(resetToken: string, to: string, baseUrl?: string, url?: string): Promise<void> {
+export async function sendPasswordResetEmail(resetToken: string, to: string, baseUrl?: string, url?: string, storeName?: string): Promise<void> {
   // Use provided baseUrl or fall back to utility function
   const frontendUrl = baseUrl || getBaseUrlForEmails();
   
@@ -101,8 +104,9 @@ export async function sendPasswordResetEmail(resetToken: string, to: string, bas
   const info = await transport.sendMail({
     to,
     from: process.env.SMTP_FROM,
-    subject: "Your password reset token!",
+    subject: `${storeName || storeNameFromEnv()}: reset your password`,
     html: passwordResetEmail({
+      storeName,
       url: url || `${frontendUrl}/dashboard/reset?token=${resetToken}`,
     }),
   });
