@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 
-import { Field, Notice, PageHead } from '../components/rx-ui'
+import { Field, PageHead } from '../components/rx-ui'
 import { CHECKOUT_POLICY, CHECKOUT_PRIVACY_STATEMENT } from '../lib/constants'
 import { getPrivacyNotice, getStorefront } from '../lib/data/store'
 import { StoreUnavailable } from './MainLayout'
@@ -19,7 +19,10 @@ export async function PrivacyPage() {
     <section aria-label="Notice" className="mt-8 rx-panel p-6 sm:p-8">
       {notice
         ? <div className="grid gap-4 text-[15px] leading-7">{notice.split(/\n{2,}/).map((paragraph, index) => <p key={index} className="whitespace-pre-line">{paragraph}</p>)}</div>
-        : <Notice>This pharmacy has not posted its notice online yet. Ask the pharmacy for a copy.</Notice>}
+        : <div className="text-[15px] leading-7">
+          <p className="font-medium text-foreground">Ask the pharmacy for a printed copy of this notice.</p>
+          <p className="mt-1 text-muted-foreground">It is available at the counter{location?.name ? ` at ${location.name}` : ''}{phone ? <>, or call <a href={`tel:${phone}`} className="rx-num font-medium text-primary hover:underline">{phone}</a></> : ''}.</p>
+        </div>}
     </section>
 
     <section aria-labelledby="privacy-checkout" className="mt-4 rx-panel p-6">
