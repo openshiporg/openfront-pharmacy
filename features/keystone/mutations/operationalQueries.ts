@@ -357,7 +357,7 @@ export async function pharmacyPrescriptionQueue(_root: unknown, _args: unknown, 
   }))
 }
 
-export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first?: number | null; after?: string | null; willCall?: string | null }, context: Context) {
+export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first?: number | null; after?: string | null; willCall?: string | null; scope?: string | null }, context: Context) {
   requireAny(context, ['canManagePrescriptions', 'canReviewPrescriptions', 'canDispenseMedications'])
   requirePatientPrivateData(context)
   // Reading the queue needs the store's membership only; reviewing or dispensing still needs a recorded credential.
@@ -370,10 +370,13 @@ export async function pharmacyPrescriptionWorklist(_root: unknown, args: { first
     const stores = await context.sudo().query.Organization.findMany({ where: { id: { in: pharmacistScope.organizationIds } }, take: 100, query: 'id willCallReturnDays' })
     willCallFilterWhere = willCallWhere('due', stores as { id: string; willCallReturnDays?: number | null }[])
   } else if (args.willCall) throw new DomainError('Unknown will-call filter')
+  if (args.scope && args.scope !== 'closed' && args.scope !== 'all') throw new DomainError('Unknown prescription list filter')
+  // Open work is the default; completed and all records are for looking a prescription up afterwards.
+  const scopeWhere = args.scope === 'all' ? {} : args.scope === 'closed' ? { status: { in: ['dispensed', 'fill_closed', 'rejected', 'cancelled'] } } : null
   const baseWhere = {
     organization: { id: { in: pharmacistScope.organizationIds } },
     location: { id: { in: pharmacistScope.locationIds } },
-    ...(willCallFilterWhere ? willCallFilterWhere : {
+    ...(willCallFilterWhere ? willCallFilterWhere : scopeWhere ? scopeWhere : {
       OR: [
         { status: { in: ['draft', 'pending_review', 'needs_information', 'approved', 'ready_to_dispense', 'partially_dispensed', 'ready_for_pickup'] } },
         { refillRequests: { some: { status: { in: ['requested', 'under_review', 'prescriber_contacted'] } } } },

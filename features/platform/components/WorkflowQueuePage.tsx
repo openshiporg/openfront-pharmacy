@@ -59,7 +59,7 @@ function ServerFilter({ filter }: { filter: WorkflowQueueFilter }) {
     return query ? `${pathname}?${query}` : pathname
   }
   return <Track label={filter.label}>
-    <PillLink href={hrefFor(null)} active={!filter.value} scroll={false}>All</PillLink>
+    <PillLink href={hrefFor(null)} active={!filter.value} scroll={false}>{filter.allLabel}</PillLink>
     {filter.options.map(([value, label]) => <PillLink key={value} href={hrefFor(value)} active={filter.value === value} scroll={false}>{label}</PillLink>)}
   </Track>
 }

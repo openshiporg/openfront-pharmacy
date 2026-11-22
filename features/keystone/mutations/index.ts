@@ -788,7 +788,7 @@ export function extendGraphqlSchema(baseSchema: GraphQLSchema) {
         pharmacyPosCashReceipt(idempotencyKey: String!): PharmacyPosCashOrderResult
         pharmacyPrescriberDirectory: [PharmacyPrescriberDirectoryItem!]!
         pharmacyPrescriptionQueue: [PharmacyPrescriptionQueueItem!]!
-        pharmacyPrescriptionWorklist(first: Int, after: String, willCall: String): PharmacyPrescriptionWorklist!
+        pharmacyPrescriptionWorklist(first: Int, after: String, willCall: String, scope: String): PharmacyPrescriptionWorklist!
         pharmacyPrescriptionTask(prescriptionId: ID!): PharmacyPrescriptionTask!
         pharmacyInventoryQueue(first: Int, after: String, locationId: ID, status: String): PharmacyInventoryWorklist!
         pharmacyInventoryLotTask(lotId: ID!): PharmacyInventoryLotTask!
