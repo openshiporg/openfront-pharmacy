@@ -130,7 +130,8 @@ export function Field({
 
   const selectedKey = value.value?.value || preNullValue?.value || null
   const isNullable = !isRequired
-  const isNull = isNullable && value.value?.value == null
+  // A new record never needs "Set field as null": leaving the field empty does that.
+  const isNull = isNullable && value.kind !== 'create' && value.value?.value == null
   const isInvalid = !validate(value, isRequired)
   const isReadOnly = onChange == null
   const errorMessage =
@@ -220,7 +221,7 @@ export function Field({
   return (
     <FieldContainer>
       <NullableFieldWrapper
-        isAllowed={!isRequired}
+        isAllowed={!isRequired && value.kind !== 'create'}
         autoFocus={isNull && autoFocus}
         label={field.label}
         isReadOnly={isReadOnly}

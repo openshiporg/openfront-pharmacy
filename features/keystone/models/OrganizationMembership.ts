@@ -5,6 +5,7 @@ import { checkbox, relationship, select, text, timestamp } from '@keystone-6/cor
 import { isSignedIn, permissions, rules } from '../access'
 import { requiredRelationshipDb } from './requiredRelationship'
 import { trackingFields } from './trackingFields'
+import { notOnCreate, withOperatorScope } from './operatorDefaults'
 
 async function hasOrganizationWideMembership(context: any, organizationId: string, membershipRole?: string) {
   const userId = context.session?.itemId
@@ -41,8 +42,9 @@ export const OrganizationMembership = list({
     },
   },
   hooks: {
-    resolveInput: ({ operation, resolvedData }) => {
-      if (operation !== 'create') return resolvedData
+    resolveInput: async ({ operation, resolvedData: input, context }) => {
+      if (operation !== 'create') return input
+      const resolvedData = await withOperatorScope(input, context)
       const userId = resolvedData.user?.connect?.id
       const organizationId = resolvedData.organization?.connect?.id
       const locationId = resolvedData.location?.connect?.id || '*'
@@ -81,10 +83,10 @@ export const OrganizationMembership = list({
   },
   ui: { listView: { initialColumns: ['user', 'organization', 'location', 'membershipRole', 'status'] } },
   fields: {
-    membershipKey: text({ isIndexed: 'unique', access: { create: denyAll, update: denyAll } }),
+    membershipKey: text({ isIndexed: 'unique', access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
     user: relationship({ ref: 'User.memberships', db: requiredRelationshipDb }),
-    organization: relationship({ ref: 'Organization.memberships', db: requiredRelationshipDb }),
-    location: relationship({ ref: 'PharmacyLocation.memberships' }),
+    organization: relationship({ ref: 'Organization.memberships', db: requiredRelationshipDb, ui: notOnCreate }),
+    location: relationship({ ref: 'PharmacyLocation.memberships', ui: { description: 'Leave empty for access to every location.' } }),
     membershipRole: select({
       access: { update: notOwnMembership },
       type: 'string',
@@ -113,7 +115,7 @@ export const OrganizationMembership = list({
     externalCredentialValidated: checkbox({
       defaultValue: false,
       access: { create: denyAll, update: denyAll },
-      ui: { description: 'Organization-recorded review evidence only; the software does not validate licensure.' },
+      ui: { ...notOnCreate, description: 'Organization-recorded review evidence only; the software does not validate licensure.' },
     }),
     credentialVerificationMethod: select({
       type: 'string',
@@ -124,14 +126,15 @@ export const OrganizationMembership = list({
       ],
       defaultValue: 'not_recorded',
       access: { create: denyAll, update: denyAll },
+      ui: notOnCreate,
     }),
-    credentialType: text({ access: { create: denyAll, update: denyAll } }),
-    credentialJurisdiction: text({ access: { create: denyAll, update: denyAll } }),
-    credentialIdentifier: text({ access: { create: denyAll, update: denyAll } }),
-    credentialValidationReference: text({ access: { create: denyAll, update: denyAll } }),
-    credentialValidatedAt: timestamp({ access: { create: denyAll, update: denyAll } }),
-    credentialExpiresAt: timestamp({ access: { create: denyAll, update: denyAll } }),
-    credentialVerifiedBy: relationship({ ref: 'User', access: { create: denyAll, update: denyAll } }),
+    credentialType: text({ access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
+    credentialJurisdiction: text({ access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
+    credentialIdentifier: text({ access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
+    credentialValidationReference: text({ access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
+    credentialValidatedAt: timestamp({ access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
+    credentialExpiresAt: timestamp({ access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
+    credentialVerifiedBy: relationship({ ref: 'User', access: { create: denyAll, update: denyAll }, ui: notOnCreate }),
     ...trackingFields,
   },
 })

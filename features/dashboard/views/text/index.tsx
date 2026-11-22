@@ -167,7 +167,7 @@ export function Field(props: FieldProps) {
         <FieldDescription>{field.description}</FieldDescription>
       )}
       <NullableFieldWrapper
-        isAllowed={field.isNullable}
+        isAllowed={field.isNullable && value.kind !== 'create'}
         autoFocus={isNull && autoFocus}
         isReadOnly={isReadOnly}
         isNull={isNull}

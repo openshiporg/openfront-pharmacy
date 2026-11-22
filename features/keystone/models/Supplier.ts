@@ -6,6 +6,7 @@ import { isSignedIn, permissions, rules } from '../access'
 import { requiredRelationshipDb } from './requiredRelationship'
 import { immutableRelationship } from './immutableRelationship'
 import { trackingFields } from './trackingFields'
+import { notOnCreate, withOperatorScope } from './operatorDefaults'
 
 export const Supplier = list({
   access: {
@@ -18,6 +19,7 @@ export const Supplier = list({
     filter: { query: rules.canReadSuppliers, update: rules.canReadSuppliers },
   },
   hooks: {
+    resolveInput: async ({ operation, resolvedData, context }) => operation === 'create' ? withOperatorScope(resolvedData, context) : resolvedData,
     validateInput: async ({ operation, resolvedData, context, addValidationError }) => {
       if (operation === 'create' && !resolvedData.organization?.connect?.id) addValidationError('Supplier requires an organization relationship')
       if (operation === 'create' && resolvedData.organization?.connect?.id) {
@@ -41,9 +43,9 @@ export const Supplier = list({
       ],
       defaultValue: 'pending_validation',
     }),
-    organization: relationship({ ref: 'Organization', db: requiredRelationshipDb }),
-    integrationProvider: relationship({ ref: 'IntegrationProvider.suppliers' }),
-    inventoryLots: relationship({ ref: 'InventoryLot.supplier', many: true, access: immutableRelationship }),
+    organization: relationship({ ref: 'Organization', db: requiredRelationshipDb, ui: notOnCreate }),
+    integrationProvider: relationship({ ref: 'IntegrationProvider.suppliers', ui: notOnCreate }),
+    inventoryLots: relationship({ ref: 'InventoryLot.supplier', many: true, access: immutableRelationship, ui: notOnCreate }),
     ...trackingFields,
   },
 })

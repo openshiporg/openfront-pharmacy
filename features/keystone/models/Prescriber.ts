@@ -6,6 +6,7 @@ import { isSignedIn, permissions, rules } from '../access'
 import { requiredRelationshipDb } from './requiredRelationship'
 import { immutableRelationship } from './immutableRelationship'
 import { trackingFields } from './trackingFields'
+import { notOnCreate, withOperatorScope } from './operatorDefaults'
 
 export const Prescriber = list({
   access: {
@@ -18,6 +19,7 @@ export const Prescriber = list({
     filter: { query: rules.canReadPrescribers, update: rules.canReadOrganizationRecords },
   },
   hooks: {
+    resolveInput: async ({ operation, resolvedData, context }) => operation === 'create' ? withOperatorScope(resolvedData, context) : resolvedData,
     validateInput: async ({ operation, resolvedData, context, addValidationError }) => {
       if (operation === 'create' && !resolvedData.organization?.connect?.id) addValidationError('Prescriber requires an organization relationship')
       if (operation === 'create' && resolvedData.organization?.connect?.id) {
@@ -37,10 +39,10 @@ export const Prescriber = list({
   ui: { hideDelete: true, listView: { initialColumns: ['name', 'npi', 'verificationStatus', 'credentialExpiresAt', 'organization'] } },
   fields: {
     name: text({ validation: { isRequired: true } }),
-    npi: text({ isIndexed: true }),
+    npi: text({ isIndexed: true, label: 'NPI' }),
     phone: text(),
     fax: text(),
-    externalIdentifier: text(),
+    externalIdentifier: text({ ui: notOnCreate }),
     verificationStatus: select({
       type: 'string',
       options: [
@@ -50,8 +52,9 @@ export const Prescriber = list({
         { label: 'Rejected', value: 'rejected' },
       ],
       defaultValue: 'unverified',
+      ui: notOnCreate,
     }),
-    externalValidationComplete: checkbox({ defaultValue: false, access: { update: denyAll }, ui: { description: 'Recorded evidence flag; not a software licensure claim.' } }),
+    externalValidationComplete: checkbox({ defaultValue: false, access: { update: denyAll }, ui: { ...notOnCreate, description: 'Recorded evidence flag; not a software licensure claim.' } }),
     verificationMethod: select({
       type: 'string',
       options: [
@@ -61,17 +64,19 @@ export const Prescriber = list({
       ],
       defaultValue: 'not_recorded',
       access: { update: denyAll },
+      ui: notOnCreate,
     }),
-    credentialType: text({ access: { update: denyAll } }),
-    credentialJurisdiction: text({ access: { update: denyAll } }),
-    credentialIdentifier: text({ access: { update: denyAll } }),
-    credentialExpiresAt: timestamp({ access: { update: denyAll } }),
-    validationReference: text({ access: { update: denyAll } }),
-    validatedAt: timestamp({ access: { update: denyAll } }),
-    verifiedBy: relationship({ ref: 'User', access: { update: denyAll } }),
-    organization: relationship({ ref: 'Organization', db: requiredRelationshipDb }),
-    integrationProvider: relationship({ ref: 'IntegrationProvider.prescribers' }),
-    prescriptions: relationship({ ref: 'Prescription.prescriber', many: true, access: immutableRelationship }),
+    // Credential evidence is recorded later through Credential review, not typed in when the prescriber is added.
+    credentialType: text({ access: { update: denyAll }, ui: notOnCreate }),
+    credentialJurisdiction: text({ access: { update: denyAll }, ui: notOnCreate }),
+    credentialIdentifier: text({ access: { update: denyAll }, ui: notOnCreate }),
+    credentialExpiresAt: timestamp({ access: { update: denyAll }, ui: notOnCreate }),
+    validationReference: text({ access: { update: denyAll }, ui: notOnCreate }),
+    validatedAt: timestamp({ access: { update: denyAll }, ui: notOnCreate }),
+    verifiedBy: relationship({ ref: 'User', access: { update: denyAll }, ui: notOnCreate }),
+    organization: relationship({ ref: 'Organization', db: requiredRelationshipDb, ui: notOnCreate }),
+    integrationProvider: relationship({ ref: 'IntegrationProvider.prescribers', ui: notOnCreate }),
+    prescriptions: relationship({ ref: 'Prescription.prescriber', many: true, access: immutableRelationship, ui: notOnCreate }),
     ...trackingFields,
   },
 })

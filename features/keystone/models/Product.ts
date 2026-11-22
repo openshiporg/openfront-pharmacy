@@ -5,6 +5,7 @@ import { isSignedIn, permissions, rules } from '../access'
 import { immutableRelationship } from './immutableRelationship'
 import { requiredRelationshipDb } from './requiredRelationship'
 import { trackingFields } from './trackingFields'
+import { notOnCreate, withOperatorScope } from './operatorDefaults'
 
 export const Product = list({
   access: {
@@ -25,7 +26,8 @@ export const Product = list({
   hooks: {
     resolveInput: {
       // An empty handle is generated from the title, made unique with a numeric suffix.
-      create: async ({ resolvedData, context }) => {
+      create: async ({ resolvedData: input, context }) => {
+        const resolvedData = await withOperatorScope(input, context, { location: true })
         if (String(resolvedData.handle || '').trim() || !resolvedData.title) return resolvedData
         const base = String(resolvedData.title).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80) || 'product'
         let handle = base
@@ -91,7 +93,7 @@ export const Product = list({
   fields: {
     title: text({ validation: { isRequired: true } }),
     handle: text({ isIndexed: 'unique', label: 'Handle (optional)' }),
-    sku: text({ validation: { isRequired: true }, isIndexed: 'unique' }),
+    sku: text({ validation: { isRequired: true }, isIndexed: 'unique', label: 'SKU' }),
     description: text({ ui: { displayMode: 'textarea' } }),
     status: select({
       type: 'string',
@@ -128,8 +130,8 @@ export const Product = list({
       ],
       defaultValue: 'none',
     }),
-    priceAmount: integer({ validation: { isRequired: true, min: 0 }, defaultValue: 0, label: 'Price (cents)' }),
-    currencyCode: text({ defaultValue: 'USD', validation: { isRequired: true } }),
+    priceAmount: integer({ validation: { isRequired: true, min: 0 }, defaultValue: 0, label: 'Price in cents', ui: { description: '1299 is $12.99.' } }),
+    currencyCode: text({ defaultValue: 'USD', validation: { isRequired: true }, ui: notOnCreate }),
     taxable: checkbox({ defaultValue: true }),
     onlineAvailable: checkbox({ defaultValue: false }),
     posAvailable: checkbox({ defaultValue: true }),
@@ -147,13 +149,13 @@ export const Product = list({
       }),
       ui: { itemView: { fieldMode: 'hidden' }, listView: { fieldMode: 'hidden' } },
     }),
-    organization: relationship({ ref: 'Organization.products', db: requiredRelationshipDb }),
-    location: relationship({ ref: 'PharmacyLocation.products', db: requiredRelationshipDb }),
-    drugReference: relationship({ ref: 'DrugReference.products' }),
-    inventoryLots: relationship({ ref: 'InventoryLot.product', many: true, access: immutableRelationship }),
-    cartItems: relationship({ ref: 'CartItem.product', many: true, access: immutableRelationship }),
-    orderLineItems: relationship({ ref: 'OrderLineItem.product', many: true, access: immutableRelationship }),
-    prescriptionItems: relationship({ ref: 'PrescriptionItem.product', many: true, access: immutableRelationship }),
+    organization: relationship({ ref: 'Organization.products', db: requiredRelationshipDb, ui: notOnCreate }),
+    location: relationship({ ref: 'PharmacyLocation.products', db: requiredRelationshipDb, ui: notOnCreate }),
+    drugReference: relationship({ ref: 'DrugReference.products', label: 'Drug reference (needed for prescription items)' }),
+    inventoryLots: relationship({ ref: 'InventoryLot.product', many: true, access: immutableRelationship, ui: notOnCreate }),
+    cartItems: relationship({ ref: 'CartItem.product', many: true, access: immutableRelationship, ui: notOnCreate }),
+    orderLineItems: relationship({ ref: 'OrderLineItem.product', many: true, access: immutableRelationship, ui: notOnCreate }),
+    prescriptionItems: relationship({ ref: 'PrescriptionItem.product', many: true, access: immutableRelationship, ui: notOnCreate }),
     ...trackingFields,
   },
 })

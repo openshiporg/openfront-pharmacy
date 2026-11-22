@@ -97,7 +97,7 @@ function QueueRow({ item, hidePriority, ageHeader = 'Age' }: { item: WorkflowQue
     <td className="max-w-48 px-3 py-2.5 text-muted-foreground">{lead && <span className="block break-words" title={lead.value}>{lead.value || 'Not recorded'}</span>}{second && <span className="block truncate text-xs" title={second.value}>{second.value || 'Not recorded'}</span>}</td>
     <td data-label="State" className="whitespace-nowrap px-3 py-2.5">{humanize(item.state).replace(/^./, (letter) => letter.toUpperCase())}</td>
     <td data-label={ageHeader} className="whitespace-nowrap px-3 py-2.5 text-muted-foreground tabular-nums">{item.ageLabel}<span className="block text-xs max-sm:before:content-['_·_']">{item.location}</span></td>
-    <td data-label="Next" className={cn('px-3 py-2.5 font-medium', !item.nextDecision && 'max-sm:hidden')} title={item.decisionHint || undefined}>{item.nextDecision}</td>
+    {!hidePriority && <td data-label="Next" className={cn('px-3 py-2.5 font-medium', !item.nextDecision && 'max-sm:hidden')} title={item.decisionHint || undefined}>{item.nextDecision}</td>}
     <td className="rx-stack-actions px-3 py-2 text-right"><Link href={item.href} aria-label={`Open ${item.title}`} className={buttonClass}>Open<ChevronRight aria-hidden="true" className="size-3.5" /></Link></td>
   </tr>
 }
@@ -253,7 +253,7 @@ export function WorkflowQueuePage(props: {
                 <th scope="col" className="h-8 px-3 font-medium">{props.items[0]?.context[0]?.label ?? 'Detail'}</th>
                 <th scope="col" className="h-8 px-3 font-medium">State</th>
                 <th scope="col" className="h-8 px-3 font-medium">{props.finished?.ageHeader ?? 'Age'}</th>
-                <th scope="col" className="h-8 px-3 font-medium">Next</th>
+                {!hidePriority && <th scope="col" className="h-8 px-3 font-medium">Next</th>}
                 <th scope="col" className="h-8 px-3"><span className="sr-only">Open</span></th>
               </tr></thead>
               <tbody>{filteredItems.map((item) => <QueueRow key={item.id} item={item} hidePriority={hidePriority} ageHeader={props.finished?.ageHeader} />)}</tbody>
