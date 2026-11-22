@@ -32,9 +32,9 @@ export function LocationContactForm({ id, name, phone, address }: { id: string; 
   const field = (key: string, label: string, defaultValue?: string | null, extra?: Record<string, unknown>) => <div className="grid gap-1.5"><Label htmlFor={`loc-${key}`}>{label}</Label><Input id={`loc-${key}`} name={key} defaultValue={defaultValue || ''} {...extra} /></div>
 
   return <form onSubmit={submit} className="grid gap-3">
-    <div className="grid gap-3 sm:grid-cols-2">{field('name', 'Name', name, { required: true, maxLength: 120 })}{field('phone', 'Phone', phone, { type: 'tel', maxLength: 40 })}</div>
-    <div className="grid gap-3 sm:grid-cols-2">{field('line1', 'Street', address?.line1, { required: true })}{field('line2', 'Suite (optional)', address?.line2)}</div>
-    <div className="grid gap-3 sm:grid-cols-3">{field('city', 'City', address?.city, { required: true })}{field('region', 'State', address?.region)}{field('postalCode', 'ZIP code', address?.postalCode, { required: true, inputMode: 'numeric' })}</div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{field('name', 'Name', name, { required: true, maxLength: 120 })}{field('phone', 'Phone', phone, { type: 'tel', maxLength: 40 })}</div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">{field('line1', 'Street', address?.line1, { required: true })}{field('line2', 'Suite (optional)', address?.line2)}</div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">{field('city', 'City', address?.city, { required: true })}{field('region', 'State', address?.region)}{field('postalCode', 'ZIP code', address?.postalCode, { required: true, inputMode: 'numeric' })}</div>
     {error && <Callout tone="danger">{error}</Callout>}
     <Button type="submit" disabled={pending} className="w-fit">{pending ? 'Saving…' : 'Save'}</Button>
   </form>

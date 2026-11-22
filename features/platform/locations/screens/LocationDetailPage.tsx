@@ -28,7 +28,7 @@ export async function LocationDetailPage({ params }: { params: Promise<{ id: str
       <Field label="Orders"><Mono>{location.ordersCount}</Mono></Field>
     </dl>
     <TaskSection title="Status and service">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="grid gap-2"><TitleLine as="h3" titleClassName="text-sm" title="Location" tone={location.status === 'active' ? 'ok' : 'warn'} state={humanize(location.status)} />{canManage && <TransitionPills label="Location status" options={locationStatusOptions(location)} />}</div>
         {SWITCHES.map(([field, label]) => <div key={field} className="grid gap-2"><TitleLine as="h3" titleClassName="text-sm" title={label} tone={location[field] ? 'ok' : 'muted'} state={location[field] ? 'On' : 'Off'} />{canManage && <TransitionPills label={label} options={[{ label: location[field] ? 'Turn off' : 'Turn on', action: setLocationSwitch.bind(null, location.id, field, !location[field]) }]} />}</div>)}
       </div>

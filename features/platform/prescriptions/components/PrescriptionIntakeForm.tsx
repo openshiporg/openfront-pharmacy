@@ -48,7 +48,7 @@ export function PrescriptionIntakeForm({ options }: { options: PharmacyPrescript
   }
 
   const ready = organizationId && locationId && patientId && prescriberId && productId && prescriptionNumber.trim() && source && writtenAt && expiresAt && new Date(expiresAt).getTime() > new Date(writtenAt).getTime() && medicationName.trim() && sig.trim() && quantity > 0 && reason.trim().length >= 8 && attested
-  return <div className="grid gap-4 sm:grid-cols-2">
+  return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
     {options.organizations.length > 1 && <label className="text-sm">Organization<OptionSelect value={organizationId} onValueChange={(value) => { setOrganizationId(value); setLocationId(''); setPatientId(''); setPrescriberId(''); setProductId('') }} className="mt-2">{options.organizations.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</OptionSelect></label>}
     <label className="text-sm">Location<OptionSelect value={locationId} onValueChange={(value) => { setLocationId(value); setProductId('') }} className="mt-2"><option value="">Select</option>{locations.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</OptionSelect></label>
     <label className="text-sm">Patient<OptionSelect value={patientId} onValueChange={(value) => setPatientId(value)} className="mt-2"><option value="">Select</option>{options.patients.filter((entry) => entry.scopeId === organizationId).map((entry) => <option key={entry.id} value={entry.id}>{entry.label} · {entry.detail}</option>)}</OptionSelect></label>

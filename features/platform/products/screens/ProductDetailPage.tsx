@@ -62,7 +62,7 @@ export async function ProductDetailPage({ params }: { params: Promise<{ id: stri
     {product.status === 'published' && product.onlineAvailable && rx && <Callout tone="muted">Prescription products are not sold through online checkout.</Callout>}
 
     <TaskSection title="Status and channels">
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="grid gap-2"><TitleLine as="h3" titleClassName="text-sm" title="Status" tone={product.status === 'published' ? 'ok' : product.status === 'archived' ? 'muted' : 'warn'} state={humanize(product.status)} /><TransitionPills label="Product status" options={statusOptions} /></div>
         <div className="grid gap-2"><TitleLine as="h3" titleClassName="text-sm" title="Online store" tone={product.onlineAvailable ? 'ok' : 'muted'} state={product.onlineAvailable ? 'On' : 'Off'} /><TransitionPills label="Online store" options={[{ label: product.onlineAvailable ? 'Turn off' : 'Turn on', action: setProductChannel.bind(null, product.id, 'onlineAvailable', !product.onlineAvailable) }]} /></div>
         <div className="grid gap-2"><TitleLine as="h3" titleClassName="text-sm" title="Point of sale" tone={product.posAvailable ? 'ok' : 'muted'} state={product.posAvailable ? 'On' : 'Off'} /><TransitionPills label="Point of sale" options={[{ label: product.posAvailable ? 'Turn off' : 'Turn on', action: setProductChannel.bind(null, product.id, 'posAvailable', !product.posAvailable) }]} /></div>

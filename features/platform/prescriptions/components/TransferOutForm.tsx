@@ -34,7 +34,7 @@ export function TransferOutForm({ prescriptionId, patientId }: { prescriptionId:
   }
 
   return <form onSubmit={submit} className="grid gap-3">
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="grid gap-1.5"><Label htmlFor="to-pharmacy">Receiving pharmacy</Label><Input id="to-pharmacy" name="counterpartyName" maxLength={200} required /></div>
       <div className="grid gap-1.5"><Label htmlFor="to-phone">Its phone</Label><Input id="to-phone" name="counterpartyPhone" type="tel" maxLength={40} /></div>
     </div>

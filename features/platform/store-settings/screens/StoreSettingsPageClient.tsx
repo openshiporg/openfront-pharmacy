@@ -104,7 +104,7 @@ function StoreSettingsForm({ store, canEdit = true }: { store: StoreSettings; ca
             <Label htmlFor="store-tagline">Tagline</Label>
             <Input id="store-tagline" value={tagline} maxLength={200} onChange={(e) => setTagline(e.target.value)} />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="support-email">Support email</Label>
               <Input id="support-email" type="email" value={supportEmail} onChange={(e) => setSupportEmail(e.target.value)} />

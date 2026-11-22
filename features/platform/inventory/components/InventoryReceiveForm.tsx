@@ -112,7 +112,7 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
   const tomorrow = new Date(Date.parse(`${pharmacyDay}T12:00:00.000Z`) + 86_400_000).toISOString().slice(0, 10)
   const coldChainReady = !coldChain || (minimumTemperatureC.trim() !== '' && maximumTemperatureC.trim() !== '' && Number(minimumTemperatureC) < Number(maximumTemperatureC) && temperatureLogReviewed)
   const ready = coldChainReady && locationId && productId && products.some((entry) => entry.id === productId && entry.scopeId === locationId) && lotNumber.trim() && expirationDate >= tomorrow && quantity > 0 && reason.trim().length >= 8 && attested
-  return <div className="grid gap-4 sm:grid-cols-2">
+  return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
     <label className="text-sm">Location<OptionSelect value={locationId} onValueChange={(value) => { const nextLocationId = value; setLocationId(nextLocationId); setSupplierId(''); setProductSearch(''); void loadFirstProductPage(nextLocationId, productStatus) }} className="mt-2">{options.locations.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</OptionSelect></label>
     <div className="grid gap-2">
       <label className="text-sm">Filter product status<OptionSelect value={productStatus} onValueChange={(value) => { const nextStatus = value; setProductStatus(nextStatus); setProductSearch(''); void loadFirstProductPage(locationId, nextStatus) }} className="mt-2"><option value="">Draft and published</option><option value="draft">Draft</option><option value="published">Published</option></OptionSelect></label>
@@ -130,7 +130,7 @@ export function InventoryReceiveForm({ options, initialProductWorklist }: { opti
     <label className="text-sm">Serial / package identifier (optional)<Input value={serialNumber} onChange={(event) => setSerialNumber(event.target.value)} className="mt-2" /></label>
     <label className="text-sm">Expiration date<PlatformDateInput min={tomorrow} value={expirationDate} onChange={(value) => setExpirationDate(value)} className="mt-2" /></label>
     <label className="text-sm">Quantity received<Input type="number" min={1} value={quantity} onChange={(event) => setQuantity(Number(event.target.value))} className="mt-2" /></label>
-    {coldChain ? <fieldset className="grid gap-3 rounded-[6px] border border-border p-3 sm:col-span-2 sm:grid-cols-2">
+    {coldChain ? <fieldset className="grid grid-cols-1 gap-3 rounded-[6px] border border-border p-3 sm:col-span-2 sm:grid-cols-2">
       <legend className="px-1 text-sm font-medium">Cold chain</legend>
       <label className="text-sm">Storage minimum (°C)<Input type="number" step="0.1" value={minimumTemperatureC} onChange={(event) => setMinimumTemperatureC(event.target.value)} className="mt-2" /></label>
       <label className="text-sm">Storage maximum (°C)<Input type="number" step="0.1" value={maximumTemperatureC} onChange={(event) => setMaximumTemperatureC(event.target.value)} className="mt-2" /></label>

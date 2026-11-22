@@ -40,7 +40,7 @@ export function DrugReviewForm({ drugReferenceId, organizations }: { drugReferen
       <div className="grid gap-1.5"><span className="text-sm font-medium">Marketing status</span><Track label="Marketing status"><Pill active={marketingStatus === 'active'} onClick={() => setMarketingStatus('active')}>Active</Pill><Pill active={marketingStatus === 'inactive'} onClick={() => setMarketingStatus('inactive')}>Inactive</Pill></Track></div>
       <div className="grid gap-1.5"><span className="text-sm font-medium">Schedule</span><Track label="Controlled schedule"><Pill active={controlledSchedule === 'none'} onClick={() => setControlledSchedule('none')}>Not scheduled</Pill><Pill active={controlledSchedule === 'controlled_or_unsupported'} onClick={() => setControlledSchedule('controlled_or_unsupported')}>Controlled</Pill></Track></div>
     </div>
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <div className="grid gap-1.5"><Label htmlFor="drug-source">Source</Label><Input id="drug-source" name="sourceName" placeholder="FDA NDC Directory" required /></div>
       <div className="grid gap-1.5"><Label htmlFor="drug-version">Source version</Label><Input id="drug-version" name="sourceVersion" required /></div>
       <div className="grid gap-1.5"><Label htmlFor="drug-ref">Source reference</Label><Input id="drug-ref" name="sourceReference" required /></div>

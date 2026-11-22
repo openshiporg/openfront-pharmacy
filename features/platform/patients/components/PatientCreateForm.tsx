@@ -34,7 +34,7 @@ export function PatientCreateForm({ organizations, prefill }: { organizations: P
   const [error, setError] = useState('')
   const [pending, startTransition] = useTransition()
   const ready = Boolean(organizationId && patientNumber.trim() && firstName.trim() && lastName.trim() && dateOfBirth && identityMethod.trim() && identityReference.trim() && reason.trim().length >= 8 && attested)
-  return <div className="grid gap-4 sm:grid-cols-2">
+  return <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
     {organizations.length > 1 && <label className="text-sm">Organization<OptionSelect value={organizationId} onValueChange={(value) => setOrganizationId(value)} className="mt-2">{organizations.map((entry) => <option key={entry.id} value={entry.id}>{entry.label}</option>)}</OptionSelect></label>}
     <label className="text-sm">Patient number<Input value={patientNumber} onChange={(event) => setPatientNumber(event.target.value.toUpperCase())} placeholder="P-1001" className="mt-2" /></label>
     <label className="text-sm">First name<Input value={firstName} onChange={(event) => setFirstName(event.target.value)} className="mt-2" /></label><label className="text-sm">Last name<Input value={lastName} onChange={(event) => setLastName(event.target.value)} className="mt-2" /></label>

@@ -37,13 +37,13 @@ export function PatientContactForm({ patientId, email, phone, preferredContactMe
   }
 
   return <form onSubmit={submit} className="grid gap-3">
-    <div className="grid gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
       <div className="grid gap-1.5"><Label htmlFor="pc-email">Email</Label><Input id="pc-email" name="email" type="email" defaultValue={email || ''} /></div>
       <div className="grid gap-1.5"><Label htmlFor="pc-phone">Phone</Label><Input id="pc-phone" name="phone" type="tel" defaultValue={phone || ''} /></div>
     </div>
     <div className="grid gap-1.5"><span className="text-sm font-medium">Preferred contact</span><Track label="Preferred contact" className="w-fit">{METHODS.map(([value, label]) => <Pill key={value} active={method === value} onClick={() => setMethod(value)}>{label}</Pill>)}</Track></div>
-    <div className="grid gap-3 sm:grid-cols-2"><div className="grid gap-1.5"><Label htmlFor="pc-line1">Street</Label><Input id="pc-line1" name="line1" defaultValue={address?.line1 || ''} /></div><div className="grid gap-1.5"><Label htmlFor="pc-line2">Unit</Label><Input id="pc-line2" name="line2" defaultValue={address?.line2 || ''} /></div></div>
-    <div className="grid gap-3 sm:grid-cols-3"><div className="grid gap-1.5"><Label htmlFor="pc-city">City</Label><Input id="pc-city" name="city" defaultValue={address?.city || ''} /></div><div className="grid gap-1.5"><Label htmlFor="pc-region">State</Label><Input id="pc-region" name="region" defaultValue={address?.region || ''} /></div><div className="grid gap-1.5"><Label htmlFor="pc-zip">ZIP code</Label><Input id="pc-zip" name="postalCode" defaultValue={address?.postalCode || ''} /></div></div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><div className="grid gap-1.5"><Label htmlFor="pc-line1">Street</Label><Input id="pc-line1" name="line1" defaultValue={address?.line1 || ''} /></div><div className="grid gap-1.5"><Label htmlFor="pc-line2">Unit</Label><Input id="pc-line2" name="line2" defaultValue={address?.line2 || ''} /></div></div>
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><div className="grid gap-1.5"><Label htmlFor="pc-city">City</Label><Input id="pc-city" name="city" defaultValue={address?.city || ''} /></div><div className="grid gap-1.5"><Label htmlFor="pc-region">State</Label><Input id="pc-region" name="region" defaultValue={address?.region || ''} /></div><div className="grid gap-1.5"><Label htmlFor="pc-zip">ZIP code</Label><Input id="pc-zip" name="postalCode" defaultValue={address?.postalCode || ''} /></div></div>
     <div className="grid gap-1.5"><Label htmlFor="pc-reason">Reason</Label><Input id="pc-reason" name="reason" minLength={3} required /></div>
     <label className="flex items-start gap-2.5 text-sm"><input type="checkbox" name="attested" required className="mt-0.5 size-4" />I confirmed this change with the patient.</label>
     {error && <Callout tone="danger">{error}</Callout>}
