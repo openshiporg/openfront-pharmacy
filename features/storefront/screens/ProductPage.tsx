@@ -61,8 +61,8 @@ export async function ProductPage({ params }: Props) {
     </nav>
 
     <div className="mt-2 grid gap-8 lg:grid-cols-[260px_minmax(0,1fr)] xl:grid-cols-[236px_minmax(0,1fr)_264px] xl:gap-10">
-      {/* Left: shop by category and why shop with us */}
-      <aside className="order-3 grid content-start gap-6 lg:order-none lg:row-span-2">
+      {/* Left, desktop only: shop by category and why shop with us. On a phone the menu already lists departments. */}
+      <aside className="hidden content-start gap-6 lg:row-span-2 lg:grid">
         {categories.length > 0 && <nav aria-labelledby="by-category">
           <h2 id="by-category" className="rx-serif text-[22px] lg:text-[18px]">Shop by category</h2>
           <ul className="mt-3 grid">

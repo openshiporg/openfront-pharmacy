@@ -28,9 +28,11 @@ export function PageBreadcrumbs({ items, actions }: PageBreadcrumbsProps) {
   return (
     <header className="sticky top-0 z-30 bg-background flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12 border-b">
       <div className="flex min-w-0 items-center gap-2 px-4 w-full justify-between">
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
+          {/* Phones show where you are (the last crumb); the full trail returns from md up. */}
+          {items.length > 0 && <span className="truncate text-sm font-medium text-foreground md:hidden">{items[items.length - 1].label}</span>}
           <Breadcrumb className="hidden md:flex">
             <BreadcrumbList>
               {items.map((item, index) => (

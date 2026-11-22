@@ -37,6 +37,8 @@ export function StoreSettingsSaveBar({
         {status ? <span className="text-xs text-muted-foreground">{status}</span> : null}
         {control}
       </div>
+      {/* Room for the fixed bar, so it never sits over the last section of the form. */}
+      <div aria-hidden="true" className="h-20 md:hidden" />
       <div className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-end gap-3 border-t border-border bg-background/95 py-3 pl-4 pr-[4.5rem] pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur supports-[backdrop-filter]:bg-background/80 md:hidden">
         {status ? <span className="mr-auto truncate text-xs text-muted-foreground">{status}</span> : null}
         {control}
