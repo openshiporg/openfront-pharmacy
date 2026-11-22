@@ -45,7 +45,7 @@ export async function RecallQueuePage({ searchParams }: { searchParams?: Promise
       exceptions,
       context: [
         { label: 'Classification', value: recall.classification },
-        { label: 'Affected / protected', value: `${recall.affectedLotCount} / ${recall.quarantinedLotCount}` },
+        { label: 'Lots', value: `${recall.affectedLotCount} affected · ${recall.quarantinedLotCount} quarantined` },
         { label: 'Exposure outreach', value: recall.unresolvedExposureCount ? `${recall.unresolvedExposureCount} unresolved` : 'No unresolved exposure reported' },
         { label: 'Source', value: recall.source || 'Not reported' },
         { label: 'Approval', value: recall.approvedBy || (recall.approvalRecorded ? 'Recorded' : 'Not recorded') },

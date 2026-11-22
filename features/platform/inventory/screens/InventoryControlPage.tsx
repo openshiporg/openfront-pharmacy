@@ -54,8 +54,8 @@ export async function InventoryControlPage({ searchParams }: { searchParams?: Pr
       location: lot.locationName,
       exceptions,
       context: [
-        { label: 'Available', value: String(lot.quantityAvailable) },
-        { label: 'Quarantined', value: String(lot.quantityQuarantined) },
+        { label: 'Stock', value: `${lot.quantityAvailable} available` },
+        { label: 'Quarantined', value: `${lot.quantityQuarantined} quarantined` },
         { label: 'Expiration', value: lot.expirationDate ? formatCalendarDate(lot.expirationDate) : 'Not reported' },
         { label: 'Recall / excursion', value: `${lot.activeRecallCount} / ${lot.openExcursionCount}` },
       ],
