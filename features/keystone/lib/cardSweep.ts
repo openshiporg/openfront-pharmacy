@@ -67,11 +67,18 @@ export async function sweepOpenCardPayments() {
   return { checked: sessions.length, placed }
 }
 
-/** One timer per process; a run never overlaps the last one. */
+// The minute timer only runs for this long after the last card checkout started, so an idle store can sleep.
+// A paid checkout left open longer is still placed by the run at the next server start.
+const ACTIVE_MS = 30 * 60_000
+
+type SweepState = { __pharmacyCardSweep?: ReturnType<typeof setInterval>; __pharmacyCardSweepArm?: () => void }
+
+/** One run at start-up, then a minute timer only while a checkout is recent; a run never overlaps the last one. */
 export function startCardSweep() {
-  const state = globalThis as { __pharmacyCardSweep?: ReturnType<typeof setInterval> }
-  if (state.__pharmacyCardSweep || !process.env.STRIPE_SECRET_KEY) return
+  const state = globalThis as SweepState
+  if (state.__pharmacyCardSweepArm || !process.env.STRIPE_SECRET_KEY) return
   let running = false
+  let armedAt = 0
   const run = async () => {
     if (running) return
     running = true
@@ -81,10 +88,18 @@ export function startCardSweep() {
       console.error('Card sweep failed', error instanceof Error ? error.message : error)
     } finally {
       running = false
+      if (state.__pharmacyCardSweep && Date.now() - armedAt > ACTIVE_MS) {
+        clearInterval(state.__pharmacyCardSweep)
+        state.__pharmacyCardSweep = undefined
+      }
     }
   }
-  state.__pharmacyCardSweep = setInterval(run, EVERY_MS)
-  state.__pharmacyCardSweep.unref?.()
+  state.__pharmacyCardSweepArm = () => {
+    armedAt = Date.now()
+    if (state.__pharmacyCardSweep) return
+    state.__pharmacyCardSweep = setInterval(run, EVERY_MS)
+    state.__pharmacyCardSweep.unref?.()
+  }
   setTimeout(run, 15_000).unref?.()
-  console.log('Card sweep started (every 60 s)')
+  console.log('Card sweep started (at start-up, then every 60 s for 30 min after a card checkout starts)')
 }

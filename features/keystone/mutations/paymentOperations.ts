@@ -231,6 +231,8 @@ export async function initiatePharmacyPaymentSession(
   }
   const externalPaymentId = providerData?.paymentIntentId || providerData?.orderId || (isManualPaymentProvider(provider) ? `manual:${prepared.id}` : null)
   if (!externalPaymentId) throw new DomainError('Payment provider did not return a payment reference')
+  // Keep the card sweep (lib/cardSweep.ts) running for the next 30 minutes. Set on globalThis there; no import, to avoid a cycle.
+  ;(globalThis as { __pharmacyCardSweepArm?: () => void }).__pharmacyCardSweepArm?.()
 
   return withDomainTransaction(context, [`payment-session:${prepared.id}`], async (transactionContext) => {
     const session = await transactionContext.sudo().query.PaymentSession.updateOne({
