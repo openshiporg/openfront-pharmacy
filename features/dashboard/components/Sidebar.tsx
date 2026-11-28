@@ -36,7 +36,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { AdminMeta } from '../hooks/useAdminMeta'
-import { Home, Database, ChevronRight, Package } from 'lucide-react'
+import { Database, ChevronRight, Package } from 'lucide-react'
 import { Logo, LogoIcon } from '@/features/dashboard/components/Logo'
 import { UserProfileClient } from './UserProfileClient'
 import { OnboardingCards } from '@/features/platform/onboarding/components/OnboardingCards'
@@ -136,20 +136,6 @@ export function Sidebar({ adminMeta, user, onOpenDialog }: SidebarProps) {
       </SidebarHeader>
 
       <SidebarContent className="no-scrollbar gap-0.5">
-        {/* Dashboard Home Link */}
-        <SidebarGroup>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild isActive={isLinkActive('/dashboard')}>
-                <Link href="/dashboard" onClick={() => setOpenMobile(false)}>
-                  <Home className="h-4 w-4" />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarGroup>
-
         {/* Platform Routes */}
         <SidebarGroup>
           <SidebarGroupLabel>Platform</SidebarGroupLabel>
