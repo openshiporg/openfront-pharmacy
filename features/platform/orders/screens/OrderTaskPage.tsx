@@ -22,11 +22,11 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
   const canRefund = await roleCan('canManagePayments')
   return <TaskPage parent={{ label: 'Orders', href: '/platform/orders' }} meta={`Order · ${order.fulfillmentMethod === 'pos' ? 'Point of sale' : label(order.fulfillmentMethod)}`} title={order.orderNumber} state={humanize(state)} tone={statusTone(state)} description={order.locationName}>
     <dl className="grid grid-cols-[repeat(2,minmax(0,1fr))] gap-x-6 gap-y-4 rounded-[6px] border border-border bg-card px-4 py-4 sm:grid-cols-[repeat(4,minmax(0,1fr))] sm:px-5">
-      {(order.customerName || order.customerEmail || order.customerPhone) && <Field label="Customer" className="col-span-2">{order.customerName || 'Name not given'}{order.customerPhone && <a href={`tel:${order.customerPhone}`} className="block font-mono text-xs text-muted-foreground hover:underline">{order.customerPhone}</a>}{order.customerEmail && <span className="block truncate text-xs text-muted-foreground">{order.customerEmail}</span>}</Field>}
+      {(order.customerName || order.customerEmail || order.customerPhone) && <Field label="Customer" className="col-span-2"><span className="block">{order.customerName || 'Name not given'}</span>{order.customerPhone && <a href={`tel:${order.customerPhone}`} className="block font-mono text-xs text-muted-foreground hover:underline">{order.customerPhone}</a>}{order.customerEmail && <span className="block truncate text-xs text-muted-foreground">{order.customerEmail}</span>}</Field>}
       <Field label="Total"><Mono>{money(order.totalAmount, order.currencyCode)}</Mono></Field>
       <Field label="Payment">{order.payment ? label(order.payment.status) : 'Not recorded'}</Field>
       <Field label="Placed">{formatDateTime(order.createdAt, timeZone)}</Field>
-      <Field label={order.fulfillmentMethod === 'delivery' ? 'Delivery window' : 'Pickup'}>{order.fulfillmentMethod === 'delivery' ? (order.deliveryWindow || 'Not set') : (order.pickupAt ? formatDateTime(order.pickupAt, timeZone) : 'Not set')}</Field>
+      <Field label={order.fulfillmentMethod === 'delivery' ? 'Delivery window' : 'Pickup'}>{order.fulfillmentMethod === 'delivery' ? (order.deliveryWindow || 'Not set') : (order.pickupAt ? formatDateTime(order.pickupAt, timeZone) : order.fulfillment?.handedOffAt ? formatDateTime(order.fulfillment.handedOffAt, timeZone) : order.fulfillment?.readyAt ? `Ready since ${formatDateTime(order.fulfillment.readyAt, timeZone)}` : 'When ready')}</Field>
     </dl>
     <TaskSection title="Items" count={order.lines.length}>
       <div className="divide-y">{order.lines.map((line) => <div key={line.id} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-1 py-3 text-sm first:pt-0 last:pb-0 sm:grid-cols-[minmax(0,1fr)_4rem_7rem]">
@@ -41,7 +41,7 @@ export async function OrderTaskPage({ params }: { params: Promise<{ id: string }
         <div className="flex justify-between font-semibold"><dt>Total</dt><dd><Mono>{money(order.totalAmount, order.currencyCode)}</Mono></dd></div>
       </dl>
     </TaskSection>
-    <TaskSection title="Fulfillment"><FulfillmentTaskActions order={order} /></TaskSection>
+    <TaskSection title="Order progress"><FulfillmentTaskActions order={order} /></TaskSection>
     <TaskSection title="Payment and refund"><PaymentTaskActions order={order} canRefund={canRefund} /></TaskSection>
   </TaskPage>
 }
